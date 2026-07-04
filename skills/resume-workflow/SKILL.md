@@ -97,15 +97,19 @@ First, check the `"status"` field in the session file:
        - Recommend running: `project-memory-bootstrap` (to load codebase memory).
    *   **Checkpoint 2** (Memory Loaded):
        - Recommend running: `brainstorming` (to start requirement discovery).
-   *   **Checkpoint 3** (Architecture Analysis Complete):
-       - Check if `docs/plans/FEAT-XXX_*.md` exists.
-         - If missing: Recommend running `brainstorming-to-plan`.
-         - If exists: Recommend running `plan-to-blueprint` (to create the technical design).
-   *   **Checkpoint 4** (Blueprint/Fix Spec Generated):
-       - Recommend running: `blueprint-to-implementation` (or `quick-fix`/`quick-feature` if utilizing fast-track).
-   *   **Checkpoint 5** (Implementation Ready) or **Checkpoint 6** (Verification & Testing Complete):
-       - Recommend running: `implementation-to-release` (to run tests, bump version, and release).
-   *   **Checkpoint 7** (Release Complete):
+   *   **Checkpoint 3** (Requirement Brainstorming Complete):
+       - Recommend running: `brainstorming-to-plan` (to generate the plan).
+   *   **Checkpoint 4** (Implementation Plan Approved):
+       - Recommend running: `plan-to-blueprint` (to create technical design blueprint).
+   *   **Checkpoint 5** (Technical Blueprint Approved):
+       - Recommend running: `blueprint-to-implementation` (or `quick-fix`/`quick-feature` if using fast-track).
+   *   **Checkpoint 6** (Implementation Complete):
+       - Recommend running: `implementation-to-debug` (to build, compile, and run tests).
+   *   **Checkpoint 7** (Debug Complete):
+       - Recommend running: `debug-to-verify` (to audit quality gates).
+   *   **Checkpoint 8** (Verification Complete):
+       - Recommend running: `implementation-to-release` (to merge, tag, and publish).
+   *   **Checkpoint 9** (Release Complete):
        - Inform the user that the active feature has been successfully released and recommend starting a new workflow.
 
 ## Step 4 — Heartbeat Output

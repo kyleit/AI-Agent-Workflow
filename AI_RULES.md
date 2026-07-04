@@ -92,6 +92,8 @@ The documentation architecture enforces strict separation of concerns.
     | `docs/issues/` | Bug Fix Specifications (Quick-Fix) | `FIX-XXX_slug.md` |
     | `docs/quick/` | Quick Feature Specifications | `QUICK-XXX_slug.md` |
     | `docs/adr/` | Architectural Decision Records | `ADR-XXX_slug.md` |
+    | `docs/debug/` | Debug and Build Diagnostics | `FEAT-XXX_debug.md` |
+    | `docs/verification/` | Final Quality Gate Reports | `FEAT-XXX_verify.md` |
     | `docs/releases/` | Release Notes & Change Logs | `RELEASE-XXX_slug.md` |
     | `docs/archive/` | Historical/Retired Artifacts | As needed |
 *   **Relative Paths**: All links inside documents must use relative file paths/links. Absolute paths (e.g., `file:///Users/...`) are strictly prohibited in project artifacts.
@@ -136,27 +138,29 @@ Reliability is enforced through automated builds and testing.
 *   **Verification Gates**:
     *   Before any code change is finalized, you must verify compilation and run the test suite.
     *   Always execute build commands (e.g., `npm run build`, `go build`) followed by unit/integration tests.
+    *   **Debug & Verify Quality Gates**: All standard feature cycles must pass through `implementation-to-debug` (compilation, linter, tests, and error checks) followed by `debug-to-verify` (blueprint compliance, checklist verification, and Go/No-Go decision).
 *   **Failure Behavior**:
     *   If building or compiling fails, or if any test fails: print stdout/stderr.
-    *   **STOP** immediately. Set status to `Failed verification` and do not proceed with commit or release activities.
+    *   **STOP** immediately. Set status to `Failed verification` and do not proceed with commit, verify, or release activities.
 
 ---
 
 ## 9. Release Policy
 
-Releasing a feature or fix must proceed through a strict sequential order.
+Releasing a feature or fix must proceed through a strict sequential order. Releasing is strictly forbidden when build failed, tests failed, or verify failed. Verification must become the final Quality Gate before Release.
 
 *   **Release Sequence**:
-    1.  **Build & Test**: Compile the codebase and run test suites to ensure 100% pass rate.
-    2.  **Detect Version**: Determine the current project version.
-    3.  **Update Version**: Update the version strings across project config files (requires approval).
-    4.  **Update CHANGELOG**: Write release notes into `CHANGELOG.md` under a new version heading (requires approval).
-    5.  **Merge (if applicable)**: Run the Release Gate; if on a non-main branch, ask whether to merge and await approval.
-    6.  **Approval Gate**: Explain the final Git commit, tag, and push actions, listing all modified files and branch, then request final release approval.
-    7.  **Commit**: Commit version files and `CHANGELOG.md`.
-    8.  **Git Tag**: Tag the release commit as `vX.Y.Z`.
-    9.  **Push Branch**: Push the release branch to the remote repository.
-    10. **Push Tag**: Push the tag to the remote repository.
+    1.  **Verify Status Check**: Check `docs/verification/FEAT-XXX_verify.md` and ensure the verification status is `PASS`. If `FAIL` or missing, STOP the workflow and return to the debug phase.
+    2.  **Build & Test**: Compile the codebase and run test suites to ensure 100% pass rate.
+    3.  **Detect Version**: Determine the current project version.
+    4.  **Update Version**: Update the version strings across project config files (requires approval).
+    5.  **Update CHANGELOG**: Write release notes into `CHANGELOG.md` under a new version heading (requires approval).
+    6.  **Merge (if applicable)**: Run the Release Gate; if on a non-main branch, ask whether to merge and await approval.
+    7.  **Approval Gate**: Explain the final Git commit, tag, and push actions, listing all modified files and branch, then request final release approval.
+    8.  **Commit**: Commit version files and `CHANGELOG.md`.
+    9.  **Git Tag**: Tag the release commit as `vX.Y.Z`.
+    10. **Push Branch**: Push the release branch to the remote repository.
+    11. **Push Tag**: Push the tag to the remote repository.
 
 ---
 

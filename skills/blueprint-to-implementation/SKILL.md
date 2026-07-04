@@ -108,8 +108,6 @@ build_command: auto
 test_command: auto
 ```
 
----
-
 # Workflow
 
 ```
@@ -128,63 +126,123 @@ Step 4: Global Approval Gate
 Step 5: Code Implementation
         - Apply changes to source code.
         ↓
-Step 6: Build & Test Verification
-        - Execute build and test suites.
-        - If failed, stop and report failures.
+Step 6: Mandatory Validation Gate
+        - Detect build/test/lint commands, run them, analyze and fix failures.
         ↓
-Step 7: Generate Summary Report & Validation Checklist
+Step 7: Generate Final Implementation Status Summary
 ```
 
 ---
 
-## Step 9: Validation Checklist & Summary
+# Mandatory Validation Gate
 
-Once the implementation is complete and verified, output the validation checklist:
+This gate runs after code generation and before the final summary. The Skill must never report success if validation fails.
+
+### 1. Command Auto-Detection
+The agent must automatically scan the workspace files to identify the language and available verification commands:
+- **`package.json`**: `npm run build`, `npm run lint`, `npm test` / `npm run test`, `npm run typecheck`
+- **`Makefile`**: `make`, `make build`, `make test`
+- **`go.mod`**: `go build ./...`, `go test ./...`
+- **`pyproject.toml`** / **`pytest.ini`** / **`requirements.txt`** / **`setup.py`**: `pytest`, `python -m pytest`, `pylint`, `black --check`
+- **`Cargo.toml`**: `cargo build`, `cargo test`
+- **`tsconfig.json`**: `tsc --noEmit`
+
+If no configuration file is detected for a command category, mark it as `Not Configured`.
+
+### 2. Validation Execution & Failure Analysis
+For every detected/configured check:
+1. Run the validation command using appropriate execution tools.
+2. If the command fails:
+   - Print the execution command, status, and the complete error log.
+   - Analyze the failures to locate the exact syntax errors, missing imports, lint violations, or failing test assertions.
+   - **Self-Fix**: If the root cause is within the implementation scope, modify the code to resolve the error.
+   - **Re-run**: Re-run the validation command.
+   - **Stop**: If the command still fails or if the error is out of scope/unsafe to fix:
+     - STOP execution immediately.
+     - Set `.session.json` status to `"failed"`.
+     - Report failure and recommend running `/debug` or returning to implementation.
+
+### 3. Success Rule
+Implementation is complete and marked as `PASS` only when:
+```text
+Build: PASS or Not Configured
+Tests: PASS or Not Configured
+Lint: PASS or Not Configured
+Typecheck: PASS or Not Configured
+Self Review: PASS
+```
+
+If any configured validation fails, the final status must be `FAILED`.
+
+### 4. Forbidden Actions
+The Skill must NOT:
+- Ignore failing tests.
+- Mark implementation complete with failed validation.
+- Say “tests not run” without explanation.
+- Defer obvious compile errors.
+- Continue to release, update changelog, bump version, commit, or push.
+
+---
+
+## Final Summary Format
+
+Upon completion of the implementation and validation phase, print this exact final summary format to the console and update `.session.json`:
 
 ```markdown
-### 📋 Implementation Self-Validation Checklist
+## Implementation Status
 
-| Validation Item | Status |
-| :--- | :---: |
-| ADR verification passed | [ ] PASS |
-| Git branch check executed before coding | [ ] PASS |
-| Code modifications approved by user | [ ] PASS |
-| Minimal implementation performed (no unrelated refactoring) | [ ] PASS |
-| Build success and test verification executed | [ ] PASS |
-| Recommended release/memory skills manually | [ ] PASS |
+[PASS | FAILED]
 
-**Result:** `[ALL PASS | FAILED: list failed items]`
-```
+## Implemented
 
----
+- [Bullet points of implemented features/modules]
 
-## Completion Contract
+## Files Created
 
-```text
-Current Phase:
-Phase 4 — Blueprint to Implementation
+- [List of created files or "None"]
 
-Status:
-Completed
+## Files Modified
 
-Memory Confidence:
-[High | Medium | Low]
+- [List of modified files or "None"]
 
-Memory Documents Read:
-[list]
+## Validation
 
-RAG Queries:
-[list]
+### Build
 
-Source Files Inspected:
-[list or "None — memory sufficient"]
+Command: [detected command or "None"]
+Result: [PASS | FAILED | Not Configured]
 
-Generated Output:
-Source Code & Verification Tests
+### Tests
 
-Recommended Next Skill:
-project-memory-update  ← run first to update memory
-implementation-to-release ← run after memory update
+Command: [detected command or "None"]
+Result: [PASS | FAILED | Not Configured]
+
+### Lint
+
+Command: [detected command or "None"]
+Result: [PASS | FAILED | Not Configured]
+
+### Typecheck
+
+Command: [detected command or "None"]
+Result: [PASS | FAILED | Not Configured]
+
+### Self Review
+
+Result: [PASS | FAILED]
+
+## Issues Fixed During Validation
+
+- [Bullet points of fixes applied during validation or "None"]
+
+## Remaining Issues
+
+- [Bullet points of remaining/unresolved issues or "None"]
+
+## Recommended Next Skill
+
+- If PASS: /debug or /verify
+- If FAILED: /debug
 
 Workflow Paused.
 ```

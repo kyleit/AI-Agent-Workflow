@@ -102,7 +102,7 @@ Step 10: Build and Print Execution Summary
 - Detect version strings from config files: `package.json`, `pyproject.toml`, `go.mod`, `Cargo.toml`, or `VERSION`.
 
 ### Step 8 — Validate Documentation Directory Structure
-- Verify that standard folders exist: `docs/brainstorm/`, `docs/plans/`, `docs/designs/`, `docs/issues/`, `docs/quick/`, `docs/adr/`, `docs/releases/`, and `docs/archive/`. Report missing directories.
+- Verify that standard folders exist: `docs/brainstorm/`, `docs/plans/`, `docs/designs/`, `docs/issues/`, `docs/quick/`, `docs/adr/`, `docs/releases/`, `docs/debug/`, `docs/verification/`, and `docs/archive/`. Report missing directories.
 
 ### Step 9 — Validate Environment Tools
 - Test execution of: `git`, `python`, `node`, `go`, `docker`, `tree-sitter`, `qdrant`, `qmd`, `ollama`. Do not auto-install; only report availability.

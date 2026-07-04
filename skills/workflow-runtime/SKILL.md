@@ -135,13 +135,15 @@ Whenever any Skill or Agent updates the `.agents/.session.json` file (including 
 
 The execution flow is structured around these standard checkpoint numbers:
 
-*   **Checkpoint 1**: Initialization Complete
-*   **Checkpoint 2**: Memory Loaded
-*   **Checkpoint 3**: Architecture Analysis Complete
-*   **Checkpoint 4**: Blueprint/Fix Spec Generated
-*   **Checkpoint 5**: Implementation Ready
-*   **Checkpoint 6**: Verification & Testing Complete
-*   **Checkpoint 7**: Release Complete
+*   **Checkpoint 1**: Initialization Complete (runs `/init`)
+*   **Checkpoint 2**: Memory Loaded (runs `/memory-sync` / `/memory-init`)
+*   **Checkpoint 3**: Requirement Brainstorming Complete (runs `/brainstorm`)
+*   **Checkpoint 4**: Implementation Plan Approved (runs `/plan`)
+*   **Checkpoint 5**: Technical Blueprint Approved (runs `/blueprint`)
+*   **Checkpoint 6**: Implementation Complete (runs `/implement`)
+*   **Checkpoint 7**: Debug Complete (runs `/debug`)
+*   **Checkpoint 8**: Verification Complete (runs `/verify`)
+*   **Checkpoint 9**: Release Complete (runs `/release`)
 
 ---
 

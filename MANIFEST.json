@@ -182,6 +182,34 @@
       ]
     },
     {
+      "name": "implementation-to-debug",
+      "command": "debug",
+      "aliases": [
+        "compile",
+        "lint"
+      ],
+      "category": "workflow",
+      "tags": [
+        "debug",
+        "testing",
+        "verification"
+      ]
+    },
+    {
+      "name": "debug-to-verify",
+      "command": "verify",
+      "aliases": [
+        "check",
+        "audit"
+      ],
+      "category": "workflow",
+      "tags": [
+        "verification",
+        "quality",
+        "compliance"
+      ]
+    },
+    {
       "name": "implementation-to-release",
       "command": "release",
       "aliases": [

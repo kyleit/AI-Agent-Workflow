@@ -2,7 +2,7 @@
 
 A premium, production-quality collection of structured AI engineering skills designed to automate and orchestrate the entire Software Development Life Cycle (SDLC) for AI Coding Agents.
 
-![AI Skills & SDLC Workflow Infographic](infographic.png)
+![AI Skills & SDLC Workflow Infographic](infographic.jpg)
 
 
 ---
@@ -132,17 +132,21 @@ ai-skill-framework/
 │   ├── designs/               # Technical design blueprints (FEAT-XXX_*_blueprint.md)
 │   ├── issues/                # Bug fix specifications (FIX-XXX_*.md)
 │   ├── quick/                 # Quick feature specifications (QUICK-XXX_*.md)
-│   └── adr/                   # Optional Architecture Decision Records (ADR-XXX_*.md)
+│   ├── adr/                   # Optional Architecture Decision Records (ADR-XXX_*.md)
+│   ├── debug/                 # Debug and Build Diagnostics (FEAT-XXX_debug.md)
+│   └── verification/          # Final Quality Gate Reports (FEAT-XXX_verify.md)
 ├── skills/                    # The core skill library
 │   ├── blueprint-to-implementation/
 │   ├── brainstorming/
 │   ├── brainstorming-to-plan/
 │   ├── create-adr/
+│   ├── debug-to-verify/
 │   ├── environment-bootstrap/
 │   ├── environment-health/
 │   ├── fast-fix/
 │   ├── frontend-design/
 │   ├── idea-to-planning-prompt/
+│   ├── implementation-to-debug/
 │   ├── implementation-to-release/
 │   ├── initialize-workflow/
 │   ├── plan-to-blueprint/

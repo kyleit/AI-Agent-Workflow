@@ -29,14 +29,13 @@ description: Perform configuration-driven, module-aware release activities inclu
 
 This Skill assumes `initialize-workflow` and `workflow-runtime` have completed.
 Before executing, inspect `.agents/.session.json` and perform the **Runtime Health Check**, **Drift Detection**, and **Checkpoint Verification**.
-Verify that the current checkpoint in `.session.json` is exactly `5` (Implementation Ready), `6` (Verification & Testing Complete), or `2` (Memory Loaded - if memory was updated after implementation).
-1. If the session file is missing, if context health is `broken` (e.g. active branch or work item has drifted), or if the current checkpoint is not `5`, `6`, or `2`:
-   - Recommend running: `initialize-workflow`, `workflow-runtime` (to resume), or the preceding workflow skills to reach the correct checkpoint state.
+Verify that the current checkpoint in `.session.json` is exactly `8` (Verification Complete).
+1. If the session file is missing, if context health is `broken` (e.g. active branch or work item has drifted), or if the current checkpoint is not `8`:
+   - Recommend running: `debug-to-verify` (command: `/verify`) to reach the correct checkpoint state.
    - Stop execution.
-2. At the start of execution, update `.session.json` checkpoint to `6` (Verification & Testing Complete) and set `"status"` to `"in_progress"`.
-3. Upon successful testing, update `.session.json` checkpoint to `6` (Verification & Testing Complete), and keep `"status"` as `"in_progress"`.
-4. Upon successful release tag/push, update `.session.json` checkpoint to `7` (Release Complete), set `"status"` to `"completed"`, and output the runtime heartbeat.
-5. If testing, tagging, or pushing fails, set `"status"` to `"failed"`.
+2. At the start of execution, set `"status"` to `"in_progress"`.
+3. Upon successful release tag/push, update `.session.json` checkpoint to `9` (Release Complete), set `"status"` to `"completed"`, and output the runtime heartbeat.
+4. If execution fails, set `"status"` to `"failed"`.
 
 ---
 
@@ -68,6 +67,21 @@ At startup, read `.agents/release.config.json`.
   - Scan the workspace to automatically detect project types (Go, Node, Python, Rust, Java, etc.).
   - Determine version file paths, changelogs, and module roots.
   - Present the detected layout and ask for user approval **before** generating `.agents/release.config.json`. Never create the file automatically.
+
+---
+
+## 🔒 QUALITY GATE VERIFICATION ENFORCEMENT
+
+Prior to beginning the release sequence:
+1. Locate and read the verification report: `docs/verification/FEAT-XXX_verify.md` (or `docs/issues/FIX-XXX_*.md` for bug fixes).
+2. Parse the `"status"` field from the YAML frontmatter.
+3. **Strict Policy**:
+   - If `status` is `PASS`, proceed with Phase 1.
+   - If `status` is `FAIL` (or if the verification file is missing):
+     - **STOP execution immediately**.
+     - Display a block describing the quality failure: `❌ Release is forbidden because the feature has not passed verification.`
+     - Instruct the agent/user to return to `implementation-to-debug` (command: `/debug`) to resolve the quality issues.
+     - Set `.session.json` status to `"failed"`.
 
 ---
 

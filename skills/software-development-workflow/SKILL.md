@@ -224,23 +224,37 @@ If git shows modified files or implementation commits are still in progress:
 * **Note**: Remind the agent that the **Pre-Implementation Git Gate** must be run before modifications begin.
 * Stop.
 
-#### Case F: Post-Implementation Memory Update
-If implementation is code-complete, check if project memory has been updated since the latest commits.
+#### Case F: Debug Phase
+If implementation is complete, check if the debug report `docs/debug/FEAT-XXX_debug.md` exists and is marked as `PASS`.
+If it does not exist or has `status: FAIL`:
+* **Recommend next Skill**: `implementation-to-debug`
+* **Required Input**: `design_file: docs/designs/FEAT-XXX_<feature_name>_blueprint.md`
+* Stop.
+
+#### Case G: Verification Phase
+If the debug report exists and is marked as `PASS`, check if the verification report `docs/verification/FEAT-XXX_verify.md` exists and is marked as `PASS`.
+If it does not exist or has `status: FAIL`:
+* **Recommend next Skill**: `debug-to-verify`
+* **Required Input**: `design_file: docs/designs/FEAT-XXX_<feature_name>_blueprint.md`, `debug_report: docs/debug/FEAT-XXX_debug.md`
+* Stop.
+
+#### Case H: Release Pending
+If the verification report exists and is marked as `PASS`, check if the changes are committed, changelogs are updated, and version files bumped according to `.agents/release.config.json`.
+If there are uncommitted/unpushed changes or `CHANGELOG.md` files do not list the new version/feature:
+* **Recommend next Skill**: `implementation-to-release`
+* **Note**: Remind the agent that `.agents/release.config.json` governs the modules, versions, and tag formats, and that release checks must be executed.
+* Stop.
+
+#### Case I: Post-Release Memory Update
+If release is complete (changes pushed, tags created), check if project memory has been updated since the release commits.
 If commits are newer than `last_updated_at` in `memory-state.json`:
 * **Recommend next Skill**: `project-memory-update`
 * Stop.
 
-#### Case G: Release Pending
-If implementation is complete and memory is updated, check if the changes are committed, changelogs are updated, and version files bumped according to `.agents/release.config.json`.
-If there are uncommitted/unpushed changes or `CHANGELOG.md` files do not list the new version/feature:
-* **Recommend next Skill**: `implementation-to-release`
-* **Note**: Remind the agent that `.agents/release.config.json` governs the modules, versions, and tag formats, and that **Release Gate & Branch Detection** must be executed to ensure proper merge approval before tag/push.
-* Stop.
-
 ---
 
-#### Case H: Feature Cycle Complete
-If the release is complete (changes pushed, changelog updated) and git is clean:
+#### Case J: Feature Cycle Complete
+If the release and memory sync are complete, and git is clean:
 * Evaluate `task_description` (if provided):
   - If it qualifies for Quick-Fix:
     * **Recommend next Skill**: `quick-fix`
