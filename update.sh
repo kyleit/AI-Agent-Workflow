@@ -1,0 +1,223 @@
+#!/usr/bin/env bash
+# ==============================================================================
+# AI Skill Framework Updater
+# Usage: ./update.sh [options]
+# Options:
+#   -f, --force    Force update even if version is already up to date
+#   -h, --help     Show this help message
+# ==============================================================================
+
+set -euo pipefail
+
+# Print help message
+show_help() {
+    echo "AI Skill Framework Updater"
+    echo "Usage: ./update.sh [options]"
+    echo ""
+    echo "Options:"
+    echo "  -f, --force    Force update even if version is already up to date"
+    echo "  -h, --help     Show this help message"
+    echo ""
+    echo "Example:"
+    echo "  ./update.sh --force"
+}
+
+# Parse options
+FORCE=false
+for arg in "$@"; do
+    case $arg in
+        -f|--force)
+            FORCE=true
+            shift
+            ;;
+        -h|--help)
+            show_help
+            exit 0
+            ;;
+        *)
+            echo "Unknown option: $arg"
+            show_help
+            exit 1
+            ;;
+    esac
+done
+
+# Logging helpers
+log_info() { echo -e "\033[1;34m[INFO]\033[0m $1"; }
+log_warn() { echo -e "\033[1;33m[WARN]\033[0m $1"; }
+log_error() { echo -e "\033[1;31m[ERROR]\033[0m $1"; }
+log_success() { echo -e "\033[1;32m[SUCCESS]\033[0m $1"; }
+
+# Locate SCRIPT_DIR
+SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
+
+# Verify MANIFEST.json exists in source
+if [ ! -f "$SCRIPT_DIR/MANIFEST.json" ]; then
+    log_error "MANIFEST.json not found in source directory ($SCRIPT_DIR)."
+    exit 1
+fi
+
+# Helper to read JSON values
+get_manifest_val() {
+    local key=$1
+    local file=$2
+    grep -o -E '"'"$key"'"\s*:\s*"[^"]*"' "$file" | head -n 1 | cut -d'"' -f4 || echo ""
+}
+
+# Helper to extract skills list
+get_skills_list() {
+    local file=$1
+    sed -n '/"skills":[[:space:]]*\[/,/\]/p' "$file" | grep -o -E '"[^"]+"' | sed 's/"//g' | grep -v '^skills$' || echo ""
+}
+
+SRC_INSTALL_TARGET=$(get_manifest_val "installation_target" "$SCRIPT_DIR/MANIFEST.json")
+SRC_VERSION=$(get_manifest_val "version" "$SCRIPT_DIR/MANIFEST.json")
+SRC_SKILL_DIR=$(get_manifest_val "skill_directory" "$SCRIPT_DIR/MANIFEST.json")
+SRC_TEMPLATE_DIR=$(get_manifest_val "template_directory" "$SCRIPT_DIR/MANIFEST.json")
+
+# Verify current directory has target installation
+TARGET_MANIFEST="$SRC_INSTALL_TARGET/MANIFEST.json"
+if [ ! -f "$TARGET_MANIFEST" ]; then
+    log_error "No active installation found at $SRC_INSTALL_TARGET/MANIFEST.json"
+    log_error "Please run install.sh first to set up the framework."
+    exit 1
+fi
+
+TARGET_VERSION=$(get_manifest_val "version" "$TARGET_MANIFEST")
+log_info "Detected Installed Version: v$TARGET_VERSION"
+log_info "Available Repository Version: v$SRC_VERSION"
+
+# Version comparison
+if [ "$SRC_VERSION" = "$TARGET_VERSION" ] && [ "$FORCE" = false ]; then
+    log_success "AI Skill Framework is already up to date (v$TARGET_VERSION)."
+    exit 0
+fi
+
+# Function to check version newer (simple string/integer comparison)
+# Returns 0 if newer, 1 otherwise
+version_gt() {
+    test "$(echo "$@" | tr " " "\n" | sort -rV | head -n 1)" == "$1";
+}
+
+if ! version_gt "$SRC_VERSION" "$TARGET_VERSION" && [ "$FORCE" = false ]; then
+    log_warn "Installed version v$TARGET_VERSION is newer than source version v$SRC_VERSION."
+    log_warn "Use --force to downgrade."
+    exit 1
+fi
+
+log_info "Synchronizing installation..."
+
+# Calculate changes in skills
+SRC_SKILLS=$(get_skills_list "$SCRIPT_DIR/MANIFEST.json")
+TARGET_SKILLS=$(get_skills_list "$TARGET_MANIFEST")
+
+NEW_SKILLS=""
+UPDATED_SKILLS=""
+REMOVED_SKILLS=""
+
+for skill in $SRC_SKILLS; do
+    if echo "$TARGET_SKILLS" | grep -q "^$skill$"; then
+        UPDATED_SKILLS="$UPDATED_SKILLS $skill"
+    else
+        NEW_SKILLS="$NEW_SKILLS $skill"
+    fi
+done
+
+for skill in $TARGET_SKILLS; do
+    if ! echo "$SRC_SKILLS" | grep -q "^$skill$"; then
+        REMOVED_SKILLS="$REMOVED_SKILLS $skill"
+    fi
+done
+
+# Perform copy updates
+copy_diff_item() {
+    local src=$1
+    local dest=$2
+    
+    # Simple copy if different or doesn't exist
+    if [ ! -e "$dest" ] || ! diff -r "$src" "$dest" >/dev/null 2>&1; then
+        log_info "Updating: $dest"
+        rm -rf "$dest"
+        cp -r "$src" "$dest"
+    fi
+}
+
+# Copy changed runtime files
+copy_diff_item "$SCRIPT_DIR/AI_RULES.md" "$SRC_INSTALL_TARGET/AI_RULES.md"
+copy_diff_item "$SCRIPT_DIR/agents" "$SRC_INSTALL_TARGET/agents"
+copy_diff_item "$SCRIPT_DIR/runtime" "$SRC_INSTALL_TARGET/runtime"
+mkdir -p "$SRC_INSTALL_TARGET/docs"
+copy_diff_item "$SCRIPT_DIR/docs/release-guide.md" "$SRC_INSTALL_TARGET/docs/release-guide.md"
+copy_diff_item "$SCRIPT_DIR/MANIFEST.json" "$SRC_INSTALL_TARGET/MANIFEST.json"
+
+# Initialize a clean .session.json if missing, or upgrade if it is in the old flat format
+SESSION_FILE="$SRC_INSTALL_TARGET/.session.json"
+if [ ! -f "$SESSION_FILE" ] || ! grep -q '"workspace": {' "$SESSION_FILE"; then
+    log_info "Creating or upgrading .session.json to the new nested format..."
+    cat << 'EOF' > "$SESSION_FILE"
+{
+  "workspace": {
+    "path": ".",
+    "valid": true
+  },
+  "git": {
+    "is_git_repository": true,
+    "branch": "main",
+    "working_tree": "clean",
+    "default_branch": "main",
+    "latest_tag": "none"
+  },
+  "work_item": {
+    "type": "N/A",
+    "id": "N/A",
+    "title": "Awaiting active task selection..."
+  },
+  "version": {
+    "version": "1.0.0",
+    "source": "MANIFEST.json"
+  },
+  "memory": {
+    "status": "MISSING",
+    "last_updated": ""
+  },
+  "rag": {
+    "connected": false,
+    "provider": "none"
+  },
+  "checkpoint": 1,
+  "current_skill": "initialize-workflow",
+  "current_step": "Awaiting initial command",
+  "context_health": "healthy"
+}
+EOF
+fi
+
+# Update active skills
+for skill in $SRC_SKILLS; do
+    copy_diff_item "$SCRIPT_DIR/$SRC_SKILL_DIR/$skill" "$SRC_INSTALL_TARGET/$SRC_SKILL_DIR/$skill"
+done
+
+# Update templates
+if [ -d "$SCRIPT_DIR/$SRC_TEMPLATE_DIR" ]; then
+    mkdir -p "$SRC_INSTALL_TARGET/$SRC_TEMPLATE_DIR"
+    cp -r "$SCRIPT_DIR/$SRC_TEMPLATE_DIR/"* "$SRC_INSTALL_TARGET/$SRC_TEMPLATE_DIR/" 2>/dev/null || true
+fi
+
+# Print report summary
+log_success "AI Skill Framework has been successfully updated to v$SRC_VERSION!"
+echo "--------------------------------------------------"
+echo "Upgrade Summary:"
+if [ -n "$NEW_SKILLS" ]; then
+    echo "  New Skills:     $NEW_SKILLS"
+fi
+if [ -n "$UPDATED_SKILLS" ]; then
+    echo "  Updated Skills: $UPDATED_SKILLS"
+fi
+if [ -n "$REMOVED_SKILLS" ]; then
+    echo -e "  \033[1;33m[DEPRECATED]\033[0m Legacy skills found in installation target (safe deletion recommended):"
+    for rskill in $REMOVED_SKILLS; do
+        echo "    - $SRC_INSTALL_TARGET/$SRC_SKILL_DIR/$rskill"
+    done
+fi
+echo "--------------------------------------------------"
+log_info "Run project-memory-update to sync changes with Project Memory."
