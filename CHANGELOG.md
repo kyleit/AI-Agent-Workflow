@@ -5,6 +5,15 @@ All notable changes to this project will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [2.11.1] - 2026-07-06
+
+### Added
+- **Visualizer Extension Session Usage**:
+  - Integrated a new visual "Session Usage" metadata card into the visualizer sidebar extension template (`webview.html`).
+  - Added token and cost visualization including total tokens, input/output/cache/thinking counts, context limit, usage percentage, cost USD, provider name, active model, accuracy, and last updated time.
+  - Implemented color-changing progress bar indicating token capacity warning states (Green < 60%, Yellow 60%-85%, Red > 85%).
+  - Added a toggleable empty state fallback container to gracefully handle missing session metrics.
+
 ## [2.11.0] - 2026-07-06
 
 ### Added
