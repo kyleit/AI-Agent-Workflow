@@ -301,6 +301,24 @@
         "controller",
         "session"
       ]
+    },
+    {
+      "name": "frontend-visual-debug",
+      "command": "visual-debug",
+      "aliases": [
+        "ui-debug",
+        "visual-qa",
+        "browser-debug"
+      ],
+      "category": "workflow",
+      "tags": [
+        "frontend",
+        "ui",
+        "browser",
+        "visual",
+        "debug",
+        "qa"
+      ]
     }
   ],
   "templates": [
@@ -326,6 +344,7 @@
       "brainstorming-to-plan",
       "plan-to-blueprint",
       "blueprint-to-implementation",
+      "frontend-visual-debug",
       "implementation-to-release"
     ],
     "memory": [

@@ -60,8 +60,15 @@ Feature-Centric SDLC (Reusing Feature ID 'FEAT-XXX')
                              Skill: create-adr
     4. Implementation    ──> source code implementation
                              Skill: blueprint-to-implementation
+    [Optional] Visual    ──> docs/verification/FEAT-XXX_visual_debug.md
+       Debugging             Skill: frontend-visual-debug
+                             (Required for Frontend features, skipped for Backend-only)
     5. Release           ──> updates CHANGELOG.md & bumps version
                              Skill: implementation-to-release
+
+    Workflow Paths:
+    - Frontend Features:     implementation ──> debug ──> visual-debug ──> verify ──> release
+    - Backend-Only Features:  implementation ──> debug ──> verify ──> release
 
   Option 2: Quick-Fix Workflow (Small & Low-Risk Bug Fixes)
     1. Quick-Fix Check   ──> classify issue and estimate scope
@@ -231,21 +238,31 @@ If it does not exist or has `status: FAIL`:
 * **Required Input**: `design_file: docs/designs/FEAT-XXX_<feature_name>_blueprint.md`
 * Stop.
 
-#### Case G: Verification Phase
-If the debug report exists and is marked as `PASS`, check if the verification report `docs/verification/FEAT-XXX_verify.md` exists and is marked as `PASS`.
+#### Case G: Frontend Visual Debug Phase
+If the debug report exists and is marked as `PASS`, check if the feature affects the frontend/UI.
+A feature affects frontend/UI if the technical blueprint or modified files reference Svelte, React, Vue, SvelteKit, Next.js, Nuxt, Angular, Wails, HTML, CSS, or JS components/assets.
+* If it is a frontend/UI feature:
+  * Check if the visual debug report `docs/verification/FEAT-XXX_visual_debug.md` exists and has `status: PASS` or `status: PARTIAL`.
+  * If it does not exist, or has `status: FAIL`:
+    * **Recommend next Skill**: `frontend-visual-debug`
+    * **Required Input**: `design_file: docs/designs/FEAT-XXX_<feature_name>_blueprint.md`, `debug_report: docs/debug/FEAT-XXX_debug.md`
+    * Stop.
+
+#### Case H: Verification Phase
+If the debug report exists and is marked as `PASS` (and for frontend features, the visual debug report is `PASS` or `PARTIAL`), check if the verification report `docs/verification/FEAT-XXX_verify.md` exists and is marked as `PASS`.
 If it does not exist or has `status: FAIL`:
 * **Recommend next Skill**: `debug-to-verify`
 * **Required Input**: `design_file: docs/designs/FEAT-XXX_<feature_name>_blueprint.md`, `debug_report: docs/debug/FEAT-XXX_debug.md`
 * Stop.
 
-#### Case H: Release Pending
+#### Case I: Release Pending
 If the verification report exists and is marked as `PASS`, check if the changes are committed, changelogs are updated, and version files bumped according to `.agents/release.config.json`.
 If there are uncommitted/unpushed changes or `CHANGELOG.md` files do not list the new version/feature:
 * **Recommend next Skill**: `implementation-to-release`
 * **Note**: Remind the agent that `.agents/release.config.json` governs the modules, versions, and tag formats, and that release checks must be executed.
 * Stop.
 
-#### Case I: Post-Release Memory Update
+#### Case J: Post-Release Memory Update
 If release is complete (changes pushed, tags created), check if project memory has been updated since the release commits.
 If commits are newer than `last_updated_at` in `memory-state.json`:
 * **Recommend next Skill**: `project-memory-update`
@@ -253,7 +270,7 @@ If commits are newer than `last_updated_at` in `memory-state.json`:
 
 ---
 
-#### Case J: Feature Cycle Complete
+#### Case K: Feature Cycle Complete
 If the release and memory sync are complete, and git is clean:
 * Evaluate `task_description` (if provided):
   - If it qualifies for Quick-Fix:
