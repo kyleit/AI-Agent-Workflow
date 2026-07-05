@@ -5,6 +5,20 @@ All notable changes to this project will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [2.10.0] - 2026-07-06
+
+### Added
+- **Dynamic Project-Aware Checkpoints**:
+  - Introduced the `project-discovery` skill (`/discover`) to scan codebase structure (configuration files, package managers, frameworks, and databases) and generate `.agents/project-profile.json`.
+  - Refactored the orchestrator (`software-development-workflow`) and other SDLC skills to dynamically skip checkpoints (e.g., skip `frontend-visual-debug` for backend-only/CLI projects) according to the project profile.
+  - Upgraded the VS Code Visualizer extension to support dynamic project-aware checkpoint rendering.
+
+### Fixed
+- **Framework Installer Export Bug**:
+  - Fixed a packaging bug in `tools/export.js` that missed copying the `templates`, `agents`, and `runtime` folders to the public export directory, resolving installer failures during `aiwf install`.
+
+---
+
 ## [2.9.0] - 2026-07-04
 
 ### Added
