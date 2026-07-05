@@ -28,13 +28,14 @@ description: Validate that the feature is production-ready. Enforce standards be
 ## 🔒 WORKFLOW RUNTIME & INITIALIZATION CHECK
 
 Before executing, inspect `.agents/.session.json` and perform the **Runtime Health Check**, **Drift Detection**, and **Checkpoint Verification**.
-Verify that the current checkpoint in `.session.json` is exactly `7` (Debug Complete).
-1. If the session file is missing, if context health is `broken`, or if the current checkpoint is not `7`:
-   - Recommend running: `implementation-to-debug` or `workflow-runtime` to reach the correct checkpoint state.
+Verify that the current checkpoint in `.session.json` is `8` (Frontend Visual Debug Complete) for UI features, or `7` (Debug Complete) for backend-only features.
+1. If the visual debug report `docs/verification/FEAT-XXX_visual_debug.md` exists and has `status: FAIL`, the verification audit MUST fail immediately. Release is blocked.
+2. If the session file is missing, if context health is `broken`, or if the current checkpoint is less than `7` (or less than `8` for frontend features):
+   - Recommend running: `implementation-to-debug` or `frontend-visual-debug` to reach the correct checkpoint state.
    - Stop execution.
-2. At the start of execution, update `.session.json` checkpoint to `8` (Verification Complete) and set `"status"` to `"in_progress"`.
-3. Upon successful verification validation and generation of the report, update `.session.json` checkpoint to `8` (Verification Complete), set `"status"` to `"completed"`, and output the runtime heartbeat.
-4. If verification fails, set `"status"` to `"failed"`.
+3. At the start of execution, update `.session.json` checkpoint to `9` (Verification Complete) and set `"status"` to `"in_progress"`.
+4. Upon successful verification validation and generation of the report, update `.session.json` checkpoint to `9` (Verification Complete), set `"status"` to `"completed"`, and output the runtime heartbeat.
+5. If verification fails, set `"status"` to `"failed"`.
 
 ---
 
@@ -58,7 +59,7 @@ Perform a final qualitative and quantitative audit on the active feature impleme
 ## Workflow Sequence
 
 ```
-Step 1: Inspect session state & debug report (docs/debug/FEAT-XXX_debug.md)
+Step 1: Inspect session state, debug report, and visual debug report (if applicable)
         ↓
 Step 2: Audit Acceptance Criteria & Blueprint compliance
         ↓
@@ -66,7 +67,7 @@ Step 3: Audit Documentation, Security, and Code Quality
         ↓
 Step 4: Generate Verification Report at docs/verification/FEAT-XXX_verify.md
         ↓
-Step 5: Update session checkpoint to 8 & output heartbeat
+Step 5: Update session checkpoint to 9 & output heartbeat
 ```
 
 ---
@@ -118,7 +119,7 @@ If verification status is **FAIL**, the workflow is stopped and blocked from rel
 
 ```text
 Current Phase:
-Phase 6 — Debug to Verify
+Phase 8 — Feature Verification
 
 Status:
 Completed

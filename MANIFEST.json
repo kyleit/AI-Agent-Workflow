@@ -307,8 +307,8 @@
       "command": "visual-debug",
       "aliases": [
         "ui-debug",
-        "visual-qa",
-        "browser-debug"
+        "browser-debug",
+        "visual-qa"
       ],
       "category": "workflow",
       "tags": [
@@ -318,6 +318,28 @@
         "visual",
         "debug",
         "qa"
+      ],
+      "depends_on": [
+        "implementation-to-debug"
+      ],
+      "next": [
+        "debug-to-verify"
+      ]
+    },
+    {
+      "name": "project-discovery",
+      "command": "discover",
+      "aliases": [
+        "tech-stack",
+        "project-profile"
+      ],
+      "category": "environment",
+      "tags": [
+        "project",
+        "tech-stack",
+        "workflow",
+        "profile",
+        "discovery"
       ]
     }
   ],
@@ -354,7 +376,8 @@
     ],
     "environment": [
       "environment-health",
-      "environment-bootstrap"
+      "environment-bootstrap",
+      "project-discovery"
     ],
     "architecture": [
       "create-adr"

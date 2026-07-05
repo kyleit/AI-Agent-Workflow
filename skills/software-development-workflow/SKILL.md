@@ -199,6 +199,12 @@ Before commencing a new feature cycle, classify the requested `task_description`
 ### 3.2 — Trace Feature Lifecycle Status
 Once the Active Feature `FEAT-XXX` and name `<feature_name>` are identified, trace its lifecycle artifacts:
 
+#### Case 0: Project Profile Missing
+If the project configuration profile `.agents/project-profile.json` does NOT exist:
+* **Recommend next Skill**: `project-discovery` (command: `/discover`)
+* **Note**: Run project-discovery first to scan the tech stack and generate the dynamic checkpoints configuration.
+* Stop.
+
 #### Case A: Brainstorming File Incomplete / Discovery Phase
 If `docs/brainstorm/FEAT-XXX_<feature_name>.md` exists but the Requirement Readiness Score is below 85, or the document indicates active discovery questions are pending:
 * **Recommend next Skill**: `brainstorming` (to continue interactive discovery).
@@ -238,18 +244,28 @@ If it does not exist or has `status: FAIL`:
 * **Required Input**: `design_file: docs/designs/FEAT-XXX_<feature_name>_blueprint.md`
 * Stop.
 
-#### Case G: Frontend Visual Debug Phase
-If the debug report exists and is marked as `PASS`, check if the feature affects the frontend/UI.
-A feature affects frontend/UI if the technical blueprint or modified files reference Svelte, React, Vue, SvelteKit, Next.js, Nuxt, Angular, Wails, HTML, CSS, or JS components/assets.
-* If it is a frontend/UI feature:
-  * Check if the visual debug report `docs/verification/FEAT-XXX_visual_debug.md` exists and has `status: PASS` or `status: PARTIAL`.
-  * If it does not exist, or has `status: FAIL`:
-    * **Recommend next Skill**: `frontend-visual-debug`
-    * **Required Input**: `design_file: docs/designs/FEAT-XXX_<feature_name>_blueprint.md`, `debug_report: docs/debug/FEAT-XXX_debug.md`
-    * Stop.
+#### Case G: Dynamic Quality Gates (Visual Debug, E2E, DB Migrations)
+If the debug report exists and is marked as `PASS`, read `.agents/project-profile.json` to identify applicable quality gates:
+1.  **Visual Debugging Gate** (Frontend, Desktop, or Mobile):
+    - If the project profile indicates `"visual_debug": { "required": true }`:
+      - Check if the visual debug report `docs/verification/FEAT-XXX_visual_debug.md` exists and has `status: PASS` or `status: PARTIAL`.
+      - If it does not exist, or has `status: FAIL`:
+        - **Recommend next Skill**: `frontend-visual-debug` (or stack-specific UI debug skill).
+        - **Required Input**: `design_file: docs/designs/FEAT-XXX_<feature_name>_blueprint.md`, `debug_report: docs/debug/FEAT-XXX_debug.md`
+        - Stop.
+2.  **Browser E2E Gate**:
+    - If `playwright` or `cypress` is in `"quality_gates"`:
+      - Check if E2E test report `docs/verification/FEAT-XXX_e2e.md` exists and has `status: PASS`.
+      - If not, **Recommend next Skill**: `browser-e2e` (or equivalent QA command).
+      - Stop.
+3.  **Database Migration Gate**:
+    - If `db_migration_check` is in `"quality_gates"`:
+      - Check if database migration report `docs/verification/FEAT-XXX_db_verify.md` exists and has `status: PASS`.
+      - If not, **Recommend next Skill**: `db-migration-check`.
+      - Stop.
 
 #### Case H: Verification Phase
-If the debug report exists and is marked as `PASS` (and for frontend features, the visual debug report is `PASS` or `PARTIAL`), check if the verification report `docs/verification/FEAT-XXX_verify.md` exists and is marked as `PASS`.
+If the debug report exists and is marked as `PASS` (and all applicable dynamic quality gates in Case G have passed), check if the verification report `docs/verification/FEAT-XXX_verify.md` exists and is marked as `PASS`.
 If it does not exist or has `status: FAIL`:
 * **Recommend next Skill**: `debug-to-verify`
 * **Required Input**: `design_file: docs/designs/FEAT-XXX_<feature_name>_blueprint.md`, `debug_report: docs/debug/FEAT-XXX_debug.md`

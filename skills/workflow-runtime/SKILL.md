@@ -141,17 +141,21 @@ Whenever any Skill or Agent updates the `.agents/.session.json` file (including 
 
 ## Checkpoint Levels
 
-The execution flow is structured around these standard checkpoint numbers:
+The execution flow checkpoints are dynamically configured based on the detected project tech stack from `.agents/project-profile.json` (under the `recommended_workflow` property). 
 
-*   **Checkpoint 1**: Initialization Complete (runs `/init`)
-*   **Checkpoint 2**: Memory Loaded (runs `/memory-sync` / `/memory-init`)
-*   **Checkpoint 3**: Requirement Brainstorming Complete (runs `/brainstorm`)
-*   **Checkpoint 4**: Implementation Plan Approved (runs `/plan`)
-*   **Checkpoint 5**: Technical Blueprint Approved (runs `/blueprint`)
-*   **Checkpoint 6**: Implementation Complete (runs `/implement`)
-*   **Checkpoint 7**: Debug Complete (runs `/debug`)
-*   **Checkpoint 8**: Verification Complete (runs `/verify`)
-*   **Checkpoint 9**: Release Complete (runs `/release`)
+### Core Checkpoint Milestones
+- **Core 1**: Workspace Initialization (runs `/init`)
+- **Core 2**: Memory Loaded (runs `/memory-sync` / `/memory-init`)
+- **Core 3**: Requirement Brainstorming Complete (runs `/brainstorm`)
+- **Core 4**: Implementation Plan Approved (runs `/plan`)
+- **Core 5**: Technical Blueprint Approved (runs `/blueprint`)
+- **Core 6**: Implementation Complete (runs `/implement`)
+- **Core 7**: Debug Complete (runs `/debug` - uses stack-specific tools)
+- **Conditional Gates**: (Inserted dynamically based on Project Profile: e.g. Frontend Visual Debug `/visual-debug`, Desktop UI Debug `/desktop-debug`, Mobile Visual Debug `/mobile-debug`, Database Migration Check `/db-verify`)
+- **Core 8**: Feature Verification Complete (runs `/verify`)
+- **Core 9**: Release Complete (runs `/release`)
+
+All runtime logic must parse `.agents/project-profile.json` to map active checkpoints dynamically instead of relying on hardcoded static numbers.
 
 ---
 

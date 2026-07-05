@@ -29,12 +29,12 @@ description: Perform configuration-driven, module-aware release activities inclu
 
 This Skill assumes `initialize-workflow` and `workflow-runtime` have completed.
 Before executing, inspect `.agents/.session.json` and perform the **Runtime Health Check**, **Drift Detection**, and **Checkpoint Verification**.
-Verify that the current checkpoint in `.session.json` is exactly `8` (Verification Complete).
-1. If the session file is missing, if context health is `broken` (e.g. active branch or work item has drifted), or if the current checkpoint is not `8`:
+Verify that the current checkpoint in `.session.json` is exactly `9` (Verification Complete).
+1. If the session file is missing, if context health is `broken` (e.g. active branch or work item has drifted), or if the current checkpoint is not `9`:
    - Recommend running: `debug-to-verify` (command: `/verify`) to reach the correct checkpoint state.
    - Stop execution.
 2. At the start of execution, set `"status"` to `"in_progress"`.
-3. Upon successful release tag/push, update `.session.json` checkpoint to `9` (Release Complete), set `"status"` to `"completed"`, and output the runtime heartbeat.
+3. Upon successful release tag/push, update `.session.json` checkpoint to `10` (Release Complete), set `"status"` to `"completed"`, and output the runtime heartbeat.
 4. If execution fails, set `"status"` to `"failed"`.
 
 ---
@@ -72,16 +72,25 @@ At startup, read `.agents/release.config.json`.
 
 ## 🔒 QUALITY GATE VERIFICATION ENFORCEMENT
 
-Prior to beginning the release sequence:
-1. Locate and read the verification report: `docs/verification/FEAT-XXX_verify.md` (or `docs/issues/FIX-XXX_*.md` for bug fixes).
-2. Parse the `"status"` field from the YAML frontmatter.
-3. **Strict Policy**:
-   - If `status` is `PASS`, proceed with Phase 1.
-   - If `status` is `FAIL` (or if the verification file is missing):
-     - **STOP execution immediately**.
-     - Display a block describing the quality failure: `❌ Release is forbidden because the feature has not passed verification.`
-     - Instruct the agent/user to return to `implementation-to-debug` (command: `/debug`) to resolve the quality issues.
-     - Set `.session.json` status to `"failed"`.
+Prior to beginning the release sequence, verify that all three quality gates are met:
+1.  **Debug Gate**:
+    - Locate `docs/debug/FEAT-XXX_debug.md` (or equivalent issue fix file).
+    - Must have `status: PASS`.
+2.  **Visual Debug Gate** (If UI/Frontend feature):
+    - Locate `docs/verification/FEAT-XXX_visual_debug.md` (or equivalent issue visual debug file).
+    - Must have `status: PASS` or `status: PARTIAL` (if browser tools were unavailable).
+    - Skip check only if backend-only feature (marked as skipped in session or no UI files affected).
+3.  **Verification Gate**:
+    - Locate `docs/verification/FEAT-XXX_verify.md` (or equivalent verification file).
+    - Must have `status: PASS`.
+
+**Strict Policy**:
+- If all applicable gates are passed (`PASS`/`PARTIAL`), proceed with Phase 1.
+- If any quality gate fails (or the report file is missing):
+  - **STOP execution immediately**.
+  - Display a block describing the quality failure: `❌ Release is forbidden because the feature has not passed all required quality gates (Debug: PASS, Visual Debug: PASS/PARTIAL/Skipped, Verify: PASS).`
+  - Instruct the agent/user to return to the appropriate quality stage (`/debug` or `/visual-debug` or `/verify`) to resolve the issues.
+  - Set `.session.json` status to `"failed"`.
 
 ---
 

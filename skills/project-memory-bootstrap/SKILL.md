@@ -664,6 +664,15 @@ CREATE TABLE IF NOT EXISTS lessons (
     recorded_at TEXT
 );
 
+CREATE TABLE IF NOT EXISTS visual_findings (
+    id TEXT PRIMARY KEY,
+    feature_id TEXT,
+    issue_type TEXT, -- 'Visual Issues' | 'UI Fixes' | 'Layout Fixes' | 'Browser Findings' | 'Responsive Findings'
+    description TEXT,
+    resolution TEXT,
+    recorded_at TEXT
+);
+
 CREATE TABLE IF NOT EXISTS memory_meta (
     key TEXT PRIMARY KEY,
     value TEXT

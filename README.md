@@ -145,12 +145,14 @@ ai-skill-framework/
 │   ├── environment-health/
 │   ├── fast-fix/
 │   ├── frontend-design/
+│   ├── frontend-visual-debug/
 │   ├── idea-to-planning-prompt/
 │   ├── implementation-to-debug/
 │   ├── implementation-to-release/
 │   ├── initialize-workflow/
 │   ├── plan-to-blueprint/
 │   ├── planning-prompt-to-plan/
+│   ├── project-discovery/
 │   ├── project-memory-bootstrap/
 │   ├── project-memory-update/
 │   ├── project-rag-search/

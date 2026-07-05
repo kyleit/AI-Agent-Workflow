@@ -46,12 +46,29 @@ Review the implementation, verify builds, resolve compilation and linting issues
 
 ## Responsibilities
 
-1. **Build & Compile Check**: Execute the compiler/build commands (e.g., `npm run build`, `go build`, `make`) to ensure the codebase compiles cleanly.
-2. **Lint & Formatter Check**: Run linters (e.g., `eslint`, `pylint`, `golangci-lint`) and formatting tools to ensure coding style compliance.
-3. **Unit Tests Execution**: Run unit tests and verify a 100% pass rate.
-4. **Fix Compilation & Runtime Errors**: If any checks fail, analyze stdout/stderr, locate the bugs, and apply minimal fixes.
-5. **Logging & Error Handling**: Improve logging visibility, format, and ensure proper try-catch/error propagation exists in the modified codebase.
-6. **Code Cleanup**: Remove dead code, unused imports, or debug console logs.
+1.  **Read Project Profile**: Load `.agents/project-profile.json` to identify the languages, package managers, and tools configured for this workspace.
+2.  **Stack-Specific Build & Compile Check**: Execute the compiler/build commands corresponding to the project stack:
+    - **Go**: `go build ./...`
+    - **Node/Vite/Svelte**: `npm run build` (or yarn/pnpm/bun equivalents)
+    - **Python**: compile check if applicable, or package build
+    - **Rust**: `cargo build`
+    - **Other**: gradle/maven/dotnet equivalent commands listed in the profile.
+3.  **Stack-Specific Lint & Formatter Check**:
+    - **Go**: `go fmt ./...` or `golangci-lint run`
+    - **Node**: `npm run lint` or `eslint`
+    - **Python**: `ruff check` or `flake8`
+    - **Rust**: `cargo clippy`
+4.  **Stack-Specific Typecheck**:
+    - **Node (TypeScript)**: `npm run typecheck` or `tsc --noEmit`
+    - **Python**: `mypy`
+5.  **Unit Tests Execution**: Run unit tests corresponding to the stack:
+    - **Go**: `go test ./...`
+    - **Node**: `npm test` or `vitest run`
+    - **Python**: `pytest`
+    - **Rust**: `cargo test`
+6.  **Fix Compilation & Runtime Errors**: If any checks fail, analyze stderr, locate the bugs, and apply minimal fixes.
+7.  **Logging & Error Handling**: Improve logging visibility, format, and ensure proper try-catch/error propagation.
+8.  **Code Cleanup**: Remove dead code, unused imports, or debug console logs.
 
 ---
 

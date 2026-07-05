@@ -45,15 +45,20 @@ This Skill must run after `blueprint-to-implementation` or after `implementation
 This Skill assumes `initialize-workflow` and `workflow-runtime` have completed.
 Before executing, inspect `.agents/.session.json` and perform the **Runtime Health Check**, **Drift Detection**, and **Checkpoint Verification**.
 Verify that the current checkpoint in `.session.json` is `7` (Debug Phase).
-1. If the session file is missing, if context health is `broken` (e.g. active branch or work item has drifted), or if the current checkpoint is less than `7`:
+1. Read `.agents/project-profile.json`. If `"visual_debug": { "required": false }` or missing:
+   - Print: `Skipped: No frontend/UI stack detected.`
+   - Update `.session.json` by setting `"visual_debug": "skipped"`, `"visual_debug_skipped": true`, checkpoint to the next step (Verification Phase), and set `"status"` to `"completed"`.
+   - Output the runtime heartbeat.
+   - Stop execution.
+2. If the session file is missing, if context health is `broken` (e.g. active branch or work item has drifted), or if the current checkpoint is less than `7`:
    - Recommend running: `initialize-workflow` or `implementation-to-debug` to reach the correct checkpoint state.
    - Stop execution.
-2. At the start of execution, set `"status"` to `"in_progress"`.
-3. Upon successful completion of visual debugging:
+3. At the start of execution, set `"status"` to `"in_progress"`.
+4. Upon successful completion of visual debugging:
    - Save the visual debug report under `docs/verification/FEAT-XXX_visual_debug.md`.
-   - Update `.session.json` with checkpoint `7` and set `"status"` to `"completed"`.
+   - Update `.session.json` with checkpoint `8` (Frontend Visual Debug Complete) and set `"status"` to `"completed"`.
    - Output the runtime heartbeat.
-4. If execution fails, set `"status"` to `"failed"`.
+5. If execution fails, set `"status"` to `"failed"`.
 
 ---
 

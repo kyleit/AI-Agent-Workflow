@@ -321,14 +321,24 @@ Immediately after applying code edits, the agent must run the automatic validati
 
 ---
 
-### Step 11: Generate Quick Task Result
+### Step 11: Frontend Visual Debug (If UI)
+
+If the fix affects frontend components, UI layout, styles (HTML/CSS/JS, React, Vue, Svelte, Tailwind, Electron, Wails), or responsive behavior:
+1. Run the `frontend-visual-debug` Skill (command `/visual-debug`) to inspect the changes in a browser environment (or fallback to static inspection if browser tools are unavailable).
+2. Generate the visual debug report under `docs/verification/FIX-XXX_visual_debug.md` (or save as section inside verification folder).
+3. If visual debugging fails, the overall Quick-Fix status must be set to `FAILED`.
+
+---
+
+### Step 12: Generate Quick Task Result
 
 Upon completion, print the final summary to the console and update `.session.json`:
 
 ```markdown
 ## Quick Task Result
 
-Status: [PASS / FAILED]
+Status: [PASS / PARTIAL / FAILED]
+*Note: Set to PARTIAL if browser tools were unavailable for visual debugging of UI features.*
 
 Files Modified:
 - [Relative path to file 1](file_link)
@@ -339,6 +349,7 @@ Build: [PASS | FAILED | Not Configured] (Command: [command])
 Lint: [PASS | FAILED | Not Configured] (Command: [command])
 Typecheck: [PASS | FAILED | Not Configured] (Command: [command])
 Tests: [PASS | FAILED | Not Configured] (Command: [command])
+Visual Debug: [PASS | PARTIAL | FAILED | Skipped (Backend Only)] (URL: [local url])
 
 Issues Fixed Automatically:
 - [List of fixes or "None"]
@@ -347,7 +358,7 @@ Remaining Issues:
 - [List of remaining issues or "None"]
 
 Recommended Next Step:
-- If PASS: /release
+- If PASS or PARTIAL: /release
 - If FAILED: /debug
 
 Workflow Paused.

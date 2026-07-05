@@ -93,24 +93,13 @@ First, check the `"status"` field in the session file:
    - Identify the interrupted skill from the `"current_skill"` field.
    - Recommend retrying/running that exact skill (using its primary command) to resume from the interrupted state.
 2. If `"status"` is `"completed"` (or empty/missing), check the last recorded `checkpoint` in the session file:
-   *   **Checkpoint 1** (Initialization Complete):
-       - Recommend running: `project-memory-bootstrap` (to load codebase memory).
-   *   **Checkpoint 2** (Memory Loaded):
-       - Recommend running: `brainstorming` (to start requirement discovery).
-   *   **Checkpoint 3** (Requirement Brainstorming Complete):
-       - Recommend running: `brainstorming-to-plan` (to generate the plan).
-   *   **Checkpoint 4** (Implementation Plan Approved):
-       - Recommend running: `plan-to-blueprint` (to create technical design blueprint).
-   *   **Checkpoint 5** (Technical Blueprint Approved):
-       - Recommend running: `blueprint-to-implementation` (or `quick-fix`/`quick-feature` if using fast-track).
-   *   **Checkpoint 6** (Implementation Complete):
-       - Recommend running: `implementation-to-debug` (to build, compile, and run tests).
-   *   **Checkpoint 7** (Debug Complete):
-       - Recommend running: `debug-to-verify` (to audit quality gates).
-   *   **Checkpoint 8** (Verification Complete):
-       - Recommend running: `implementation-to-release` (to merge, tag, and publish).
-   *   **Checkpoint 9** (Release Complete):
-       - Inform the user that the active feature has been successfully released and recommend starting a new workflow.
+   - Load the list of checkpoints from `.agents/project-profile.json` (specifically `recommended_workflow`).
+   - Map the current `checkpoint` (integer) to the index in the `recommended_workflow` list.
+   - Recommend running the skill and primary command associated with the NEXT step in the dynamic workflow array.
+   - For example:
+     - If active checkpoint is `6` (Code Generation / Implementation Complete): recommend the Debug skill listed in the profile.
+     - If active checkpoint is `7` (Debug Complete): check the next step in the profile. If it is `Frontend Visual Debug` (or other UI debug skill), recommend `/visual-debug`. If the next step is `Feature Verification`, recommend `/verify`.
+     - If the dynamic workflow is complete: inform the user that the active feature has been successfully released and recommend starting a new workflow.
 
 ## Step 4 — Heartbeat Output
 Print the plain text heartbeat block:
