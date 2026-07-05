@@ -56,43 +56,28 @@ You have full **read-only** access to:
 
 ## 🔒 WORKFLOW RUNTIME & INITIALIZATION CHECK
 
-This Skill assumes `initialize-workflow` and `workflow-runtime` have completed.
-Before executing, inspect `.agents/.session.json` and perform the **Runtime Health Check**, **Drift Detection**, and **Checkpoint Verification**.
-Verify that the current checkpoint in `.session.json` is at least `1` (Initialization Complete).
-If the session file is missing, if context health is `broken` (e.g. active branch or work item has drifted), or if the current checkpoint is less than `1`:
-- Recommend running: `initialize-workflow` or `workflow-runtime` (to resume) to reach the correct checkpoint state.
-- Stop execution.
+This Skill MUST interface with the centralized Python CLI Runtime Engine:
+- **Validate Checkpoint**: Run `python skills/workflow-runtime/scripts/workflow_runtime.py validate --checkpoint "at least 1"` before taking any action. If validation fails, halt execution immediately.
+- **Progress Tracking**:
+  - *Start*: Run `python skills/workflow-runtime/scripts/workflow_runtime.py start --skill "environment-health" --command "doctor" --checkpoint 1 --step "Starting execution..."`
+  - *Step Updates*: Run `python skills/workflow-runtime/scripts/workflow_runtime.py step --step "<step_desc>" --log "<progress_message>"` progressively during major steps.
+  - *Completion*: Run `python skills/workflow-runtime/scripts/workflow_runtime.py complete --checkpoint 1 --step "Step Complete" --next-skill "project-discovery" --next-command "discover"` when execution finishes successfully.
+  - *Failure*: Run `python skills/workflow-runtime/scripts/workflow_runtime.py fail --step "<error_step>" --log "<error_details>"` if any phase fails.
 
-Upon successful environment diagnosis, output the runtime heartbeat.
+## 🔒 GLOBAL POLICY REFERENCES
 
----
-
-## Capability Boundary & Global Policies
-
-This Skill MUST strictly follow the global policies defined in [AI_RULES.md](../../AI_RULES.md):
-- **Approval Gate Policy** (Section 1) - This Skill is strictly read-only; it never modifies, installs, or configures anything.
-- **Git Workflow Policy** (Section 2) - Perform read-only git checks only; never checkout, commit, push, or merge.
-
-**This Skill MUST NEVER**:
-- Install any software or packages.
-- Modify any configuration file, project file, or directory.
-- Execute builds, tests, or Git state changes.
-- Start or stop any service.
-
-**This Skill MAY**:
-- Run read-only detection commands (`--version`, `which`, `git status`).
-- Read configuration files and skill directories.
-- Query local health endpoints (HTTP GET).
-- Print findings and recommendations.
-
-
+This Skill MUST strictly adhere to the global policies defined in [AI_RULES.md](../../AI_RULES.md):
+- **Approval Gate Policy** (Section 1) - Seek explicit confirmation before modifying code or creating files.
+- **Git Workflow Policy** (Section 2) - Perform branch checks and commits/tags/pushes only with approval.
+- **Memory First Policy** (Section 3) - Consult project summary/memory before source files or user questions.
+- **RAG Policy** (Section 4) - Follow retrieval sequence levels.
+- **Artifact Policy** (Section 5) - Strictly follow path boundaries and naming formats.
+- **Testing Policy** (Section 8) - Run compilation, build, and tests, halting on failures.
 
 ## Multi-Agent Contract
 
-This Skill runs under the Multi-Agent Workflow.
-It must respect agent ownership and handoff rules defined in:
-- [agents/](../../agents/)
-- [runtime/](../../runtime/)
+Runs under the Multi-Agent Workflow. Respect agent ownership and handoff rules defined in [agents/](../../agents/) and [runtime/](../../runtime/).
+
 ---
 
 ## Workflow

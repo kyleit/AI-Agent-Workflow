@@ -27,17 +27,23 @@ description: Validate that the feature is production-ready. Enforce standards be
 
 ## 🔒 WORKFLOW RUNTIME & INITIALIZATION CHECK
 
-Before executing, inspect `.agents/.session.json` and perform the **Runtime Health Check**, **Drift Detection**, and **Checkpoint Verification**.
-Verify that the current checkpoint in `.session.json` is `8` (Frontend Visual Debug Complete) for UI features, or `7` (Debug Complete) for backend-only features.
-1. If the visual debug report `docs/verification/FEAT-XXX_visual_debug.md` exists and has `status: FAIL`, the verification audit MUST fail immediately. Release is blocked.
-2. If the session file is missing, if context health is `broken`, or if the current checkpoint is less than `7` (or less than `8` for frontend features):
-   - Recommend running: `implementation-to-debug` or `frontend-visual-debug` to reach the correct checkpoint state.
-   - Stop execution.
-3. At the start of execution, update `.session.json` checkpoint to `9` (Verification Complete) and set `"status"` to `"in_progress"`.
-4. Upon successful verification validation and generation of the report, update `.session.json` checkpoint to `9` (Verification Complete), set `"status"` to `"completed"`, and output the runtime heartbeat.
-5. If verification fails, set `"status"` to `"failed"`.
+This Skill MUST interface with the centralized Python CLI Runtime Engine:
+- **Validate Checkpoint**: Run `python skills/workflow-runtime/scripts/workflow_runtime.py validate --checkpoint "exactly 8 or 7"` before taking any action. If validation fails, halt execution immediately.
+- **Progress Tracking**:
+  - *Start*: Run `python skills/workflow-runtime/scripts/workflow_runtime.py start --skill "debug-to-verify" --command "verify" --checkpoint 9 --step "Starting execution..."`
+  - *Step Updates*: Run `python skills/workflow-runtime/scripts/workflow_runtime.py step --step "<step_desc>" --log "<progress_message>"` progressively during major steps.
+  - *Completion*: Run `python skills/workflow-runtime/scripts/workflow_runtime.py complete --checkpoint 9 --step "Step Complete" --next-skill "implementation-to-release" --next-command "release"` when execution finishes successfully.
+  - *Failure*: Run `python skills/workflow-runtime/scripts/workflow_runtime.py fail --step "<error_step>" --log "<error_details>"` if any phase fails.
 
----
+## 🔒 GLOBAL POLICY REFERENCES
+
+This Skill MUST strictly adhere to the global policies defined in [AI_RULES.md](../../AI_RULES.md):
+- **Approval Gate Policy** (Section 1) - Seek explicit confirmation before modifying code or creating files.
+- **Git Workflow Policy** (Section 2) - Perform branch checks and commits/tags/pushes only with approval.
+- **Memory First Policy** (Section 3) - Consult project summary/memory before source files or user questions.
+- **RAG Policy** (Section 4) - Follow retrieval sequence levels.
+- **Artifact Policy** (Section 5) - Strictly follow path boundaries and naming formats.
+- **Testing Policy** (Section 8) - Run compilation, build, and tests, halting on failures.
 
 ## Purpose
 

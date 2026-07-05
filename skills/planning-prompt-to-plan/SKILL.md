@@ -62,10 +62,25 @@ output_path: docs/plans/auto
 
 ---
 
-# Pre-flight: Memory Health Check
+## 🔒 WORKFLOW RUNTIME & INITIALIZATION CHECK
 
-**MANDATORY. Execute before any analysis.**
-Verify that memory configuration `.agents/memory.config.json` and `<memory_root>/project-summary.md` are present. If memory confidence is low or absent, warn the user and stop.
+Verify session state in `.agents/.session.json` before execution:
+- **Required Checkpoint**: exactly 3 (Architecture Analysis Complete) or 2 (Memory Loaded) (Stop & recommend preceding skill/workflow-runtime if missing/invalid/broken).
+- **Atomic Writes (via `.session.json.tmp`)**:
+  - *Start*: Set `status: "in_progress"`, `checkpoint: 3 (Architecture Analysis Complete)`, `current_skill: "planning-prompt-to-plan"`, `current_command: "plan-legacy"`, `current_step`, log starting line, `updated_at`.
+  - *Step Updates*: Update `current_step` and append progress strings to `current_logs` progressively.
+  - *Completion*: Set `status: "completed"`, `checkpoint: 3 (Architecture Analysis Complete)`, `current_step`, `suggested_next_skill: "plan-to-blueprint"`, `suggested_next_command: "blueprint"`, log completion line.
+  - *Failure*: Set `status: "failed"`, log error details.
+
+## 🔒 GLOBAL POLICY REFERENCES
+
+This Skill MUST strictly adhere to the global policies defined in [AI_RULES.md](../../AI_RULES.md):
+- **Approval Gate Policy** (Section 1) - Seek explicit confirmation before modifying code or creating files.
+- **Git Workflow Policy** (Section 2) - Perform branch checks and commits/tags/pushes only with approval.
+- **Memory First Policy** (Section 3) - Consult project summary/memory before source files or user questions.
+- **RAG Policy** (Section 4) - Follow retrieval sequence levels.
+- **Artifact Policy** (Section 5) - Strictly follow path boundaries and naming formats.
+- **Testing Policy** (Section 8) - Run compilation, build, and tests, halting on failures.
 
 ---
 

@@ -27,16 +27,23 @@ description: Review the implementation. Identify and resolve problems before ver
 
 ## 🔒 WORKFLOW RUNTIME & INITIALIZATION CHECK
 
-Before executing, inspect `.agents/.session.json` and perform the **Runtime Health Check**, **Drift Detection**, and **Checkpoint Verification**.
-Verify that the current checkpoint in `.session.json` is exactly `6` (Implementation Complete).
-1. If the session file is missing, if context health is `broken`, or if the current checkpoint is not `6`:
-   - Recommend running: `blueprint-to-implementation` or `workflow-runtime` to reach the correct checkpoint state.
-   - Stop execution.
-2. At the start of execution, update `.session.json` checkpoint to `7` (Debug Complete) and set `"status"` to `"in_progress"`.
-3. Upon successful debug validation and generation of the report, update `.session.json` checkpoint to `7` (Debug Complete), set `"status"` to `"completed"`, and output the runtime heartbeat.
-4. If the execution fails or is aborted due to unresolved issues, set `"status"` to `"failed"`.
+This Skill MUST interface with the centralized Python CLI Runtime Engine:
+- **Validate Checkpoint**: Run `python skills/workflow-runtime/scripts/workflow_runtime.py validate --checkpoint "exactly 6 or 5"` before taking any action. If validation fails, halt execution immediately.
+- **Progress Tracking**:
+  - *Start*: Run `python skills/workflow-runtime/scripts/workflow_runtime.py start --skill "implementation-to-debug" --command "debug" --checkpoint 7 --step "Starting execution..."`
+  - *Step Updates*: Run `python skills/workflow-runtime/scripts/workflow_runtime.py step --step "<step_desc>" --log "<progress_message>"` progressively during major steps.
+  - *Completion*: Run `python skills/workflow-runtime/scripts/workflow_runtime.py complete --checkpoint 7 --step "Step Complete" --next-skill "frontend-visual-debug" --next-command "visual-debug"` when execution finishes successfully.
+  - *Failure*: Run `python skills/workflow-runtime/scripts/workflow_runtime.py fail --step "<error_step>" --log "<error_details>"` if any phase fails.
 
----
+## 🔒 GLOBAL POLICY REFERENCES
+
+This Skill MUST strictly adhere to the global policies defined in [AI_RULES.md](../../AI_RULES.md):
+- **Approval Gate Policy** (Section 1) - Seek explicit confirmation before modifying code or creating files.
+- **Git Workflow Policy** (Section 2) - Perform branch checks and commits/tags/pushes only with approval.
+- **Memory First Policy** (Section 3) - Consult project summary/memory before source files or user questions.
+- **RAG Policy** (Section 4) - Follow retrieval sequence levels.
+- **Artifact Policy** (Section 5) - Strictly follow path boundaries and naming formats.
+- **Testing Policy** (Section 8) - Run compilation, build, and tests, halting on failures.
 
 ## Purpose
 

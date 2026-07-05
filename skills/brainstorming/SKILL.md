@@ -47,17 +47,13 @@ description: Skill definition.
 
 ## 🔒 WORKFLOW RUNTIME & INITIALIZATION CHECK
 
-This Skill assumes `initialize-workflow` and `workflow-runtime` have completed.
-Before executing, inspect `.agents/.session.json` and perform the **Runtime Health Check**, **Drift Detection**, and **Checkpoint Verification**.
-Verify that the current checkpoint in `.session.json` is exactly `2` (Memory Loaded) – which is established upon successful bootstrap or update of project memory.
-1. If the session file is missing, if context health is `broken` (e.g. active branch or work item has drifted), or if the current checkpoint is not `2`:
-   - Recommend running: `initialize-workflow`, `project-memory-bootstrap`, `project-memory-update`, or `workflow-runtime` (to resume) to reach the correct checkpoint state.
-   - Stop execution.
-2. At the start of execution, update `.session.json` checkpoint to `3` (Architecture Analysis Complete) and set `"status"` to `"in_progress"`.
-3. On successful validation of requirements (Readiness >= 85), update `.session.json` checkpoint to `3` (Architecture Analysis Complete), set `"status"` to `"completed"`, and output the runtime heartbeat before writing the file.
-4. If execution fails, is paused for clarification, or is aborted, set `"status"` to `"failed"`.
-
----
+This Skill MUST interface with the centralized Python CLI Runtime Engine:
+- **Validate Checkpoint**: Run `python skills/workflow-runtime/scripts/workflow_runtime.py validate --checkpoint "exactly 2"` before taking any action. If validation fails, halt execution immediately.
+- **Progress Tracking**:
+  - *Start*: Run `python skills/workflow-runtime/scripts/workflow_runtime.py start --skill "brainstorming" --command "brainstorm" --checkpoint 3 --step "Starting execution..."`
+  - *Step Updates*: Run `python skills/workflow-runtime/scripts/workflow_runtime.py step --step "<step_desc>" --log "<progress_message>"` progressively during major steps.
+  - *Completion*: Run `python skills/workflow-runtime/scripts/workflow_runtime.py complete --checkpoint 3 --step "Step Complete" --next-skill "brainstorming-to-plan" --next-command "plan"` when execution finishes successfully.
+  - *Failure*: Run `python skills/workflow-runtime/scripts/workflow_runtime.py fail --step "<error_step>" --log "<error_details>"` if any phase fails.
 
 ## Wrong Behavior Detection
 
@@ -103,27 +99,20 @@ Return to the workflow sequence and ask the user for clarification instead.
 
 ---
 
-## Capability Boundary & Global Policies
+## 🔒 GLOBAL POLICY REFERENCES
 
-This Skill MUST strictly adhere to the global policies defined in [AI_RULES.md](file:///Volumes/Kyle/CloudProtected/agents/AI_RULES.md):
-- **Approval Gate Policy** (Section 1) - Before writing files.
-- **Memory First Policy** (Section 3) - Before querying the user.
-- **RAG Policy** (Section 4) - For requirement lookup.
-- **Artifact Policy** (Section 5) - For generating files only under `docs/brainstorm/` and naming artifacts as `FEAT-XXX_slug.md`.
-
-**Specific Brainstorming Boundaries**:
-- **Allowed Output**: The ONLY file this Skill may write is `docs/brainstorm/FEAT-XXX_feature_name.md` after approval.
-- **Strict Read-Only**: Do NOT modify source code or other downstream documents.
-- **Hard Stops**: Stop after option generation, when asking questions, and before writing files (requesting Y/N confirmation). Never automate downstream skills.
-
-
+This Skill MUST strictly adhere to the global policies defined in [AI_RULES.md](../../AI_RULES.md):
+- **Approval Gate Policy** (Section 1) - Seek explicit confirmation before modifying code or creating files.
+- **Git Workflow Policy** (Section 2) - Perform branch checks and commits/tags/pushes only with approval.
+- **Memory First Policy** (Section 3) - Consult project summary/memory before source files or user questions.
+- **RAG Policy** (Section 4) - Follow retrieval sequence levels.
+- **Artifact Policy** (Section 5) - Strictly follow path boundaries and naming formats.
+- **Testing Policy** (Section 8) - Run compilation, build, and tests, halting on failures.
 
 ## Multi-Agent Contract
 
-This Skill runs under the Multi-Agent Workflow.
-It must respect agent ownership and handoff rules defined in:
-- [agents/](../../agents/)
-- [runtime/](../../runtime/)
+Runs under the Multi-Agent Workflow. Respect agent ownership and handoff rules defined in [agents/](../../agents/) and [runtime/](../../runtime/).
+
 ---
 
 ## Invocation
@@ -284,122 +273,8 @@ Group by: *Functional · Business Rules · Technical · Performance · Security 
 
 ### Steps 8–10: Project Context, Memory & RAG
 
-#### Memory Configuration
-
-Before Project Memory Lookup, check for:
-
-```text
-.agents/memory.config.json
-```
-
-**If `.agents/memory.config.json` exists:**
-
-1. Read it.
-2. Use `memory_root` from the config.
-3. Read in order:
-   ```text
-   <memory_root>/project-summary.md
-   <memory_root>/architecture/
-   <memory_root>/modules/
-   <memory_root>/services/
-   <memory_root>/lessons/
-   ```
-4. Use this information as the **primary source** of project context.
-
-**If `.agents/memory.config.json` does not exist:**
-
-1. Do not fail.
-2. Mark: `Memory Status: Missing`
-3. Continue with requirement discovery using the user's input only.
-4. Do NOT scan the whole repository.
-5. Mention that Project Memory is missing in the discovery output.
-6. Recommend running `/memory-init` later — but do NOT invoke it.
-
----
-
-#### Project Memory Reading Strategy
-
-Use Project Memory in this strict order:
-
-```text
-Project Summary
-      ↓
-Architecture Memory
-      ↓
-Module Memory
-      ↓
-Service Memory
-      ↓
-Lessons Learned
-      ↓
-RAG Search
-      ↓
-Targeted Source Inspection (only if needed — see fallback rule below)
-```
-
-Never start by scanning the whole workspace.
-
----
-
-#### RAG Execution Rule
-
-**If the `project-rag-search` Skill is available:**
-
-- Use it conceptually as the retrieval mechanism.
-- Query with keywords extracted from the user requirement.
-- Retrieve only relevant:
-  - modules
-  - services
-  - APIs
-  - entities
-  - repositories
-  - prior brainstorming documents
-  - prior plans
-  - prior blueprints
-  - lessons learned
-
-**If RAG is unavailable:**
-
-- Fall back to Markdown Project Memory.
-- If Markdown Project Memory is also missing, continue with requirement discovery only.
-- Do not inspect source code unless the user requirement directly names a module/file and inspection is necessary.
-
----
-
-#### Source Inspection Fallback
-
-Source inspection is allowed only as a **last resort**.
-
-If needed, inspect only:
-
-- directly referenced modules
-- directly affected services
-- directly affected APIs
-- directly affected repositories
-- directly affected configuration
-
-Never recursively inspect unrelated folders.
-
----
-
-#### Memory Reporting
-
-When presenting Requirement Discovery results, include:
-
-```text
-Project Memory Status:
-  Available | Missing | Stale | Not Used
-
-RAG Status:
-  Available | Missing | Not Used
-
-Project Context Sources:
-  - [Memory file or RAG result referenced]
-  - [Targeted source file if inspected]
-```
-
----
-
+#### Memory & RAG Retrieval
+Follow Memory First Policy (Section 3) and RAG Policy (Section 4) in [AI_RULES.md](../../AI_RULES.md). Consult `.agents/memory.config.json` and use project-summary/RAG lookup before scanning source files.
 
 ### Step 11: Requirement Readiness Score
 

@@ -56,6 +56,16 @@ design_file: "docs/designs/FEAT-XXX_feature_slug_blueprint.md"
 
 ---
 
+## 🔒 WORKFLOW RUNTIME & INITIALIZATION CHECK
+
+This Skill MUST interface with the centralized Python CLI Runtime Engine:
+- **Validate Checkpoint**: Run `python skills/workflow-runtime/scripts/workflow_runtime.py validate --checkpoint "at least 1"` before taking any action. If validation fails, halt execution immediately.
+- **Progress Tracking**:
+  - *Start*: Run `python skills/workflow-runtime/scripts/workflow_runtime.py start --skill "create-adr" --command "adr" --checkpoint 3 --step "Starting execution..."`
+  - *Step Updates*: Run `python skills/workflow-runtime/scripts/workflow_runtime.py step --step "<step_desc>" --log "<progress_message>"` progressively during major steps.
+  - *Completion*: Run `python skills/workflow-runtime/scripts/workflow_runtime.py complete --checkpoint 3 --step "Step Complete" --next-skill "plan-to-blueprint" --next-command "blueprint"` when execution finishes successfully.
+  - *Failure*: Run `python skills/workflow-runtime/scripts/workflow_runtime.py fail --step "<error_step>" --log "<error_details>"` if any phase fails.
+
 ## ADR Numbering Rules
 
 This Skill MUST follow the global policies defined in [AI_RULES.md](../../AI_RULES.md):
@@ -66,12 +76,19 @@ Calculate the next ADR ID by scanning `docs/adr/` as defined in Section 5 (Artif
 
 ---
 
+## 🔒 GLOBAL POLICY REFERENCES
+
+This Skill MUST strictly adhere to the global policies defined in [AI_RULES.md](../../AI_RULES.md):
+- **Approval Gate Policy** (Section 1) - Seek explicit confirmation before modifying code or creating files.
+- **Git Workflow Policy** (Section 2) - Perform branch checks and commits/tags/pushes only with approval.
+- **Memory First Policy** (Section 3) - Consult project summary/memory before source files or user questions.
+- **RAG Policy** (Section 4) - Follow retrieval sequence levels.
+- **Artifact Policy** (Section 5) - Strictly follow path boundaries and naming formats.
+- **Testing Policy** (Section 8) - Run compilation, build, and tests, halting on failures.
+
 ## Multi-Agent Contract
 
-This Skill runs under the Multi-Agent Workflow.
-It must respect agent ownership and handoff rules defined in:
-- [agents/](../../agents/)
-- [runtime/](../../runtime/)
+Runs under the Multi-Agent Workflow. Respect agent ownership and handoff rules defined in [agents/](../../agents/) and [runtime/](../../runtime/).
 
 ---
 

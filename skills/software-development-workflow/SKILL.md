@@ -89,31 +89,20 @@ Feature-Centric SDLC (Reusing Feature ID 'FEAT-XXX')
 
 ---
 
-## Capability Boundary & Global Policies
+## 🔒 GLOBAL POLICY REFERENCES
 
-This coordinator Skill does NOT perform modifications or execute release/testing steps.
-
-Every Skill recommended by this orchestrator MUST strictly adhere to the global policies defined in [AI_RULES.md](file:///Volumes/Kyle/CloudProtected/agents/AI_RULES.md):
-- **Approval Gate Policy** (Section 1)
-- **Git Workflow Policy** (Section 2)
-- **Memory First Policy** (Section 3)
-- **RAG Policy** (Section 4)
-- **Artifact Policy** (Section 5)
-- **Versioning Policy** (Section 6)
-- **Documentation Policy** (Section 7)
-- **Testing Policy** (Section 8)
-- **Release Policy** (Section 9)
-
-**This Skill owns ZERO project artifacts and MUST NEVER modify source code, write files, run tests, or perform Git actions.**
-
-
+This Skill MUST strictly adhere to the global policies defined in [AI_RULES.md](../../AI_RULES.md):
+- **Approval Gate Policy** (Section 1) - Seek explicit confirmation before modifying code or creating files.
+- **Git Workflow Policy** (Section 2) - Perform branch checks and commits/tags/pushes only with approval.
+- **Memory First Policy** (Section 3) - Consult project summary/memory before source files or user questions.
+- **RAG Policy** (Section 4) - Follow retrieval sequence levels.
+- **Artifact Policy** (Section 5) - Strictly follow path boundaries and naming formats.
+- **Testing Policy** (Section 8) - Run compilation, build, and tests, halting on failures.
 
 ## Multi-Agent Contract
 
-This Skill runs under the Multi-Agent Workflow.
-It must respect agent ownership and handoff rules defined in:
-- [agents/](../../agents/)
-- [runtime/](../../runtime/)
+Runs under the Multi-Agent Workflow. Respect agent ownership and handoff rules defined in [agents/](../../agents/) and [runtime/](../../runtime/).
+
 ---
 
 ## Decision Tree
@@ -144,10 +133,21 @@ Verify that the current checkpoint in `.session.json` is at least `1` (Initializ
 1. If the session file is missing, if context health is `broken` (e.g. active branch or work item has drifted), or if the current checkpoint is less than `1`:
    * **Recommend next Skill**: `initialize-workflow` or `workflow-runtime` (to resume)
    * Stop.
-2. If the session file has `"status": "in_progress"` or `"status": "failed"`:
-   * Identify that the skill `current_skill` was interrupted.
-   * **Recommend next Skill**: Retrying/running that exact skill (using its primary command, e.g. `/plan` or `/blueprint`) to complete the in-progress checkpoint.
-   * Stop.
+2. At the start of execution, write `.session.json` atomically (via `.session.json.tmp` rename) with:
+   - `status`: `"in_progress"`
+   - `current_skill`: `"software-development-workflow"`
+   - `current_command`: `"workflow"`
+   - `current_step`: `"Starting workflow orchestration checks..."`
+   - `current_logs`: `["> Starting software-development-workflow..."]`
+   - `updated_at`: (current ISO-8601 timestamp)
+3. During major steps of execution (checking environment health, checking memory staleness, classifying features, tracing documents, checking quality gates), update `.session.json` progressively by updating `current_step` and appending detailed step descriptions to `current_logs`.
+4. Upon generating a final recommendation, write `.session.json` atomically (via `.session.json.tmp` rename):
+   - Set `status` to `"completed"`.
+   - Set `current_step` to `"Workflow Orchestrated"`.
+   - Update `suggested_next_skill` and `suggested_next_command` with the recommended skill/command.
+   - Append `"> Recommendation generated: [skill-name]."` and `"> Workflow orchestration complete."` to `current_logs`.
+5. If execution fails, write `.session.json` atomically with `status`: `"failed"` and append the failure details to `current_logs`.
+
 
 ---
 

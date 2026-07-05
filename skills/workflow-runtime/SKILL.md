@@ -8,7 +8,7 @@ tags:
   - runtime
   - controller
   - session
-version: 2.5.0
+version: 2.10.1
 author:
   name: Kyle Dang
   email: kyleit@klexpress.net
@@ -16,7 +16,7 @@ author:
 license: MIT
 repository: https://gitlab.com/hngan.it/ai-workflow-skills
 created_at: 2026-07-03
-updated_at: 2026-07-03
+updated_at: 2026-07-06
 description: Runtime controller for the AI Engineering Workflow. Manages execution session state (.session.json), validates context health, detects context drift, updates checkpoints, supports recovery via resume-workflow, and outputs runtime heartbeats. Read-only.
 ---
 
@@ -27,205 +27,82 @@ description: Runtime controller for the AI Engineering Workflow. Manages executi
 ## 🔒 GLOBAL POLICY REFERENCES
 
 This Skill MUST strictly adhere to the global policies defined in [AI_RULES.md](../../AI_RULES.md):
-- **Approval Gate Policy** (Section 1) - Required only when creating/updating the `.agents/.session.json` file during step/checkpoint transitions.
-- **Git Workflow Policy** (Section 2) - For validating runtime branch consistency.
-- **Memory First Policy** (Section 3) - Prioritize session data checks.
-- **Artifact Policy** (Section 5) - Save active states pointing to standard directories.
-
----
+- **Approval Gate Policy** (Section 1) - Seek explicit confirmation before modifying code or creating files.
+- **Git Workflow Policy** (Section 2) - Perform branch checks and commits/tags/pushes only with approval.
+- **Memory First Policy** (Section 3) - Consult project summary/memory before source files or user questions.
+- **RAG Policy** (Section 4) - Follow retrieval sequence levels.
+- **Artifact Policy** (Section 5) - Strictly follow path boundaries and naming formats.
+- **Testing Policy** (Section 8) - Run compilation, build, and tests, halting on failures.
 
 ## Multi-Agent Contract
 
-This Skill runs under the Multi-Agent Workflow.
-It must respect agent ownership and handoff rules defined in:
-- [agents/](../../agents/)
-- [runtime/](../../runtime/)
+Runs under the Multi-Agent Workflow. Respect agent ownership and handoff rules defined in [agents/](../../agents/) and [runtime/](../../runtime/).
+
+---
 
 ## Purpose
-
-The **workflow-runtime** Skill manages the state, health, check-pointing, and resume capabilities of the AI Engineering Workflow. It keeps track of execution state via `.agents/.session.json` to prevent context loss, configuration drift, or incorrect branch transitions.
+The **workflow-runtime** Skill acts as the centralized execution state controller for all AI skills. It encapsulates atomic session updates, Git check-pointing, token usage estimations, context drift checks, and workspace validations.
 
 ---
 
-## Runtime Controller Flow
+## Runtime CLI Commands
+The runtime CLI engine is written in Python and resides in:
+`skills/workflow-runtime/scripts/workflow_runtime.py`
 
+### 1. Initialize Session
+```bash
+python skills/workflow-runtime/scripts/workflow_runtime.py init
 ```
-Start (Skill Invoked / Triggered)
-         ↓
-Read .agents/.session.json
-         ↓
-If Missing: Stop & Recommend /init
-         ↓
-Validate Context Health & Drift Detection
-         ↓
-If Inconsistent: Mark BROKEN, Stop & Recommend Recovery
-         ↓
-Perform Heartbeat / Checkpoint Update / Resume (based on command)
-         ↓
-Print Runtime Report & Next Step
+- Creates a clean `.session.json` state, generating a unique `conversation_id` if missing.
+
+### 2. Validate Session Checkpoint
+```bash
+python skills/workflow-runtime/scripts/workflow_runtime.py validate --checkpoint "exactly X"
 ```
+- Confirms workspace integrity and checks that the current checkpoint is at level `X`.
 
----
-
-## Session State Schema (`.agents/.session.json`)
-
-**CRITICAL RULE**: The `"workspace"` (or `"workspace.path"`) field inside `.agents/.session.json` MUST be written as exactly `"."` (a relative path representation). Under no circumstances should an absolute path be saved or written to this file.
-
-The runtime tracks the current workflow status in this layout:
-
-```json
-{
-  "workspace": {
-    "path": ".",
-    "valid": true
-  },
-  "git": {
-    "is_git_repository": true,
-    "branch": "string",
-    "working_tree": "clean | dirty",
-    "default_branch": "string",
-    "latest_tag": "string"
-  },
-  "work_item": {
-    "type": "FEAT | FIX | QUICK",
-    "id": "string",
-    "title": "string"
-  },
-  "version": {
-    "version": "string",
-    "source": "string"
-  },
-  "memory": {
-    "status": "FRESH | STALE | MISSING",
-    "last_updated": "string (ISO timestamp)"
-  },
-  "rag": {
-    "connected": true,
-    "provider": "string"
-  },
-  "context_usage": {
-    "total_tokens": 120534,
-    "limit_tokens": 2000000,
-    "percentage": 6.0
-  },
-  "conversation_id": "string (GUID)",
-  "checkpoint": 1,
-  "status": "in_progress | completed | failed",
-  "current_skill": "string",
-  "current_step": "string",
-  "context_health": "healthy | broken"
-}
+### 3. Start a Skill
+```bash
+python skills/workflow-runtime/scripts/workflow_runtime.py start --skill <skill_name> --command <command> --checkpoint <level> --step <step_desc>
 ```
+- Transitions session status to `"in_progress"`.
 
----
-
-## Session File Updates and Context Estimation
-
-Whenever any Skill or Agent updates the `.agents/.session.json` file (including initialization, checkpoint changes, or memory syncs):
-1. **Conversation ID Preservation**:
-   - The agent MUST retrieve the root `Conversation ID` from the environment metadata (`user_information`).
-   - If `"conversation_id"` is not yet set in `.session.json`, save the root ID to the `"conversation_id"` field.
-   - If `"conversation_id"` is already defined in `.session.json`, preserve its value (do NOT overwrite it with a subagent's temporary ID).
-2. **Context Token Estimation**:
-   - The agent MUST calculate the current conversation's token count using the preserved `"conversation_id"` at `<appDataDir>/brain/<conversation_id>/.system_generated/logs/transcript.jsonl` (using `fileSize / 3` as an estimation).
-   - Write this estimation into the `"context_usage"` object inside `.agents/.session.json` (specifying `total_tokens`, `limit_tokens: 2000000`, and `percentage`).
-3. **Continuous Tracking Policy**:
-   - Every time the agent responds or modifies files (even outside standard workflows), it must update `.session.json` as defined in **[AI_RULES.md](../../AI_RULES.md) (Section 12: Session State Tracking Policy)**.
-4. **Status Field Updates**:
-   - Set to `"in_progress"` at the very beginning of the skill execution (along with the target checkpoint value).
-   - Set to `"completed"` upon successful completion of the skill execution.
-   - Set to `"failed"` if any step fails or exits with validation errors.
-5. This ensures the Visualizer UI Extension displays accurate, real-time context token usage and checkpoint status directly from the session file.
-
----
-
-## Checkpoint Levels
-
-The execution flow checkpoints are dynamically configured based on the detected project tech stack from `.agents/project-profile.json` (under the `recommended_workflow` property). 
-
-### Core Checkpoint Milestones
-- **Core 1**: Workspace Initialization (runs `/init`)
-- **Core 2**: Memory Loaded (runs `/memory-sync` / `/memory-init`)
-- **Core 3**: Requirement Brainstorming Complete (runs `/brainstorm`)
-- **Core 4**: Implementation Plan Approved (runs `/plan`)
-- **Core 5**: Technical Blueprint Approved (runs `/blueprint`)
-- **Core 6**: Implementation Complete (runs `/implement`)
-- **Core 7**: Debug Complete (runs `/debug` - uses stack-specific tools)
-- **Conditional Gates**: (Inserted dynamically based on Project Profile: e.g. Frontend Visual Debug `/visual-debug`, Desktop UI Debug `/desktop-debug`, Mobile Visual Debug `/mobile-debug`, Database Migration Check `/db-verify`)
-- **Core 8**: Feature Verification Complete (runs `/verify`)
-- **Core 9**: Release Complete (runs `/release`)
-
-All runtime logic must parse `.agents/project-profile.json` to map active checkpoints dynamically instead of relying on hardcoded static numbers.
-
----
-
-## Wrong Behavior & Context Drift Detection
-
-Before every Skill step:
-1. Compare the runtime Git branch against the `.session.json` branch field.
-2. Compare the active version and work item files against the `.session.json` definitions.
-3. If the branch, work item, or version changes unexpectedly:
-   - Mark `context_health: "broken"`.
-   - **STOP** execution immediately.
-   - Display a Context Drift Warning and recommend recovery.
-
----
-
-## Heartbeat Output Format
-
-At major steps, the executing agent must print this plain text heartbeat block:
-
-```text
-Workflow Runtime Heartbeat
-- Current Skill: [skill-name]
-- Current Step:  [step-name]
-- Checkpoint:    [N]
-- Context Health:[healthy | broken]
-- Memory Status: [loaded | missing | stale]
-- RAG Status:    [connected | unavailable]
-- Git Branch:    [branch-name]
-- Status:        [Running | Paused]
+### 4. Record Execution Step
+```bash
+python skills/workflow-runtime/scripts/workflow_runtime.py step --step <step_desc> --log <log_message>
 ```
+- Appends progress messages and logs atomically.
 
----
-
-## Resume Workflow (`/resume`)
-
-When the user runs `/resume`:
-1. Read `.agents/.session.json`.
-2. Extract the last recorded `checkpoint`, `status`, `current_skill`, and `current_step`.
-3. Verify that the current workspace branch and files match the session config.
-4. Recommend the correct next action:
-   - If `"status"` is `"in_progress"` or `"failed"`: Identify that `current_skill` was interrupted, and recommend retrying/running that exact skill (using its primary command) to resume.
-   - If `"status"` is `"completed"` (or empty): Recommend running the next skill in the workflow corresponding to the next checkpoint.
-
----
-
-## Runtime Report Format
-
-At the end of every Skill execution, print this plain text report:
-
-```text
-Current Phase:
-Workflow Runtime Status
-
-Status:
-Completed
-
-Workflow Runtime:
-- Session ID:     [session_id]
-- Context Health: [healthy | broken]
-- Checkpoint:     [N]
-- Current Skill:  [skill-name]
-- Current Step:   [step-name]
-- Work Item:      [FEAT-XXX | FIX-XXX | QUICK-XXX]
-- Memory Status:  [loaded | missing]
-- RAG Status:     [connected | unavailable]
-- Git Branch:     [branch-name]
-- Project Version:[version]
-
-Recommended Next Skill:
-[skill-name]
-
-Workflow Paused.
+### 5. Complete a Skill
+```bash
+python skills/workflow-runtime/scripts/workflow_runtime.py complete --checkpoint <level> --step <step_desc> --next-skill <skill> --next-command <cmd>
 ```
+- Transitions status to `"completed"` and proposes the next step.
+
+### 6. Fail a Skill
+```bash
+python skills/workflow-runtime/scripts/workflow_runtime.py fail --step <error_desc> --log <error_log>
+```
+- Marks status as `"failed"`.
+
+### 7. View Heartbeat
+```bash
+python skills/workflow-runtime/scripts/workflow_runtime.py heartbeat
+```
+- Prints the formatted workflow state box.
+
+---
+
+## Examples & Usage Cases
+- **Starting Initialization**:
+  `python skills/workflow-runtime/scripts/workflow_runtime.py start --skill initialize-workflow --command init --checkpoint 1 --step "Starting initialization..."`
+- **Recording Sub-tasks**:
+  `python skills/workflow-runtime/scripts/workflow_runtime.py step --step "Resolving workspace path" --log "> Resolved relative path to '.'"`
+- **Completion Transition**:
+  `python skills/workflow-runtime/scripts/workflow_runtime.py complete --checkpoint 1 --step "Initialization Complete" --next-skill project-discovery --next-command discover`
+
+---
+
+## Troubleshooting & Failure Recovery
+- **Corrupted Session File**: If `.session.json` becomes corrupted, the model will output an empty state check error. Run `init` to automatically regenerate a healthy schema without changing the conversation ID.
+- **Git Branch Mismatch**: If you switch git branches during execution, `validate` or `heartbeat` will warn or return code 1 due to `context_health` drift detection. Ensure you are on the approved feature branch before running any modifications.

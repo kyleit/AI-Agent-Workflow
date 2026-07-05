@@ -51,45 +51,28 @@ Your responsibility is to **detect exactly what changed** in the project since t
 
 ## 🔒 WORKFLOW RUNTIME & INITIALIZATION CHECK
 
-This Skill assumes `initialize-workflow` and `workflow-runtime` have completed.
-Before executing, inspect `.agents/.session.json` and perform the **Runtime Health Check**, **Drift Detection**, and **Checkpoint Verification**.
-Verify that the current checkpoint in `.session.json` is at least `1` (Initialization Complete).
-1. If the session file is missing, if context health is `broken` (e.g. active branch or work item has drifted), or if the current checkpoint is less than `1`:
-   - Recommend running: `initialize-workflow` or `workflow-runtime` (to resume) to reach the correct checkpoint state.
-   - Stop execution.
-2. At the start of execution, update `.session.json` checkpoint to `2` (Memory Loaded) and set `"status"` to `"in_progress"`.
-3. On successful incremental update of project memory, update `.session.json` checkpoint to `2` (Memory Loaded), set `"status"` to `"completed"`, and output the runtime heartbeat.
-4. If execution fails or is aborted, set `"status"` to `"failed"`.
+This Skill MUST interface with the centralized Python CLI Runtime Engine:
+- **Validate Checkpoint**: Run `python skills/workflow-runtime/scripts/workflow_runtime.py validate --checkpoint "exactly 2 or 1"` before taking any action. If validation fails, halt execution immediately.
+- **Progress Tracking**:
+  - *Start*: Run `python skills/workflow-runtime/scripts/workflow_runtime.py start --skill "project-memory-update" --command "memory-sync" --checkpoint 2 --step "Starting execution..."`
+  - *Step Updates*: Run `python skills/workflow-runtime/scripts/workflow_runtime.py step --step "<step_desc>" --log "<progress_message>"` progressively during major steps.
+  - *Completion*: Run `python skills/workflow-runtime/scripts/workflow_runtime.py complete --checkpoint 2 --step "Step Complete" --next-skill "brainstorming" --next-command "brainstorm"` when execution finishes successfully.
+  - *Failure*: Run `python skills/workflow-runtime/scripts/workflow_runtime.py fail --step "<error_step>" --log "<error_details>"` if any phase fails.
 
----
-
-## Capability Boundary & Global Policies
+## 🔒 GLOBAL POLICY REFERENCES
 
 This Skill MUST strictly adhere to the global policies defined in [AI_RULES.md](../../AI_RULES.md):
-- **Approval Gate Policy** (Section 1) - Seek explicit confirmation before writing or updating any memory files.
-- **Git Workflow Policy** (Section 2) - Perform branch checks and read change signals without auto-commit/push.
-- **Memory First Policy** (Section 3) - Refresh the memory layers to support memory-first operations.
-- **Artifact Policy** (Section 5) - Update memory files corresponding to changes in `docs/issues/` and `docs/quick/`.
-
-**This Skill owns ONLY**:
-`<memory_root>/` (default: `.agents/memory/`)
-
-**This Skill MUST NEVER**:
-- Modify source code or test files.
-- Modify build, CI, or deployment configuration files.
-- Modify project documentation outside `<memory_root>/`.
-- Perform Git actions (commit, push, tag).
-- Execute builds or tests.
-- Call external vector search APIs or write to remote databases.
-
-
+- **Approval Gate Policy** (Section 1) - Seek explicit confirmation before modifying code or creating files.
+- **Git Workflow Policy** (Section 2) - Perform branch checks and commits/tags/pushes only with approval.
+- **Memory First Policy** (Section 3) - Consult project summary/memory before source files or user questions.
+- **RAG Policy** (Section 4) - Follow retrieval sequence levels.
+- **Artifact Policy** (Section 5) - Strictly follow path boundaries and naming formats.
+- **Testing Policy** (Section 8) - Run compilation, build, and tests, halting on failures.
 
 ## Multi-Agent Contract
 
-This Skill runs under the Multi-Agent Workflow.
-It must respect agent ownership and handoff rules defined in:
-- [agents/](../../agents/)
-- [runtime/](../../runtime/)
+Runs under the Multi-Agent Workflow. Respect agent ownership and handoff rules defined in [agents/](../../agents/) and [runtime/](../../runtime/).
+
 ---
 
 ## Configuration

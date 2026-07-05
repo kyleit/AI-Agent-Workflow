@@ -37,28 +37,23 @@ This Skill must run before planning or implementation begins. If `.agents/projec
 
 ## 🔒 WORKFLOW RUNTIME & INITIALIZATION CHECK
 
-This Skill assumes `initialize-workflow` and `workflow-runtime` have completed.
-Before executing, inspect `.agents/.session.json` and perform the **Runtime Health Check**, **Drift Detection**, and **Checkpoint Verification**.
-Verify that the current checkpoint in `.session.json` is at least `1` (Initialization Complete).
-1. If the session file is missing, if context health is `broken` (e.g. active branch or work item has drifted), or if the current checkpoint is less than `1`:
-   - Recommend running: `initialize-workflow` or `workflow-runtime` to reach the correct checkpoint state.
-   - Stop execution.
-2. At the start of execution, set `"status"` to `"in_progress"`.
-3. Upon successful discovery:
-   - Save the project profile under `.agents/project-profile.json`.
-   - Update `.session.json` with checkpoint `2` and set `"status"` to `"completed"`.
-   - Output the runtime heartbeat.
-4. If execution fails, set `"status"` to `"failed"`.
-
----
+This Skill MUST interface with the centralized Python CLI Runtime Engine:
+- **Validate Checkpoint**: Run `python skills/workflow-runtime/scripts/workflow_runtime.py validate --checkpoint "at least 1"` before taking any action. If validation fails, halt execution immediately.
+- **Progress Tracking**:
+  - *Start*: Run `python skills/workflow-runtime/scripts/workflow_runtime.py start --skill "project-discovery" --command "discover" --checkpoint 1 --step "Starting execution..."`
+  - *Step Updates*: Run `python skills/workflow-runtime/scripts/workflow_runtime.py step --step "<step_desc>" --log "<progress_message>"` progressively during major steps.
+  - *Completion*: Run `python skills/workflow-runtime/scripts/workflow_runtime.py complete --checkpoint 1 --step "Step Complete" --next-skill "project-memory-bootstrap" --next-command "memory-init"` when execution finishes successfully.
+  - *Failure*: Run `python skills/workflow-runtime/scripts/workflow_runtime.py fail --step "<error_step>" --log "<error_details>"` if any phase fails.
 
 ## 🔒 GLOBAL POLICY REFERENCES
 
-This Skill MUST strictly follow the global policies defined in [AI_RULES.md](../../AI_RULES.md):
-- **Approval Gate Policy** (Section 1) - Seek explicit confirmation before writing `project-profile.json`.
-- **Memory First Policy** (Section 3) - Inspect local files instead of performing unindexed searches.
-
----
+This Skill MUST strictly adhere to the global policies defined in [AI_RULES.md](../../AI_RULES.md):
+- **Approval Gate Policy** (Section 1) - Seek explicit confirmation before modifying code or creating files.
+- **Git Workflow Policy** (Section 2) - Perform branch checks and commits/tags/pushes only with approval.
+- **Memory First Policy** (Section 3) - Consult project summary/memory before source files or user questions.
+- **RAG Policy** (Section 4) - Follow retrieval sequence levels.
+- **Artifact Policy** (Section 5) - Strictly follow path boundaries and naming formats.
+- **Testing Policy** (Section 8) - Run compilation, build, and tests, halting on failures.
 
 ## Detection Targets and Sources
 

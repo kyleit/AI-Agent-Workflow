@@ -216,18 +216,41 @@ All code-generating workflows (`blueprint-to-implementation`, `quick-fix`, `quic
 
 ## 12. Session State Tracking Policy
 
-To keep the VS Code Visualizer Dashboard synchronized in real-time, the active workflow state and token count must be updated continuously.
+To keep the VS Code Visualizer Dashboard synchronized in real-time, the active workflow state, step logging, and token count must be updated progressively during execution.
 
-*   **Continuous Updates**: Every time you respond to the user, run a build/test command, or apply code changes—even during free-form developer chat or custom debugging tasks outside standard workflows—you MUST update `.agents/.session.json`.
-*   **Conversation ID Preservation**:
-    *   Find the current conversation's root ID under `user_information` (e.g., `Conversation ID: xxx`).
-    *   If `"conversation_id"` is not yet defined in `.agents/.session.json`, save this ID to the `"conversation_id"` field.
-    *   If `"conversation_id"` is already defined in `.session.json`, preserve its value (do NOT overwrite it with a subagent's temporary ID).
-*   **Checkpoint & Status Accuracy**:
-    *   Verify the project's actual status against files in `docs/` (e.g., check if a planning file, blueprint file, debug report, or verification report exists and its status).
-    *   Keep the `"checkpoint"` integer matching the real progress (from 1 to 9).
-    *   Keep `"status"` reflecting the active state (`in_progress` during execution, `completed` when done, `failed` if validation fails).
+*   **Atomic Writing**:
+    *   To prevent the VS Code extension watch engine from reading a partially-written file, all updates to `.agents/.session.json` MUST be performed atomically.
+    *   First, write the complete JSON content to a temporary file: `.agents/.session.json.tmp`.
+    *   Then, rename or move `.agents/.session.json.tmp` to replace `.agents/.session.json`.
+*   **Progressive Updates**:
+    *   Every Skill must update the session state file progressively during execution, specifically at:
+        1. **Skill start**: Immediately set status to `in_progress`, current_skill, current_command, and start logging.
+        2. **Each major step/checkpoint transition**: Update current_step and append log lines to current_logs.
+        3. **Before running long-running/async commands** (e.g. build, test, docker): Set step/logs indicating the command is launching.
+        4. **After command results**: Append output highlights, status, or errors to the logs.
+        5. **On failure**: Set status to `failed` and append error logs.
+        6. **On completion**: Set status to `completed` and update suggested next skill/command.
+*   **Preserving Conversation ID**:
+    *   The `conversation_id` MUST be created once per workflow session and saved. Do NOT regenerate or clear it on subsequent Skill calls. Always preserve the original ID.
+*   **Required Session Fields**:
+    *   Every update must preserve existing fields and update only changed fields.
+    *   The following live tracking fields MUST be updated:
+        ```json
+        {
+          "conversation_id": "string (GUID)",
+          "checkpoint": "integer (1-10)",
+          "status": "in_progress | completed | failed",
+          "current_skill": "string",
+          "current_command": "string",
+          "current_step": "string (current active subtask description)",
+          "current_logs": ["array of string log lines showing progressive progress"],
+          "suggested_next_skill": "string | null",
+          "suggested_next_command": "string | null",
+          "updated_at": "string (ISO-8601 Timestamp)"
+        }
+        ```
 *   **Context Usage Token Estimation**:
     *   Locate the main `transcript.jsonl` using the preserved `"conversation_id"` at `<appDataDir>/brain/<conversation_id>/.system_generated/logs/transcript.jsonl`.
     *   Estimate `total_tokens` as `fileSize / 3`.
     *   Update the `"context_usage"` object in `.agents/.session.json`.
+

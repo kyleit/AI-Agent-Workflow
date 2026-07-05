@@ -5,6 +5,21 @@ All notable changes to this project will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [2.11.0] - 2026-07-06
+
+### Added
+- **Centralized CLI Runtime Engine**:
+  - Implemented a modular, executable Python CLI Runtime Engine under `skills/workflow-runtime/scripts/`.
+  - Exposed Runtime CLI API: `init`, `validate`, `start`, `step`, `complete`, `fail`, `heartbeat`.
+  - Moved session schema validation, atomic file writing, token estimation, drift check, and heartbeat formatting into the Runtime Engine.
+  - Refactored all 26 skills to call this CLI instead of natural language prompt edits, resulting in major token savings and robust execution.
+  - Added comprehensive automated unit tests under `skills/workflow-runtime/tests/`.
+
+## [2.10.1] - 2026-07-06
+
+### Optimized
+- **Token Usage Optimization**: Refactored all 26 workflow skills to centralize repeated policy descriptions (approval gates, git workflow, memory strategy, RAG retrieval) inside `AI_RULES.md`, reducing prompt sizes by ~3,000 tokens per agent context load while preserving 100% behavior.
+
 ## [2.10.0] - 2026-07-06
 
 ### Added

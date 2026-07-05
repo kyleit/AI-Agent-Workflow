@@ -26,19 +26,13 @@ description: Skill definition.
 
 ## 🔒 WORKFLOW RUNTIME & INITIALIZATION CHECK
 
-This Skill assumes `initialize-workflow` and `workflow-runtime` have completed.
-Before executing, inspect `.agents/.session.json` and perform the **Runtime Health Check**, **Drift Detection**, and **Checkpoint Verification**.
-Verify that the current checkpoint in `.session.json` is exactly `2` (Memory Loaded).
-1. If the session file is missing, if context health is `broken` (e.g. active branch or work item has drifted), or if the current checkpoint is not `2`:
-   - Recommend running: `initialize-workflow`, `project-memory-bootstrap`, `project-memory-update`, or `workflow-runtime` (to resume) to reach the correct checkpoint state.
-   - Stop execution.
-2. At the start of Phase 1, update `.session.json` checkpoint to `4` (Blueprint/Fix Spec Generated) and set `"status"` to `"in_progress"`.
-3. Upon successful Phase 1 spec creation, update `.session.json` checkpoint to `4` (Blueprint/Fix Spec Generated) and set `"status"` to `"completed"`.
-4. At the start of Phase 2, update `.session.json` checkpoint to `5` (Implementation Ready) and set `"status"` to `"in_progress"`.
-5. Upon successful Phase 2 code implementation, update `.session.json` checkpoint to `5` (Implementation Ready), set `"status"` to `"completed"`, and output the runtime heartbeat.
-6. If any phase fails or is aborted, set `"status"` to `"failed"`.
-
----
+This Skill MUST interface with the centralized Python CLI Runtime Engine:
+- **Validate Checkpoint**: Run `python skills/workflow-runtime/scripts/workflow_runtime.py validate --checkpoint "exactly 2"` before taking any action. If validation fails, halt execution immediately.
+- **Progress Tracking**:
+  - *Start*: Run `python skills/workflow-runtime/scripts/workflow_runtime.py start --skill "quick-feature" --command "feature" --checkpoint 5 --step "Starting execution..."`
+  - *Step Updates*: Run `python skills/workflow-runtime/scripts/workflow_runtime.py step --step "<step_desc>" --log "<progress_message>"` progressively during major steps.
+  - *Completion*: Run `python skills/workflow-runtime/scripts/workflow_runtime.py complete --checkpoint 5 --step "Step Complete" --next-skill "implementation-to-release" --next-command "release"` when execution finishes successfully.
+  - *Failure*: Run `python skills/workflow-runtime/scripts/workflow_runtime.py fail --step "<error_step>" --log "<error_details>"` if any phase fails.
 
 ## ⚠ MANDATORY FIRST ACTION — DO THIS BEFORE ANYTHING ELSE
 
@@ -56,22 +50,18 @@ Verify that the current checkpoint in `.session.json` is exactly `2` (Memory Loa
 
 ## 🔒 GLOBAL POLICY REFERENCES
 
-This Skill MUST strictly follow the global policies defined in [AI_RULES.md](../../AI_RULES.md):
-- **Approval Gate Policy** (Section 1) - Seek explicit confirmation before modifying code, creating, or overwriting files.
-- **Git Workflow Policy** (Section 2) - Perform branch checks and switch to `quick/QUICK-XXX-slug` with confirmation.
-- **Memory First Policy** (Section 3) - When retrieving codebase context.
-- **RAG Policy** (Section 4) - Using RAG search hierarchy.
-- **Artifact Policy** (Section 5) - For generating `docs/quick/QUICK-XXX_feature_name.md` files.
-- **Testing Policy** (Section 8) - Run build & compile verification; handle failure appropriately.
-
-
+This Skill MUST strictly adhere to the global policies defined in [AI_RULES.md](../../AI_RULES.md):
+- **Approval Gate Policy** (Section 1) - Seek explicit confirmation before modifying code or creating files.
+- **Git Workflow Policy** (Section 2) - Perform branch checks and commits/tags/pushes only with approval.
+- **Memory First Policy** (Section 3) - Consult project summary/memory before source files or user questions.
+- **RAG Policy** (Section 4) - Follow retrieval sequence levels.
+- **Artifact Policy** (Section 5) - Strictly follow path boundaries and naming formats.
+- **Testing Policy** (Section 8) - Run compilation, build, and tests, halting on failures.
 
 ## Multi-Agent Contract
 
-This Skill runs under the Multi-Agent Workflow.
-It must respect agent ownership and handoff rules defined in:
-- [agents/](../../agents/)
-- [runtime/](../../runtime/)
+Runs under the Multi-Agent Workflow. Respect agent ownership and handoff rules defined in [agents/](../../agents/) and [runtime/](../../runtime/).
+
 ---
 
 ## 🔒 QUICK-FEATURE WORKFLOW GUARDRAILS

@@ -64,34 +64,30 @@ output_path: docs/plans/auto
 
 ---
 
-# Pre-flight & Global Policies
+## 🔒 WORKFLOW RUNTIME & INITIALIZATION CHECK
 
-This Skill assumes `initialize-workflow` and `workflow-runtime` have completed.
-Before executing, inspect `.agents/.session.json` and perform the **Runtime Health Check**, **Drift Detection**, and **Checkpoint Verification**.
-Verify that the current checkpoint in `.session.json` is exactly `3` (Architecture Analysis Complete) or `2` (Memory Loaded).
-1. If the session file is missing, if context health is `broken` (e.g. active branch or work item has drifted), or if the current checkpoint is not `3` or `2`:
-   - Recommend running: `initialize-workflow`, `workflow-runtime` (to resume), or the preceding workflow skills to reach the correct checkpoint state.
-   - Stop execution.
-2. At the start of execution, update `.session.json` checkpoint to `3` (Architecture Analysis Complete) and set `"status"` to `"in_progress"`.
-3. On successful generation of the plan file, update `.session.json` checkpoint to `3` (Architecture Analysis Complete), set `"status"` to `"completed"`, and output the runtime heartbeat before writing the file.
-4. If execution fails or is aborted, set `"status"` to `"failed"`.
+This Skill MUST interface with the centralized Python CLI Runtime Engine:
+- **Validate Checkpoint**: Run `python skills/workflow-runtime/scripts/workflow_runtime.py validate --checkpoint "exactly 3 or 2"` before taking any action. If validation fails, halt execution immediately.
+- **Progress Tracking**:
+  - *Start*: Run `python skills/workflow-runtime/scripts/workflow_runtime.py start --skill "brainstorming-to-plan" --command "plan" --checkpoint 3 --step "Starting execution..."`
+  - *Step Updates*: Run `python skills/workflow-runtime/scripts/workflow_runtime.py step --step "<step_desc>" --log "<progress_message>"` progressively during major steps.
+  - *Completion*: Run `python skills/workflow-runtime/scripts/workflow_runtime.py complete --checkpoint 3 --step "Step Complete" --next-skill "plan-to-blueprint" --next-command "blueprint"` when execution finishes successfully.
+  - *Failure*: Run `python skills/workflow-runtime/scripts/workflow_runtime.py fail --step "<error_step>" --log "<error_details>"` if any phase fails.
 
-This Skill MUST strictly follow the global policies defined in [AI_RULES.md](../../AI_RULES.md):
-- **Approval Gate Policy** (Section 1) - Before writing the planning file.
-- **Memory First Policy** (Section 3) - When retrieving codebase context.
-- **RAG Policy** (Section 4) - Using RAG search sequence (Levels 1-6).
-- **Artifact Policy** (Section 5) - For generating plans under `docs/plans/` in `FEAT-XXX_slug_plan.md` format.
+## 🔒 GLOBAL POLICY REFERENCES
 
-**Pre-flight Check**: Verify that memory configuration `.agents/memory.config.json` and `<memory_root>/project-summary.md` are present. If memory confidence is low or absent, warn the user and stop.
-
-
+This Skill MUST strictly adhere to the global policies defined in [AI_RULES.md](../../AI_RULES.md):
+- **Approval Gate Policy** (Section 1) - Seek explicit confirmation before modifying code or creating files.
+- **Git Workflow Policy** (Section 2) - Perform branch checks and commits/tags/pushes only with approval.
+- **Memory First Policy** (Section 3) - Consult project summary/memory before source files or user questions.
+- **RAG Policy** (Section 4) - Follow retrieval sequence levels.
+- **Artifact Policy** (Section 5) - Strictly follow path boundaries and naming formats.
+- **Testing Policy** (Section 8) - Run compilation, build, and tests, halting on failures.
 
 ## Multi-Agent Contract
 
-This Skill runs under the Multi-Agent Workflow.
-It must respect agent ownership and handoff rules defined in:
-- [agents/](../../agents/)
-- [runtime/](../../runtime/)
+Runs under the Multi-Agent Workflow. Respect agent ownership and handoff rules defined in [agents/](../../agents/) and [runtime/](../../runtime/).
+
 ---
 
 # Workflow

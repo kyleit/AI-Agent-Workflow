@@ -47,26 +47,29 @@ workspace: auto
 
 ---
 
-# Pre-flight & Global Policies
+## 🔒 WORKFLOW RUNTIME & INITIALIZATION CHECK
 
-This Skill does NOT require any specific checkpoint level before running, but it **requires** that `.agents/.session.json` exists.
+This Skill MUST interface with the centralized Python CLI Runtime Engine:
+- **Validate Checkpoint**: Run `python skills/workflow-runtime/scripts/workflow_runtime.py validate --checkpoint "any"` before taking any action. If validation fails, halt execution immediately.
+- **Progress Tracking**:
+  - *Start*: Run `python skills/workflow-runtime/scripts/workflow_runtime.py start --skill "resume-workflow" --command "resume" --checkpoint 2 --step "Starting execution..."`
+  - *Step Updates*: Run `python skills/workflow-runtime/scripts/workflow_runtime.py step --step "<step_desc>" --log "<progress_message>"` progressively during major steps.
+  - *Completion*: Run `python skills/workflow-runtime/scripts/workflow_runtime.py complete --checkpoint 2 --step "Step Complete" --next-skill "software-development-workflow" --next-command "workflow"` when execution finishes successfully.
+  - *Failure*: Run `python skills/workflow-runtime/scripts/workflow_runtime.py fail --step "<error_step>" --log "<error_details>"` if any phase fails.
 
-If `.agents/.session.json` is missing:
-- Recommend running: `initialize-workflow`
-- Stop execution.
+## 🔒 GLOBAL POLICY REFERENCES
 
-This Skill MUST strictly follow the global policies defined in [AI_RULES.md](../../AI_RULES.md):
-- **Memory First Policy** (Section 3) - When retrieving workspace state.
-- **Git Workflow Policy** (Section 2) - When validating branch and repository dirty state.
-
----
+This Skill MUST strictly adhere to the global policies defined in [AI_RULES.md](../../AI_RULES.md):
+- **Approval Gate Policy** (Section 1) - Seek explicit confirmation before modifying code or creating files.
+- **Git Workflow Policy** (Section 2) - Perform branch checks and commits/tags/pushes only with approval.
+- **Memory First Policy** (Section 3) - Consult project summary/memory before source files or user questions.
+- **RAG Policy** (Section 4) - Follow retrieval sequence levels.
+- **Artifact Policy** (Section 5) - Strictly follow path boundaries and naming formats.
+- **Testing Policy** (Section 8) - Run compilation, build, and tests, halting on failures.
 
 ## Multi-Agent Contract
 
-This Skill runs under the Multi-Agent Workflow.
-It must respect agent ownership and handoff rules defined in:
-- [agents/](../../agents/)
-- [runtime/](../../runtime/)
+Runs under the Multi-Agent Workflow. Respect agent ownership and handoff rules defined in [agents/](../../agents/) and [runtime/](../../runtime/).
 
 ---
 
@@ -119,14 +122,18 @@ Workflow Runtime Heartbeat
 
 # Output Rules
 
-Update the `"current_skill"` and `"current_step"` in `.agents/.session.json` to reflect that `resume-workflow` was executed. Do not modify the checkpoint level during recovery.
+Every update to `.agents/.session.json` during the recovery phase must be done atomically (via `.session.json.tmp` rename):
+1. **At start of execution**: Update session with `status`: `"in_progress"`, `current_skill`: `"resume-workflow"`, `current_command`: `"resume"`, `current_step`: `"Restoring workflow session..."`, `current_logs`: `["> Starting resume-workflow..."]`, `updated_at`.
+2. **During recovery checks**: Update `current_step` and append progress details (e.g., verifying active git branch, checking project files) to `current_logs`.
+3. **Upon completion**: Write session state atomically, restoring `"status"` to `"completed"`, `"current_step"` to `"Workflow Restored"`, updating `suggested_next_skill` and `suggested_next_command` with the recommended next step, and appending `"> Workflow session loaded successfully."` to `current_logs`. Do not modify the checkpoint level or other active work item fields during recovery.
 
 ---
 
 # Constraints
 
 - Do NOT modify any source code or project configuration.
-- Only update `.agents/.session.json` with recovery status and token estimations.
+- Only update `.agents/.session.json` with recovery status and token estimations progressively and atomically.
+
 
 ---
 
