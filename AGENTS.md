@@ -15,3 +15,5 @@ Please read [AI_RULES.md](AI_RULES.md) for global policy definitions:
 10. Workflow Phase Separation Policy
 
 These policies are the single source of truth.
+
+GitHub Repository: https://github.com/kyleit/AI-Agent-Workflow
