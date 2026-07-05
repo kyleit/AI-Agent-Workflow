@@ -1,0 +1,16 @@
+{
+  "release_mode": "single",
+  "default_branch": "main",
+  "root_changelog": "CHANGELOG.md",
+  "modules": [
+    {
+      "name": "root",
+      "path": ".",
+      "version_files": [
+        "package.json"
+      ],
+      "changelog": "CHANGELOG.md",
+      "tag_format": "v{version}"
+    }
+  ]
+}
