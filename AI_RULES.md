@@ -211,3 +211,23 @@ All code-generating workflows (`blueprint-to-implementation`, `quick-fix`, `quic
         *   Typecheck: `PASS` or `Not Configured`
         *   Tests: `PASS` or `Not Configured`
         *   Self Review: `PASS` (code is clean, well-logged, free of dead code)
+
+---
+
+## 12. Session State Tracking Policy
+
+To keep the VS Code Visualizer Dashboard synchronized in real-time, the active workflow state and token count must be updated continuously.
+
+*   **Continuous Updates**: Every time you respond to the user, run a build/test command, or apply code changes—even during free-form developer chat or custom debugging tasks outside standard workflows—you MUST update `.agents/.session.json`.
+*   **Conversation ID Preservation**:
+    *   Find the current conversation's root ID under `user_information` (e.g., `Conversation ID: xxx`).
+    *   If `"conversation_id"` is not yet defined in `.agents/.session.json`, save this ID to the `"conversation_id"` field.
+    *   If `"conversation_id"` is already defined in `.session.json`, preserve its value (do NOT overwrite it with a subagent's temporary ID).
+*   **Checkpoint & Status Accuracy**:
+    *   Verify the project's actual status against files in `docs/` (e.g., check if a planning file, blueprint file, debug report, or verification report exists and its status).
+    *   Keep the `"checkpoint"` integer matching the real progress (from 1 to 9).
+    *   Keep `"status"` reflecting the active state (`in_progress` during execution, `completed` when done, `failed` if validation fails).
+*   **Context Usage Token Estimation**:
+    *   Locate the main `transcript.jsonl` using the preserved `"conversation_id"` at `<appDataDir>/brain/<conversation_id>/.system_generated/logs/transcript.jsonl`.
+    *   Estimate `total_tokens` as `fileSize / 3`.
+    *   Update the `"context_usage"` object in `.agents/.session.json`.

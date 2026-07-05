@@ -108,6 +108,7 @@ The runtime tracks the current workflow status in this layout:
     "limit_tokens": 2000000,
     "percentage": 6.0
   },
+  "conversation_id": "string (GUID)",
   "checkpoint": 1,
   "status": "in_progress | completed | failed",
   "current_skill": "string",
@@ -121,13 +122,20 @@ The runtime tracks the current workflow status in this layout:
 ## Session File Updates and Context Estimation
 
 Whenever any Skill or Agent updates the `.agents/.session.json` file (including initialization, checkpoint changes, or memory syncs):
-1. The agent MUST calculate the current conversation's token count using the active transcript file size (at `<appDataDir>/brain/<conversation_id>/.system_generated/logs/transcript.jsonl` using `fileSize / 3` as an estimation).
-2. The agent MUST write this estimation into the `"context_usage"` object inside `.agents/.session.json` (specifying `total_tokens`, `limit_tokens: 2000000`, and `percentage`).
-3. The agent MUST update the `"status"` field:
+1. **Conversation ID Preservation**:
+   - The agent MUST retrieve the root `Conversation ID` from the environment metadata (`user_information`).
+   - If `"conversation_id"` is not yet set in `.session.json`, save the root ID to the `"conversation_id"` field.
+   - If `"conversation_id"` is already defined in `.session.json`, preserve its value (do NOT overwrite it with a subagent's temporary ID).
+2. **Context Token Estimation**:
+   - The agent MUST calculate the current conversation's token count using the preserved `"conversation_id"` at `<appDataDir>/brain/<conversation_id>/.system_generated/logs/transcript.jsonl` (using `fileSize / 3` as an estimation).
+   - Write this estimation into the `"context_usage"` object inside `.agents/.session.json` (specifying `total_tokens`, `limit_tokens: 2000000`, and `percentage`).
+3. **Continuous Tracking Policy**:
+   - Every time the agent responds or modifies files (even outside standard workflows), it must update `.session.json` as defined in **[AI_RULES.md](../../AI_RULES.md) (Section 12: Session State Tracking Policy)**.
+4. **Status Field Updates**:
    - Set to `"in_progress"` at the very beginning of the skill execution (along with the target checkpoint value).
    - Set to `"completed"` upon successful completion of the skill execution.
    - Set to `"failed"` if any step fails or exits with validation errors.
-4. This ensures the Visualizer UI Extension displays accurate, real-time context token usage and checkpoint status directly from the session file.
+5. This ensures the Visualizer UI Extension displays accurate, real-time context token usage and checkpoint status directly from the session file.
 
 ---
 

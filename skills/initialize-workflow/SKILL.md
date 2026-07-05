@@ -109,6 +109,7 @@ Step 10: Build and Print Execution Summary
 
 ### Step 10 — Create Session State File
 - Generate or update `.agents/.session.json` containing the gathered workspace, branch, version, work item, memory, and RAG status, setting the checkpoint to `1` (Initialization Complete) and `"status"` to `"completed"`.
+- **Conversation ID Recording**: Retrieve the active `Conversation ID` from `user_information` in the environment metadata and save it to the `"conversation_id"` string field inside `.session.json`.
 - **Context Usage Token Estimation**: Estimate the current conversation's token count from the active transcript file size (at `<appDataDir>/brain/<conversation_id>/.system_generated/logs/transcript.jsonl` using `fileSize / 3` as an approximation). Write this to the `"context_usage"` field inside `.session.json` (`total_tokens`, `limit_tokens: 2000000`, `percentage`).
 - **CRITICAL**: The `"path"` field of the `"workspace"` object in `.agents/.session.json` MUST be exactly `"."` (a relative path representation to prevent path leakage). Under no circumstances should an absolute path be written.
 
