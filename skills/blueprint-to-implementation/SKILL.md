@@ -132,55 +132,11 @@ Step 6: Mandatory Validation Gate
 Step 7: Generate Final Implementation Status Summary
 ```
 
----
-
 # Mandatory Validation Gate
 
 This gate runs after code generation and before the final summary. The Skill must never report success if validation fails.
 
-### 1. Command Auto-Detection
-The agent must automatically scan the workspace files to identify the language and available verification commands:
-- **`package.json`**: `npm run build`, `npm run lint`, `npm test` / `npm run test`, `npm run typecheck`
-- **`Makefile`**: `make`, `make build`, `make test`
-- **`go.mod`**: `go build ./...`, `go test ./...`
-- **`pyproject.toml`** / **`pytest.ini`** / **`requirements.txt`** / **`setup.py`**: `pytest`, `python -m pytest`, `pylint`, `black --check`
-- **`Cargo.toml`**: `cargo build`, `cargo test`
-- **`tsconfig.json`**: `tsc --noEmit`
-
-If no configuration file is detected for a command category, mark it as `Not Configured`.
-
-### 2. Validation Execution & Failure Analysis
-For every detected/configured check:
-1. Run the validation command using appropriate execution tools.
-2. If the command fails:
-   - Print the execution command, status, and the complete error log.
-   - Analyze the failures to locate the exact syntax errors, missing imports, lint violations, or failing test assertions.
-   - **Self-Fix**: If the root cause is within the implementation scope, modify the code to resolve the error.
-   - **Re-run**: Re-run the validation command.
-   - **Stop**: If the command still fails or if the error is out of scope/unsafe to fix:
-     - STOP execution immediately.
-     - Set `.session.json` status to `"failed"`.
-     - Report failure and recommend running `/debug` or returning to implementation.
-
-### 3. Success Rule
-Implementation is complete and marked as `PASS` only when:
-```text
-Build: PASS or Not Configured
-Tests: PASS or Not Configured
-Lint: PASS or Not Configured
-Typecheck: PASS or Not Configured
-Self Review: PASS
-```
-
-If any configured validation fails, the final status must be `FAILED`.
-
-### 4. Forbidden Actions
-The Skill must NOT:
-- Ignore failing tests.
-- Mark implementation complete with failed validation.
-- Say “tests not run” without explanation.
-- Defer obvious compile errors.
-- Continue to release, update changelog, bump version, commit, or push.
+This Skill MUST strictly execute the validation pipeline, detection rules, failure retries, and success criteria defined in **[AI_RULES.md](../../AI_RULES.md) (Section 11: Shared Validation Engine Policy)**.
 
 ---
 

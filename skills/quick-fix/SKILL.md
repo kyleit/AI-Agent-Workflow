@@ -308,51 +308,47 @@ Only after receiving explicit Y confirmation:
 
 ---
 
-### Step 10: Verification & Testing
+### Step 10: Automatic Validation Pipeline
 
-Verify that your fix builds and compiles. Run test suites.
-If compiling or testing fails:
-- Print the compiler/test stdout/stderr.
-- Do NOT proceed. Output the status: `Failed verification` and stop.
-
----
-
-### Step 11: Generate Quick-Fix Summary Report
-
-Once tests pass, output the report in Markdown format:
-
-```markdown
-### ⚡ Quick-Fix Implementation Summary
-
-| Field | Details |
-| :--- | :--- |
-| **Issue** | [Brief summary of the issue] |
-| **Root Cause** | [Why the bug occurred] |
-| **Files Modified** | - [Relative path to file 1](file_link)<br>- [Relative path to file 2](file_link) |
-| **Validation Details**| [What compile / manual test checks were performed] |
-| **Test Result** | `✅ Build Success & Tests Pass` |
-| **Remaining Risks** | [None / List potential edge cases] |
+Immediately after applying code edits, the agent must run the automatic validation pipeline and self-fix loop:
+1. Detect and execute the validation commands as defined in **[AI_RULES.md](../../AI_RULES.md) (Section 11: Shared Validation Engine Policy)**.
+2. In case of command failures:
+   - Print the execution command, status, and the error logs.
+   - **Scope Protection Check**: Identify issues within the files modified by this Quick-Fix. Do NOT edit unrelated modules.
+   - Apply fixes to the code and re-run validation (up to **3 retries** maximum).
+3. If validation still fails after 3 retries, or if the fix is unsafe:
+   - STOP immediately, set session status to `"failed"`, and recommend running `/debug`.
 
 ---
-**Quick-Fix complete.**
-Recommended Next Skill: `implementation-to-release` (must be executed manually).
-```
 
-Followed by the Self-Validation Checklist:
+### Step 11: Generate Quick Task Result
+
+Upon completion, print the final summary to the console and update `.session.json`:
 
 ```markdown
-### 📋 Quick-Fix Self-Validation Checklist
+## Quick Task Result
 
-| Validation Item | Status |
-| :--- | :---: |
-| Issue classified correctly | [ ] PASS |
-| Git branch check executed before coding | [ ] PASS |
-| Code modifications approved by user | [ ] PASS |
-| Fix document generated under docs/issues/ | [ ] PASS |
-| Only minimal implementation performed (no unrelated refactoring) | [ ] PASS |
-| Build success and relevant tests executed | [ ] PASS |
-| Implementation summary generated | [ ] PASS |
-| Recommended `implementation-to-release` manually | [ ] PASS |
+Status: [PASS / FAILED]
 
-**Result:** `[ALL PASS | FAILED: list failed items]`
+Files Modified:
+- [Relative path to file 1](file_link)
+
+Validation:
+
+Build: [PASS | FAILED | Not Configured] (Command: [command])
+Lint: [PASS | FAILED | Not Configured] (Command: [command])
+Typecheck: [PASS | FAILED | Not Configured] (Command: [command])
+Tests: [PASS | FAILED | Not Configured] (Command: [command])
+
+Issues Fixed Automatically:
+- [List of fixes or "None"]
+
+Remaining Issues:
+- [List of remaining issues or "None"]
+
+Recommended Next Step:
+- If PASS: /release
+- If FAILED: /debug
+
+Workflow Paused.
 ```

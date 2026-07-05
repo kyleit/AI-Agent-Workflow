@@ -176,3 +176,38 @@ To eliminate duplicated information, reduce token usage, and maintain clear sepa
     *   Acts as the **single source of technical truth** for code changes.
     *   Owns all technical specifications, including: architecture layouts, sequence and interaction flows (e.g., Mermaid diagrams), class and method signatures (with types), database schemas and migration scripts, folder structures, error handling, security validations, and test strategies.
     *   It references the Project Plan for high-level guidance but does not duplicate its sections.
+
+---
+
+## 11. Shared Validation Engine Policy
+
+All code-generating workflows (`blueprint-to-implementation`, `quick-fix`, `quick-feature`) must run an automated validation pipeline before reporting status.
+
+*   **Command Auto-Detection**:
+    *   Automatically scan the workspace for files indicating the project technology stack:
+        *   `package.json`: `npm run build`, `npm run lint`, `npm test` or `npm run test`, `npm run typecheck`.
+        *   `Makefile`: `make`, `make build`, `make test`.
+        *   `go.mod`: `go build ./...`, `go test ./...`.
+        *   `pyproject.toml` / `pytest.ini` / `requirements.txt` / `setup.py`: `pytest`, `python -m pytest`, `pylint`, `black --check`.
+        *   `Cargo.toml`: `cargo build`, `cargo test`.
+        *   `tsconfig.json`: `tsc --noEmit`.
+    *   If a category has no config file, mark it as `Not Configured`.
+*   **Execution & Self-Fix Loop**:
+    1.  Run the validation command.
+    2.  If the command fails:
+        *   Analyze the log files to locate errors (compilation, linter, tests).
+        *   **Scope Protection Rule**: Automatically fix issues ONLY if they are inside the scope of files modified by the current active task. Never refactor or edit unrelated modules/code.
+        *   Re-run validation.
+        *   Allow up to a maximum of **3 retries**.
+    3.  If validation still fails after retries, or if the fix is unsafe/out of scope:
+        *   **STOP** immediately. Set status to `FAILED`.
+        *   Never claim implementation complete.
+        *   Do not perform git commit, tag, or push.
+        *   Recommend running `/debug`.
+*   **Completion Criteria**:
+    *   Status is `PASS` only when:
+        *   Build: `PASS` or `Not Configured`
+        *   Lint: `PASS` or `Not Configured`
+        *   Typecheck: `PASS` or `Not Configured`
+        *   Tests: `PASS` or `Not Configured`
+        *   Self Review: `PASS` (code is clean, well-logged, free of dead code)
