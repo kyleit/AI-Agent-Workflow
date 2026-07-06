@@ -217,7 +217,7 @@ GitHub Repository: https://github.com/kyleit/AI-Agent-Workflow
 }
 
 # Copy changed rules and manifest files
-Merge-AgentsBlock -FilePath (Join-Path (Get-Location) "AGENTS.md") -SourcePath (Join-Path $ScriptDir "AGENTS.md")
+Merge-AgentsBlock -FilePath (Join-Path $InstallTarget "AGENTS.md") -SourcePath (Join-Path $ScriptDir "AGENTS.md")
 Update-ItemWithCheck -src (Join-Path $ScriptDir "AI_RULES.md") -dest (Join-Path $InstallTarget "AI_RULES.md")
 Update-ItemWithCheck -src (Join-Path $ScriptDir "agents") -dest (Join-Path $InstallTarget "agents")
 Update-ItemWithCheck -src (Join-Path $ScriptDir "runtime") -dest (Join-Path $InstallTarget "runtime")

@@ -234,7 +234,7 @@ with open(file_path, 'w', encoding='utf-8') as f:
 }
 
 # Copy changed runtime files
-merge_agents_block "AGENTS.md" "$SCRIPT_DIR/AGENTS.md"
+merge_agents_block "$SRC_INSTALL_TARGET/AGENTS.md" "$SCRIPT_DIR/AGENTS.md"
 copy_diff_item "$SCRIPT_DIR/AI_RULES.md" "$SRC_INSTALL_TARGET/AI_RULES.md"
 copy_diff_item "$SCRIPT_DIR/agents" "$SRC_INSTALL_TARGET/agents"
 copy_diff_item "$SCRIPT_DIR/runtime" "$SRC_INSTALL_TARGET/runtime"

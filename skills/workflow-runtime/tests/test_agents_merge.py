@@ -98,7 +98,7 @@ class TestAgentsMerge(unittest.TestCase):
         res = self._run_install_powershell()
         self.assertEqual(res.returncode, 0, msg=res.stderr)
         
-        agents_path = os.path.join(self.test_dir, "AGENTS.md")
+        agents_path = os.path.join(self.test_dir, ".agents", "AGENTS.md")
         self.assertTrue(os.path.exists(agents_path))
         with open(agents_path, "r", encoding="utf-8") as f:
             content = f.read()
@@ -106,7 +106,8 @@ class TestAgentsMerge(unittest.TestCase):
         self.assertIn("<!-- AIWF:RULES:END -->", content)
 
     def test_scenario_2_existing_agents_powershell(self):
-        agents_path = os.path.join(self.test_dir, "AGENTS.md")
+        agents_path = os.path.join(self.test_dir, ".agents", "AGENTS.md")
+        os.makedirs(os.path.dirname(agents_path), exist_ok=True)
         user_rules = "# User Custom Rules\n- Rule 1\n- Rule 2\n"
         with open(agents_path, "w", encoding="utf-8") as f:
             f.write(user_rules)
@@ -123,7 +124,8 @@ class TestAgentsMerge(unittest.TestCase):
         self.assertIn("<!-- AIWF:RULES:END -->", content)
 
     def test_scenario_3_existing_managed_block_update_powershell(self):
-        agents_path = os.path.join(self.test_dir, "AGENTS.md")
+        agents_path = os.path.join(self.test_dir, ".agents", "AGENTS.md")
+        os.makedirs(os.path.dirname(agents_path), exist_ok=True)
         initial_content = (
             "# My Custom Rules\n\n"
             "<!-- AIWF:RULES:BEGIN -->\n"
@@ -153,7 +155,7 @@ class TestAgentsMerge(unittest.TestCase):
         self._run_install_powershell()
         self._run_install_powershell()
         
-        agents_path = os.path.join(self.test_dir, "AGENTS.md")
+        agents_path = os.path.join(self.test_dir, ".agents", "AGENTS.md")
         with open(agents_path, "r", encoding="utf-8") as f:
             content = f.read()
             
@@ -161,7 +163,8 @@ class TestAgentsMerge(unittest.TestCase):
         self.assertEqual(content.count("<!-- AIWF:RULES:END -->"), 1)
 
     def test_scenario_5_corrupted_block_repair_powershell(self):
-        agents_path = os.path.join(self.test_dir, "AGENTS.md")
+        agents_path = os.path.join(self.test_dir, ".agents", "AGENTS.md")
+        os.makedirs(os.path.dirname(agents_path), exist_ok=True)
         initial_content = (
             "# My Custom Rules\n"
             "<!-- AIWF:RULES:BEGIN -->\n"
@@ -181,7 +184,8 @@ class TestAgentsMerge(unittest.TestCase):
         self.assertEqual(content.count("<!-- AIWF:RULES:END -->"), 1)
 
     def test_scenario_6_missing_both_tags_powershell(self):
-        agents_path = os.path.join(self.test_dir, "AGENTS.md")
+        agents_path = os.path.join(self.test_dir, ".agents", "AGENTS.md")
+        os.makedirs(os.path.dirname(agents_path), exist_ok=True)
         initial_content = "# My Custom Rules\nSome content without tags"
         with open(agents_path, "w", encoding="utf-8") as f:
             f.write(initial_content)
@@ -198,7 +202,8 @@ class TestAgentsMerge(unittest.TestCase):
         self.assertIn("<!-- AIWF:RULES:END -->", content)
 
     def test_scenario_7_user_customization_outside_block_powershell(self):
-        agents_path = os.path.join(self.test_dir, "AGENTS.md")
+        agents_path = os.path.join(self.test_dir, ".agents", "AGENTS.md")
+        os.makedirs(os.path.dirname(agents_path), exist_ok=True)
         initial_content = (
             "<!-- AIWF:RULES:BEGIN -->\n"
             "rules\n"
@@ -225,7 +230,7 @@ class TestAgentsMerge(unittest.TestCase):
         res = self._run_install_bash()
         self.assertEqual(res.returncode, 0, msg=res.stderr)
         
-        agents_path = os.path.join(self.test_dir, "AGENTS.md")
+        agents_path = os.path.join(self.test_dir, ".agents", "AGENTS.md")
         self.assertTrue(os.path.exists(agents_path))
         with open(agents_path, "r", encoding="utf-8") as f:
             content = f.read()
@@ -236,7 +241,8 @@ class TestAgentsMerge(unittest.TestCase):
         if not self.has_bash:
             self.skipTest("Bash shell not available")
             
-        agents_path = os.path.join(self.test_dir, "AGENTS.md")
+        agents_path = os.path.join(self.test_dir, ".agents", "AGENTS.md")
+        os.makedirs(os.path.dirname(agents_path), exist_ok=True)
         user_rules = "# User Custom Rules\n- Rule 1\n- Rule 2\n"
         with open(agents_path, "w", encoding="utf-8") as f:
             f.write(user_rules)
@@ -256,7 +262,8 @@ class TestAgentsMerge(unittest.TestCase):
         if not self.has_bash:
             self.skipTest("Bash shell not available")
             
-        agents_path = os.path.join(self.test_dir, "AGENTS.md")
+        agents_path = os.path.join(self.test_dir, ".agents", "AGENTS.md")
+        os.makedirs(os.path.dirname(agents_path), exist_ok=True)
         initial_content = (
             "# My Custom Rules\n\n"
             "<!-- AIWF:RULES:BEGIN -->\n"
@@ -289,7 +296,7 @@ class TestAgentsMerge(unittest.TestCase):
         self._run_install_bash()
         self._run_install_bash()
         
-        agents_path = os.path.join(self.test_dir, "AGENTS.md")
+        agents_path = os.path.join(self.test_dir, ".agents", "AGENTS.md")
         with open(agents_path, "r", encoding="utf-8") as f:
             content = f.read()
             
@@ -300,7 +307,8 @@ class TestAgentsMerge(unittest.TestCase):
         if not self.has_bash:
             self.skipTest("Bash shell not available")
             
-        agents_path = os.path.join(self.test_dir, "AGENTS.md")
+        agents_path = os.path.join(self.test_dir, ".agents", "AGENTS.md")
+        os.makedirs(os.path.dirname(agents_path), exist_ok=True)
         initial_content = (
             "# My Custom Rules\n"
             "<!-- AIWF:RULES:BEGIN -->\n"
@@ -323,7 +331,8 @@ class TestAgentsMerge(unittest.TestCase):
         if not self.has_bash:
             self.skipTest("Bash shell not available")
             
-        agents_path = os.path.join(self.test_dir, "AGENTS.md")
+        agents_path = os.path.join(self.test_dir, ".agents", "AGENTS.md")
+        os.makedirs(os.path.dirname(agents_path), exist_ok=True)
         initial_content = "# My Custom Rules\nSome content without tags"
         with open(agents_path, "w", encoding="utf-8") as f:
             f.write(initial_content)
@@ -343,7 +352,8 @@ class TestAgentsMerge(unittest.TestCase):
         if not self.has_bash:
             self.skipTest("Bash shell not available")
             
-        agents_path = os.path.join(self.test_dir, "AGENTS.md")
+        agents_path = os.path.join(self.test_dir, ".agents", "AGENTS.md")
+        os.makedirs(os.path.dirname(agents_path), exist_ok=True)
         initial_content = (
             "<!-- AIWF:RULES:BEGIN -->\n"
             "rules\n"
