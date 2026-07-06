@@ -5,6 +5,13 @@ All notable changes to this project will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [2.13.1] - 2026-07-06
+
+### Fixed
+- **Visualizer Extension & CLI Session Sync (v1.0.27)**:
+  - Resolved an issue where running `workflow_runtime.py validate` calculated token values in memory but failed to persist the updated session variables back to `.session.json` on disk.
+  - Fixed a display inconsistency in the visualizer's fallback logic where the progress bar token count and details (Input/Output/Cache/Thinking) were out of sync.
+
 ## [2.13.0] - 2026-07-06
 
 ### Added
