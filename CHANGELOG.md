@@ -5,6 +5,15 @@ All notable changes to this project will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [2.12.0] - 2026-07-06
+
+### Added
+- **Script-First Runtime Engine**:
+  - Refactored the token and cost calculation into a fully deterministic Python pipeline.
+  - Implemented SQLite database storage local to the project (`.agents/project_runtime.db`) and globally in OS AppData directory (`global_runtime.db`) to track three independent scopes: Workflow, Project, and Global usage.
+  - Added new CLI subcommands: `usage sync`, `usage report`, `usage diagnose`, `usage export`.
+  - Updated the Visualizer Sidebar webview to show three distinct scope cards, with Workflow context limit comparing current active window tokens instead of accumulated totals.
+
 ## [2.11.1] - 2026-07-06
 
 ### Added

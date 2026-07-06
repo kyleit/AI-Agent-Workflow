@@ -2,6 +2,7 @@
 import argparse
 import sys
 import os
+import json
 from datetime import datetime
 
 # Add the directory containing this script to sys.path to resolve sibling modules
@@ -14,9 +15,48 @@ from validator import get_git_info, get_version_info
 from drift import check_context_drift
 from heartbeat import print_heartbeat
 from utils import get_memory_info, get_rag_info
+from db import save_usage_to_dbs, get_workflow_summary, get_project_summary, get_global_summary
+
+def get_project_id() -> str:
+    path = os.path.join(".agents", "memory.config.json")
+    if os.path.exists(path):
+        try:
+            with open(path, "r", encoding="utf-8") as f:
+                data = json.load(f)
+                return data.get("project_id", "ai-skill-framework")
+        except Exception:
+            pass
+    return "ai-skill-framework"
 
 def update_context_health(session: dict) -> None:
-    session["context_usage"] = estimate_context_usage()
+    # 1. Estimate current context usage
+    usage = estimate_context_usage()
+    
+    # 2. Save it to DBs if conversation_id exists
+    conv_id = session.get("conversation_id")
+    if conv_id:
+        proj_id = get_project_id()
+        skill = session.get("current_skill", "unknown")
+        cmd = session.get("current_command", "unknown")
+        save_usage_to_dbs(conv_id, proj_id, skill, cmd, usage)
+        
+    # 3. Retrieve summaries from DBs
+    session["workflow_usage_summary"] = get_workflow_summary(
+        conv_id or "",
+        usage.get("provider", "estimate"),
+        usage.get("model", "auto")
+    )
+    session["project_usage_summary"] = get_project_summary()
+    session["global_usage_summary"] = get_global_summary()
+    
+    # 4. Populate backward-compatible context_usage object
+    session["context_usage"] = {
+        "total_tokens": usage.get("total_tokens", 0),
+        "limit_tokens": usage.get("limit_tokens", 2000000),
+        "percentage": usage.get("percentage", 0.0)
+    }
+    
+    # 5. Check drift
     drifted, msg = check_context_drift(session)
     session["context_health"] = "broken" if drifted else "healthy"
 
@@ -138,6 +178,105 @@ def do_heartbeat(args):
     update_context_health(session)
     print_heartbeat(session)
 
+def do_usage(args):
+    session = load_session()
+    if not session:
+        print("Error: session file missing.", file=sys.stderr)
+        sys.exit(1)
+        
+    if args.subaction == "sync":
+        update_context_health(session)
+        save_session_atomic(session)
+        print("Usage database synchronized.")
+        
+    elif args.subaction == "report":
+        update_context_health(session)
+        wf = session.get("workflow_usage_summary", {})
+        proj = session.get("project_usage_summary", {})
+        glob = session.get("global_usage_summary", {})
+        
+        report = f"""# AI Workflow Usage Report
+
+## Workflow Usage
+- Provider: {wf.get("provider", "N/A")}
+- Model: {wf.get("model", "N/A")}
+- Tokens: {wf.get("total_tokens", 0)} / {wf.get("limit_tokens", 2000000)} ({wf.get("percentage", 0.0)}%)
+- Cost: ${wf.get("estimated_cost_usd", 0.0):.4f} USD
+- Details: Input={wf.get("input_tokens", 0)}, Output={wf.get("output_tokens", 0)}, Cache={wf.get("cache_tokens", 0)}, Thinking={wf.get("thinking_tokens", 0)}
+
+## Project Usage
+- Total Tokens: {proj.get("total_tokens", 0)}
+- Estimated Cost: ${proj.get("estimated_cost_usd", 0.0):.4f} USD
+
+## Global AI Usage
+- Total Tokens: {glob.get("total_tokens", 0)}
+- Estimated Cost: ${glob.get("estimated_cost_usd", 0.0):.4f} USD
+"""
+        print(report)
+        
+    elif args.subaction == "diagnose":
+        import sqlite3
+        from db import PROJECT_DB, get_global_db_path
+        
+        print("Database Diagnosis:")
+        print(f"1. Project Database: {os.path.abspath(PROJECT_DB)}")
+        if os.path.exists(PROJECT_DB):
+            try:
+                conn = sqlite3.connect(PROJECT_DB)
+                cursor = conn.cursor()
+                cursor.execute("SELECT COUNT(*) FROM usage_records")
+                count = cursor.fetchone()[0]
+                print(f"   Status: OK (Records: {count})")
+                conn.close()
+            except Exception as e:
+                print(f"   Status: CORRUPTED ({e})")
+        else:
+            print("   Status: MISSING")
+            
+        global_db = get_global_db_path()
+        print(f"2. Global Database: {os.path.abspath(global_db)}")
+        if os.path.exists(global_db):
+            try:
+                conn = sqlite3.connect(global_db)
+                cursor = conn.cursor()
+                cursor.execute("SELECT COUNT(*) FROM usage_records")
+                count = cursor.fetchone()[0]
+                print(f"   Status: OK (Records: {count})")
+                conn.close()
+            except Exception as e:
+                print(f"   Status: CORRUPTED ({e})")
+        else:
+            print("   Status: MISSING")
+            
+    elif args.subaction == "export":
+        import sqlite3
+        from db import PROJECT_DB
+        
+        data = []
+        if os.path.exists(PROJECT_DB):
+            try:
+                conn = sqlite3.connect(PROJECT_DB)
+                conn.row_factory = sqlite3.Row
+                cursor = conn.cursor()
+                cursor.execute("SELECT * FROM usage_records")
+                data = [dict(row) for row in cursor.fetchall()]
+                conn.close()
+            except Exception as e:
+                print(f"Error reading database: {e}", file=sys.stderr)
+                sys.exit(1)
+                
+        json_str = json.dumps(data, indent=2)
+        if args.out:
+            try:
+                with open(args.out, "w", encoding="utf-8") as f:
+                    f.write(json_str)
+                print(f"Exported to {args.out}")
+            except Exception as e:
+                print(f"Error writing to file: {e}", file=sys.stderr)
+                sys.exit(1)
+        else:
+            print(json_str)
+
 def main():
     parser = argparse.ArgumentParser(description="AI Workflow Runtime Engine CLI")
     subparsers = parser.add_subparsers(dest="action", required=True)
@@ -169,6 +308,11 @@ def main():
     
     subparsers.add_parser("heartbeat")
     
+    usg = subparsers.add_parser("usage")
+    usg.add_argument("subaction", choices=["sync", "report", "diagnose", "export"])
+    usg.add_argument("--format", default="json", choices=["json"])
+    usg.add_argument("--out", type=str)
+    
     args = parser.parse_args()
     
     cmds = {
@@ -178,7 +322,8 @@ def main():
         "step": do_step,
         "complete": do_complete,
         "fail": do_fail,
-        "heartbeat": do_heartbeat
+        "heartbeat": do_heartbeat,
+        "usage": do_usage
     }
     
     cmds[args.action](args)
