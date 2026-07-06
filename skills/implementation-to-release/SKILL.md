@@ -9,7 +9,7 @@ tags:
   - release
   - versioning
   - publish
-version: 2.5.0
+version: 3.0.0
 author:
   name: Kyle Dang
   email: kyleit@klexpress.net
@@ -17,11 +17,11 @@ author:
 license: MIT
 repository: https://gitlab.com/hngan.it/ai-workflow-skills
 created_at: 2026-07-03
-updated_at: 2026-07-03
-description: Perform configuration-driven, module-aware release activities including version updates, changelogs, branch merges, git commits, tags, and pushes based on release.config.json.
+updated_at: 2026-07-06
+description: Enforces explicit user-driven releases and requires blueprint validation before any release activities.
 ---
 
-# Skill: Implementation to Release (Configuration-Driven & Module-Aware)
+# Skill: Implementation to Release (Explicit & Blueprint-Validated)
 
 ---
 
@@ -35,6 +35,8 @@ This Skill MUST interface with the centralized Python CLI Runtime Engine:
   - *Completion*: Run `python skills/workflow-runtime/scripts/workflow_runtime.py complete --checkpoint 10 --step "Step Complete" --next-skill "project-memory-update" --next-command "memory-sync"` when execution finishes successfully.
   - *Failure*: Run `python skills/workflow-runtime/scripts/workflow_runtime.py fail --step "<error_step>" --log "<error_details>"` if any phase fails.
 
+---
+
 ## 🔒 GLOBAL POLICY REFERENCES
 
 This Skill MUST strictly adhere to the global policies defined in [AI_RULES.md](../../AI_RULES.md):
@@ -44,44 +46,24 @@ This Skill MUST strictly adhere to the global policies defined in [AI_RULES.md](
 - **RAG Policy** (Section 4) - Follow retrieval sequence levels.
 - **Artifact Policy** (Section 5) - Strictly follow path boundaries and naming formats.
 - **Testing Policy** (Section 8) - Run compilation, build, and tests, halting on failures.
-
-## Multi-Agent Contract
-
-Runs under the Multi-Agent Workflow. Respect agent ownership and handoff rules defined in [agents/](../../agents/) and [runtime/](../../runtime/).
+- **Explicit Release Policy** (Section 9) - Never release automatically.
 
 ---
 
-## 🔒 RELEASE CONFIGURATION & AUTO-DETECTION
+## 🔒 EXPLICIT RELEASE GATES
 
-At startup, read `.agents/release.config.json`.
-- **If the configuration file is missing**:
-  - Scan the workspace to automatically detect project types (Go, Node, Python, Rust, Java, etc.).
-  - Determine version file paths, changelogs, and module roots.
-  - Present the detected layout and ask for user approval **before** generating `.agents/release.config.json`. Never create the file automatically.
+Prior to running any release activities, the AI must strictly execute the following validations:
 
----
+1. **Verify Explicit Release Request**: The AI must verify that the user has explicitly requested a Release (e.g. via keywords like `/release`, `release`, `create release`, `publish release`, `bump version`, `commit and push`, or `tag this version`). Any automatic progression to this Skill without a clear user request is strictly prohibited.
+2. **Verify Blueprint Approval**: Confirm that a Technical Design Blueprint exists for this work under `docs/designs/` and that its status is marked as `"approved": true` in the active workflow session data.
+3. **Verify Quality Gates**: Ensure all quality gates are met:
+   - Debug Gate: `docs/debug/FEAT-XXX_debug.md` has `status: PASS`.
+   - Verification Gate: `docs/verification/FEAT-XXX_verify.md` has `status: PASS`.
 
-## 🔒 QUALITY GATE VERIFICATION ENFORCEMENT
-
-Prior to beginning the release sequence, verify that all three quality gates are met:
-1.  **Debug Gate**:
-    - Locate `docs/debug/FEAT-XXX_debug.md` (or equivalent issue fix file).
-    - Must have `status: PASS`.
-2.  **Visual Debug Gate** (If UI/Frontend feature):
-    - Locate `docs/verification/FEAT-XXX_visual_debug.md` (or equivalent issue visual debug file).
-    - Must have `status: PASS` or `status: PARTIAL` (if browser tools were unavailable).
-    - Skip check only if backend-only feature (marked as skipped in session or no UI files affected).
-3.  **Verification Gate**:
-    - Locate `docs/verification/FEAT-XXX_verify.md` (or equivalent verification file).
-    - Must have `status: PASS`.
-
-**Strict Policy**:
-- If all applicable gates are passed (`PASS`/`PARTIAL`), proceed with Phase 1.
-- If any quality gate fails (or the report file is missing):
-  - **STOP execution immediately**.
-  - Display a block describing the quality failure: `❌ Release is forbidden because the feature has not passed all required quality gates (Debug: PASS, Visual Debug: PASS/PARTIAL/Skipped, Verify: PASS).`
-  - Instruct the agent/user to return to the appropriate quality stage (`/debug` or `/visual-debug` or `/verify`) to resolve the issues.
-  - Set `.session.json` status to `"failed"`.
+**If any validation fails:**
+- **STOP immediately**.
+- Print the warning: `❌ Release aborted: No explicit release request or approved Blueprint found. The framework forbids automatic releases. Please run /release only when you are ready to publish.`
+- Do NOT perform version bumps, modify changelogs, commit, tag, push, or merge.
 
 ---
 
@@ -112,33 +94,6 @@ Phase 10: Compile and write Git tags (single or module-specific; no duplicates)
          ↓
 Phase 11: Push branch and tags (Requires explicit approval)
 ```
-
----
-
-## Shared Module Dependency Detection
-
-If any changed files belong to a shared component directory (such as `shared/`, `common/`, `libs/`, `packages/`):
-1. Identify all dependent modules within the project configuration.
-2. Prompt the user to choose whether these dependent modules should also receive version bumps.
-3. Never assume or auto-bump without explicit confirmation.
-
----
-
-## Git Safety & Branch Handling
-
-- **Branch Check**: Prior to releasing, check the current branch. If it is NOT `main` or `master`, prompt the user: `Merge to main? [Y/N]`. Never merge automatically.
-- **Safety Guards**: Never force push (`-f`), force tag, force merge, rebase automatically, or delete active branches or tags.
-- **Non-Git Projects**: If Git is unavailable:
-  - Skip checkout, merge, commit, tag, and push phases.
-  - Still update version files, write local/root changelogs, and print the Release Summary.
-
----
-
-## Post-Release Memory & Runtime Sync
-
-After a successful release:
-1. **Memory Update**: Update Project Memory, Lessons Learned, Release History, and Version History records.
-2. **Runtime Update**: Update Workflow Runtime context state (`.session.json`) with `current_version`, `latest_release`, `git_tag`, and `current_branch`.
 
 ---
 

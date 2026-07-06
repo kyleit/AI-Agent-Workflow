@@ -5,6 +5,24 @@ All notable changes to this project will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [3.0.0] - 2026-07-06
+
+### Added
+- **Blueprint Mandatory Execution Policy (AI_RULES.md Section 13)**:
+  - Enforced Design Blueprint as the sole legal input for code generation or modification. Implementation from specifications, brainstorms, planning documents, or conversation text is strictly forbidden.
+- **Explicit Release Policy (AI_RULES.md Section 9)**:
+  - Enforced manual user-driven releases. The AI Agent is strictly prohibited from running version updates, committing, tagging, or pushing automatically unless explicitly requested by the user.
+
+### Changed
+- **Three-Stage Quick-Fix Workflow**:
+  - Redesigned `quick-fix` skill to separate work into three strictly gated phases: Spec Generation -> Design Blueprint -> Code Implementation.
+- **Three-Stage Quick-Feature Workflow**:
+  - Redesigned `quick-feature` skill identically to follow a three-stage gated flow.
+- **SDLC Orchestrator Upgrade**:
+  - Upgraded `software-development-workflow` to track blueprint approval status (`blueprint.approved` inside session) and enforce manual release stops.
+- **CLI Runtime Upgrades**:
+  - Upgraded CLI parser in `workflow_runtime.py` to add `blueprint` subcommand for registering and approving design blueprints on session files.
+
 ## [2.13.2] - 2026-07-06
 
 ### Fixed

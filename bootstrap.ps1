@@ -47,6 +47,7 @@ function Show-Help {
     Write-Host "  doctor       Perform diagnostic verification of framework state"
     Write-Host "  version      Report current CLI and repository versions"
     Write-Host "  memory       Manage project memory (bootstrap, update, search)"
+    Write-Host "  blueprint    Register or approve design blueprints"
     Write-Host "  help         Show this help message"
 }
 
@@ -73,6 +74,9 @@ switch (`$Command) {
     }
     "memory" {
         python (Join-Path `$FrameworkRoot "runtime/scripts/project_memory/cli.py") @args
+    }
+    "blueprint" {
+        python (Join-Path `$FrameworkRoot "skills/workflow-runtime/scripts/workflow_runtime.py") blueprint @args
     }
     "help" {
         Show-Help

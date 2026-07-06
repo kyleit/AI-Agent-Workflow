@@ -145,9 +145,13 @@ Reliability is enforced through automated builds and testing.
 
 ---
 
-## 9. Release Policy
+## 9. Explicit Release Policy
 
-Releasing a feature or fix must proceed through a strict sequential order. Releasing is strictly forbidden when build failed, tests failed, or verify failed. Verification must become the final Quality Gate before Release.
+Release is NEVER automatic. Completion of implementation, compilation, or verification (passing all tests and quality gates) does NOT grant permission to perform release activities.
+
+The AI must NEVER update version numbers, modify `CHANGELOG.md`, create git commits, tags, merges, pushes, or invoke the `implementation-to-release` skill unless the user has explicitly requested a Release (e.g. via keywords like `/release`, `release`, `create release`, `publish release`, `bump version`, `commit and push`, or `tag this version`). 
+
+If no explicit release request is given by the user, the workflow MUST STOP after the Verification phase, recommend running Release, and wait for input.
 
 *   **Release Sequence**:
     1.  **Verify Status Check**: Check `docs/verification/FEAT-XXX_verify.md` and ensure the verification status is `PASS`. If `FAIL` or missing, STOP the workflow and return to the debug phase.
@@ -253,4 +257,20 @@ To keep the VS Code Visualizer Dashboard synchronized in real-time, the active w
     *   Locate the main `transcript.jsonl` using the preserved `"conversation_id"` at `<appDataDir>/brain/<conversation_id>/.system_generated/logs/transcript.jsonl`.
     *   Estimate `total_tokens` as `fileSize / 3`.
     *   Update the `"context_usage"` object in `.agents/.session.json`.
+
+---
+
+## 13. Blueprint Mandatory Execution Policy
+
+This is a mandatory global policy. The following rules are absolute and cannot be bypassed:
+
+*   **Rule 1: No Code Modification Without Blueprint**: No Skill may create, delete, or modify source code unless there is a Technical Design Blueprint document. Triaging or implementing changes directly from brainstorming, planning, feature specifications, fix specifications, quick specifications, or user conversation text is strictly forbidden. The Technical Design Blueprint is the ONLY legal input for code generation and modification.
+*   **Rule 2: Valid Blueprint Path**: A Blueprint must exist under the `docs/designs/` directory. Valid file paths must match:
+    - `docs/designs/FEAT-XXX_slug_blueprint.md`
+    - `docs/designs/FIX-XXX_slug_blueprint.md`
+    - `docs/designs/QUICK-XXX_slug_blueprint.md`
+*   **Rule 3: Explicit User Approval**: The Blueprint must be explicitly approved by the user. Accepted approval keywords are: `Y`, `Yes`, `Proceed`, `Continue` (case-insensitive). The AI must never assume blueprint approval.
+*   **Rule 4: Stop Condition**: If no approved Blueprint exists, the AI must IMMEDIATELY STOP, explain the requirement, recommend generating or approving the Blueprint, and wait for input.
+*   **Rule 5: Override Priority**: This policy overrides all implementation-capable Skills. No exceptions.
+
 

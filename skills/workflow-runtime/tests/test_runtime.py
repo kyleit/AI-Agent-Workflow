@@ -184,5 +184,51 @@ class TestRuntimeEngine(unittest.TestCase):
             if os.path.exists(mock_log):
                 os.remove(mock_log)
 
+    def test_blueprint_registration_and_approval(self):
+        # Initial empty session
+        save_session_atomic({"checkpoint": 1})
+        
+        # Test registering blueprint via subprocess call to CLI
+        import subprocess
+        cli_path = os.path.join(os.path.dirname(__file__), "..", "scripts", "workflow_runtime.py")
+        
+        # Create a mock blueprint file
+        mock_bp = "mock_blueprint.md"
+        with open(mock_bp, "w", encoding="utf-8") as f:
+            f.write("# Mock Blueprint")
+            
+        try:
+            # Register blueprint
+            res = subprocess.run(
+                [sys.executable, cli_path, "blueprint", "--path", mock_bp],
+                capture_output=True, text=True
+            )
+            self.assertEqual(res.returncode, 0)
+            self.assertIn("registered", res.stdout)
+            
+            # Verify session has blueprint registered
+            session = load_session()
+            self.assertIn("blueprint", session)
+            self.assertEqual(session["blueprint"]["path"], mock_bp)
+            self.assertEqual(session["blueprint"]["exists"], True)
+            self.assertEqual(session["blueprint"]["approved"], False)
+            
+            # Approve blueprint
+            res_approve = subprocess.run(
+                [sys.executable, cli_path, "blueprint", "--path", mock_bp, "--approve"],
+                capture_output=True, text=True
+            )
+            self.assertEqual(res_approve.returncode, 0)
+            self.assertIn("approved", res_approve.stdout)
+            
+            # Verify session has blueprint approved
+            session_approved = load_session()
+            self.assertEqual(session_approved["blueprint"]["approved"], True)
+            self.assertEqual(session_approved["blueprint"]["approved_by"], "user")
+            self.assertTrue(len(session_approved["blueprint"]["approved_at"]) > 0)
+        finally:
+            if os.path.exists(mock_bp):
+                os.remove(mock_bp)
+
 if __name__ == "__main__":
     unittest.main()

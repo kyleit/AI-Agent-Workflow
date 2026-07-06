@@ -125,7 +125,14 @@ Once bootstrapped, open a new terminal in any Git project and execute:
 
 ## 🔄 Workflow
 
-The framework operates on a linear, gated workflow to ensure software quality at every milestone (refer to the infographic at the top of the page).
+The framework enforces a strict **Blueprint-Driven Development** model where no source code modifications are allowed without an approved design blueprint:
+
+### 1. Standard Feature Workflow (Medium/Large)
+`Brainstorming` ──> `Planning` ──> `Design (Blueprint)` ──> **User Approval Gate** ──> `Implementation` ──> `Debug` ──> `Verification` ──> **STOP (Manual Release Gate)** ──> `Release` (requires explicit request)
+
+### 2. Quick-Fix / Quick-Feature Workflow (3-Stage)
+`Specification (Spec)` ──> **User Approval Gate** ──> `Technical Design (Blueprint)` ──> **User Approval Gate** ──> `Implementation` ──> `Verification` ──> **STOP (Manual Release Gate)** ──> `Release` (requires explicit request)
+
 
 ---
 

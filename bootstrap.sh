@@ -46,6 +46,7 @@ show_help() {
     echo "  doctor       Perform diagnostic verification of framework state"
     echo "  version      Report current CLI and repository versions"
     echo "  memory       Manage project memory (bootstrap, update, search)"
+    echo "  blueprint    Register or approve design blueprints"
     echo "  help         Show this help message"
 }
 
@@ -75,6 +76,9 @@ case "$COMMAND" in
         ;;
     memory)
         python3 "$FRAMEWORK_ROOT/runtime/scripts/project_memory/cli.py" "$@"
+        ;;
+    blueprint)
+        python3 "$FRAMEWORK_ROOT/skills/workflow-runtime/scripts/workflow_runtime.py" blueprint "$@"
         ;;
     help|-h|--help)
         show_help

@@ -75,6 +75,13 @@ def do_init(args):
             "version": get_version_info(),
             "memory": get_memory_info(),
             "rag": get_rag_info(),
+            "blueprint": {
+                "path": "",
+                "exists": False,
+                "approved": False,
+                "approved_at": "",
+                "approved_by": ""
+            },
             "checkpoint": 1,
             "status": "completed",
             "current_skill": "initialize-workflow",
@@ -283,6 +290,40 @@ def do_usage(args):
         else:
             print(json_str)
 
+def do_blueprint(args):
+    session = load_session()
+    if not session:
+        print("Error: session file missing.", file=sys.stderr)
+        sys.exit(1)
+        
+    bp_path = args.path
+    exists = os.path.exists(bp_path)
+    
+    bp_data = {
+        "path": bp_path,
+        "exists": exists,
+        "approved": False,
+        "approved_at": "",
+        "approved_by": ""
+    }
+    
+    if args.approve:
+        if not exists:
+            print(f"Error: Blueprint file does not exist at {bp_path}.", file=sys.stderr)
+            sys.exit(1)
+        bp_data["approved"] = True
+        bp_data["approved_at"] = datetime.now().astimezone().isoformat()
+        bp_data["approved_by"] = "user"
+        
+    session["blueprint"] = bp_data
+    update_context_health(session)
+    save_session_atomic(session)
+    
+    if args.approve:
+        print(f"Blueprint {bp_path} approved.")
+    else:
+        print(f"Blueprint {bp_path} registered (exists={exists}).")
+
 def main():
     parser = argparse.ArgumentParser(description="AI Workflow Runtime Engine CLI")
     subparsers = parser.add_subparsers(dest="action", required=True)
@@ -319,6 +360,10 @@ def main():
     usg.add_argument("--format", default="json", choices=["json"])
     usg.add_argument("--out", type=str)
     
+    bp = subparsers.add_parser("blueprint")
+    bp.add_argument("--path", required=True, type=str)
+    bp.add_argument("--approve", action="store_true")
+    
     args = parser.parse_args()
     
     cmds = {
@@ -329,7 +374,8 @@ def main():
         "complete": do_complete,
         "fail": do_fail,
         "heartbeat": do_heartbeat,
-        "usage": do_usage
+        "usage": do_usage,
+        "blueprint": do_blueprint
     }
     
     cmds[args.action](args)
