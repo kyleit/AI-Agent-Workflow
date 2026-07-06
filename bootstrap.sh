@@ -45,6 +45,7 @@ show_help() {
     echo "  uninstall    Safely remove framework skills from the current project"
     echo "  doctor       Perform diagnostic verification of framework state"
     echo "  version      Report current CLI and repository versions"
+    echo "  memory       Manage project memory (bootstrap, update, search)"
     echo "  help         Show this help message"
 }
 
@@ -72,9 +73,13 @@ case "$COMMAND" in
     version)
         "$FRAMEWORK_ROOT/version.sh" "$@"
         ;;
+    memory)
+        python3 "$FRAMEWORK_ROOT/runtime/scripts/project_memory/cli.py" "$@"
+        ;;
     help|-h|--help)
         show_help
         ;;
+
     *)
         echo "Unknown command: $COMMAND"
         show_help

@@ -117,6 +117,8 @@ To verify that the skills have been correctly installed and are discoverable by 
 2. **Review Customization Root**: Ensure your active workspace points to `.agents` (under Workspace Customizations Root).
 3. **Check Documentation Folders**: Ensure `docs/brainstorming/`, `docs/plans/`, `docs/designs/`, and optional `docs/adr/` folders are present in the project to support feature-centric tracing.
 4. **Execute Diagnostics**: Trigger the `environment-health` skill to verify that the environment-wide agent runner recognizes all active skills.
+5. **Verify Memory CLI**: Run `aiwf memory update` in the terminal to verify that the script-first memory engine can scan the codebase and update indexes.
+
 
 ---
 

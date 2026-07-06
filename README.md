@@ -108,11 +108,18 @@ Once bootstrapped, open a new terminal in any Git project and execute:
   ```
   *Reports framework, CLI wrapper, and repository location/version.*
 
+* **Manage Project Memory**:
+  ```bash
+  aiwf memory <bootstrap | update | search> [options/query]
+  ```
+  *Handles full project memory bootstrapping, incremental updates via git-diff/timestamp, and semantic/keyword query searching.*
+
 * **Safely Remove Skills**:
   ```bash
   aiwf uninstall
   ```
   *Cleans up local framework skills and rules, keeping user memory files intact.*
+
 
 ---
 

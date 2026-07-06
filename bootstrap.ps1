@@ -46,6 +46,7 @@ function Show-Help {
     Write-Host "  uninstall    Safely remove framework skills from the current project"
     Write-Host "  doctor       Perform diagnostic verification of framework state"
     Write-Host "  version      Report current CLI and repository versions"
+    Write-Host "  memory       Manage project memory (bootstrap, update, search)"
     Write-Host "  help         Show this help message"
 }
 
@@ -70,9 +71,13 @@ switch (`$Command) {
     "version" {
         & (Join-Path `$FrameworkRoot "version.ps1") @args
     }
+    "memory" {
+        python (Join-Path `$FrameworkRoot "runtime/scripts/project_memory/cli.py") @args
+    }
     "help" {
         Show-Help
     }
+
     default {
         Write-Host "Unknown command: `$Command" -ForegroundColor Red
         Show-Help

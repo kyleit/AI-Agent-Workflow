@@ -111,6 +111,10 @@ Trong terminal dự án, bạn có thể chạy các lệnh quản trị tiện 
 | `aiwf install` | Cài đặt các tệp tin runtime cần thiết vào dự án cục bộ `.agents/`. |
 | `aiwf update` | Cập nhật các AI Skill cục bộ lên phiên bản mới nhất của framework. |
 | `aiwf uninstall` | Gỡ cài đặt an toàn (chỉ xóa các file framework, giữ lại dữ liệu của bạn). |
+| `aiwf memory bootstrap` | Khởi tạo Project Memory từ đầu (phát hiện ngôn ngữ, frameworks, parser symbols và lưu trữ SQLite/file). |
+| `aiwf memory update [--full]` | Cập nhật tăng cường tri thức dự án thông qua git-diff hoặc timestamp fallback. |
+| `aiwf memory search "<query>"` | Truy vấn tìm kiếm RAG kết hợp từ khóa cục bộ và vector Qdrant. |
+
 
 ---
 

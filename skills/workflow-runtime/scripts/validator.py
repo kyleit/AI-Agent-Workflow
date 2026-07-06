@@ -47,12 +47,42 @@ def get_git_info() -> dict:
 
 def get_version_info() -> dict:
     info = {"version": "0.0.0", "source": "unknown"}
+    
+    # 1. Check MANIFEST.json in current directory
     if os.path.exists("MANIFEST.json"):
         try:
             with open("MANIFEST.json", "r", encoding="utf-8") as f:
                 data = json.load(f)
                 info["version"] = data.get("version", "0.0.0")
                 info["source"] = "MANIFEST.json"
+                return info
         except (json.JSONDecodeError, IOError):
             pass
+            
+    # 2. Check .agents/MANIFEST.json (installed framework location)
+    agents_manifest = os.path.join(".agents", "MANIFEST.json")
+    if os.path.exists(agents_manifest):
+        try:
+            with open(agents_manifest, "r", encoding="utf-8") as f:
+                data = json.load(f)
+                info["version"] = data.get("version", "0.0.0")
+                info["source"] = ".agents/MANIFEST.json"
+                return info
+        except (json.JSONDecodeError, IOError):
+            pass
+            
+    # 3. Fallback to Git Tag if available
+    try:
+        res = subprocess.run(["git", "describe", "--tags", "--abbrev=0"], stdout=subprocess.PIPE, stderr=subprocess.PIPE, text=True)
+        tag = res.stdout.strip()
+        if tag:
+            # Strip leading 'v' if present
+            version = tag[1:] if tag.startswith('v') else tag
+            info["version"] = version
+            info["source"] = "git tag"
+            return info
+    except (subprocess.SubprocessError, FileNotFoundError):
+        pass
+        
     return info
+

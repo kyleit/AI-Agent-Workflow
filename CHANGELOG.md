@@ -5,7 +5,27 @@ All notable changes to this project will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [2.13.0] - 2026-07-06
+
+### Added
+- **Script-First Project Memory CLI Engine**:
+  - Implemented `runtime/scripts/project_memory/` Python package featuring modules for filesystem scanning (`filesystem.py`), git diff parsing (`git_diff.py`), language/framework detection (`scanner.py`), abstract syntax tree parsing (`parser.py`), architecture/database analysis (`analyzer.py`), index builders (`markdown_writer.py`, `json_writer.py`, `sqlite_writer.py`), and RAG search logic (`search.py`).
+  - Added centralized CLI controller `cli.py` exposing `bootstrap`, `update` (incremental sync), and `search` subcommands.
+  - Registered the new CLI engine as `aiwf memory` command inside the global bootstrappers `bootstrap.sh` and `bootstrap.ps1`.
+  - Added automated tests for all memory subcommands under `skills/workflow-runtime/tests/test_project_memory.py`.
+
+### Changed
+- **Refactored Prompt-Driven Skills to Script-First**:
+  - Reduced `SKILL.md` token footprints by over 95% for `project-memory-bootstrap`, `project-memory-update`, and `project-rag-search` skills.
+  - Migrated complex scanning, indexing, chunking, and search logic from prompt instructions into the Python execution layer.
+
+### Fixed
+- **Version Detection Fallback**:
+  - Resolved an issue where the Workflow Session dashboard displayed version `v0.0.0` inside user projects by extending `get_version_info` in `validator.py` to search for `MANIFEST.json` inside `.agents/` directory and automatically fallback to parsing the nearest Git tag (`git describe --tags`) if no manifest exists.
+
 ## [2.12.5] - 2026-07-06
+
+
 
 ### Fixed
 - **Visualizer Extension (v1.0.26)**:
