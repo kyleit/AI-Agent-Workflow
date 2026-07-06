@@ -117,8 +117,84 @@ copy_item() {
     fi
 }
 
+merge_agents_block() {
+    local file_path=$1
+    local src_agents=$2
+    
+    local block_content='<!-- AIWF:RULES:BEGIN -->
+# AI Engineering Workflow Agents
+
+Every AI agent working inside this project **MUST** follow the AI Workflow Framework.
+
+## Primary Workflow
+
+Before executing any task:
+
+1. Load and follow all policies defined in `AI_RULES.md` (the single source of truth).
+2. Load the workflow resources from:
+
+   * `.agents/skills/`
+   * `.agents/runtime/`
+   * `.agents/templates/`
+3. Use the matching workflow Skill whenever one exists.
+4. Respect runtime checkpoints and resume rules.
+5. Never bypass approval gates or other framework policies.
+
+## Global Policies
+
+The following policies are defined in `AI_RULES.md` and apply to every task:
+
+1. Approval Gate Policy
+2. Git Workflow Policy
+3. Memory First Policy
+4. RAG Policy
+5. Artifact Policy
+6. Versioning Policy
+7. Documentation Policy
+8. Testing Policy
+9. Release Policy
+10. Workflow Phase Separation Policy
+
+`AI_RULES.md` is the **single source of truth** for all shared framework behavior. If any instruction conflicts with another document, follow `AI_RULES.md`.
+
+GitHub Repository: https://github.com/kyleit/AI-Agent-Workflow
+
+<!-- AIWF:RULES:END -->'
+
+    if [ ! -f "$file_path" ]; then
+        log_info "Creating: $file_path (copying template)"
+        cp "$src_agents" "$file_path"
+    else
+        log_info "Updating managed block in $file_path"
+        python3 -c "
+import sys, re
+file_path = sys.argv[1]
+block = sys.argv[2]
+with open(file_path, 'r', encoding='utf-8') as f:
+    content = f.read()
+
+begin = '<!-- AIWF:RULES:BEGIN -->'
+end = '<!-- AIWF:RULES:END -->'
+has_begin = begin in content
+has_end = end in content
+
+if has_begin and has_end:
+    new_content = re.sub(re.escape(begin) + r'.*?' + re.escape(end), block, content, flags=re.DOTALL)
+elif has_begin or has_end:
+    clean = content.replace(begin, '').replace(end, '').strip()
+    new_content = (clean + '\n\n' + block) if clean else block
+else:
+    trimmed = content.strip()
+    new_content = block if not trimmed else trimmed + '\n\n' + block
+
+with open(file_path, 'w', encoding='utf-8') as f:
+    f.write(new_content)
+" "$file_path" "$block_content"
+    fi
+}
+
 # 4. Copy required files/directories
-copy_item "$SCRIPT_DIR/AGENTS.md" "$INSTALL_TARGET/AGENTS.md" false
+merge_agents_block "AGENTS.md" "$SCRIPT_DIR/AGENTS.md"
 copy_item "$SCRIPT_DIR/AI_RULES.md" "$INSTALL_TARGET/AI_RULES.md" false
 copy_item "$SCRIPT_DIR/$SKILL_DIR" "$INSTALL_TARGET/$SKILL_DIR" true
 copy_item "$SCRIPT_DIR/$TEMPLATE_DIR" "$INSTALL_TARGET/$TEMPLATE_DIR" true
@@ -171,12 +247,16 @@ fi
 
 # 5. Validation and Summary
 MISSING_FILES=0
-for file in "AGENTS.md" "AI_RULES.md" "MANIFEST.json" "$SKILL_DIR" "$TEMPLATE_DIR" "agents" "runtime" "docs/release-guide.md"; do
+for file in "AI_RULES.md" "MANIFEST.json" "$SKILL_DIR" "$TEMPLATE_DIR" "agents" "runtime" "docs/release-guide.md"; do
     if [ ! -e "$INSTALL_TARGET/$file" ]; then
         log_error "Validation failed: Missing $INSTALL_TARGET/$file"
         MISSING_FILES=$((MISSING_FILES + 1))
     fi
 done
+if [ ! -f "AGENTS.md" ]; then
+    log_error "Validation failed: Missing AGENTS.md in project root"
+    MISSING_FILES=$((MISSING_FILES + 1))
+fi
 
 if [ "$MISSING_FILES" -gt 0 ]; then
     log_error "Installation was incomplete. Please review warnings above."

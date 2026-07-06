@@ -67,7 +67,22 @@ get_manifest_val() {
 # Helper to extract skills list
 get_skills_list() {
     local file=$1
-    sed -n '/"skills":[[:space:]]*\[/,/\]/p' "$file" | grep -o -E '"[^"]+"' | sed 's/"//g' | grep -v '^skills$' || echo ""
+    python3 -c "
+import json, sys
+try:
+    with open(sys.argv[1], 'r', encoding='utf-8') as f:
+        data = json.load(f)
+    skills = data.get('skills', [])
+    names = []
+    for s in skills:
+        if isinstance(s, dict):
+            names.append(s.get('name'))
+        else:
+            names.append(str(s))
+    print(' '.join(filter(None, names)))
+except Exception:
+    pass
+" "$file"
 }
 
 SRC_INSTALL_TARGET=$(get_manifest_val "installation_target" "$SCRIPT_DIR/MANIFEST.json")
@@ -142,8 +157,84 @@ copy_diff_item() {
     fi
 }
 
+merge_agents_block() {
+    local file_path=$1
+    local src_agents=$2
+    
+    local block_content='<!-- AIWF:RULES:BEGIN -->
+# AI Engineering Workflow Agents
+
+Every AI agent working inside this project **MUST** follow the AI Workflow Framework.
+
+## Primary Workflow
+
+Before executing any task:
+
+1. Load and follow all policies defined in `AI_RULES.md` (the single source of truth).
+2. Load the workflow resources from:
+
+   * `.agents/skills/`
+   * `.agents/runtime/`
+   * `.agents/templates/`
+3. Use the matching workflow Skill whenever one exists.
+4. Respect runtime checkpoints and resume rules.
+5. Never bypass approval gates or other framework policies.
+
+## Global Policies
+
+The following policies are defined in `AI_RULES.md` and apply to every task:
+
+1. Approval Gate Policy
+2. Git Workflow Policy
+3. Memory First Policy
+4. RAG Policy
+5. Artifact Policy
+6. Versioning Policy
+7. Documentation Policy
+8. Testing Policy
+9. Release Policy
+10. Workflow Phase Separation Policy
+
+`AI_RULES.md` is the **single source of truth** for all shared framework behavior. If any instruction conflicts with another document, follow `AI_RULES.md`.
+
+GitHub Repository: https://github.com/kyleit/AI-Agent-Workflow
+
+<!-- AIWF:RULES:END -->'
+
+    if [ ! -f "$file_path" ]; then
+        log_info "Creating: $file_path (copying template)"
+        cp "$src_agents" "$file_path"
+    else
+        log_info "Updating managed block in $file_path"
+        python3 -c "
+import sys, re
+file_path = sys.argv[1]
+block = sys.argv[2]
+with open(file_path, 'r', encoding='utf-8') as f:
+    content = f.read()
+
+begin = '<!-- AIWF:RULES:BEGIN -->'
+end = '<!-- AIWF:RULES:END -->'
+has_begin = begin in content
+has_end = end in content
+
+if has_begin and has_end:
+    new_content = re.sub(re.escape(begin) + r'.*?' + re.escape(end), block, content, flags=re.DOTALL)
+elif has_begin or has_end:
+    clean = content.replace(begin, '').replace(end, '').strip()
+    new_content = (clean + '\n\n' + block) if clean else block
+else:
+    trimmed = content.strip()
+    new_content = block if not trimmed else trimmed + '\n\n' + block
+
+with open(file_path, 'w', encoding='utf-8') as f:
+    f.write(new_content)
+" "$file_path" "$block_content"
+    fi
+}
+
 # Copy changed runtime files
-copy_diff_item "$SCRIPT_DIR/AGENTS.md" "$SRC_INSTALL_TARGET/AGENTS.md"
+merge_agents_block "AGENTS.md" "$SCRIPT_DIR/AGENTS.md"
 copy_diff_item "$SCRIPT_DIR/AI_RULES.md" "$SRC_INSTALL_TARGET/AI_RULES.md"
 copy_diff_item "$SCRIPT_DIR/agents" "$SRC_INSTALL_TARGET/agents"
 copy_diff_item "$SCRIPT_DIR/runtime" "$SRC_INSTALL_TARGET/runtime"

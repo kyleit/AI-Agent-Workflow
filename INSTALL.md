@@ -28,7 +28,7 @@ For AI Coding Agents (e.g., Antigravity IDE, Cursor, Claude Code) to seamlessly 
 │   │   ├── environment-health/
 │   │   ├── brainstorming/
 │   │   └── ... (other skills)
-│   └── AGENTS.md            # Custom system rules & guidelines for the project
+├── AGENTS.md                # Custom system rules, managed rules block, and guidelines for the project
 ├── docs/                    # Feature documentation structure (Feature-Centric)
 │   ├── brainstorming/       # Requirement discovery documents (FEAT-XXX_*.md)
 │   ├── plans/               # Project plans (FEAT-XXX_*_plan.md)
@@ -131,6 +131,11 @@ Skills follow **Semantic Versioning** (`MAJOR.MINOR.PATCH`).
 ### Synchronizing Skills
 * **Manual copies**: To update, delete `.agents/skills/` and re-copy the fresh framework version.
 * **Git Submodule**: Move to the submodule folder, pull, and update the parent repository pointer.
+
+### Safe AGENTS.md Integration
+* **Installation**: Creates `AGENTS.md` in the project root if it does not already exist. If it exists, it appends/merges the managed rules block safely.
+* **Updates**: Refreshes only the managed block in `AGENTS.md`, preserving all user-customized rules outside the markers.
+* **Idempotency**: Multiple installations or updates will always maintain exactly one managed rules block and will never duplicate it.
 
 ### Backward Compatibility
 * Existing workflows should continue to work with minor/patch upgrades.
