@@ -5,6 +5,29 @@ All notable changes to this project will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [2.12.4] - 2026-07-06
+
+### Fixed
+- **Token Estimation & Database Overwriting**:
+  - Implemented `get_fallback_usage` on Python side to dynamically estimate tokens based on checkpoint when active logs are missing.
+  - Added a protection check in database handler `save_usage_to_dbs` to prevent overwriting correct token/cost history metrics with smaller or zero fallback estimates during initialization.
+  - Resolved `OperationalError` when initializing databases on a fresh workspace without a pre-existing `.agents` directory.
+- **Visualizer Extension (v1.0.25)**:
+  - Updated `README.md` to show the correct new JSON structure and include all missing session fields (`logs`, `suggested_next_skill`, etc.).
+  - Upgraded the extension's default/fallback values nạp logic so that `workflow_usage_summary`, `project_usage_summary`, and `global_usage_summary` are always initialized correctly from session data.
+
+---
+
+## [2.12.3] - 2026-07-06
+
+### Fixed
+- **Workflow Runtime & Token Estimation Path**:
+  - Fixed a critical cross-platform compatibility issue where `BRAIN_ROOT` was hardcoded to a Windows directory, causing token estimation and context percentage calculations to fail on macOS and Linux systems.
+  - Dynamically resolved the IDE `brain` directory path using `os.path.expanduser` to support macOS, Linux, and Windows seamlessly.
+- **Visualizer Extension (v1.0.24)**:
+  - Updated the Workflow Usage token count label to show `active_tokens` (current context window size) instead of `total_tokens` (accumulated tokens), resolving the mathematical mismatch with the percentage bar.
+  - Eliminated the blank loading state box when token usage is zero at initialization, ensuring the full layout card remains visible with default zero values.
+
 ## [2.12.2] - 2026-07-06
 
 ### Fixed

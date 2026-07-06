@@ -65,6 +65,29 @@ def _save_record(db_path: str, record: tuple) -> None:
         conn.close()
 
 def save_usage_to_dbs(conversation_id: str, project_id: str, skill: str, command: str, usage: dict) -> None:
+    new_total = usage.get("total_tokens", 0)
+    
+    # Read existing total_tokens from Project DB if it exists
+    existing_total = 0
+    if os.path.exists(PROJECT_DB):
+        conn = sqlite3.connect(PROJECT_DB)
+        try:
+            cursor = conn.cursor()
+            cursor.execute("SELECT name FROM sqlite_master WHERE type='table' AND name='usage_records'")
+            if cursor.fetchone():
+                cursor.execute("SELECT total_tokens FROM usage_records WHERE conversation_id = ?", (conversation_id,))
+                row = cursor.fetchone()
+                if row:
+                    existing_total = row[0]
+        except Exception:
+            pass
+        finally:
+            conn.close()
+            
+    if new_total <= existing_total and existing_total > 0:
+        # Keep existing record if new estimate is smaller or equal
+        return
+
     record = (
         conversation_id,
         project_id,
@@ -91,8 +114,26 @@ def save_usage_to_dbs(conversation_id: str, project_id: str, skill: str, command
     _save_record(global_db, record)
 
 def get_workflow_summary(conversation_id: str, provider: str, model: str) -> dict:
-    conn = sqlite3.connect(PROJECT_DB)
+    if not os.path.exists(PROJECT_DB):
+        return {
+            "provider": provider,
+            "model": model,
+            "input_tokens": 0,
+            "output_tokens": 0,
+            "cache_tokens": 0,
+            "thinking_tokens": 0,
+            "active_tokens": 0,
+            "total_tokens": 0,
+            "limit_tokens": 2000000,
+            "percentage": 0.0,
+            "estimated_cost_usd": 0.0,
+            "accuracy": "estimated",
+            "updated_at": datetime.now().astimezone().isoformat()
+        }
+    
+    conn = None
     try:
+        conn = sqlite3.connect(PROJECT_DB)
         cursor = conn.cursor()
         cursor.execute("""
             SELECT input_tokens, output_tokens, cache_tokens, thinking_tokens, active_tokens, total_tokens,
@@ -120,7 +161,8 @@ def get_workflow_summary(conversation_id: str, provider: str, model: str) -> dic
     except sqlite3.OperationalError:
         pass
     finally:
-        conn.close()
+        if conn:
+            conn.close()
     
     # Fallback default if not found
     return {
@@ -140,8 +182,20 @@ def get_workflow_summary(conversation_id: str, provider: str, model: str) -> dic
     }
 
 def get_project_summary() -> dict:
-    conn = sqlite3.connect(PROJECT_DB)
+    if not os.path.exists(PROJECT_DB):
+        return {
+            "input_tokens": 0,
+            "output_tokens": 0,
+            "cache_tokens": 0,
+            "thinking_tokens": 0,
+            "total_tokens": 0,
+            "estimated_cost_usd": 0.0,
+            "updated_at": datetime.now().astimezone().isoformat()
+        }
+
+    conn = None
     try:
+        conn = sqlite3.connect(PROJECT_DB)
         cursor = conn.cursor()
         cursor.execute("""
             SELECT SUM(input_tokens), SUM(output_tokens), SUM(cache_tokens),
@@ -162,7 +216,8 @@ def get_project_summary() -> dict:
     except sqlite3.OperationalError:
         pass
     finally:
-        conn.close()
+        if conn:
+            conn.close()
     
     return {
         "input_tokens": 0,
@@ -176,8 +231,20 @@ def get_project_summary() -> dict:
 
 def get_global_summary() -> dict:
     global_db = get_global_db_path()
-    conn = sqlite3.connect(global_db)
+    if not os.path.exists(global_db):
+        return {
+            "input_tokens": 0,
+            "output_tokens": 0,
+            "cache_tokens": 0,
+            "thinking_tokens": 0,
+            "total_tokens": 0,
+            "estimated_cost_usd": 0.0,
+            "updated_at": datetime.now().astimezone().isoformat()
+        }
+
+    conn = None
     try:
+        conn = sqlite3.connect(global_db)
         cursor = conn.cursor()
         cursor.execute("""
             SELECT SUM(input_tokens), SUM(output_tokens), SUM(cache_tokens),
@@ -198,7 +265,8 @@ def get_global_summary() -> dict:
     except sqlite3.OperationalError:
         pass
     finally:
-        conn.close()
+        if conn:
+            conn.close()
     
     return {
         "input_tokens": 0,

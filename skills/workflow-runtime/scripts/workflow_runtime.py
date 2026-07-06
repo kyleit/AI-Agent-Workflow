@@ -41,11 +41,16 @@ def update_context_health(session: dict) -> None:
         save_usage_to_dbs(conv_id, proj_id, skill, cmd, usage)
         
     # 3. Retrieve summaries from DBs
-    session["workflow_usage_summary"] = get_workflow_summary(
+    wf_summary = get_workflow_summary(
         conv_id or "",
         usage.get("provider", "estimate"),
         usage.get("model", "auto")
     )
+    if wf_summary.get("total_tokens", 0) == 0 and usage.get("total_tokens", 0) > 0:
+        session["workflow_usage_summary"] = usage
+    else:
+        session["workflow_usage_summary"] = wf_summary
+        
     session["project_usage_summary"] = get_project_summary()
     session["global_usage_summary"] = get_global_summary()
     

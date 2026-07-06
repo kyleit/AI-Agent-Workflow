@@ -10,7 +10,7 @@ sys.path.append(os.path.dirname(os.path.abspath(__file__)))
 from session import load_session
 
 LIMIT_TOKENS = 2000000
-BRAIN_ROOT = r"C:\Users\Kyle\.gemini\antigravity-ide\brain"
+BRAIN_ROOT = os.path.expanduser("~/.gemini/antigravity-ide/brain")
 
 def parse_transcript(log_file: str) -> dict:
     if not os.path.exists(log_file):
@@ -40,7 +40,7 @@ def parse_transcript(log_file: str) -> dict:
                 content = line.get("content", "")
                 
                 # Check for settings changes to auto-detect model/provider
-                if content and "Model Selection" in content:
+                if line.get("type") == "USER_INPUT" and content and "Model Selection" in content:
                     match = re.search(r"Model Selection` from \S+ to ([^\.]+)", content)
                     if match:
                         model_name = match.group(1).strip()
@@ -114,6 +114,33 @@ def parse_transcript(log_file: str) -> dict:
         
     return {}
 
+def get_fallback_usage(session: dict, default_provider: str) -> dict:
+    checkpoint = session.get("checkpoint", 1)
+    percentage = min(checkpoint * 8.5, 95.0)
+    active_tokens = int((percentage / 100) * LIMIT_TOKENS)
+    total_tokens = active_tokens
+    
+    input_tokens = int(total_tokens * 0.98)
+    output_tokens = int(total_tokens * 0.02)
+    cache_tokens = int(total_tokens * 0.15)
+    thinking_tokens = int(total_tokens * 0.005)
+    
+    return {
+        "provider": default_provider,
+        "model": "auto",
+        "input_tokens": input_tokens,
+        "output_tokens": output_tokens,
+        "cache_tokens": cache_tokens,
+        "thinking_tokens": thinking_tokens,
+        "active_tokens": active_tokens,
+        "total_tokens": total_tokens,
+        "limit_tokens": LIMIT_TOKENS,
+        "percentage": round(percentage, 2),
+        "estimated_cost_usd": round(total_tokens * 1.5 / 1000000, 4),
+        "accuracy": "estimated",
+        "updated_at": datetime.now().astimezone().isoformat()
+    }
+
 def estimate_context_usage() -> dict:
     session = load_session()
     conv_id = session.get("conversation_id")
@@ -121,39 +148,11 @@ def estimate_context_usage() -> dict:
     default_provider = "antigravity" if "ANTIGRAVITY_AGENT" in os.environ else "estimate"
     
     if not conv_id:
-        return {
-            "provider": default_provider,
-            "model": "auto",
-            "input_tokens": 0,
-            "output_tokens": 0,
-            "cache_tokens": 0,
-            "thinking_tokens": 0,
-            "total_tokens": 0,
-            "active_tokens": 0,
-            "limit_tokens": LIMIT_TOKENS,
-            "percentage": 0.0,
-            "estimated_cost_usd": 0.0,
-            "accuracy": "estimated",
-            "updated_at": datetime.now().astimezone().isoformat()
-        }
+        return get_fallback_usage(session, default_provider)
         
     log_file = os.path.join(BRAIN_ROOT, conv_id, ".system_generated", "logs", "transcript.jsonl")
     parsed = parse_transcript(log_file)
     if parsed:
         return parsed
         
-    return {
-        "provider": default_provider,
-        "model": "auto",
-        "input_tokens": 0,
-        "output_tokens": 0,
-        "cache_tokens": 0,
-        "thinking_tokens": 0,
-        "total_tokens": 0,
-        "active_tokens": 0,
-        "limit_tokens": LIMIT_TOKENS,
-        "percentage": 0.0,
-        "estimated_cost_usd": 0.0,
-        "accuracy": "estimated",
-        "updated_at": datetime.now().astimezone().isoformat()
-    }
+    return get_fallback_usage(session, default_provider)
