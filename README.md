@@ -125,7 +125,10 @@ Once bootstrapped, open a new terminal in any Git project and execute:
 
 ## 🔄 Workflow
 
-The framework enforces a strict **Blueprint-Driven Development** model where no source code modifications are allowed without an approved design blueprint:
+The framework enforces a strict **Skill Suggestion Gate** on all unclassified natural language user requests, and a strict **Blueprint-Driven Development** model:
+
+### 0. Skill Suggestion Gate (Pre-Workflow)
+When a user request is sent without a prefix command, the AI stops, classifies the request using a Classification Matrix, suggests the single best-fit Skill or presents multiple options, and **STOPS** until the user explicitly confirms (Y/N or option number).
 
 ### 1. Standard Feature Workflow (Medium/Large)
 `Brainstorming` ──> `Planning` ──> `Design (Blueprint)` ──> **User Approval Gate** ──> `Implementation` ──> `Debug` ──> `Verification` ──> **STOP (Manual Release Gate)** ──> `Release` (requires explicit request)

@@ -29,6 +29,16 @@ def get_project_id() -> str:
     return "ai-skill-framework"
 
 def update_context_health(session: dict) -> None:
+    if "suggestion_gate" not in session:
+        session["suggestion_gate"] = {
+            "active": False,
+            "raw_request": "",
+            "classification": "",
+            "recommended_skill": "",
+            "options": [],
+            "status": "idle"
+        }
+        
     # 1. Estimate current context usage
     usage = estimate_context_usage()
     
@@ -81,6 +91,14 @@ def do_init(args):
                 "approved": False,
                 "approved_at": "",
                 "approved_by": ""
+            },
+            "suggestion_gate": {
+                "active": False,
+                "raw_request": "",
+                "classification": "",
+                "recommended_skill": "",
+                "options": [],
+                "status": "idle"
             },
             "checkpoint": 1,
             "status": "completed",
@@ -324,6 +342,72 @@ def do_blueprint(args):
     else:
         print(f"Blueprint {bp_path} registered (exists={exists}).")
 
+def do_suggest(args):
+    session = load_session()
+    if not session:
+        print("Error: session file missing.", file=sys.stderr)
+        sys.exit(1)
+        
+    suggestion = session.get("suggestion_gate", {
+        "active": False,
+        "raw_request": "",
+        "classification": "",
+        "recommended_skill": "",
+        "options": [],
+        "status": "idle"
+    })
+    
+    if args.request:
+        suggestion["raw_request"] = args.request
+        suggestion["active"] = True
+        suggestion["status"] = "waiting_for_user_confirmation"
+        
+    if args.classification:
+        suggestion["classification"] = args.classification
+        
+    if args.recommend:
+        suggestion["recommended_skill"] = args.recommend
+        
+    if args.options:
+        suggestion["options"] = [o.strip() for o in args.options.split(",")]
+        
+    if args.status:
+        suggestion["status"] = args.status
+        if args.status == "confirmed" or args.status == "idle" or args.status == "rejected":
+            suggestion["active"] = False
+            
+    if args.choose:
+        choice = args.choose.strip().lower()
+        if choice in ["y", "yes", "proceed", "continue"]:
+            suggestion["status"] = "confirmed"
+            suggestion["active"] = False
+            print("Suggestion confirmed.")
+        elif choice in ["n", "no"]:
+            suggestion["status"] = "rejected"
+            suggestion["active"] = False
+            print("Suggestion rejected.")
+        else:
+            # Check if choice is a number corresponding to one of the options
+            try:
+                idx = int(choice) - 1
+                if 0 <= idx < len(suggestion["options"]):
+                    suggestion["recommended_skill"] = suggestion["options"][idx]
+                    suggestion["status"] = "confirmed"
+                    suggestion["active"] = False
+                    print(f"Option {choice} selected: {suggestion['recommended_skill']}.")
+                else:
+                    print(f"Error: Invalid option index {choice}.", file=sys.stderr)
+                    sys.exit(1)
+            except ValueError:
+                print(f"Error: Invalid choice {choice}.", file=sys.stderr)
+                sys.exit(1)
+                
+    session["suggestion_gate"] = suggestion
+    update_context_health(session)
+    save_session_atomic(session)
+    if not args.choose:
+        print(f"Suggestion gate updated (active={suggestion['active']}, status={suggestion['status']}).")
+
 def main():
     parser = argparse.ArgumentParser(description="AI Workflow Runtime Engine CLI")
     subparsers = parser.add_subparsers(dest="action", required=True)
@@ -364,6 +448,14 @@ def main():
     bp.add_argument("--path", required=True, type=str)
     bp.add_argument("--approve", action="store_true")
     
+    sg = subparsers.add_parser("suggest")
+    sg.add_argument("--request", type=str)
+    sg.add_argument("--classification", type=str)
+    sg.add_argument("--recommend", type=str)
+    sg.add_argument("--options", type=str)
+    sg.add_argument("--status", type=str)
+    sg.add_argument("--choose", type=str)
+    
     args = parser.parse_args()
     
     cmds = {
@@ -375,7 +467,8 @@ def main():
         "fail": do_fail,
         "heartbeat": do_heartbeat,
         "usage": do_usage,
-        "blueprint": do_blueprint
+        "blueprint": do_blueprint,
+        "suggest": do_suggest
     }
     
     cmds[args.action](args)

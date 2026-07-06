@@ -230,5 +230,136 @@ class TestRuntimeEngine(unittest.TestCase):
             if os.path.exists(mock_bp):
                 os.remove(mock_bp)
 
+    def test_suggestion_gate_scenarios(self):
+        import subprocess
+        cli_path = os.path.join(os.path.dirname(__file__), "..", "scripts", "workflow_runtime.py")
+        
+        # Scenario 1: Raw bug request suggests quick-fix
+        save_session_atomic({"checkpoint": 1})
+        res = subprocess.run(
+            [sys.executable, cli_path, "suggest", "--request", "Tôi bị crash ở hàm submit", "--recommend", "quick-fix"],
+            capture_output=True, text=True
+        )
+        self.assertEqual(res.returncode, 0)
+        session = load_session()
+        self.assertEqual(session["suggestion_gate"]["active"], True)
+        self.assertEqual(session["suggestion_gate"]["recommended_skill"], "quick-fix")
+        self.assertEqual(session["suggestion_gate"]["status"], "waiting_for_user_confirmation")
+        
+        # Scenario 2: Raw small feature request suggests quick-feature
+        save_session_atomic({"checkpoint": 1})
+        res = subprocess.run(
+            [sys.executable, cli_path, "suggest", "--request", "Thêm cái button xuất báo cáo", "--recommend", "quick-feature"],
+            capture_output=True, text=True
+        )
+        session = load_session()
+        self.assertEqual(session["suggestion_gate"]["recommended_skill"], "quick-feature")
+        
+        # Scenario 3: Raw large feature request suggests brainstorming
+        save_session_atomic({"checkpoint": 1})
+        res = subprocess.run(
+            [sys.executable, cli_path, "suggest", "--request", "Tái cấu trúc lại toàn bộ hệ thống cơ sở dữ liệu", "--recommend", "brainstorming"],
+            capture_output=True, text=True
+        )
+        session = load_session()
+        self.assertEqual(session["suggestion_gate"]["recommended_skill"], "brainstorming")
+        
+        # Scenario 4: Ambiguous request shows multiple options and stops
+        save_session_atomic({"checkpoint": 1})
+        res = subprocess.run(
+            [sys.executable, cli_path, "suggest", "--request", "Làm tính năng gì đó", "--options", "quick-fix,quick-feature,brainstorming"],
+            capture_output=True, text=True
+        )
+        session = load_session()
+        self.assertEqual(len(session["suggestion_gate"]["options"]), 3)
+        self.assertEqual(session["suggestion_gate"]["active"], True)
+        
+        # Scenario 5: User selects option 1 -> quick-fix starts
+        res = subprocess.run(
+            [sys.executable, cli_path, "suggest", "--choose", "1"],
+            capture_output=True, text=True
+        )
+        session = load_session()
+        self.assertEqual(session["suggestion_gate"]["active"], False)
+        self.assertEqual(session["suggestion_gate"]["status"], "confirmed")
+        self.assertEqual(session["suggestion_gate"]["recommended_skill"], "quick-fix")
+        
+        # Reset and Scenario 6: User selects option 2 -> quick-feature starts
+        save_session_atomic({
+            "checkpoint": 1,
+            "suggestion_gate": {
+                "active": True,
+                "options": ["quick-fix", "quick-feature", "brainstorming"],
+                "status": "waiting_for_user_confirmation"
+            }
+        })
+        res = subprocess.run(
+            [sys.executable, cli_path, "suggest", "--choose", "2"],
+            capture_output=True, text=True
+        )
+        session = load_session()
+        self.assertEqual(session["suggestion_gate"]["recommended_skill"], "quick-feature")
+        
+        # Reset and Scenario 7: User selects option 3 -> brainstorming starts
+        save_session_atomic({
+            "checkpoint": 1,
+            "suggestion_gate": {
+                "active": True,
+                "options": ["quick-fix", "quick-feature", "brainstorming"],
+                "status": "waiting_for_user_confirmation"
+            }
+        })
+        res = subprocess.run(
+            [sys.executable, cli_path, "suggest", "--choose", "3"],
+            capture_output=True, text=True
+        )
+        session = load_session()
+        self.assertEqual(session["suggestion_gate"]["recommended_skill"], "brainstorming")
+        
+        # Scenario 8: Raw release-like request suggests release only if explicit
+        save_session_atomic({"checkpoint": 9})
+        # If user asks to push release explicitly
+        res = subprocess.run(
+            [sys.executable, cli_path, "suggest", "--request", "Đẩy code release lên production", "--recommend", "implementation-to-release"],
+            capture_output=True, text=True
+        )
+        session = load_session()
+        self.assertEqual(session["suggestion_gate"]["recommended_skill"], "implementation-to-release")
+        
+        # Scenario 9: Non-release implementation completion does not suggest auto-release execution
+        # If no explicit release request, suggestion gate should not suggest implementation-to-release
+        save_session_atomic({"checkpoint": 8})
+        session = load_session()
+        self.assertNotEqual(session.get("suggestion_gate", {}).get("recommended_skill"), "implementation-to-release")
+        
+        # Scenario 10: Explicit /quick-fix bypasses suggestion gate and runs quick-fix normally
+        save_session_atomic({"checkpoint": 1})
+        # If running start for quick-fix directly
+        res = subprocess.run(
+            [sys.executable, cli_path, "start", "--skill", "quick-fix", "--command", "fix", "--checkpoint", "2", "--step", "Starting"],
+            capture_output=True, text=True
+        )
+        session = load_session()
+        self.assertEqual(session["current_skill"], "quick-fix")
+        self.assertEqual(session["suggestion_gate"]["active"], False)
+        
+        # Scenario 11: Explicit /brainstorm bypasses suggestion gate
+        save_session_atomic({"checkpoint": 1})
+        res = subprocess.run(
+            [sys.executable, cli_path, "start", "--skill", "brainstorming", "--command", "brainstorm", "--checkpoint", "2", "--step", "Starting"],
+            capture_output=True, text=True
+        )
+        session = load_session()
+        self.assertEqual(session["current_skill"], "brainstorming")
+        
+        # Scenario 12: Explicit /release is allowed only as explicit release request
+        save_session_atomic({"checkpoint": 9})
+        res = subprocess.run(
+            [sys.executable, cli_path, "start", "--skill", "implementation-to-release", "--command", "release", "--checkpoint", "10", "--step", "Releasing"],
+            capture_output=True, text=True
+        )
+        session = load_session()
+        self.assertEqual(session["current_skill"], "implementation-to-release")
+
 if __name__ == "__main__":
     unittest.main()

@@ -31,10 +31,13 @@ Lệnh này sẽ tạo thư mục `.agents/` chứa luật cấu hình `AI_RULES
 
 Mỗi tính năng mới trong dự án sẽ được quản lý dưới một mã số duy nhất (**Feature ID** - dạng `FEAT-001`, `FEAT-002`,...) và đi qua các bước tuần tự dưới đây. 
 
-Bạn chỉ cần gọi Orchestrator bất kỳ lúc nào để biết bước tiếp theo cần chạy là gì:
-```bash
-/workflow
-```
+### 🔒 Chốt chặn Gợi ý Kỹ năng tự động (Skill Suggestion Gate)
+Khi bạn gửi một yêu cầu ngôn ngữ tự nhiên thuần (không bắt đầu bằng lệnh cụ thể như `/workflow`, `/quick-fix`, `/quick-feature`, `/brainstorm`), Agent sẽ dừng lại và hiển thị phân loại đề xuất.
+* **Cách xác nhận**: Bạn có thể gõ `Y`, `Yes`, `Proceed` hoặc chọn số thứ tự phương án đề xuất để Agent tiếp tục.
+* **Xác nhận bằng CLI**:
+  ```bash
+  aiwf suggest --choose Y
+  ```
 
 ---
 

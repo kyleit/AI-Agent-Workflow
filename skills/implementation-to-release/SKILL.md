@@ -47,6 +47,7 @@ This Skill MUST strictly adhere to the global policies defined in [AI_RULES.md](
 - **Artifact Policy** (Section 5) - Strictly follow path boundaries and naming formats.
 - **Testing Policy** (Section 8) - Run compilation, build, and tests, halting on failures.
 - **Explicit Release Policy** (Section 9) - Never release automatically.
+- **Skill Suggestion Gate Policy** (Section 14) - Raw requests require suggestion first; selected Skill requires confirmation.
 
 ---
 

@@ -5,6 +5,20 @@ All notable changes to this project will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [4.0.0] - 2026-07-06
+
+### Added
+- **Skill Suggestion Gate Policy (AI_RULES.md Section 14)**:
+  - Enforced a pre-workflow Suggestion Gate for all unclassified natural language user requests. The AI must stop, classify the request using a Classification Matrix, suggest a workflow Skill or present options, and wait for confirmation.
+- **CLI Suggestion Subcommand**:
+  - Integrated `suggest` subcommand in `workflow_runtime.py` to register and verify raw user requests, options, and status.
+
+### Changed
+- **SDLC Orchestrator Suggestion Routing**:
+  - Upgraded `software-development-workflow` to handle unclassified requests and enforce suggestion gate logic.
+- **Workflow Skills Enforcement**:
+  - Updated all core workflow skills (`quick-fix`, `quick-feature`, `brainstorming`, `blueprint-to-implementation`, `implementation-to-release`, `resume-workflow`) to reference the Suggestion Gate Policy.
+
 ## [3.0.0] - 2026-07-06
 
 ### Added

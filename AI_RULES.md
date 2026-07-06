@@ -273,4 +273,66 @@ This is a mandatory global policy. The following rules are absolute and cannot b
 *   **Rule 4: Stop Condition**: If no approved Blueprint exists, the AI must IMMEDIATELY STOP, explain the requirement, recommend generating or approving the Blueprint, and wait for input.
 *   **Rule 5: Override Priority**: This policy overrides all implementation-capable Skills. No exceptions.
 
+---
+
+## 14. Skill Suggestion Gate Policy
+
+When the user provides a natural language request without explicitly invoking a Skill (such as `/workflow`, `/brainstorm`, `/quick-fix`, `/quick-feature`, `/blueprint`, `/implement`, or `/release`), the AI must NOT start work immediately.
+
+The AI must classify the request first using the following classification rules:
+- **Bug, error, regression, wrong output, broken behavior**: Recommend `quick-fix` (if localized/low-risk) or `brainstorming` (if complex/broad).
+- **Small feature, simple UI block, validation, filter, button, config option**: Recommend `quick-feature`.
+- **Large feature, new module, architecture change, multi-component work**: Recommend `brainstorming`.
+- **Existing approved blueprint**: Recommend `blueprint-to-implementation`.
+- **Debug/build/test failure after implementation**: Recommend `implementation-to-debug`.
+- **Verification / Final Quality Gate check**: Recommend `debug-to-verify`.
+- **Release, tagging, push, version bump, changelog update**: Recommend `implementation-to-release` ONLY if the user explicitly requested release.
+
+### Suggestion Format:
+
+When classification is clear, output this format and STOP:
+```text
+I detected this as: [classification]
+
+Recommended Skill:
+[skill-name] / [command]
+
+Reason:
+[short reason]
+
+This workflow will:
+- [step 1]
+- [step 2]
+- [step 3]
+
+Confirm to continue?
+Y / N
+```
+
+When multiple options are possible, output this format and STOP:
+```text
+I found multiple possible workflows:
+
+Option 1:
+Skill: quick-fix
+Use when: this is a localized bug or small issue.
+Result: creates FIX spec, then Blueprint, then waits for approval.
+
+Option 2:
+Skill: quick-feature
+Use when: this is a small new feature.
+Result: creates QUICK spec, then Blueprint, then waits for approval.
+
+Option 3:
+Skill: brainstorming
+Use when: this may affect architecture, modules, or multiple components.
+Result: starts full discovery workflow.
+
+Please choose:
+1, 2, or 3
+```
+
+The AI must NEVER execute the recommended Skill or modify files until the user explicitly confirms (with `Y`, `Yes`, `Proceed`, `Continue`, or the option number).
+
+
 

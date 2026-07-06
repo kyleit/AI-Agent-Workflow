@@ -9,7 +9,7 @@ tags:
   - workflow
   - status
   - orchestrator
-version: 3.0.0
+version: 4.0.0
 author:
   name: Kyle Dang
   email: kyleit@klexpress.net
@@ -25,7 +25,7 @@ description: Pure Workflow Orchestrator. Evaluates checkpoints and ensures Bluep
 
 ## Purpose
 
-This Skill is the **central coordinator** of the entire AI Coding Platform. It acts as a **Project Manager** to determine the current phase, verify Quality Gates, check Blueprint approvals, and recommend the single correct next Skill to run.
+This Skill is the **central coordinator** of the entire AI Coding Platform. It acts as a **Project Manager** to determine the current phase, verify Quality Gates, check Blueprint approvals, perform raw request classification, and recommend the single correct next Skill to run.
 
 It does NOT perform any engineering work, code modification, or file writing.
 
@@ -102,6 +102,7 @@ This Skill MUST strictly adhere to the global policies defined in [AI_RULES.md](
 - **Testing Policy** (Section 8) - Run compilation, build, and tests, halting on failures.
 - **Explicit Release Policy** (Section 9) - Never release automatically.
 - **Blueprint Mandatory Execution Policy** (Section 13) - Enforce Blueprint approval for implementation.
+- **Skill Suggestion Gate Policy** (Section 14) - Enforce suggestion and confirmation for raw user requests.
 
 ---
 
@@ -116,6 +117,8 @@ Step 1 — Environment Health Check
         ↓
 Step 2 — Project Memory Check
         ↓
+Step 2.5 — Skill Suggestion Gate (Classification Check)
+        ↓
 Step 3 — Feature & Workflow Detection (Trace Feature ID)
         ↓
 Step 4 — Generate Recommendation
@@ -125,20 +128,33 @@ STOP
 
 ---
 
+## Step 2.5 — Skill Suggestion Gate (Classification Check)
+
+If the user has provided a raw request without explicitly calling a Command (like `/workflow`, `/brainstorm`, `/quick-fix`, `/quick-feature`, `/blueprint`, `/implement`, or `/release`), the AI must not proceed immediately.
+
+### 2.5.1 — Classification Matrix
+Classify the request using this matrix:
+* **quick-fix**: Keywords: bug, error, exception, broken UI, wrong behavior, failed command, small regression, typo causing failure, config mismatch, simple validation bug.
+* **quick-feature**: Keywords: add small button, add small API endpoint, add filter/search/export, add config option, add field, add small UI block, small behavior improvement, low-risk single-module feature.
+* **brainstorming**: Keywords: new system, new module, new workflow, architecture change, database design, multi-service change, unclear requirement, business logic redesign, high uncertainty.
+* **project-rag-search**: Keywords: user asks about existing architecture, where something is implemented, dependency/ownership questions, "how does this project handle X?".
+* **project-memory-update**: Keywords: refresh memory, sync memory, after implementation, after major file changes.
+* **project-memory-bootstrap**: Keywords: initialize memory, bootstrap memory when no memory exists.
+* **implementation-to-release**: Keywords: release, tag, version bump, changelog update, git push. (Suggest ONLY if explicitly requested).
+
+### 2.5.2 — Suggestion Output
+* If `suggestion_gate.status` is `waiting_for_user_confirmation` and user input is not confirmation, keep waiting.
+* If user confirms (via `Y`, `Yes`, `Proceed`, `Continue` or option number), clear suggestion gate or update status to `confirmed` and proceed to step 3.
+* Otherwise, output the correct suggestion layout (Single recommendation or Multiple options) and STOP.
+
+---
+
 ## Step 3 — Feature & Workflow Detection
 
 ### 3.1 — Detect Active Feature ID & Track Eligibility
 
-1. **Quick-Fix Classification**: If the user has provided a `task_description`, check if it qualifies as a Quick-Fix:
-   - If it qualifies:
-     * **Recommend next Skill**: `quick-fix`
-     * Stop.
-2. **Quick-Feature Classification**: Check if it qualifies for a Quick-Feature:
-   - If it qualifies:
-     * **Recommend next Skill**: `quick-feature`
-     * Stop.
-3. **Scan documentation**: If it does not qualify for either, scan `docs/brainstorm/FEAT-XXX_*.md`.
-4. Find the file with the highest numerical suffix in `FEAT-XXX` as the **Active Feature**. Let this ID be `FEAT-XXX`.
+1. **Scan documentation**: Scan `docs/brainstorm/FEAT-XXX_*.md`.
+2. Find the file with the highest numerical suffix in `FEAT-XXX` as the **Active Feature**. Let this ID be `FEAT-XXX`.
 
 ### 3.2 — Trace Feature Lifecycle Status
 
@@ -148,7 +164,7 @@ If the plan `docs/plans/FEAT-XXX_<feature_name>_plan.md` exists but the technica
 * Stop.
 
 #### Case C.5: Design Blueprint Approval Pending
-If thetechnical blueprint exists but `blueprint.approved` is NOT marked as `true` in the session data:
+If the technical blueprint exists but `blueprint.approved` is NOT marked as `true` in the session data:
 * **STOP**. Explain that the Blueprint is pending approval.
 * **Recommend next action**: Approve the Blueprint using:
   `python skills/workflow-runtime/scripts/workflow_runtime.py blueprint --path docs/designs/FEAT-XXX_<feature_name>_blueprint.md --approve`
