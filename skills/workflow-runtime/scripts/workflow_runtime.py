@@ -105,6 +105,7 @@ def do_validate(args):
         if not validate_checkpoint_level(curr, args.checkpoint):
             print(f"Error: checkpoint validation failed (current={curr}, required={args.checkpoint}).", file=sys.stderr)
             sys.exit(1)
+    save_session_atomic(session)
     print("Validation passed.")
 
 def do_start(args):
