@@ -8,9 +8,10 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 ## [2.13.1] - 2026-07-06
 
 ### Fixed
-- **Visualizer Extension & CLI Session Sync (v1.0.27)**:
+- **Visualizer Extension & CLI Session Sync (v1.0.28)**:
   - Resolved an issue where running `workflow_runtime.py validate` calculated token values in memory but failed to persist the updated session variables back to `.session.json` on disk.
   - Fixed a display inconsistency in the visualizer's fallback logic where the progress bar token count and details (Input/Output/Cache/Thinking) were out of sync.
+  - Fixed a dashboard display bug where the session version fell back to `v0.0.0` by forcing the visualizer backend to read the version directly from `.agents/MANIFEST.json` instead of relying solely on the session file.
 
 ## [2.13.0] - 2026-07-06
 
