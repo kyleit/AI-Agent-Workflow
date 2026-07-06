@@ -118,6 +118,7 @@ copy_item() {
 }
 
 # 4. Copy required files/directories
+copy_item "$SCRIPT_DIR/AGENTS.md" "$INSTALL_TARGET/AGENTS.md" false
 copy_item "$SCRIPT_DIR/AI_RULES.md" "$INSTALL_TARGET/AI_RULES.md" false
 copy_item "$SCRIPT_DIR/$SKILL_DIR" "$INSTALL_TARGET/$SKILL_DIR" true
 copy_item "$SCRIPT_DIR/$TEMPLATE_DIR" "$INSTALL_TARGET/$TEMPLATE_DIR" true
@@ -170,7 +171,7 @@ fi
 
 # 5. Validation and Summary
 MISSING_FILES=0
-for file in "AI_RULES.md" "MANIFEST.json" "$SKILL_DIR" "$TEMPLATE_DIR" "agents" "runtime" "docs/release-guide.md"; do
+for file in "AGENTS.md" "AI_RULES.md" "MANIFEST.json" "$SKILL_DIR" "$TEMPLATE_DIR" "agents" "runtime" "docs/release-guide.md"; do
     if [ ! -e "$INSTALL_TARGET/$file" ]; then
         log_error "Validation failed: Missing $INSTALL_TARGET/$file"
         MISSING_FILES=$((MISSING_FILES + 1))

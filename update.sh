@@ -143,6 +143,7 @@ copy_diff_item() {
 }
 
 # Copy changed runtime files
+copy_diff_item "$SCRIPT_DIR/AGENTS.md" "$SRC_INSTALL_TARGET/AGENTS.md"
 copy_diff_item "$SCRIPT_DIR/AI_RULES.md" "$SRC_INSTALL_TARGET/AI_RULES.md"
 copy_diff_item "$SCRIPT_DIR/agents" "$SRC_INSTALL_TARGET/agents"
 copy_diff_item "$SCRIPT_DIR/runtime" "$SRC_INSTALL_TARGET/runtime"

@@ -125,6 +125,7 @@ function Update-ItemWithCheck ($src, $dest) {
 }
 
 # Copy changed rules and manifest files
+Update-ItemWithCheck -src (Join-Path $ScriptDir "AGENTS.md") -dest (Join-Path $InstallTarget "AGENTS.md")
 Update-ItemWithCheck -src (Join-Path $ScriptDir "AI_RULES.md") -dest (Join-Path $InstallTarget "AI_RULES.md")
 Update-ItemWithCheck -src (Join-Path $ScriptDir "agents") -dest (Join-Path $InstallTarget "agents")
 Update-ItemWithCheck -src (Join-Path $ScriptDir "runtime") -dest (Join-Path $InstallTarget "runtime")

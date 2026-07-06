@@ -98,6 +98,7 @@ function Copy-ItemWithCheck {
 }
 
 # 4. Copy required files/directories
+Copy-ItemWithCheck -Src (Join-Path $ScriptDir "AGENTS.md") -Dest (Join-Path $InstallTarget "AGENTS.md") -IsDir $false
 Copy-ItemWithCheck -Src (Join-Path $ScriptDir "AI_RULES.md") -Dest (Join-Path $InstallTarget "AI_RULES.md") -IsDir $false
 Copy-ItemWithCheck -Src (Join-Path $ScriptDir $SkillDir) -Dest (Join-Path $InstallTarget $SkillDir) -IsDir $true
 Copy-ItemWithCheck -Src (Join-Path $ScriptDir $TemplateDir) -Dest (Join-Path $InstallTarget $TemplateDir) -IsDir $true
@@ -155,7 +156,7 @@ if (-not (Test-Path $SessionPath)) {
 
 # 5. Validation and Summary
 $MissingFiles = 0
-$RequiredFiles = @("AI_RULES.md", "MANIFEST.json", $SkillDir, $TemplateDir, "agents", "runtime", "docs/release-guide.md")
+$RequiredFiles = @("AGENTS.md", "AI_RULES.md", "MANIFEST.json", $SkillDir, $TemplateDir, "agents", "runtime", "docs/release-guide.md")
 foreach ($File in $RequiredFiles) {
     $CheckPath = Join-Path $InstallTarget $File
     if (-not (Test-Path $CheckPath)) {
