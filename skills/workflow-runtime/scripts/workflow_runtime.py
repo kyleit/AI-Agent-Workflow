@@ -39,6 +39,12 @@ def update_context_health(session: dict) -> None:
             "status": "idle"
         }
         
+    # Sync current system status to prevent false drift detection
+    session["git"] = get_git_info()
+    session["version"] = get_version_info()
+    session["memory"] = get_memory_info()
+    session["rag"] = get_rag_info()
+        
     # 1. Estimate current context usage
     usage = estimate_context_usage()
     
