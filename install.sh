@@ -259,6 +259,11 @@ if [ "$MISSING_FILES" -gt 0 ]; then
     exit 1
 fi
 
+if command -v python3 >/dev/null 2>&1; then
+    log_info "Synchronizing initial session state with SQLite..."
+    python3 "$INSTALL_TARGET/$SKILL_DIR/workflow-runtime/scripts/workflow_runtime.py" init || log_warn "Failed to sync initial session with SQLite."
+fi
+
 log_success "AI Skill Framework v$VERSION has been successfully installed!"
 echo "--------------------------------------------------"
 echo "Installation Summary:"

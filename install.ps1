@@ -262,6 +262,11 @@ if ($MissingFiles -gt 0) {
     exit 1
 }
 
+if (Get-Command python3 -ErrorAction SilentlyContinue) {
+    Log-Info "Synchronizing initial session state with SQLite..."
+    python3 (Join-Path (Join-Path $InstallTarget $SkillDir) "workflow-runtime/scripts/workflow_runtime.py") init
+}
+
 Log-Success "AI Skill Framework v$VERSION has been successfully installed!"
 Write-Host "--------------------------------------------------"
 Write-Host "Installation Summary:"

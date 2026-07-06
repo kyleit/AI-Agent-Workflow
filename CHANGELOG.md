@@ -5,6 +5,17 @@ All notable changes to this project will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [2.12.2] - 2026-07-06
+
+### Fixed
+- **Installer & SQLite/UI Synchronization**:
+  - Fixed a critical installer packaging issue where the `docs/` folder (specifically `release-guide.md`) was missing from the `public_export` directory, causing installation crashes.
+  - Corrected the Python CLI runtime executable path in bash (`install.sh`) and PowerShell (`install.ps1`) installers, changing it to use `$INSTALL_TARGET/$SKILL_DIR/workflow-runtime/scripts/workflow_runtime.py`.
+  - Added automatic SQLite initialization sync to `install.sh` and `install.ps1` to populate initial session metrics immediately upon framework setup.
+  - Updated `migrate_session_to_db.py` to push calculated project and global usage summaries back into `.session.json` after running SQLite migration, ensuring Visualizer extension displays correct metrics.
+  - Adjusted VS Code Visualizer webview CSS (`webview.html` & `webviewHtml.ts`) to change `.step-row` `scroll-margin-top` from `190px` to `250px`, resolving UI overlay issues under the sticky header.
+  - Excluded `temp_extract` from visualizer extension `tsconfig.json` to prevent compilation failures.
+
 ## [2.12.1] - 2026-07-06
 
 ### Fixed
