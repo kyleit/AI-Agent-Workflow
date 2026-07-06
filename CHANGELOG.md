@@ -8,11 +8,17 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 ## [2.13.0] - 2026-07-06
 
 ### Added
+- **Visualizer Extension (v1.0.27)**:
+  - Integrated asynchronous skills update notifications by polling the raw GitHub stable channel.
+  - Implemented client-side version skipping features backed by VS Code `globalState` and browser `localStorage`.
+  - Added a dismissable close button (`&times;`) to temporarily hide update alerts.
+  - Added a glassmorphism Custom HTML Confirm Modal to prevent accidental version skipping.
 - **Script-First Project Memory CLI Engine**:
   - Implemented `runtime/scripts/project_memory/` Python package featuring modules for filesystem scanning (`filesystem.py`), git diff parsing (`git_diff.py`), language/framework detection (`scanner.py`), abstract syntax tree parsing (`parser.py`), architecture/database analysis (`analyzer.py`), index builders (`markdown_writer.py`, `json_writer.py`, `sqlite_writer.py`), and RAG search logic (`search.py`).
   - Added centralized CLI controller `cli.py` exposing `bootstrap`, `update` (incremental sync), and `search` subcommands.
   - Registered the new CLI engine as `aiwf memory` command inside the global bootstrappers `bootstrap.sh` and `bootstrap.ps1`.
   - Added automated tests for all memory subcommands under `skills/workflow-runtime/tests/test_project_memory.py`.
+
 
 ### Changed
 - **Refactored Prompt-Driven Skills to Script-First**:
