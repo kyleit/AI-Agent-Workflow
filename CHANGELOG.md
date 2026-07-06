@@ -5,6 +5,15 @@ All notable changes to this project will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [2.12.5] - 2026-07-06
+
+### Fixed
+- **Visualizer Extension (v1.0.26)**:
+  - Implemented client-side fallback estimations for token categories (`input_tokens`, `output_tokens`, `cache_tokens`, `thinking_tokens`), cost estimation, `provider`, and `model` in the webview to prevent displays of `0` or `N/A` when the session file contains a total token count but is missing breakdown details.
+  - Upgraded extension parse validation to trigger active estimation if the loaded session's summary is missing essential properties like `provider` or `input_tokens`.
+
+---
+
 ## [2.12.4] - 2026-07-06
 
 ### Fixed
