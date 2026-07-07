@@ -66,6 +66,23 @@ Prior to running any release activities, the AI must strictly execute the follow
 - Print the warning: `❌ Release aborted: No explicit release request or approved Blueprint found. The framework forbids automatic releases. Please run /release only when you are ready to publish.`
 - Do NOT perform version bumps, modify changelogs, commit, tag, push, or merge.
 
+## Interactive Choice Protocol for Release Gates
+
+Every approval gate in **Phase 8 (Release Summary)**, **Phase 9 (Commit Release)**, and **Phase 11 (Push Branch)** MUST be performed using the Centralized CLI Choice Protocol:
+1. Run:
+   ```bash
+   python skills/workflow-runtime/scripts/workflow_runtime.py choice create --id "release_approval" --title "Release/Commit/Push Approval" --desc "Verify and approve the release step to proceed." --type approval
+   ```
+2. Run:
+   ```bash
+   python skills/workflow-runtime/scripts/workflow_runtime.py choice wait --id "release_approval"
+   ```
+3. Read result:
+   ```bash
+   python skills/workflow-runtime/scripts/workflow_runtime.py choice read --id "release_approval"
+   ```
+If the result is `approve`, proceed to the next step. If `cancel`, stop.
+
 ---
 
 ## Workflow Sequence
@@ -87,9 +104,10 @@ Phase 6: Update Module CHANGELOG.md files for every affected module
          ↓
 Phase 7: Compile Root CHANGELOG.md detailing version changes and highlights
          ↓
-Phase 8: Approval Gate - Present Release Summary and query user by calling the `ask_question` tool directly:
-         - **Question**: "Choose release action:"
-         - **Options**: `["Continue", "Cancel"]`
+Phase 8: Approval Gate - Present Release Summary and query user using:
+         ```bash
+         python3 .agents/skills/workflow-runtime/scripts/workflow_runtime.py prompt select --question "Choose release action:" --options "Continue|Cancel" --default "Cancel"
+         ```
          ↓
 Phase 9: Commit release updates (Requires explicit approval)
          ↓

@@ -94,7 +94,6 @@ class TestAgentsMerge(unittest.TestCase):
         return res
 
     # --- PowerShell tests ---
-    @unittest.skipUnless(shutil.which("powershell") is not None, "PowerShell not available")
     def test_scenario_1_fresh_project_powershell(self):
         res = self._run_install_powershell()
         self.assertEqual(res.returncode, 0, msg=res.stderr)
@@ -106,7 +105,6 @@ class TestAgentsMerge(unittest.TestCase):
         self.assertIn("<!-- AIWF:RULES:BEGIN -->", content)
         self.assertIn("<!-- AIWF:RULES:END -->", content)
 
-    @unittest.skipUnless(shutil.which("powershell") is not None, "PowerShell not available")
     def test_scenario_2_existing_agents_powershell(self):
         agents_path = os.path.join(self.test_dir, ".agents", "AGENTS.md")
         os.makedirs(os.path.dirname(agents_path), exist_ok=True)
@@ -125,7 +123,6 @@ class TestAgentsMerge(unittest.TestCase):
         self.assertIn("<!-- AIWF:RULES:BEGIN -->", content)
         self.assertIn("<!-- AIWF:RULES:END -->", content)
 
-    @unittest.skipUnless(shutil.which("powershell") is not None, "PowerShell not available")
     def test_scenario_3_existing_managed_block_update_powershell(self):
         agents_path = os.path.join(self.test_dir, ".agents", "AGENTS.md")
         os.makedirs(os.path.dirname(agents_path), exist_ok=True)
@@ -153,7 +150,6 @@ class TestAgentsMerge(unittest.TestCase):
         self.assertIn("Load the workflow resources from:", content)
         self.assertIn("<!-- AIWF:RULES:END -->", content)
 
-    @unittest.skipUnless(shutil.which("powershell") is not None, "PowerShell not available")
     def test_scenario_4_multiple_installs_powershell(self):
         self._run_install_powershell()
         self._run_install_powershell()
@@ -166,7 +162,6 @@ class TestAgentsMerge(unittest.TestCase):
         self.assertEqual(content.count("<!-- AIWF:RULES:BEGIN -->"), 1)
         self.assertEqual(content.count("<!-- AIWF:RULES:END -->"), 1)
 
-    @unittest.skipUnless(shutil.which("powershell") is not None, "PowerShell not available")
     def test_scenario_5_corrupted_block_repair_powershell(self):
         agents_path = os.path.join(self.test_dir, ".agents", "AGENTS.md")
         os.makedirs(os.path.dirname(agents_path), exist_ok=True)
@@ -188,7 +183,6 @@ class TestAgentsMerge(unittest.TestCase):
         self.assertEqual(content.count("<!-- AIWF:RULES:BEGIN -->"), 1)
         self.assertEqual(content.count("<!-- AIWF:RULES:END -->"), 1)
 
-    @unittest.skipUnless(shutil.which("powershell") is not None, "PowerShell not available")
     def test_scenario_6_missing_both_tags_powershell(self):
         agents_path = os.path.join(self.test_dir, ".agents", "AGENTS.md")
         os.makedirs(os.path.dirname(agents_path), exist_ok=True)
@@ -207,7 +201,6 @@ class TestAgentsMerge(unittest.TestCase):
         self.assertIn("<!-- AIWF:RULES:BEGIN -->", content)
         self.assertIn("<!-- AIWF:RULES:END -->", content)
 
-    @unittest.skipUnless(shutil.which("powershell") is not None, "PowerShell not available")
     def test_scenario_7_user_customization_outside_block_powershell(self):
         agents_path = os.path.join(self.test_dir, ".agents", "AGENTS.md")
         os.makedirs(os.path.dirname(agents_path), exist_ok=True)

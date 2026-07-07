@@ -144,8 +144,13 @@ Classify the request using this matrix:
 * **implementation-to-release**: Keywords: release, tag, version bump, changelog update, git push. (Suggest ONLY if explicitly requested).
 
 ### 2.5.2 — Suggestion Output
-* If `suggestion_gate.status` is `waiting_for_user_confirmation` and user input is not confirmation, keep waiting.
-* If user confirms (via `Y`, `Yes`, `Proceed`, `Continue` or option number), clear suggestion gate or update status to `confirmed` and proceed to step 3.
+* If `suggestion_gate.status` is `waiting_for_user_confirmation`, create an interactive choice:
+  ```bash
+  python skills/workflow-runtime/scripts/workflow_runtime.py choice create --id "workflow_suggestion" --title "Workflow Suggestion Confirmation" --desc "Confirm the suggested next step:" --options '[{"id":"confirm","label":"Confirm and Proceed"},{"id":"cancel","label":"Cancel/Revise"}]' --type choice
+  python skills/workflow-runtime/scripts/workflow_runtime.py choice wait --id "workflow_suggestion"
+  ```
+  And check result using `choice read`.
+* If user confirms, clear suggestion gate or update status to `confirmed` and proceed to step 3.
 * Otherwise, output the correct suggestion layout (Single recommendation or Multiple options) and STOP.
 
 ---
@@ -167,8 +172,14 @@ If the plan `docs/plans/FEAT-XXX_<feature_name>_plan.md` exists but the technica
 #### Case C.5: Design Blueprint Approval Pending
 If the technical blueprint exists but `blueprint.approved` is NOT marked as `true` in the session data:
 * **STOP**. Explain that the Blueprint is pending approval.
-* **Recommend next action**: Approve the Blueprint using:
+* **Recommend next action**: Emit a blueprint approval choice:
+  ```bash
+  python skills/workflow-runtime/scripts/workflow_runtime.py choice create --id "blueprint_approval" --title "Blueprint Design Approval" --desc "Do you approve the Design Blueprint docs/designs/FEAT-XXX_<feature_name>_blueprint.md?" --type approval
+  python skills/workflow-runtime/scripts/workflow_runtime.py choice wait --id "blueprint_approval"
+  ```
+  Wait for response. If approved, run:
   `python skills/workflow-runtime/scripts/workflow_runtime.py blueprint --path docs/designs/FEAT-XXX_<feature_name>_blueprint.md --approve`
+* Stop.
 
 #### Case E: Implementation Incomplete
 If the technical blueprint exists and is approved, check if git status shows implementation in progress:

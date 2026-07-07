@@ -5,31 +5,6 @@ All notable changes to this project will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
-## [5.2.4] - 2026-07-07
-
-### Added
-- **Visualizer Spec**: Documented UI/UX guidelines and specifications under `docs/designs/visualizer_ui_ux_spec.md`.
-
-### Fixed
-- **No Blueprint No Code guardrail in CLI**: Added hard-lock checks in `do_start` of `workflow_runtime.py` to prevent writing code without an approved blueprint in the `docs/` folder (with `--bypass-blueprint` support).
-- **Dynamic Rules block extraction**: Updated installer and updater scripts (`install.sh`, `update.sh`, `install.ps1`, `update.ps1`) to parse the rules block dynamically from `AGENTS.md` instead of using static hardcoded templates.
-- **Branch intent persistence and ask_question migration**: Deprecated blocking CLI `prompt select` command to prevent deadlocks in subprocesses, mandated direct usage of native `ask_question` tool, and saved branch actions under `git.branch_action` in `.session.json` to skip redundant prompts.
-
-## [5.2.3] - 2026-07-07
-
-### Fixed
-- **Bypass prompt in tests**: Skip suggestion gate interactive prompt during automated test runs.
-- **Skip PowerShell tests on macOS**: Prevent FileNotFoundError by skipping PowerShell integration tests when shell is not available.
-- **Restore rules tags in AGENTS.md**: Recover missing `<!-- AIWF:RULES:BEGIN -->` tag in core template file.
-
-## [5.2.2] - 2026-07-07
-
-### Added
-- **FEAT-020: Multi-Agent Analysis Across All Phases**:
-  - Central CLI upgrade with `analysis-agent` command in `workflow_runtime.py` and sync to `.session.json`.
-  - Section 20 (Multi-Agent Analysis Policy) in `AI_RULES.md`.
-  - Visualizer updates rendering active analysis agents.
-
 ## [5.2.1] - 2026-07-07
 
 ### Added

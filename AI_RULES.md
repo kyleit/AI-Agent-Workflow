@@ -43,9 +43,6 @@ All Git actions must be performed with explicit visibility and approval.
     *   Tags must use the format `vX.Y.Z`.
 *   **Non-Git Projects**:
     *   If no `.git` directory is detected, skip Git branch/merge/commit/push steps entirely, but still execute build, test, and summary actions.
-*   **Branch Action Persistence**:
-    *   Once the user selects a Git branch action (e.g., "Continue on current branch" or "Create new branch"), the Agent must save this choice in `.session.json` under `git.branch_action` (value can be `"continue"`, `"create"`, or `"stop"`).
-    *   On subsequent steps or runs within the same active session, if `git.branch_action` is already set, the Agent MUST skip the Git branch prompt entirely and default to the previously selected action without asking the user again.
 
 ---
 
@@ -364,10 +361,11 @@ If the permission mode is missing, invalid, or corrupted, the system must automa
 
 ## 16. Interactive CLI Prompts Bridge Policy
 
-To streamline runtime interactions and eliminate deadlocks during CLI execution:
-1. **Direct ask_question Tool Usage**: The AI Agent MUST directly call the native `ask_question` tool in its turn to prompt the user for any choices or decisions (such as blueprint approval, git branch selection, or implementation confirmation). 
-2. **Deprecation of CLI prompt select Command**: Running the CLI command `workflow_runtime.py prompt select` or spawning a subprocess to prompt the user is strictly deprecated. Subprocess-level interactive prompts block the Agent's turn and result in a blank IDE input prompt box, which is a critical deadlock.
-3. **Piped Input Fallback**: If the Agent is executing a legacy script or task that triggers a blocking stdin prompt, the Agent must run it as an asynchronous task (using the background execution mode), wait for the `<interactive_prompt>` XML block to appear in the task logs, call `ask_question`, and then use the `manage_task` tool with `send_input` to pipe the user's selection back.
+To streamline runtime interactions and eliminate manual keyboard input in the chat interface:
+1. **XML Output Interception**: Whenever a CLI subprocess outputs a `<interactive_prompt type="select">...</interactive_prompt>` XML block, the AI Agent must intercept the command output and parse the JSON payload inside the tags.
+2. **Tool Invocation**: The Agent must call the `ask_question` tool using the question and options parsed from the XML payload.
+3. **Piped Response**: Upon receiving the user's selection, the Agent must use the `manage_task` tool with `send_input` action to pipe the selected option string (or option index) directly back into the subprocess's stdin.
+4. **Graceful Fallback**: If the `ask_question` tool is unavailable or unsupported in the current client, the Agent must print the question as text in the chat, wait for the user to type the selection, and then pipe that input back to the subprocess stdin.
 
 ---
 

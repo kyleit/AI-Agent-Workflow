@@ -28,7 +28,7 @@ description: Enforces a three-stage workflow (Specification, Blueprint, and Impl
 ## 🔒 WORKFLOW RUNTIME & INITIALIZATION CHECK
 
 This Skill MUST interface with the centralized Python CLI Runtime Engine:
-- **Validate Checkpoint**: Run `python skills/workflow-runtime/scripts/workflow_runtime.py validate --checkpoint "exactly 2 or 1"` before taking any action. If validation fails, halt execution immediately.
+- **Validate Checkpoint**: Run `python skills/workflow-runtime/scripts/workflow_runtime.py validate --checkpoint "exactly 2"` before taking any action. If validation fails, halt execution immediately.
 - **Progress Tracking**:
   - *Start*: Run `python skills/workflow-runtime/scripts/workflow_runtime.py start --skill "quick-feature" --command "feature" --checkpoint 5 --step "Starting execution..."`
   - *Step Updates*: Run `python skills/workflow-runtime/scripts/workflow_runtime.py step --step "<step_desc>" --log "<progress_message>"` progressively during major steps.
@@ -115,36 +115,38 @@ Step 4:  Targeted Source Inspection
          ↓
 Step 5:  Generate Feature Specification (docs/quick/QUICK-XXX_feature_name.md)
          ↓
-          - Call the `ask_question` tool directly:
-            - **Question**: "Approve QUICK specification?"
-            - **Options**: `["Yes", "No"]`
+Step 6:  User Approval Gate (Phase 1: Spec Approval)
+          - Run:
+            ```bash
+            python3 .agents/skills/workflow-runtime/scripts/workflow_runtime.py prompt select --question "Approve QUICK specification?" --options "Yes|No" --default "No"
+            ```
           - [STOP] Wait for user confirmation.
          ↓
 Step 7:  Generate Technical Design Blueprint (docs/designs/QUICK-XXX_feature_name_blueprint.md)
          ↓
 Step 8:  User Approval Gate (Phase 2: Blueprint Approval)
           - Run python CLI to register blueprint.
-          - Call the `ask_question` tool directly:
-            - **Question**: "Approve Blueprint?"
-            - **Options**: `["Yes", "No"]`
+          - Run:
+            ```bash
+            python3 .agents/skills/workflow-runtime/scripts/workflow_runtime.py prompt select --question "Approve Blueprint?" --options "Yes|No" --default "No"
+            ```
           - [STOP] Wait for user confirmation.
           - Run python CLI to mark blueprint approved.
          ↓
 Step 9:  Pre-Implementation Git Gate (Phase 3)
           - Run git branch & git status.
-          - Check if a Git branch action has already been selected by reading `git.branch_action` in `.session.json`.
-            - If `git.branch_action` is already set (e.g., "continue", "create", or "stop"), skip the prompt and proceed.
-            - If not set, call the `ask_question` tool directly:
-              - **Question**: "Choose Git branch action:"
-              - **Options**: `["Continue on current branch", "Create new branch", "Stop"]`
-            - Once selected, save the choice in `.session.json` under `git.branch_action` ("continue", "create", or "stop").
-          - [STOP] Wait for user confirmation (only if prompting occurred).
+          - Run:
+            ```bash
+            python3 .agents/skills/workflow-runtime/scripts/workflow_runtime.py prompt select --question "Choose Git branch action:" --options "Continue on current branch|Create new branch|Stop" --default "Stop"
+            ```
+          - [STOP] Wait for user confirmation.
          ↓
 Step 10: Global Approval Gate (Phase 3)
           - Explain modifications, list affected files and branch.
-          - Call the `ask_question` tool directly:
-            - **Question**: "Proceed with implementation?"
-            - **Options**: `["Yes", "No"]`
+          - Run:
+            ```bash
+            python3 .agents/skills/workflow-runtime/scripts/workflow_runtime.py prompt select --question "Proceed with implementation?" --options "Yes|No" --default "No"
+            ```
           - [STOP] Wait for user confirmation.
          ↓
 Step 11: Code Implementation (Direct minimal code changes)
