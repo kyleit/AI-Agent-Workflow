@@ -87,10 +87,9 @@ Phase 6: Update Module CHANGELOG.md files for every affected module
          ↓
 Phase 7: Compile Root CHANGELOG.md detailing version changes and highlights
          ↓
-Phase 8: Approval Gate - Present Release Summary and query user using:
-         ```bash
-         python3 .agents/skills/workflow-runtime/scripts/workflow_runtime.py prompt select --question "Choose release action:" --options "Continue|Cancel" --default "Cancel"
-         ```
+Phase 8: Approval Gate - Present Release Summary and query user by calling the `ask_question` tool directly:
+         - **Question**: "Choose release action:"
+         - **Options**: `["Continue", "Cancel"]`
          ↓
 Phase 9: Commit release updates (Requires explicit approval)
          ↓
