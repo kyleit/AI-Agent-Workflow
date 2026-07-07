@@ -5,10 +5,19 @@ All notable changes to this project will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [5.2.0] - 2026-07-07
+
+### Added
+- **FEAT-016: Interactive CLI & Workflow Prompts via IDE Dialogs**:
+  - Tích hợp hàm `prompt_select` tại `utils.py` hiển thị thẻ XML tương tác `<interactive_prompt>` giúp Agent nhận diện và mở giao diện bảng đối thoại `ask_question` trên IDE thay vì nhập tay trong CLI.
+  - Tự động phát hiện môi trường kiểm thử (bằng `TESTING=1` và `select.select` trên `stdin`) để tránh bị treo trong các tiến trình con unit tests.
+  - Thay thế toàn bộ cổng gõ tay tương tác (chọn chế độ phân quyền và cảnh báo unrestricted) trong `workflow_runtime.py` bằng bảng đối thoại trực quan.
+  - Bổ sung Section 16 (Interactive CLI Prompts Bridge Policy) và cập nhật Section 1, 14 trong `AI_RULES.md` để Agent bắt buộc sử dụng `ask_question`.
+
 ## [5.1.3] - 2026-07-07
 
 ### Added
-- **QUICK-007: Interactive Docs & Workflow Simulator Website**:
+- **QUICK-007: Interactive Docs & Workflow Simulator Website & Extension Tweak**:
   - Xây dựng một trang web tài liệu tĩnh (HTML/CSS/JS) chạy Client-side, tích hợp thông tin của 19 skills và hướng dẫn chi tiết theo 3 quy trình chính (Standard, Quick Feature, Quick Fix).
   - Tích hợp **Interactive Workflow Simulator** mô phỏng chạy CLI và gác duyệt của 3 quy trình.
   - Thiết kế Responsive (hỗ trợ Tablet và Mobile với Menu hamburger và sticky header).
@@ -17,6 +26,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   - Di chuyển website sang thư mục riêng `interactive-docs/` ngoài thư mục `docs/`.
   - Tích hợp `interactive-docs/` vào quy trình xuất bản `make export` sang `public_export`.
   - Loại trừ thư mục `screenshots` kiểm thử ra khỏi Git thông qua `.gitignore`.
+  - **VS Code Extension (v1.0.30)**: Tích hợp nút **Docs** (mở trang tài liệu tĩnh) kèm biểu tượng quyển sách mở vào header webview của extension.
+
 
 ## [5.1.2] - 2026-07-07
 

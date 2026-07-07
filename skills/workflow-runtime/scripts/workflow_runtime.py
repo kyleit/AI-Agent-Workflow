@@ -16,7 +16,7 @@ from checkpoint import validate_checkpoint_level, get_checkpoint_name
 from validator import get_git_info, get_version_info
 from drift import check_context_drift
 from heartbeat import print_heartbeat
-from utils import get_memory_info, get_rag_info
+from utils import get_memory_info, get_rag_info, prompt_select
 from db import save_usage_to_dbs, get_workflow_summary, get_project_summary, get_global_summary
 
 def get_project_id() -> str:
@@ -166,7 +166,24 @@ def do_init(args):
             "context_health": "healthy"
         }
     
-    permission_arg = getattr(args, "permission", "1")
+    permission_arg = getattr(args, "permission", None)
+    if permission_arg is None:
+        choice = prompt_select(
+            "Choose workspace permission mode:",
+            [
+                "1. Sandbox Mode (Safe default. Ask before every state-changing action.)",
+                "2. Full Access Mode (Allow normal workflow file/code changes.)",
+                "3. Unrestricted Mode (DANGER ZONE. Bypass all confirmation gates.)"
+            ],
+            default="1. Sandbox Mode (Safe default. Ask before every state-changing action.)"
+        )
+        if "3" in choice or "Unrestricted" in choice:
+            permission_arg = "3"
+        elif "2" in choice or "Full Access" in choice:
+            permission_arg = "2"
+        else:
+            permission_arg = "1"
+            
     if str(permission_arg) in ["3", "unrestricted"]:
         print("\n" + "="*70)
         print("⚠️  WARNING: DANGER ZONE - ENABLING UNRESTRICTED MODE")
@@ -175,13 +192,17 @@ def do_init(args):
         print("credentials editing AUTOMATICALLY without prompting you.")
         print("="*70)
         try:
-            confirm = input("To proceed, type 'CONFIRM_UNRESTRICTED': ").strip()
+            confirm = prompt_select(
+                "WARNING: DANGER ZONE - ENABLING UNRESTRICTED MODE. Type 'CONFIRM_UNRESTRICTED' to proceed:",
+                ["CONFIRM_UNRESTRICTED", "CANCEL"],
+                default="CANCEL"
+            ).strip()
             if confirm == "CONFIRM_UNRESTRICTED":
                 mode = "unrestricted"
             else:
                 print("Warning: Confirmation mismatch. Fallback to sandbox mode.")
                 mode = "sandbox"
-        except (EOFError, KeyboardInterrupt):
+        except (IOError, KeyboardInterrupt):
             print("\nWarning: Input interrupted. Fallback to sandbox mode.")
             mode = "sandbox"
     elif str(permission_arg) in ["2", "full_access"]:
@@ -560,7 +581,7 @@ def main():
     subparsers = parser.add_subparsers(dest="action", required=True)
     
     init_p = subparsers.add_parser("init")
-    init_p.add_argument("--permission", type=str, default="1")
+    init_p.add_argument("--permission", type=str, default=None)
     
     _perm_p = subparsers.add_parser("permission")
     _compact_p = subparsers.add_parser("compact")

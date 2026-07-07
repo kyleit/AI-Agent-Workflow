@@ -18,9 +18,9 @@ The framework is strictly **approval-driven**. Before executing any state-changi
     1.  Explain the proposed action clearly.
     2.  List all affected files (created, modified, or deleted).
     3.  List the current Git branch (if in a Git project).
-    4.  Prompt the user for confirmation and **STOP**.
-*   **Accepted Approval Keywords**: `Y`, `Yes`, `Proceed`, `Continue` (case-insensitive).
-*   **Halt Condition**: Any other input is treated as a **STOP**. The Skill must immediately halt execution. Never assume approval.
+    4.  Prompt the user for confirmation using the `ask_question` tool with options `["Yes (Proceed)", "No (Halt)"]`. If the tool is not supported by the client/IDE, fall back to asking in the chat text interface. Then **STOP**.
+*   **Accepted Approval Keywords**: `Y`, `Yes`, `Proceed`, `Continue` (case-insensitive) or selecting the corresponding option in the interactive UI.
+*   **Halt Condition**: Any other input (or selecting "No (Halt)") is treated as a **STOP**. The Skill must immediately halt execution. Never assume approval.
 
 ---
 
@@ -334,7 +334,7 @@ Please choose:
 1, 2, or 3
 ```
 
-The AI must NEVER execute the recommended Skill or modify files until the user explicitly confirms (with `Y`, `Yes`, `Proceed`, `Continue`, or the option number).
+The AI must use the `ask_question` tool to present the options (Yes/No or option list) as an interactive menu. If the tool is not supported by the client/IDE, fall back to the text format. The AI must NEVER execute the recommended Skill or modify files until the user explicitly confirms (either by clicking the option in the UI or by typing `Y`, `Yes`, `Proceed`, `Continue`, or the option number).
 
 ---
 
@@ -357,6 +357,12 @@ The framework supports three workspace permission modes:
 
 If the permission mode is missing, invalid, or corrupted, the system must automatically fallback to `sandbox` mode.
 
+---
 
+## 16. Interactive CLI Prompts Bridge Policy
 
-
+To streamline runtime interactions and eliminate manual keyboard input in the chat interface:
+1. **XML Output Interception**: Whenever a CLI subprocess outputs a `<interactive_prompt type="select">...</interactive_prompt>` XML block, the AI Agent must intercept the command output and parse the JSON payload inside the tags.
+2. **Tool Invocation**: The Agent must call the `ask_question` tool using the question and options parsed from the XML payload.
+3. **Piped Response**: Upon receiving the user's selection, the Agent must use the `manage_task` tool with `send_input` action to pipe the selected option string (or option index) directly back into the subprocess's stdin.
+4. **Graceful Fallback**: If the `ask_question` tool is unavailable or unsupported in the current client, the Agent must print the question as text in the chat, wait for the user to type the selection, and then pipe that input back to the subprocess stdin.

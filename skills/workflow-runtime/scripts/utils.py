@@ -30,3 +30,50 @@ def get_rag_info() -> dict:
         info["connected"] = True
         info["provider"] = "qdrant"
     return info
+
+def prompt_select(question: str, options: list[str], default: str | None = None) -> str:
+    """
+    In ra cấu trúc XML/JSON đặc biệt để Agent bắt sự kiện hiển thị UI ask_question.
+    Chờ nhận kết quả từ stdin (do Agent gửi send_input).
+    Nếu không nhận được hoặc lỗi, trả về giá trị default.
+    """
+    import sys
+    # Bỏ qua tương tác nếu đang chạy test tự động
+    if os.environ.get("TESTING") == "1" or any(m in sys.modules for m in ["unittest", "pytest"]):
+        import select
+        try:
+            ready, _, _ = select.select([sys.stdin], [], [], 0.1)
+            if not ready:
+                return default if default is not None else options[0]
+        except Exception:
+            return default if default is not None else options[0]
+        
+    payload = {
+        "question": question,
+        "options": options,
+        "default": default
+    }
+    # In ra XML tag đặc biệt để Agent phát hiện
+    print(f"\n<interactive_prompt type=\"select\">\n{json.dumps(payload, indent=2)}\n</interactive_prompt>", flush=True)
+    
+    try:
+        # Block chờ phản hồi qua stdin
+        line = sys.stdin.readline().strip()
+        if not line:
+            return default if default is not None else options[0]
+        
+        # Hỗ trợ nhận diện cả index (1-based) hoặc chuỗi text khớp trực tiếp
+        if line.isdigit():
+            idx = int(line) - 1
+            if 0 <= idx < len(options):
+                return options[idx]
+        
+        # Nếu nhập chuỗi, kiểm tra khớp trong danh sách hoặc trả về chuỗi gốc
+        for opt in options:
+            if opt.lower() == line.lower():
+                return opt
+        return line
+    except (IOError, KeyboardInterrupt):
+        return default if default is not None else options[0]
+
+

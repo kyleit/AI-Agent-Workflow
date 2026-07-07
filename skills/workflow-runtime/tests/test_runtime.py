@@ -20,6 +20,7 @@ from db import PROJECT_DB, get_global_db_path, save_usage_to_dbs, get_workflow_s
 
 class TestRuntimeEngine(unittest.TestCase):
     def setUp(self):
+        os.environ["TESTING"] = "1"
         # Back up existing files to temporary testbackup names to avoid conflicts with session.json.bak
         self.session_backup = None
         if os.path.exists(SESSION_FILE):
