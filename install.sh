@@ -121,46 +121,6 @@ merge_agents_block() {
     local file_path=$1
     local src_agents=$2
     
-    local block_content='<!-- AIWF:RULES:BEGIN -->
-# AI Engineering Workflow Agents
-
-Every AI agent working inside this project **MUST** follow the AI Workflow Framework.
-
-## Primary Workflow
-
-Before executing any task:
-
-1. Load and follow all policies defined in `AI_RULES.md` (the single source of truth).
-2. Load the workflow resources from:
-
-   * `.agents/skills/`
-   * `.agents/runtime/`
-   * `.agents/templates/`
-3. Use the matching workflow Skill whenever one exists.
-4. Respect runtime checkpoints and resume rules.
-5. Never bypass approval gates or other framework policies.
-
-## Global Policies
-
-The following policies are defined in `AI_RULES.md` and apply to every task:
-
-1. Approval Gate Policy
-2. Git Workflow Policy
-3. Memory First Policy
-4. RAG Policy
-5. Artifact Policy
-6. Versioning Policy
-7. Documentation Policy
-8. Testing Policy
-9. Release Policy
-10. Workflow Phase Separation Policy
-
-`AI_RULES.md` is the **single source of truth** for all shared framework behavior. If any instruction conflicts with another document, follow `AI_RULES.md`.
-
-GitHub Repository: https://github.com/kyleit/AI-Agent-Workflow
-
-<!-- AIWF:RULES:END -->'
-
     if [ ! -f "$file_path" ]; then
         log_info "Creating: $file_path (copying template)"
         cp "$src_agents" "$file_path"
@@ -169,17 +129,28 @@ GitHub Repository: https://github.com/kyleit/AI-Agent-Workflow
         python3 -c "
 import sys, re
 file_path = sys.argv[1]
-block = sys.argv[2]
-with open(file_path, 'r', encoding='utf-8') as f:
-    content = f.read()
+src_agents = sys.argv[2]
+
+with open(src_agents, 'r', encoding='utf-8') as f:
+    src_content = f.read()
 
 begin = '<!-- AIWF:RULES:BEGIN -->'
 end = '<!-- AIWF:RULES:END -->'
+
+match = re.search(re.escape(begin) + r'.*?' + re.escape(end), src_content, flags=re.DOTALL)
+if match:
+    block = match.group(0)
+else:
+    block = src_content
+
+with open(file_path, 'r', encoding='utf-8') as f:
+    content = f.read()
+
 has_begin = begin in content
 has_end = end in content
 
 if has_begin and has_end:
-    new_content = re.sub(re.escape(begin) + r'.*?' + re.escape(end), block, content, flags=re.DOTALL)
+    new_content = re.sub(re.escape(begin) + r'.*?' + re.escape(end), lambda m: block, content, flags=re.DOTALL)
 elif has_begin or has_end:
     clean = content.replace(begin, '').replace(end, '').strip()
     new_content = (clean + '\n\n' + block) if clean else block
@@ -189,7 +160,7 @@ else:
 
 with open(file_path, 'w', encoding='utf-8') as f:
     f.write(new_content)
-" "$file_path" "$block_content"
+" "$file_path" "$src_agents"
     fi
 }
 
