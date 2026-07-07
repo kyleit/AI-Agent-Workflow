@@ -126,7 +126,6 @@ Workflow Paused.
 ---
 
 ## 🔒 GIT BRANCH GATE
-Before initiating code generation, query the user's branch intention using:
-```bash
-python3 .agents/skills/workflow-runtime/scripts/workflow_runtime.py prompt select --question "Choose Git branch action:" --options "Continue on current branch|Create new branch|Stop" --default "Stop"
-```
+Before initiating code generation, query the user's branch intention by calling the `ask_question` tool directly:
+- **Question**: "Choose Git branch action:"
+- **Options**: `["Continue on current branch", "Create new branch", "Stop"]`

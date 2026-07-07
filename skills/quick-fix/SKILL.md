@@ -125,27 +125,24 @@ Step 7:  Generate Technical Design Blueprint (docs/designs/FIX-XXX_issue_name_bl
           ↓
 Step 8:  User Approval Gate (Phase 2: Blueprint Approval)
           - Run python CLI to register blueprint.
-          - Run:
-            ```bash
-            python3 .agents/skills/workflow-runtime/scripts/workflow_runtime.py prompt select --question "Approve Blueprint?" --options "Yes|No" --default "No"
-            ```
+          - Call the `ask_question` tool directly:
+            - **Question**: "Approve Blueprint?"
+            - **Options**: `["Yes", "No"]`
           - [STOP] Wait for user confirmation.
           - Run python CLI to mark blueprint approved.
          ↓
 Step 9:  Pre-Implementation Git Gate (Phase 3)
           - Run git branch & git status.
-          - Run:
-            ```bash
-            python3 .agents/skills/workflow-runtime/scripts/workflow_runtime.py prompt select --question "Choose Git branch action:" --options "Continue on current branch|Create new branch|Stop" --default "Stop"
-            ```
+          - Call the `ask_question` tool directly:
+            - **Question**: "Choose Git branch action:"
+            - **Options**: `["Continue on current branch", "Create new branch", "Stop"]`
           - [STOP] Wait for user confirmation.
          ↓
 Step 10: Global Approval Gate (Phase 3)
           - Explain modifications, list affected files and branch.
-          - Run:
-            ```bash
-            python3 .agents/skills/workflow-runtime/scripts/workflow_runtime.py prompt select --question "Proceed with implementation?" --options "Yes|No" --default "No"
-            ```
+          - Call the `ask_question` tool directly:
+            - **Question**: "Proceed with implementation?"
+            - **Options**: `["Yes", "No"]`
           - [STOP] Wait for user confirmation.
          ↓
 Step 11: Code Implementation (Direct minimal code fix)
