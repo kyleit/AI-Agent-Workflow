@@ -663,7 +663,7 @@ def do_compact(_args: argparse.Namespace) -> None:  # type: ignore
         "current_skill": session.get("current_skill", ""),
         "current_command": session.get("current_command", ""),
         "current_step": session.get("current_step", ""),
-        "active_feature_id": "FIX-014",
+        "active_feature_id": session.get("work_item", {}).get("id") or "FIX-014",
         "git_stash_ref": stash_ref,
         "rollover_requested_at": datetime.now().astimezone().isoformat(),
         "execution_mode": execution_mode,
