@@ -98,6 +98,7 @@ The documentation architecture enforces strict separation of concerns.
     | `docs/archive/` | Historical/Retired Artifacts | As needed |
 *   **Relative Paths**: All links inside documents must use relative file paths/links. Absolute paths (e.g., `file:///Users/...`) are strictly prohibited in project artifacts.
 *   **Metadata**: Every document must begin with YAML frontmatter specifying its `artifact_type`, `feature_id`/`issue_id`, `workflow`, `status`, and tracking links.
+*   **Plan Synchronization**: Mọi kế hoạch thực thi (`implementation_plan.md`) được tạo ở tầng IDE để người dùng duyệt, sau khi được phê duyệt (Approved), **bắt buộc phải được Agent sao chép và lưu trữ chính thức vào đúng thư mục tương ứng của dự án** (ví dụ: `docs/plans/FEAT-XXX_slug_plan.md` cho feature, hoặc `docs/issues/` / `docs/quick/` cho fix/quick feature) trước khi tiến hành viết Blueprint hoặc triển khai code. Việc chỉ lưu plan ở thư mục brain tạm thời của IDE mà không đồng bộ vào dự án là vi phạm nghiêm trọng quy trình.
 
 ---
 
