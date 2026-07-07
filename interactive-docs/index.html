@@ -133,6 +133,7 @@
                 <button class="flow-tab-btn active" data-flow="flowStandard">1. Quy trình Đầy đủ (Standard)</button>
                 <button class="flow-tab-btn" data-flow="flowFeature">2. Quy trình Tính năng nhanh (Quick Feature)</button>
                 <button class="flow-tab-btn" data-flow="flowFix">3. Quy trình Sửa lỗi nhanh (Quick Fix)</button>
+                <button class="flow-tab-btn" data-flow="flowOrchestrate">4. Quy trình Điều phối (Orchestrator)</button>
             </div>
 
             <!-- 2.1 Quy trình Đầy Đủ -->
@@ -331,6 +332,53 @@
                         <div class="step-card-detail">
                             <h3>Phát hành <span style="font-family: monospace; font-size: 11px; color: var(--cyan);">/release</span></h3>
                             <p>Đóng gói và đẩy phiên bản sửa lỗi lên GitLab/GitHub Pages.</p>
+                        </div>
+                    </div>
+                </div>
+            </div>
+
+            <!-- 2.4 Quy trình Điều phối tự động (Orchestrated Workflow) -->
+            <div id="flowOrchestrate" class="flow-panel" style="display: none;">
+                <p style="color: var(--muted); margin-bottom: 20px;">Quy trình điều phối tự động hóa thông qua điểm vào duy nhất <code>/orchestrate</code>. Phân tách và lập lịch thông minh, đảm bảo chỉ chạy song song ở pha Triển khai (Implementation) sau khi đã được duyệt Blueprint.</p>
+                
+                <div class="flow-steps-timeline">
+                    <div class="timeline-step">
+                        <div class="step-number">1</div>
+                        <div class="step-card-detail">
+                            <h3>Khởi chạy điều phối <span style="font-family: monospace; font-size: 11px; color: var(--cyan);">/orchestrate</span></h3>
+                            <p>Nhận yêu cầu ngôn ngữ tự nhiên từ người dùng, phân tích intent và tự động xây dựng sơ đồ tác vụ DAG.</p>
+                        </div>
+                    </div>
+
+                    <div class="timeline-step">
+                        <div class="step-number">2</div>
+                        <div class="step-card-detail">
+                            <h3>Khảo sát &amp; Lập kế hoạch (Tuần tự)</h3>
+                            <p>Tự động chạy các pha Brainstorming, Planning và Blueprint Generation một cách tuần tự. Không chạy song song ở các pha này.</p>
+                        </div>
+                    </div>
+
+                    <div class="timeline-step">
+                        <div class="step-number">3</div>
+                        <div class="step-card-detail">
+                            <h3>Chọn chế độ thực thi (Implementation Gate)</h3>
+                            <p>Khi bắt đầu pha triển khai (Implementation), hiển thị menu cho phép người dùng chọn chạy song song (Parallel) hoặc tuần tự (Sequential).</p>
+                        </div>
+                    </div>
+
+                    <div class="timeline-step">
+                        <div class="step-number">4</div>
+                        <div class="step-card-detail">
+                            <h3>Triển khai lập trình</h3>
+                            <p>Thực thi viết mã nguồn thông qua các worker song song (sử dụng cơ chế khóa file lock) hoặc tuần tự tùy thuộc vào quyết định của người dùng.</p>
+                        </div>
+                    </div>
+
+                    <div class="timeline-step">
+                        <div class="step-number">5</div>
+                        <div class="step-card-detail">
+                            <h3>Nghiệm thu &amp; Release</h3>
+                            <p>Chạy kiểm thử tự động, ký nghiệm thu chất lượng verify và tiến hành release.</p>
                         </div>
                     </div>
                 </div>

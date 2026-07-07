@@ -1,7 +1,7 @@
 {
   "name": "ai-skill-framework",
   "description": "A reusable collection of engineering skills for AI coding agents to manage SDLC lifecycle",
-  "version": "5.2.0",
+  "version": "5.2.1",
   "min_ai_platform_version": "1.0.0",
   "author": {
     "name": "Kyle Dang",
@@ -341,6 +341,23 @@
         "profile",
         "discovery"
       ]
+    },
+    {
+      "name": "orchestrator",
+      "command": "orchestrate",
+      "aliases": [
+        "orchestrate",
+        "dispatch",
+        "parallel"
+      ],
+      "category": "orchestration",
+      "tags": [
+        "orchestrator",
+        "workflow",
+        "parallel",
+        "multi-agent",
+        "runtime"
+      ]
     }
   ],
   "templates": [
@@ -361,6 +378,9 @@
     }
   },
   "categories": {
+    "orchestration": [
+      "orchestrator"
+    ],
     "workflow": [
       "brainstorming",
       "brainstorming-to-plan",

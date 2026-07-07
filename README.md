@@ -142,6 +142,12 @@ When a user request is sent without a prefix command, the AI stops, classifies t
 ### 2. Quick-Fix / Quick-Feature Workflow (3-Stage)
 `Specification (Spec)` ──> **User Approval Gate** ──> `Technical Design (Blueprint)` ──> **User Approval Gate** ──> `Implementation` ──> `Verification` ──> **STOP (Manual Release Gate)** ──> `Release` (requires explicit request)
 
+### 3. Orchestrated Autonomous Workflow
+`User Request (/orchestrate)` ──> `Intent Detection` ──> `DAG Task Planning` ──> **User Approval Gate** ──> `Implementation Phase (Selectable Parallel/Sequential Execution)` ──> `Conflict Verification` ──> `Workspace Merge` ──> `Verification` ──> `Completed`
+
+Instead of running individual skills manually, users can run a single command `/orchestrate <request>`. The Orchestrator autonomously maps the goal to the correct skills, schedules task execution sequentially for all early phases, and prompts the user to select Parallel or Sequential execution mode only when entering the implementation phase. Parallel execution is strictly restricted to the implementation phase.
+
+
 
 ---
 

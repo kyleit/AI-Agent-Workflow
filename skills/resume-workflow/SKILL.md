@@ -105,7 +105,12 @@ First, check the `"status"` field in the session file:
      - If active checkpoint is `7` (Debug Complete): check the next step in the profile. If it is `Frontend Visual Debug` (or other UI debug skill), recommend `/visual-debug`. If the next step is `Feature Verification`, recommend `/verify`.
      - If the dynamic workflow is complete: inform the user that the active feature has been successfully released and recommend starting a new workflow.
 
-## Step 4 — Heartbeat Output
+## Step 5 — Restore Execution Plan (Orchestrator Bypass)
+When resuming, check if `.agents/runtime/execution-plan.json` exists and if `"approved"` is `true`. If both are true:
+- Restore the execution mode from `implementation_execution_mode`, and restore running, queued, and blocked tasks.
+- Do not display the execution mode selection prompt to the user again.
+
+## Step 6 — Heartbeat Output
 Print the plain text heartbeat block:
 ```text
 Workflow Runtime Heartbeat

@@ -5,6 +5,16 @@ All notable changes to this project will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [5.2.1] - 2026-07-07
+
+### Added
+- **FIX-014: Orchestrator Scope Correction (Parallel Only During Implementation)**:
+  - Giới hạn lựa chọn chạy song song (Parallel execution) chỉ kích hoạt khi bắt đầu pha Triển khai (Implementation) sau khi đã duyệt Blueprint (checkpoint >= 5).
+  - Các pha trước đó (discovery, brainstorming, planning, blueprint) và pha release phía sau bắt buộc chạy tuần tự (Sequential).
+  - Nâng cấp CLI `workflow_runtime.py` từ chối kích hoạt song song và trả về mã lỗi `1` nếu checkpoint < 5.
+  - Bổ sung 3 trường trạng thái mới (`implementation_execution_mode`, `parallel_allowed_phase`, `parallel_allowed`) vào tệp cấu hình và đồng bộ hóa qua nhịp tim hệ thống.
+  - Cập nhật tài liệu tương tác `interactive-docs` bổ sung quy trình điều phối Orchestrator, đồng thời sửa lỗi gập vỡ giao diện tab trên mobile bằng bố cục lưới 2x2.
+
 ## [5.2.0] - 2026-07-07
 
 ### Added

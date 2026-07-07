@@ -95,3 +95,44 @@ def save_session_atomic(data: dict[str, Any]) -> None:  # type: ignore
                 os.remove(TMP_SESSION_FILE)
             except Exception:
                 pass
+
+SESSION_LOCK_FILE = SESSION_FILE + ".lock"
+
+def acquire_session_lock(timeout: float = 10.0, delay: float = 0.05) -> None:
+    import time
+    start_time = time.time()
+    while True:
+        try:
+            # Exclusive file creation acts as a lock
+            fd = os.open(SESSION_LOCK_FILE, os.O_CREAT | os.O_EXCL | os.O_WRONLY)
+            os.write(fd, str(os.getpid()).encode())
+            os.close(fd)
+            return
+        except FileExistsError:
+            # Check timeout
+            if time.time() - start_time > timeout:
+                # Stale lock cleanup (if process died without unlocking)
+                try:
+                    os.remove(SESSION_LOCK_FILE)
+                except Exception:
+                    pass
+            time.sleep(delay)
+
+def release_session_lock() -> None:
+    try:
+        if os.path.exists(SESSION_LOCK_FILE):
+            os.remove(SESSION_LOCK_FILE)
+    except Exception:
+        pass
+
+class SessionLock:
+    def __init__(self, timeout: float = 10.0):
+        self.timeout = timeout
+        
+    def __enter__(self) -> "SessionLock":
+        acquire_session_lock(timeout=self.timeout)
+        return self
+        
+    def __exit__(self, exc_type: Any, exc_val: Any, exc_tb: Any) -> None:
+        release_session_lock()
+

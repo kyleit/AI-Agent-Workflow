@@ -366,3 +366,43 @@ To streamline runtime interactions and eliminate manual keyboard input in the ch
 2. **Tool Invocation**: The Agent must call the `ask_question` tool using the question and options parsed from the XML payload.
 3. **Piped Response**: Upon receiving the user's selection, the Agent must use the `manage_task` tool with `send_input` action to pipe the selected option string (or option index) directly back into the subprocess's stdin.
 4. **Graceful Fallback**: If the `ask_question` tool is unavailable or unsupported in the current client, the Agent must print the question as text in the chat, wait for the user to type the selection, and then pipe that input back to the subprocess stdin.
+
+---
+
+## 17. Environment Tools Checking and Caching Policy
+
+To optimize execution speed, minimize token utilization, and prevent redundant shell executions, the following rules apply when verifying tools in the environment during initialization:
+1. **Caching Requirement**: The AI Agent must store verified environment tool states in `.agents/runtime/env_cache.json` along with a `cached_at` ISO-8601 timestamp and the list of checked tools and their status.
+2. **Cache Validation**: When verifying tools during workspace initialization (`initialize-workflow`), the AI Agent must check if `.agents/runtime/env_cache.json` exists. If it exists and the `cached_at` timestamp is within the last 24 hours, the Agent MUST skip executing shell verification commands (such as `which`, `git --version`, `docker ps`, etc.) and load the tool status directly from the cache.
+3. **Cache Invalidation & Recheck**: The cache is bypassed and tools are rechecked ONLY when:
+   - The cache file does not exist or is corrupted.
+   - The cache age exceeds 24 hours.
+   - A force recheck is requested.
+   - A tool marked as "available" in the cache fails to execute during workflow stages.
+
+---
+
+## 18. Option Selection and Decision Making Policy
+
+To ensure structured interactions and prevent open-ended or ambiguous confirmations when presenting choices to the user:
+1. **Mandatory Interactive Prompting**: Whenever the AI Agent presents multiple options, choices, or alternative paths to the user (including brainstorming directions, design alternatives, architecture options, or resolving ambiguous requirements), the Agent **MUST** use the `ask_question` tool to render the options as a structured, interactive list.
+2. **Constraint on Text List**: The Agent must not simply list options in the chat text and wait for the user to type their choice. An interactive selection menu via the `ask_question` tool is mandatory.
+3. **Graceful Fallback**: If the `ask_question` tool is not supported or fails in the IDE/client, the Agent may fall back to presenting the options as a numbered list in the chat text.
+
+---
+
+## 19. Multi-Agent Orchestration Policy
+
+To ensure centralized decision making, task isolation, and secure parallel execution across the workspace:
+1. **Orchestrator Command Primacy**: The Orchestrator is the single entry point. Every workflow execution must begin inside the Orchestrator via the `/orchestrate` command.
+2. **Worker Skill Constraints**: Other workflow Skills (such as brainstorming, planning, blueprinting, implementing, etc.) act strictly as workers. Workers cannot invoke other workers, schedule parallel tasks, merge files, or own the global workflow session state.
+3. **Execution Scope Isolation**: Every task scheduled by the Orchestrator must define a distinct `read_set` and a non-overlapping `write_set` in `execution-plan.json`. Workers are strictly prohibited from modifying files outside of their assigned `write_set`.
+4. **File Locking Registry**: Before modifying any file, the Agent must acquire a file lock in `.agents/runtime/file-locks.json` using the `lock acquire` command. Workers must respect locks held by other tasks.
+5. **No Self-Dispatch**: Agents executing worker tasks must never spawn or dispatch other agents. Only the Orchestrator owns multi-agent planning and coordination.
+6. **Task Execution State**: All changes to the runtime session and parallel task statuses must be synchronized through the `workflow-runtime` CLI commands.
+7. **Implementation-Only Parallel Execution**: Parallel execution is allowed ONLY during the implementation/execution phase (after an approved blueprint exists, or spec approved, and entering implementation/execution). All other workflow phases (discovery, brainstorming, planning, blueprint generation, ADR creation, memory bootstrap, memory update, RAG search, project discovery, workflow initialization, approval gates, and release) MUST remain strictly sequential.
+8. **User Execution Mode Choice Timing**: The Orchestrator may never automatically choose parallel mode. The user is prompted to choose the execution mode ONLY when implementation is ready to begin. No prompts for Parallel or Sequential choice are allowed during discovery, brainstorming, planning, or blueprinting.
+9. **Allowed Execution Modes**: Supported implementation modes are Parallel and Sequential. If Parallel is chosen, the Orchestrator runs concurrent workers for task groups with non-overlapping write sets. If Sequential is chosen, tasks are run one-by-one according to topological order.
+10. **Choice Gate Stop**: If the user does not select a mode when prompted at the implementation start (1. Parallel, 2. Sequential, 3. Re-split, 4. Cancel), execution must stop immediately without modifying any workspace files.
+
+

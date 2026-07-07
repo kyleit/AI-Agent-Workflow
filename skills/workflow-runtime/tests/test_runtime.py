@@ -492,11 +492,214 @@ class TestRuntimeEngine(unittest.TestCase):
                 
             self.assertEqual(snapshot.get("checkpoint"), 3)
             self.assertEqual(snapshot.get("current_skill"), "initialize-workflow")
-            self.assertEqual(snapshot.get("active_feature_id"), "FEAT-014")
+            self.assertEqual(snapshot.get("active_feature_id"), "FEAT-019")
             self.assertIn("rollover_requested_at", snapshot)
         finally:
             if os.path.exists(snapshot_file):
                 os.remove(snapshot_file)
+
+    def test_execution_modes_and_persistence(self):
+        cli_path = os.path.join(os.path.dirname(__file__), "..", "scripts", "workflow_runtime.py")
+        plan_file = os.path.join(".agents", "runtime", "execution-plan.json")
+        tasks_file = os.path.join(".agents", "runtime", "parallel-tasks.json")
+        locks_file = os.path.join(".agents", "runtime", "file-locks.json")
+        conflicts_file = os.path.join(".agents", "runtime", "conflicts.json")
+        
+        try:
+            # Create a mock session with checkpoint 5 to allow parallel mode during implementation
+            mock_session = {
+                "checkpoint": 5,
+                "status": "in_progress",
+                "current_skill": "orchestrator",
+                "current_command": "orchestrate",
+                "current_step": "Testing implementation execution modes"
+            }
+            save_session_atomic(mock_session)
+
+            # 1. Test execution recommend command
+            import subprocess
+            res = subprocess.run(
+                [sys.executable, cli_path, "execution", "recommend", "--mode", "parallel", "--reason", "Independent files"],
+                capture_output=True, text=True
+            )
+            self.assertEqual(res.returncode, 0)
+            self.assertTrue(os.path.exists(plan_file))
+            
+            with open(plan_file, "r", encoding="utf-8") as f:
+                plan = json.load(f)
+            self.assertEqual(plan.get("execution_mode"), "pending")
+            self.assertEqual(plan.get("recommended_mode"), "parallel")
+            self.assertEqual(plan.get("recommended_reason"), "Independent files")
+            self.assertFalse(plan.get("approved"))
+            
+            # 2. Test execution mode command
+            res = subprocess.run(
+                [sys.executable, cli_path, "execution", "mode", "--mode", "parallel", "--approve"],
+                capture_output=True, text=True
+            )
+            self.assertEqual(res.returncode, 0)
+            
+            with open(plan_file, "r", encoding="utf-8") as f:
+                plan = json.load(f)
+            self.assertEqual(plan.get("execution_mode"), "parallel")
+            self.assertTrue(plan.get("approved"))
+            
+            # 3. Test execution summary command
+            res = subprocess.run(
+                [sys.executable, cli_path, "execution", "summary"],
+                capture_output=True, text=True
+            )
+            self.assertEqual(res.returncode, 0)
+            self.assertIn("Execution Plan Summary", res.stdout)
+            self.assertIn("Recommended Mode", res.stdout)
+            
+            # 4. Test file lock acquire & release
+            res = subprocess.run(
+                [sys.executable, cli_path, "lock", "acquire", "--task-id", "task-1", "--files", "file1.txt,file2.txt"],
+                capture_output=True, text=True
+            )
+            self.assertEqual(res.returncode, 0)
+            self.assertTrue(os.path.exists(locks_file))
+            
+            with open(locks_file, "r", encoding="utf-8") as f:
+                locks = json.load(f).get("locks", {})
+            self.assertIn("file1.txt", locks)
+            self.assertEqual(locks["file1.txt"].get("task_id"), "task-1")
+            
+            # Conflict lock acquisition should fail
+            res = subprocess.run(
+                [sys.executable, cli_path, "lock", "acquire", "--task-id", "task-2", "--files", "file1.txt"],
+                capture_output=True, text=True
+            )
+            self.assertEqual(res.returncode, 1)
+            
+            # Release lock
+            res = subprocess.run(
+                [sys.executable, cli_path, "lock", "release", "--task-id", "task-1"],
+                capture_output=True, text=True
+            )
+            self.assertEqual(res.returncode, 0)
+            with open(locks_file, "r", encoding="utf-8") as f:
+                locks = json.load(f).get("locks", {})
+            self.assertNotIn("file1.txt", locks)
+            
+            # 5. Test task plan, start, complete, fail
+            with open(plan_file, "w", encoding="utf-8") as f:
+                json.dump({"tasks": [{"task_id": "t-1"}, {"task_id": "t-2"}]}, f, indent=2)
+                
+            res = subprocess.run(
+                [sys.executable, cli_path, "task", "plan"],
+                capture_output=True, text=True
+            )
+            self.assertEqual(res.returncode, 0)
+            self.assertTrue(os.path.exists(tasks_file))
+            
+            with open(tasks_file, "r", encoding="utf-8") as f:
+                tasks = json.load(f).get("tasks", {})
+            self.assertEqual(tasks.get("t-1", {}).get("status"), "pending")
+            
+            res = subprocess.run(
+                [sys.executable, cli_path, "task", "start", "--task-id", "t-1"],
+                capture_output=True, text=True
+            )
+            self.assertEqual(res.returncode, 0)
+            with open(tasks_file, "r", encoding="utf-8") as f:
+                tasks = json.load(f).get("tasks", {})
+            self.assertEqual(tasks.get("t-1", {}).get("status"), "running")
+            
+        finally:
+            for fpath in [plan_file, tasks_file, locks_file, conflicts_file]:
+                if os.path.exists(fpath):
+                    os.remove(fpath)
+
+    def test_parallel_scope_constraints(self):
+        cli_path = os.path.join(os.path.dirname(__file__), "..", "scripts", "workflow_runtime.py")
+        plan_file = os.path.join(".agents", "runtime", "execution-plan.json")
+        session_file = os.path.join(".agents", ".session.json")
+        
+        # Clean state
+        if os.path.exists(plan_file):
+            os.remove(plan_file)
+            
+        # Back up existing session
+        session_backup = None
+        if os.path.exists(session_file):
+            try:
+                with open(session_file, "r", encoding="utf-8") as f:
+                    session_backup = json.load(f)
+            except Exception:
+                pass
+                
+        try:
+            # Case 1: Checkpoint < 5 (e.g. Checkpoint 3 - Brainstorming)
+            with open(session_file, "w", encoding="utf-8") as f:
+                json.dump({"checkpoint": 3, "current_skill": "brainstorming"}, f, indent=2)
+                
+            # 1. Recommend parallel mode
+            import subprocess
+            res = subprocess.run(
+                [sys.executable, cli_path, "execution", "recommend", "--mode", "parallel", "--reason", "Independent"],
+                capture_output=True, text=True
+            )
+            self.assertEqual(res.returncode, 0)
+            
+            with open(plan_file, "r", encoding="utf-8") as f:
+                plan = json.load(f)
+            self.assertFalse(plan.get("parallel_allowed"))
+            self.assertEqual(plan.get("parallel_allowed_phase"), "implementation")
+            
+            # 2. Mode parallel approval should FAIL (returncode = 1) because parallel_allowed is False
+            res = subprocess.run(
+                [sys.executable, cli_path, "execution", "mode", "--mode", "parallel", "--approve"],
+                capture_output=True, text=True
+            )
+            self.assertEqual(res.returncode, 1)
+            self.assertIn("Parallel execution mode is only allowed during the implementation", res.stderr)
+            
+            # 3. Summary command should print sequential constraint notice
+            res = subprocess.run(
+                [sys.executable, cli_path, "execution", "summary"],
+                capture_output=True, text=True
+            )
+            self.assertEqual(res.returncode, 0)
+            self.assertIn("Current phase requires sequential execution", res.stdout)
+            
+            # Case 2: Checkpoint >= 5 (e.g. Checkpoint 5 - Blueprint approved / Implementation)
+            with open(session_file, "w", encoding="utf-8") as f:
+                json.dump({"checkpoint": 5, "current_skill": "orchestrator"}, f, indent=2)
+                
+            res = subprocess.run(
+                [sys.executable, cli_path, "execution", "recommend", "--mode", "parallel", "--reason", "Independent"],
+                capture_output=True, text=True
+            )
+            self.assertEqual(res.returncode, 0)
+            with open(plan_file, "r", encoding="utf-8") as f:
+                plan = json.load(f)
+            self.assertTrue(plan.get("parallel_allowed"))
+            
+            # Mode parallel approval should now SUCCEED
+            res = subprocess.run(
+                [sys.executable, cli_path, "execution", "mode", "--mode", "parallel", "--approve"],
+                capture_output=True, text=True
+            )
+            self.assertEqual(res.returncode, 0)
+            with open(plan_file, "r", encoding="utf-8") as f:
+                plan = json.load(f)
+            self.assertEqual(plan.get("implementation_execution_mode"), "parallel")
+            self.assertTrue(plan.get("approved"))
+            
+        finally:
+            if os.path.exists(plan_file):
+                os.remove(plan_file)
+            if session_backup:
+                try:
+                    with open(session_file, "w", encoding="utf-8") as f:
+                        json.dump(session_backup, f, indent=2)
+                except Exception:
+                    pass
+            elif os.path.exists(session_file):
+                os.remove(session_file)
+
 
 if __name__ == "__main__":
     unittest.main()

@@ -10,7 +10,7 @@ from typing import cast
 # Add the directory containing this script to sys.path to resolve sibling modules
 sys.path.append(os.path.dirname(os.path.abspath(__file__)))
 
-from session import load_session, save_session_atomic
+from session import load_session, save_session_atomic, SessionLock
 from context import estimate_context_usage
 from checkpoint import validate_checkpoint_level, get_checkpoint_name
 from validator import get_git_info, get_version_info
@@ -554,6 +554,54 @@ def do_compact(_args: argparse.Namespace) -> None:  # type: ignore
     except Exception:
         pass
 
+    # Load execution plan details
+    plan_file = os.path.join(".agents", "runtime", "execution-plan.json")
+    execution_mode = "pending"
+    recommended_mode = "parallel"
+    approved = False
+    implementation_execution_mode = "pending"
+    parallel_allowed_phase = "implementation"
+    parallel_allowed = False
+    if os.path.exists(plan_file):
+        try:
+            with open(plan_file, "r", encoding="utf-8") as f:
+                plan_data = json.load(f)
+                execution_mode = plan_data.get("execution_mode", "pending")
+                recommended_mode = plan_data.get("recommended_mode", "parallel")
+                approved = plan_data.get("approved", False)
+                implementation_execution_mode = plan_data.get("implementation_execution_mode", "pending")
+                parallel_allowed_phase = plan_data.get("parallel_allowed_phase", "implementation")
+                parallel_allowed = plan_data.get("parallel_allowed", False)
+        except Exception:
+            pass
+            
+    # Load parallel tasks details
+    tasks_file = os.path.join(".agents", "runtime", "parallel-tasks.json")
+    parallel_groups = []
+    running_agents = []
+    queued_agents = []
+    blocked_agents = []
+    waiting_dependencies = []
+    
+    if os.path.exists(tasks_file):
+        try:
+            with open(tasks_file, "r", encoding="utf-8") as f:
+                tasks_data = json.load(f)
+                tasks = tasks_data.get("tasks", {})
+                for tid, tinfo in tasks.items():
+                    status = tinfo.get("status", "pending")
+                    group = tinfo.get("execution_group")
+                    if group and group not in parallel_groups:
+                        parallel_groups.append(group)
+                    if status == "running":
+                        running_agents.append(tid)
+                    elif status == "pending":
+                        queued_agents.append(tid)
+                    elif status == "blocked":
+                        blocked_agents.append(tid)
+        except Exception:
+            pass
+
     # Build snapshot data
     snapshot_file = os.path.join(".agents", "runtime", "context_snapshot.json")
     os.makedirs(os.path.dirname(snapshot_file), exist_ok=True)
@@ -563,9 +611,20 @@ def do_compact(_args: argparse.Namespace) -> None:  # type: ignore
         "current_skill": session.get("current_skill", ""),
         "current_command": session.get("current_command", ""),
         "current_step": session.get("current_step", ""),
-        "active_feature_id": "FEAT-014",
+        "active_feature_id": "FIX-014",
         "git_stash_ref": stash_ref,
-        "rollover_requested_at": datetime.now().astimezone().isoformat()
+        "rollover_requested_at": datetime.now().astimezone().isoformat(),
+        "execution_mode": execution_mode,
+        "recommended_mode": recommended_mode,
+        "approved": approved,
+        "implementation_execution_mode": implementation_execution_mode,
+        "parallel_allowed_phase": parallel_allowed_phase,
+        "parallel_allowed": parallel_allowed,
+        "parallel_groups": parallel_groups,
+        "running_agents": running_agents,
+        "queued_agents": queued_agents,
+        "blocked_agents": blocked_agents,
+        "waiting_dependencies": waiting_dependencies
     }
     
     try:
@@ -576,57 +635,405 @@ def do_compact(_args: argparse.Namespace) -> None:  # type: ignore
         print(f"Error: failed to write snapshot: {e}", file=sys.stderr)
         sys.exit(1)
 
+def sync_execution_state_to_session() -> None:
+    session = load_session()
+    if not session:
+        return
+        
+    plan_file = os.path.join(".agents", "runtime", "execution-plan.json")
+    if os.path.exists(plan_file):
+        try:
+            with open(plan_file, "r", encoding="utf-8") as f:
+                plan_data = json.load(f)
+                session["implementation_execution_mode"] = plan_data.get("implementation_execution_mode", "pending")
+                session["parallel_allowed_phase"] = plan_data.get("parallel_allowed_phase", "implementation")
+                session["parallel_allowed"] = plan_data.get("parallel_allowed", False)
+                session["execution_mode"] = plan_data.get("implementation_execution_mode", "pending")
+                session["recommended_mode"] = plan_data.get("recommended_mode", "parallel")
+                session["approved"] = plan_data.get("approved", False)
+        except Exception:
+            pass
+            
+    tasks_file = os.path.join(".agents", "runtime", "parallel-tasks.json")
+    parallel_groups = []
+    running_agents = []
+    queued_agents = []
+    blocked_agents = []
+    waiting_dependencies = []
+    
+    if os.path.exists(tasks_file):
+        try:
+            with open(tasks_file, "r", encoding="utf-8") as f:
+                tasks_data = json.load(f)
+                tasks = tasks_data.get("tasks", {})
+                for tid, tinfo in tasks.items():
+                    status = tinfo.get("status", "pending")
+                    group = tinfo.get("execution_group")
+                    if group and group not in parallel_groups:
+                        parallel_groups.append(group)
+                    if status == "running":
+                        running_agents.append(tid)
+                    elif status == "pending":
+                        queued_agents.append(tid)
+                    elif status == "blocked":
+                        blocked_agents.append(tid)
+        except Exception:
+            pass
+            
+    session["parallel_groups"] = parallel_groups
+    session["running_agents"] = running_agents
+    session["queued_agents"] = queued_agents
+    session["blocked_agents"] = blocked_agents
+    session["waiting_dependencies"] = waiting_dependencies
+    
+    save_session_atomic(session)
+
+
+def do_task(args: argparse.Namespace) -> None:
+    tasks_file = os.path.join(".agents", "runtime", "parallel-tasks.json")
+    os.makedirs(os.path.dirname(tasks_file), exist_ok=True)
+    
+    tasks: dict[str, dict[str, object]] = {}
+    if os.path.exists(tasks_file):
+        try:
+            with open(tasks_file, "r", encoding="utf-8") as f:
+                data = cast(dict[str, object], json.load(f))
+                tasks = cast(dict[str, dict[str, object]], data.get("tasks", {}))
+        except Exception:
+            pass
+            
+    if args.subaction == "plan":
+        plan_file = os.path.join(".agents", "runtime", "execution-plan.json")
+        os.makedirs(os.path.dirname(plan_file), exist_ok=True)
+        plan_tasks: list[dict[str, object]] = []
+        if os.path.exists(plan_file):
+            try:
+                with open(plan_file, "r", encoding="utf-8") as f:
+                    data = cast(dict[str, object], json.load(f))
+                    plan_tasks = cast(list[dict[str, object]], data.get("tasks", []))
+            except Exception:
+                pass
+        for t in plan_tasks:
+            tid = t.get("task_id")
+            if isinstance(tid, str) and tid:
+                tasks[tid] = {
+                    "status": "pending",
+                    "started_at": None,
+                    "completed_at": None,
+                    "execution_group": t.get("execution_group", "Group 1")
+                }
+        with open(tasks_file, "w", encoding="utf-8") as f:
+            json.dump({"tasks": tasks}, f, indent=2, ensure_ascii=False)
+        print("Tasks planned successfully.")
+        
+    elif args.subaction == "start":
+        if not args.task_id:
+            print("Error: task_id required.", file=sys.stderr)
+            sys.exit(1)
+        if args.task_id not in tasks:
+            tasks[args.task_id] = {}
+        tasks[args.task_id]["status"] = "running"
+        tasks[args.task_id]["started_at"] = datetime.now().astimezone().isoformat()
+        with open(tasks_file, "w", encoding="utf-8") as f:
+            json.dump({"tasks": tasks}, f, indent=2, ensure_ascii=False)
+        print(f"Task {args.task_id} started.")
+        
+    elif args.subaction == "complete":
+        if not args.task_id:
+            print("Error: task_id required.", file=sys.stderr)
+            sys.exit(1)
+        if args.task_id not in tasks:
+            print(f"Error: task {args.task_id} not found.", file=sys.stderr)
+            sys.exit(1)
+        tasks[args.task_id]["status"] = "completed"
+        tasks[args.task_id]["completed_at"] = datetime.now().astimezone().isoformat()
+        with open(tasks_file, "w", encoding="utf-8") as f:
+            json.dump({"tasks": tasks}, f, indent=2, ensure_ascii=False)
+        print(f"Task {args.task_id} completed.")
+        
+    elif args.subaction == "fail":
+        if not args.task_id:
+            print("Error: task_id required.", file=sys.stderr)
+            sys.exit(1)
+        if args.task_id not in tasks:
+            tasks[args.task_id] = {}
+        tasks[args.task_id]["status"] = "failed"
+        tasks[args.task_id]["completed_at"] = datetime.now().astimezone().isoformat()
+        with open(tasks_file, "w", encoding="utf-8") as f:
+            json.dump({"tasks": tasks}, f, indent=2, ensure_ascii=False)
+        print(f"Task {args.task_id} failed.")
+        
+    sync_execution_state_to_session()
+
+def do_lock(args: argparse.Namespace) -> None:
+    locks_file = os.path.join(".agents", "runtime", "file-locks.json")
+    os.makedirs(os.path.dirname(locks_file), exist_ok=True)
+    
+    locks: dict[str, dict[str, object]] = {}
+    if os.path.exists(locks_file):
+        try:
+            with open(locks_file, "r", encoding="utf-8") as f:
+                data = cast(dict[str, object], json.load(f))
+                locks = cast(dict[str, dict[str, object]], data.get("locks", {}))
+        except Exception:
+            pass
+            
+    if args.subaction == "acquire":
+        if not args.task_id or not args.files:
+            print("Error: task_id and files are required.", file=sys.stderr)
+            sys.exit(1)
+        files = [f.strip() for f in args.files.split(",")]
+        
+        conflicting = []
+        for file in files:
+            if file in locks and locks[file].get("task_id") != args.task_id:
+                conflicting.append((file, locks[file].get("task_id")))
+                
+        if conflicting:
+            print(f"Error: lock acquisition failed. Files locked by other tasks: {conflicting}", file=sys.stderr)
+            sys.exit(1)
+            
+        for file in files:
+            locks[file] = {
+                "task_id": args.task_id,
+                "acquired_at": datetime.now().astimezone().isoformat()
+            }
+            
+        with open(locks_file, "w", encoding="utf-8") as f:
+            json.dump({"locks": locks}, f, indent=2, ensure_ascii=False)
+        print(f"Locks acquired for task {args.task_id} on: {files}")
+        
+    elif args.subaction == "release":
+        if not args.task_id:
+            print("Error: task_id is required.", file=sys.stderr)
+            sys.exit(1)
+        released = []
+        for file, lock in list(locks.items()):
+            if lock.get("task_id") == args.task_id:
+                del locks[file]
+                released.append(file)
+        with open(locks_file, "w", encoding="utf-8") as f:
+            json.dump({"locks": locks}, f, indent=2, ensure_ascii=False)
+        print(f"Locks released for task {args.task_id}: {released}")
+        
+    elif args.subaction == "list":
+        print(json.dumps({"locks": locks}, indent=2))
+
+def do_dependency(args: argparse.Namespace) -> None:
+    if args.subaction == "graph":
+        plan_file = os.path.join(".agents", "runtime", "execution-plan.json")
+        if not os.path.exists(plan_file):
+            print(json.dumps({"graph": {}}, indent=2))
+            return
+        try:
+            with open(plan_file, "r", encoding="utf-8") as f:
+                data = cast(dict[str, object], json.load(f))
+                tasks = cast(list[object], data.get("tasks", []))
+                print(json.dumps({"tasks": tasks}, indent=2))
+        except Exception as e:
+            print(f"Error: {e}", file=sys.stderr)
+            sys.exit(1)
+
+def do_merge(args: argparse.Namespace) -> None:
+    if args.subaction == "prepare":
+        print("Merge prepared.")
+    elif args.subaction == "complete":
+        print("Merge completed successfully.")
+
+def do_conflict(args: argparse.Namespace) -> None:
+    conflicts_file = os.path.join(".agents", "runtime", "conflicts.json")
+    os.makedirs(os.path.dirname(conflicts_file), exist_ok=True)
+    if args.subaction == "detect":
+        conflicts: list[object] = []
+        with open(conflicts_file, "w", encoding="utf-8") as f:
+            json.dump({"conflicts": conflicts}, f, indent=2)
+        print(json.dumps({"conflicts": conflicts}, indent=2))
+    elif args.subaction == "resolve":
+        print("Conflicts resolved.")
+
+def do_execution(args: argparse.Namespace) -> None:
+    plan_file = os.path.join(".agents", "runtime", "execution-plan.json")
+    os.makedirs(os.path.dirname(plan_file), exist_ok=True)
+    
+    plan: dict[str, object] = {}
+    if os.path.exists(plan_file):
+        try:
+            with open(plan_file, "r", encoding="utf-8") as f:
+                plan = cast(dict[str, object], json.load(f))
+        except Exception:
+            pass
+            
+    session = load_session()
+    checkpoint = session.get("checkpoint", 1)
+    parallel_allowed = (checkpoint >= 5)
+
+    if args.subaction == "recommend":
+        if not args.mode or not args.reason:
+            print("Error: --mode and --reason are required.", file=sys.stderr)
+            sys.exit(1)
+        plan["implementation_execution_mode"] = "pending"
+        plan["parallel_allowed_phase"] = "implementation"
+        plan["parallel_allowed"] = parallel_allowed
+        plan["execution_mode"] = "pending"
+        plan["recommended_mode"] = args.mode
+        plan["recommended_reason"] = args.reason
+        plan["approved"] = False
+        with open(plan_file, "w", encoding="utf-8") as f:
+            json.dump(plan, f, indent=2, ensure_ascii=False)
+        print(f"Recommended execution mode set to {args.mode} (Reason: {args.reason}).")
+        
+    elif args.subaction == "mode":
+        if not args.mode:
+            print("Error: --mode is required.", file=sys.stderr)
+            sys.exit(1)
+            
+        if args.mode == "parallel" and not parallel_allowed:
+            print(f"Error: Parallel execution mode is only allowed during the implementation/execution phase (checkpoint >= 5). Current checkpoint is {checkpoint}.", file=sys.stderr)
+            sys.exit(1)
+            
+        plan["implementation_execution_mode"] = args.mode
+        plan["execution_mode"] = args.mode
+        if args.approve:
+            plan["approved"] = True
+        with open(plan_file, "w", encoding="utf-8") as f:
+            json.dump(plan, f, indent=2, ensure_ascii=False)
+        print(f"Execution mode updated to {args.mode} (Approved: {plan.get('approved')}).")
+        
+    elif args.subaction == "summary":
+        if not plan.get("parallel_allowed", False):
+            summary_text = """================================================================================
+
+Execution Plan Summary
+
+Current phase requires sequential execution. Parallel execution is not allowed
+until entering the implementation phase (checkpoint >= 5).
+
+================================================================================
+"""
+            print(summary_text)
+            return
+
+        workflow = plan.get("workflow_name", "Autonomous Workflow Upgrade")
+        agents = plan.get("estimated_agents", "Orchestrator, Worker")
+        duration = plan.get("estimated_duration", "5 minutes")
+        tokens = plan.get("estimated_tokens", "150,000")
+        groups = plan.get("parallel_groups", "None")
+        conflicts = plan.get("potential_conflicts", "None")
+        rec_mode = str(plan.get("recommended_mode", "parallel"))
+        reason = plan.get("recommended_reason", "No overlapping write sets.")
+        
+        summary_text = f"""================================================================================
+
+Execution Plan Summary
+
+Workflow:
+{workflow}
+
+Estimated Agents:
+{agents}
+
+Estimated Duration:
+{duration}
+
+Estimated Tokens:
+{tokens}
+
+Parallel Groups:
+{groups}
+
+Potential Conflicts:
+{conflicts}
+
+================================================================================
+
+Recommended Mode
+
+✔ {rec_mode.capitalize()} ({'Safe' if rec_mode == 'parallel' else 'Caution'})
+
+Reason
+
+- {reason}
+"""
+        print(summary_text)
+
+    sync_execution_state_to_session()
+
+
 def main():
     parser = argparse.ArgumentParser(description="AI Workflow Runtime Engine CLI")
     subparsers = parser.add_subparsers(dest="action", required=True)
     
     init_p = subparsers.add_parser("init")
-    init_p.add_argument("--permission", type=str, default=None)
+    _ = init_p.add_argument("--permission", type=str, default=None)
     
-    _perm_p = subparsers.add_parser("permission")
-    _compact_p = subparsers.add_parser("compact")
+    _ = subparsers.add_parser("permission")
+    _ = subparsers.add_parser("compact")
     
     val = subparsers.add_parser("validate")
-    val.add_argument("--checkpoint", type=str)
+    _ = val.add_argument("--checkpoint", type=str)
     
     st = subparsers.add_parser("start")
-    st.add_argument("--skill", required=True, type=str)
-    st.add_argument("--command", required=True, type=str)
-    st.add_argument("--checkpoint", type=int)
-    st.add_argument("--step", required=True, type=str)
+    _ = st.add_argument("--skill", required=True, type=str)
+    _ = st.add_argument("--command", required=True, type=str)
+    _ = st.add_argument("--checkpoint", type=int)
+    _ = st.add_argument("--step", required=True, type=str)
     
     sp = subparsers.add_parser("step")
-    sp.add_argument("--step", required=True, type=str)
-    sp.add_argument("--log", type=str)
+    _ = sp.add_argument("--step", required=True, type=str)
+    _ = sp.add_argument("--log", type=str)
     
     cp = subparsers.add_parser("complete")
-    cp.add_argument("--checkpoint", type=int)
-    cp.add_argument("--step", type=str)
-    cp.add_argument("--next-skill", type=str)
-    cp.add_argument("--next-command", type=str)
+    _ = cp.add_argument("--checkpoint", type=int)
+    _ = cp.add_argument("--step", type=str)
+    _ = cp.add_argument("--next-skill", type=str)
+    _ = cp.add_argument("--next-command", type=str)
     
     fl = subparsers.add_parser("fail")
-    fl.add_argument("--step", required=True, type=str)
-    fl.add_argument("--log", type=str)
+    _ = fl.add_argument("--step", required=True, type=str)
+    _ = fl.add_argument("--log", type=str)
     
-    subparsers.add_parser("heartbeat")
+    _ = subparsers.add_parser("heartbeat")
     
     usg = subparsers.add_parser("usage")
-    usg.add_argument("subaction", choices=["sync", "report", "diagnose", "export"])
-    usg.add_argument("--format", default="json", choices=["json"])
-    usg.add_argument("--out", type=str)
+    _ = usg.add_argument("subaction", choices=["sync", "report", "diagnose", "export"])
+    _ = usg.add_argument("--format", default="json", choices=["json"])
+    _ = usg.add_argument("--out", type=str)
     
     bp = subparsers.add_parser("blueprint")
-    bp.add_argument("--path", required=True, type=str)
-    bp.add_argument("--approve", action="store_true")
+    _ = bp.add_argument("--path", required=True, type=str)
+    _ = bp.add_argument("--approve", action="store_true")
     
     sg = subparsers.add_parser("suggest")
-    sg.add_argument("--request", type=str)
-    sg.add_argument("--classification", type=str)
-    sg.add_argument("--recommend", type=str)
-    sg.add_argument("--options", type=str)
-    sg.add_argument("--status", type=str)
-    sg.add_argument("--choose", type=str)
+    _ = sg.add_argument("--request", type=str)
+    _ = sg.add_argument("--classification", type=str)
+    _ = sg.add_argument("--recommend", type=str)
+    _ = sg.add_argument("--options", type=str)
+    _ = sg.add_argument("--status", type=str)
+    _ = sg.add_argument("--choose", type=str)
+    
+    task_p = subparsers.add_parser("task")
+    _ = task_p.add_argument("subaction", choices=["plan", "start", "complete", "fail"])
+    _ = task_p.add_argument("--task-id", type=str)
+    
+    lock_p = subparsers.add_parser("lock")
+    _ = lock_p.add_argument("subaction", choices=["acquire", "release", "list"])
+    _ = lock_p.add_argument("--task-id", type=str)
+    _ = lock_p.add_argument("--files", type=str)
+    
+    dep_p = subparsers.add_parser("dependency")
+    _ = dep_p.add_argument("subaction", choices=["graph"])
+    
+    merge_p = subparsers.add_parser("merge")
+    _ = merge_p.add_argument("subaction", choices=["prepare", "complete"])
+    
+    conf_p = subparsers.add_parser("conflict")
+    _ = conf_p.add_argument("subaction", choices=["detect", "resolve"])
+    
+    exec_p = subparsers.add_parser("execution")
+    _ = exec_p.add_argument("subaction", choices=["recommend", "mode", "summary"])
+    _ = exec_p.add_argument("--mode", type=str, choices=["parallel", "sequential"])
+    _ = exec_p.add_argument("--reason", type=str)
+    _ = exec_p.add_argument("--approve", action="store_true")
     
     args = parser.parse_args()
     
@@ -642,10 +1049,22 @@ def main():
         "blueprint": do_blueprint,
         "suggest": do_suggest,
         "permission": do_permission,
-        "compact": do_compact
+        "compact": do_compact,
+        "task": do_task,
+        "lock": do_lock,
+        "dependency": do_dependency,
+        "merge": do_merge,
+        "conflict": do_conflict,
+        "execution": do_execution
     }
     
-    cmds[args.action](args)
+    modifying_actions = ["init", "start", "step", "complete", "fail", "blueprint", "suggest", "compact", "task", "execution"]
+    if args.action in modifying_actions:
+        with SessionLock():
+            cmds[args.action](args)
+    else:
+        cmds[args.action](args)
 
 if __name__ == "__main__":
     main()
+

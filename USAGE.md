@@ -49,7 +49,20 @@ Cách chạy init kèm chế độ phân quyền bằng CLI:
 
 ## 🔄 2. Quy trình làm việc hàng ngày (SDLC Workflow)
 
+### 🧠 Tự động hóa điều phối điều hành (/orchestrate) — *Khuyên dùng làm điểm đầu vào*
+Thay vì gọi các Skill đơn lẻ thủ công, bạn chỉ cần gọi lệnh `/orchestrate` cùng với mục tiêu phát triển. Hệ thống sẽ tự động chẩn đoán công cụ, phân tích intent để xác định quy trình, phân chia tác vụ song song, thực thi an toàn bằng cơ chế khóa tệp và tự động tích hợp mã nguồn.
+* **Cách kích hoạt**:
+  ```bash
+  /orchestrate "Mô tả tính năng hoặc bug cần xử lý ở đây"
+  ```
+* **Ví dụ**:
+  - `/orchestrate Sửa lỗi login bị đơ`
+  - `/orchestrate Thêm hệ thống caching cho tệp tĩnh Playwright`
+  - `/orchestrate Xây dựng giao diện đăng ký tài khoản`
+* **Xử lý song song**: Chạy song song chỉ được phép thực hiện trong pha triển khai (Implementation/Execution). Các pha trước đó (Discovery, Brainstorming, Planning, Blueprint) sẽ luôn chạy tuần tự. Khi bắt đầu bước triển khai, hệ thống sẽ đề xuất biểu đồ tác vụ (DAG) và hiển thị menu lựa chọn Parallel/Sequential để bạn quyết định.
+
 Mỗi tính năng mới trong dự án sẽ được quản lý dưới một mã số duy nhất (**Feature ID** - dạng `FEAT-001`, `FEAT-002`,...) và đi qua các bước tuần tự dưới đây. 
+
 
 ### 🔒 Chốt chặn Gợi ý Kỹ năng tự động (Skill Suggestion Gate)
 Khi bạn gửi một yêu cầu ngôn ngữ tự nhiên thuần (không bắt đầu bằng lệnh cụ thể như `/workflow`, `/quick-fix`, `/quick-feature`, `/brainstorm`), Agent sẽ dừng lại và hiển thị phân loại đề xuất.

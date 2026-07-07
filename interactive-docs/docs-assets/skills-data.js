@@ -189,5 +189,15 @@ const skillsData = [
     input: "Quyết định kiến trúc kỹ thuật.",
     output: "Tạo file docs/adr/ADR-XXX_slug.md.",
     pitfall: "Chỉ nên tạo khi dự án có sự thay đổi lớn về công nghệ hoặc mô hình lưu trữ."
+  },
+  {
+    name: "orchestrator",
+    command: "/orchestrate",
+    category: "workflow",
+    checkpoint: "N/A",
+    purpose: "Điều phối viên tối cao tự động phân tích yêu cầu, xây dựng sơ đồ tác vụ DAG và chạy song song/tuần tự các workers.",
+    input: "Mô tả yêu cầu/tác vụ thô từ người dùng.",
+    output: "Tự động phân tách công việc và lập kế hoạch thực thi không cần gọi skill thủ công.",
+    pitfall: "Tính năng chạy song song (Parallel execution) chỉ được phép chạy ở pha Code Implementation và luôn cần sự xác nhận duyệt từ người dùng."
   }
 ];

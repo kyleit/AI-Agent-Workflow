@@ -929,8 +929,13 @@ pre::-webkit-scrollbar-thumb:hover {
     }
     
     .flow-tabs-nav {
-        overflow-x: auto;
-        scrollbar-width: none;
+        display: flex !important;
+        flex-wrap: wrap !important;
+        gap: 8px !important;
+        border-bottom: none !important;
+        padding-bottom: 0 !important;
+        overflow: visible !important;
+        width: 100%;
     }
     
     .flow-tabs-nav::-webkit-scrollbar {
@@ -938,7 +943,12 @@ pre::-webkit-scrollbar-thumb:hover {
     }
     
     .flow-tab-btn {
-        white-space: nowrap;
+        flex: 1 1 calc(50% - 8px) !important;
+        white-space: normal !important;
+        font-size: 11px !important;
+        padding: 6px 10px !important;
+        text-align: center;
+        border: 1px solid rgba(255, 255, 255, 0.08) !important;
     }
     
     .skills-grid {
