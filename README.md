@@ -127,6 +127,12 @@ Once bootstrapped, open a new terminal in any Git project and execute:
 
 The framework enforces a strict **Skill Suggestion Gate** on all unclassified natural language user requests, and a strict **Blueprint-Driven Development** model:
 
+### ⚙️ Workspace Permission Modes
+During initialization (`/init`), the user can choose the permission level:
+- **Sandbox Mode** (Default): Prompt for user approval before *every* state-changing action (file creation, source code modification, test runs, memory updates).
+- **Full Access Mode**: Automatically bypass repeated approval prompts for normal, non-destructive workflow tasks (writing specs/blueprints, running builds/tests, local edits). Hard-gated actions (git push, tag, commit, release, secrets...) still require manual approval.
+- **Unrestricted Mode** (DANGER ZONE): Bypass all confirmation gates entirely. Git push and releases run automatically. Enabling this requires a secondary confirmation prompt.
+
 ### 0. Skill Suggestion Gate (Pre-Workflow)
 When a user request is sent without a prefix command, the AI stops, classifies the request using a Classification Matrix, suggests the single best-fit Skill or presents multiple options, and **STOPS** until the user explicitly confirms (Y/N or option number).
 

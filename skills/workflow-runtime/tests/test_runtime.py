@@ -20,27 +20,37 @@ from db import PROJECT_DB, get_global_db_path, save_usage_to_dbs, get_workflow_s
 
 class TestRuntimeEngine(unittest.TestCase):
     def setUp(self):
-        # Back up existing files
+        # Back up existing files to temporary testbackup names to avoid conflicts with session.json.bak
         self.session_backup = None
         if os.path.exists(SESSION_FILE):
-            self.session_backup = SESSION_FILE + ".bak"
+            self.session_backup = SESSION_FILE + ".testbackup"
             shutil.copy2(SESSION_FILE, self.session_backup)
             os.remove(SESSION_FILE)
             
+        # Clean session.json.bak if it exists
+        bak_file = SESSION_FILE + ".bak"
+        if os.path.exists(bak_file):
+            os.remove(bak_file)
+            
         self.project_db_backup = None
         if os.path.exists(PROJECT_DB):
-            self.project_db_backup = PROJECT_DB + ".bak"
+            self.project_db_backup = PROJECT_DB + ".testbackup"
             shutil.copy2(PROJECT_DB, self.project_db_backup)
             os.remove(PROJECT_DB)
             
         self.global_db = get_global_db_path()
         self.global_db_backup = None
         if os.path.exists(self.global_db):
-            self.global_db_backup = self.global_db + ".bak"
+            self.global_db_backup = self.global_db + ".testbackup"
             shutil.copy2(self.global_db, self.global_db_backup)
             os.remove(self.global_db)
             
     def tearDown(self):
+        # Clean any generated session.json.bak
+        bak_file = SESSION_FILE + ".bak"
+        if os.path.exists(bak_file):
+            os.remove(bak_file)
+
         # Restore backup files
         for current, backup in [
             (SESSION_FILE, self.session_backup),
@@ -360,6 +370,92 @@ class TestRuntimeEngine(unittest.TestCase):
         )
         session = load_session()
         self.assertEqual(session["current_skill"], "implementation-to-release")
+
+    def test_permission_mode_scenarios(self):
+        import subprocess
+        cli_path = os.path.join(os.path.dirname(__file__), "..", "scripts", "workflow_runtime.py")
+        
+        # S1: Default init sets sandbox
+        if os.path.exists(SESSION_FILE):
+            os.remove(SESSION_FILE)
+        res = subprocess.run([sys.executable, cli_path, "init"], capture_output=True, text=True)
+        self.assertEqual(res.returncode, 0)
+        session = load_session()
+        self.assertEqual(session.get("permission_mode"), "sandbox")
+        self.assertIn("permission_mode_selected_at", session)
+        self.assertEqual(session.get("permission_mode_selected_by"), "user")
+        
+        # S2: Init --permission 1 sets sandbox
+        os.remove(SESSION_FILE)
+        res = subprocess.run([sys.executable, cli_path, "init", "--permission", "1"], capture_output=True, text=True)
+        session = load_session()
+        self.assertEqual(session.get("permission_mode"), "sandbox")
+        
+        # S3: Init --permission 2 sets full_access
+        os.remove(SESSION_FILE)
+        res = subprocess.run([sys.executable, cli_path, "init", "--permission", "2"], capture_output=True, text=True)
+        session = load_session()
+        self.assertEqual(session.get("permission_mode"), "full_access")
+
+        # S3.1: Init --permission 3 with WRONG confirmation fallback to sandbox
+        os.remove(SESSION_FILE)
+        res = subprocess.run(
+            [sys.executable, cli_path, "init", "--permission", "3"],
+            input="WRONG_CONFIRM\n", capture_output=True, text=True
+        )
+        session = load_session()
+        self.assertEqual(session.get("permission_mode"), "sandbox")
+
+        # S3.2: Init --permission 3 with CORRECT confirmation sets unrestricted
+        os.remove(SESSION_FILE)
+        res = subprocess.run(
+            [sys.executable, cli_path, "init", "--permission", "3"],
+            input="CONFIRM_UNRESTRICTED\n", capture_output=True, text=True
+        )
+        session = load_session()
+        self.assertEqual(session.get("permission_mode"), "unrestricted")
+        
+        # Import helpers inside test to test logic directly
+        sys.path.append(os.path.dirname(cli_path))
+        from workflow_runtime import requires_approval, get_permission_mode
+        
+        # S4: Sandbox mode requires approval for everything
+        save_session_atomic({"permission_mode": "sandbox"})
+        self.assertEqual(get_permission_mode(), "sandbox")
+        self.assertEqual(requires_approval("normal_file_write"), True)
+        self.assertEqual(requires_approval("source_code_change"), True)
+        
+        # S5: Full access mode bypasses normal file changes
+        save_session_atomic({"permission_mode": "full_access"})
+        self.assertEqual(get_permission_mode(), "full_access")
+        self.assertEqual(requires_approval("normal_file_write"), False)
+        self.assertEqual(requires_approval("source_code_change"), False)
+        self.assertEqual(requires_approval("test_command"), False)
+        
+        # S6: Full access mode still locks release
+        self.assertEqual(requires_approval("release"), True)
+        
+        # S7: Full access mode still locks git push/commit/tag
+        self.assertEqual(requires_approval("git_push"), True)
+        self.assertEqual(requires_approval("git_commit"), True)
+        self.assertEqual(requires_approval("git_tag"), True)
+        
+        # S8: Fallback on corrupted value
+        save_session_atomic({"permission_mode": "corrupted_mode"})
+        self.assertEqual(get_permission_mode(), "sandbox")
+        self.assertEqual(requires_approval("normal_file_write"), True)
+        
+        # S9: Changing permission mode is hard-gated
+        self.assertEqual(requires_approval("permission_mode_change"), True)
+
+        # S9.1: Unrestricted mode bypasses absolutely everything
+        save_session_atomic({"permission_mode": "unrestricted"})
+        self.assertEqual(get_permission_mode(), "unrestricted")
+        self.assertEqual(requires_approval("normal_file_write"), False)
+        self.assertEqual(requires_approval("source_code_change"), False)
+        self.assertEqual(requires_approval("git_push"), False)
+        self.assertEqual(requires_approval("release"), False)
+        self.assertEqual(requires_approval("permission_mode_change"), False)
 
 if __name__ == "__main__":
     unittest.main()

@@ -25,6 +25,26 @@ aiwf install
 ```
 Lệnh này sẽ tạo thư mục `.agents/` chứa luật cấu hình `AI_RULES.md`, danh sách `skills/` và các mẫu prompts tại `templates/`.
 
+### ⚙️ Lựa chọn Workspace Permission Mode (Chế độ Phân quyền)
+Khi bắt đầu khởi chạy lệnh `/init` (hoặc `/initialize-workflow`), bạn sẽ được hỏi lựa chọn chế độ phân quyền:
+* **Sandbox Mode** (Lựa chọn 1 - Mặc định): An toàn tối đa. Agent luôn dừng lại hỏi ý kiến bạn trước khi chỉnh sửa file, sửa code, chạy build/test hoặc update memory.
+* **Full Access Mode** (Lựa chọn 2): Tiết kiệm thời gian. Agent tự động thực hiện các hành động phát triển thông thường mà không cần hỏi lại. Tuy nhiên các hành động quan trọng (git commit, git push, git tag, release, delete file lớn...) vẫn giữ nguyên cơ chế Hard-gated (phải hỏi duyệt).
+* **Unrestricted Mode** (Lựa chọn 3 - VÙNG NGUY HIỂM): Tự động hóa hoàn toàn. Bỏ qua toàn bộ chốt chặn hỏi ý kiến của tất cả mọi hành động (kể cả git push, release). Để kích hoạt, bạn bắt buộc phải nhập mã xác nhận `CONFIRM_UNRESTRICTED`.
+
+Cách chạy init kèm chế độ phân quyền bằng CLI:
+- Để chọn Sandbox:
+  ```bash
+  aiwf init --permission 1
+  ```
+- Để chọn Full Access:
+  ```bash
+  aiwf init --permission 2
+  ```
+- Để chọn Unrestricted:
+  ```bash
+  aiwf init --permission 3
+  ```
+
 ---
 
 ## 🔄 2. Quy trình làm việc hàng ngày (SDLC Workflow)

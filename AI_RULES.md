@@ -334,5 +334,27 @@ Please choose:
 
 The AI must NEVER execute the recommended Skill or modify files until the user explicitly confirms (with `Y`, `Yes`, `Proceed`, `Continue`, or the option number).
 
+---
+
+## 15. Workspace Permission Mode Policy
+
+The framework supports three workspace permission modes:
+- **sandbox** (Default): Under sandbox mode, the AI must explicitly prompt for approval before any state-changing action, including writing or modifying files, modifying source code, running build/test/lint commands, updating project memory/RAG, and publishing releases.
+- **full_access**: Under full_access mode, the AI is granted permission to perform normal workflow actions automatically without repeated prompts. This includes writing/updating specs, design blueprints, source code files, local database files, running builds/tests, and updating project memory/RAG.
+- **unrestricted**: Under unrestricted mode, the AI is granted permission to perform ALL actions automatically (including git push, tags, release, and credentials/secrets modifications) without any prompts. 
+
+**Two-Factor Confirmation Gate**: When selecting `unrestricted` mode during workspace initialization, the CLI must output a high-impact warning and require the user to explicitly type `CONFIRM_UNRESTRICTED` to proceed. If the confirmation fails, it must fallback to `sandbox` mode.
+
+**Hard-Gated Operations**: Even in `full_access` mode, the AI MUST explicitly prompt for approval before executing any of the following actions (they are bypassable ONLY in `unrestricted` mode):
+1. Version bump and editing CHANGELOG release sections.
+2. Git commits, tags, and pushing/merging branches.
+3. Destructive deletion of large files/directories.
+4. Shell commands targeting directories outside the workspace.
+5. Editing credential, config, or security secret settings.
+6. Changing the permission mode itself.
+
+If the permission mode is missing, invalid, or corrupted, the system must automatically fallback to `sandbox` mode.
+
+
 
 

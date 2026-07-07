@@ -7,9 +7,9 @@ aliases:
 category: workflow
 tags:
   - workflow
-  - status
-  - orchestrator
-version: 4.0.0
+  - lifecycle
+  - engineering
+version: 4.1.0
 author:
   name: Kyle Dang
   email: kyleit@klexpress.net
@@ -103,6 +103,7 @@ This Skill MUST strictly adhere to the global policies defined in [AI_RULES.md](
 - **Explicit Release Policy** (Section 9) - Never release automatically.
 - **Blueprint Mandatory Execution Policy** (Section 13) - Enforce Blueprint approval for implementation.
 - **Skill Suggestion Gate Policy** (Section 14) - Enforce suggestion and confirmation for raw user requests.
+- **Workspace Permission Mode Policy** (Section 15) - Sandbox mode is default; ask user to choose sandbox or full_access at init.
 
 ---
 

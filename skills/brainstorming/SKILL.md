@@ -9,7 +9,7 @@ tags:
   - requirements
   - discovery
   - brainstorming
-version: 2.5.0
+version: 2.6.0
 author:
   name: Kyle Dang
   email: kyleit@klexpress.net
@@ -109,6 +109,7 @@ This Skill MUST strictly adhere to the global policies defined in [AI_RULES.md](
 - **Artifact Policy** (Section 5) - Strictly follow path boundaries and naming formats.
 - **Testing Policy** (Section 8) - Run compilation, build, and tests, halting on failures.
 - **Skill Suggestion Gate Policy** (Section 14) - Raw requests require suggestion first; selected Skill requires confirmation.
+- **Workspace Permission Mode Policy** (Section 15) - Sandbox mode is default; ask user to choose sandbox or full_access at init.
 
 ## Multi-Agent Contract
 

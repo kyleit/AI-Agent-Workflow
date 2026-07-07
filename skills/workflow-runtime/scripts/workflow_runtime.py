@@ -28,6 +28,37 @@ def get_project_id() -> str:
             pass
     return "ai-skill-framework"
 
+def get_permission_mode() -> str:
+    session = load_session()
+    mode = session.get("permission_mode", "sandbox")
+    if mode not in ["sandbox", "full_access", "unrestricted"]:
+        return "sandbox"
+    return str(mode)
+
+def requires_approval(action_type: str) -> bool:
+    mode = get_permission_mode()
+    if mode == "unrestricted":
+        return False
+    if mode == "sandbox":
+        return True
+        
+    # Hard-gated actions that ALWAYS require approval in full_access mode
+    hard_gated = [
+        "release",
+        "git_commit",
+        "git_tag",
+        "git_push",
+        "git_merge",
+        "destructive_delete",
+        "external_command",
+        "secret_change",
+        "permission_mode_change"
+    ]
+    if action_type in hard_gated:
+        return True
+        
+    return False
+
 def update_context_health(session: dict) -> None:
     if "suggestion_gate" not in session:
         session["suggestion_gate"] = {
@@ -116,9 +147,37 @@ def do_init(args):
             "suggested_next_command": "discover",
             "context_health": "healthy"
         }
+    
+    permission_arg = getattr(args, "permission", "1")
+    if str(permission_arg) in ["3", "unrestricted"]:
+        print("\n" + "="*70)
+        print("⚠️  WARNING: DANGER ZONE - ENABLING UNRESTRICTED MODE")
+        print("This mode completely disables all confirmation gates.")
+        print("The AI will execute git push, tagging, releases, file changes, and")
+        print("credentials editing AUTOMATICALLY without prompting you.")
+        print("="*70)
+        try:
+            confirm = input("To proceed, type 'CONFIRM_UNRESTRICTED': ").strip()
+            if confirm == "CONFIRM_UNRESTRICTED":
+                mode = "unrestricted"
+            else:
+                print("Warning: Confirmation mismatch. Fallback to sandbox mode.")
+                mode = "sandbox"
+        except (EOFError, KeyboardInterrupt):
+            print("\nWarning: Input interrupted. Fallback to sandbox mode.")
+            mode = "sandbox"
+    elif str(permission_arg) in ["2", "full_access"]:
+        mode = "full_access"
+    else:
+        mode = "sandbox"
+        
+    session["permission_mode"] = mode
+    session["permission_mode_selected_at"] = datetime.now().astimezone().isoformat()
+    session["permission_mode_selected_by"] = "user"
+    
     update_context_health(session)
     save_session_atomic(session)
-    print("Session initialized.")
+    print(f"Session initialized with permission_mode={mode}.")
 
 def do_validate(args):
     session = load_session()
@@ -414,11 +473,38 @@ def do_suggest(args):
     if not args.choose:
         print(f"Suggestion gate updated (active={suggestion['active']}, status={suggestion['status']}).")
 
+def do_permission(_args: argparse.Namespace) -> None:  # type: ignore
+    mode = get_permission_mode()
+    print(f"Permission Mode: {mode}")
+    print("\nStatus of common actions:")
+    actions = [
+        "normal_file_write",
+        "source_code_change",
+        "test_command",
+        "build_command",
+        "memory_update",
+        "git_commit",
+        "git_push",
+        "git_tag",
+        "git_merge",
+        "release",
+        "destructive_delete",
+        "secret_change",
+        "permission_mode_change"
+    ]
+    for action in actions:
+        req = requires_approval(action)
+        status = "REQUIRED_APPROVAL (Hard-gated)" if req else "ALLOWED (Bypass)"
+        print(f"- {action}: {status}")
+
 def main():
     parser = argparse.ArgumentParser(description="AI Workflow Runtime Engine CLI")
     subparsers = parser.add_subparsers(dest="action", required=True)
     
-    subparsers.add_parser("init")
+    init_p = subparsers.add_parser("init")
+    init_p.add_argument("--permission", type=str, default="1")
+    
+    _perm_p = subparsers.add_parser("permission")
     
     val = subparsers.add_parser("validate")
     val.add_argument("--checkpoint", type=str)
@@ -474,7 +560,8 @@ def main():
         "heartbeat": do_heartbeat,
         "usage": do_usage,
         "blueprint": do_blueprint,
-        "suggest": do_suggest
+        "suggest": do_suggest,
+        "permission": do_permission
     }
     
     cmds[args.action](args)

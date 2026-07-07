@@ -8,7 +8,7 @@ tags:
   - runtime
   - controller
   - session
-version: 2.10.1
+version: 2.11.0
 author:
   name: Kyle Dang
   email: kyleit@klexpress.net

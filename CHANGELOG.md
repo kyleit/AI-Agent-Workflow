@@ -5,6 +5,37 @@ All notable changes to this project will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [5.1.0] - 2026-07-07
+
+### Added
+- **Unrestricted Mode (AI_RULES.md Section 15)**:
+  - Added a 3rd permission level "Unrestricted Mode" which bypasses all approval gates.
+  - Implemented a Two-Factor Confirmation Gate requiring CLI input `CONFIRM_UNRESTRICTED` to unlock.
+- **Session Durability (Recovery & Backup Strategy)**:
+  - Added automatic backup `.session.json.bak` before saving.
+  - Implemented Self-Healing in `load_session()` to automatically restore from `.bak` if the main session file is corrupted, empty, or fails JSON parsing.
+- **CLI Permission Inspection Subcommand**:
+  - Added `permission` command to `workflow_runtime.py` to print a structured layout mapping common actions to status (`ALLOWED` or `REQUIRED_APPROVAL`).
+
+### Changed
+- **Unit Tests Isolation**:
+  - Isolated test backups to `.testbackup` to avoid conflict with runtime `.bak` file recovery.
+
+## [5.0.0] - 2026-07-07
+
+### Added
+- **Workspace Permission Modes Policy (AI_RULES.md Section 15)**:
+  - Enforced Workspace Permission Modes: Sandbox Mode (default, prompts for every change) and Full Access Mode (bypasses confirmation gates for normal, non-destructive workflow tasks).
+- **CLI Permission Helpers & Arguments**:
+  - Added `get_permission_mode()` and `requires_approval(action_type)` to `workflow_runtime.py`.
+  - Added `--permission` parameter to `init` command.
+- **Permission Session Schema**:
+  - Integrated `permission_mode` fields in session schema.
+
+### Changed
+- **Workflow Skills Integration**:
+  - Updated all core workflow skills (`initialize-workflow`, `software-development-workflow`, `quick-fix`, `quick-feature`, `brainstorming`, `blueprint-to-implementation`) to query `requires_approval()` and adapt prompts dynamically.
+
 ## [4.0.0] - 2026-07-06
 
 ### Added

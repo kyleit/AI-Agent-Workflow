@@ -8,7 +8,7 @@ tags:
   - initialization
   - bootstrap
   - runtime
-version: 2.5.0
+version: 2.6.0
 author:
   name: Kyle Dang
   email: kyleit@klexpress.net
@@ -33,6 +33,7 @@ This Skill MUST strictly adhere to the global policies defined in [AI_RULES.md](
 - **RAG Policy** (Section 4) - Follow retrieval sequence levels.
 - **Artifact Policy** (Section 5) - Strictly follow path boundaries and naming formats.
 - **Testing Policy** (Section 8) - Run compilation, build, and tests, halting on failures.
+- **Workspace Permission Mode Policy** (Section 15) - Sandbox mode is default; ask user to choose sandbox or full_access at init.
 
 ## Multi-Agent Contract
 
@@ -122,11 +123,40 @@ Step 10: Build and Print Execution Summary
 - Test execution of: `git`, `python`, `node`, `go`, `docker`, `tree-sitter`, `qdrant`, `qmd`, `ollama`. Do not auto-install; only report availability.
 - Update session state: `current_step`: `"Checking environment tools..."`, append `"> Checking CLI tool versions (git, node, python...)..."` to `current_logs`.
 
-### Step 10 — Create Session State File (Finalize)
+### Step 10 — Create Session State File & Permission Selection (Finalize)
+- Prompt the user to select the Workspace Permission Mode (Sandbox Mode vs Full Access Mode vs Unrestricted Mode) during initialization:
+  ```text
+  Choose workspace permission mode:
+
+  1. Sandbox Mode
+     Safe default. Ask before every state-changing action.
+
+  2. Full Access Mode
+     Allow normal workflow file/code changes without repeated confirmation.
+     Release, git push/tag/commit, destructive commands still require approval.
+
+  3. Unrestricted Mode (DANGER ZONE)
+     Bypass all confirmation gates entirely. Git push/releases run automatically.
+     Requires entering 'CONFIRM_UNRESTRICTED' twice/as confirmation to enable.
+
+  Please choose 1, 2, or 3.
+  Default: 1
+  ```
+- Based on the user choice:
+  - If choice is `1` (or sandbox): set `permission_mode = "sandbox"`.
+  - If choice is `2` (or full_access): set `permission_mode = "full_access"`.
+  - If choice is `3` (or unrestricted):
+    - Display danger zone warning and ask for `CONFIRM_UNRESTRICTED`.
+    - If user inputs correctly: set `permission_mode = "unrestricted"`.
+    - Else: fallback to `sandbox`.
+  - Otherwise, default/fallback to `sandbox`.
 - Perform final atomic update of `.agents/.session.json` (via `.session.json.tmp` rename):
   - Set `checkpoint` to `1` (Initialization Complete).
   - Set `status` to `"completed"`.
   - Set `current_step` to `"Initialization Complete"`.
+  - Set `permission_mode` to the selected mode.
+  - Set `permission_mode_selected_at` to current ISO-8601 timestamp.
+  - Set `permission_mode_selected_by` to `"user"`.
   - Append `"> System initialization finished successfully."` to `current_logs`.
   - Update `suggested_next_skill` to `"software-development-workflow"` and `suggested_next_command` to `"workflow"`.
   - Ensure all gathered git, version, work_item, memory, and rag fields are written in their nested slots.

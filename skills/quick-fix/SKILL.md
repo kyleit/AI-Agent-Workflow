@@ -5,10 +5,10 @@ aliases:
   - bugfix
 category: utility
 tags:
-  - utility
-  - bugfix
-  - patch
-version: 3.0.0
+  - fix
+  - hotfix
+  - quick
+version: 3.1.0
 author:
   name: Kyle Dang
   email: kyleit@klexpress.net
@@ -61,6 +61,7 @@ This Skill MUST strictly adhere to the global policies defined in [AI_RULES.md](
 - **Testing Policy** (Section 8) - Run compilation, build, and tests, halting on failures.
 - **Blueprint Mandatory Execution Policy** (Section 13) - Never implement without approved Blueprint.
 - **Skill Suggestion Gate Policy** (Section 14) - Raw requests require suggestion first; selected Skill requires confirmation.
+- **Workspace Permission Mode Policy** (Section 15) - Sandbox mode is default; ask user to choose sandbox or full_access at init.
 
 ---
 
