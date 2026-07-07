@@ -56,12 +56,11 @@ def prompt_select(question: str, options: list[str], default: str | None = None)
     # In ra XML tag đặc biệt để Agent phát hiện
     print(f"\n<interactive_prompt type=\"select\">\n{json.dumps(payload, indent=2)}\n</interactive_prompt>", flush=True)
     
-    # Fallback cho terminal/human nếu IDE không tự động bắt thẻ XML
-    if sys.stdin.isatty():
-        print(f"\n[Prompt] {question}")
-        for idx, opt in enumerate(options):
-            print(f"  {idx + 1}. {opt}")
-        print(f"Select option (1-{len(options)}) [Default: {default}]: ", end="", flush=True)
+    # Luôn in ra câu hỏi và danh sách lựa chọn để hiển thị trong nhật ký/terminal
+    print(f"\n[Prompt] {question}")
+    for idx, opt in enumerate(options):
+        print(f"  {idx + 1}. {opt}")
+    print(f"Select option (1-{len(options)}) [Default: {default}]: ", end="", flush=True)
     
     try:
         # Block chờ phản hồi qua stdin
