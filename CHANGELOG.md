@@ -5,6 +5,19 @@ All notable changes to this project will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [5.1.3] - 2026-07-07
+
+### Added
+- **QUICK-007: Interactive Docs & Workflow Simulator Website**:
+  - Xây dựng một trang web tài liệu tĩnh (HTML/CSS/JS) chạy Client-side, tích hợp thông tin của 19 skills và hướng dẫn chi tiết theo 3 quy trình chính (Standard, Quick Feature, Quick Fix).
+  - Tích hợp **Interactive Workflow Simulator** mô phỏng chạy CLI và gác duyệt của 3 quy trình.
+  - Thiết kế Responsive (hỗ trợ Tablet và Mobile với Menu hamburger và sticky header).
+  - Thiết kế thanh cuộn Neon scrollbar giống hệt extension và cố định chiều cao Terminal di động là 400px với tính năng tự động cuộn xuống cuối (scroll to bottom).
+  - Thêm 2 nút liên kết kèm biểu tượng chính thức của VS Code ribbon và Puzzle piece dẫn tới 2 extension: **Visualizer (VS Code)** trên Marketplace và **Visualizer (Open VSX)** trên Open VSX Registry.
+  - Di chuyển website sang thư mục riêng `interactive-docs/` ngoài thư mục `docs/`.
+  - Tích hợp `interactive-docs/` vào quy trình xuất bản `make export` sang `public_export`.
+  - Loại trừ thư mục `screenshots` kiểm thử ra khỏi Git thông qua `.gitignore`.
+
 ## [5.1.2] - 2026-07-07
 
 ### Fixed
