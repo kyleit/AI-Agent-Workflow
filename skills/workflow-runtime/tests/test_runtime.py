@@ -6,6 +6,7 @@ import shutil
 import json
 import uuid
 import sqlite3
+import subprocess
 
 # Add scripts directory to path
 sys.path.append(os.path.join(os.path.dirname(__file__), "..", "scripts"))
@@ -492,7 +493,7 @@ class TestRuntimeEngine(unittest.TestCase):
                 
             self.assertEqual(snapshot.get("checkpoint"), 3)
             self.assertEqual(snapshot.get("current_skill"), "initialize-workflow")
-            self.assertEqual(snapshot.get("active_feature_id"), "FEAT-019")
+            self.assertEqual(snapshot.get("active_feature_id"), "FIX-014")
             self.assertIn("rollover_requested_at", snapshot)
         finally:
             if os.path.exists(snapshot_file):
@@ -699,6 +700,87 @@ class TestRuntimeEngine(unittest.TestCase):
                     pass
             elif os.path.exists(session_file):
                 os.remove(session_file)
+
+    def test_analysis_agent_lifecycle(self):
+        cli_path = os.path.join(os.path.dirname(__file__), "..", "scripts", "workflow_runtime.py")
+        session_file = SESSION_FILE
+        analysis_file = os.path.join(".agents", "runtime", "analysis-agents.json")
+        
+        # Ensure clean state
+        if os.path.exists(analysis_file):
+            try:
+                os.remove(analysis_file)
+            except Exception:
+                pass
+            
+        try:
+            # Initialize a session for testing
+            save_session_atomic({"checkpoint": 3, "active_skill": "brainstorming"})
+            
+            # 1. Add analysis agent
+            res = subprocess.run([
+                sys.executable, cli_path, "analysis-agent", "add",
+                "--agent-id", "test_ux_1",
+                "--role", "UX Specialist",
+                "--status", "running",
+                "--summary", "Checking UI layout design",
+                "--recommendations", '["Fix contrast", "Add spacing"]'
+            ], capture_output=True, text=True)
+            self.assertEqual(res.returncode, 0)
+            
+            # Verify file created
+            self.assertTrue(os.path.exists(analysis_file))
+            with open(analysis_file, "r", encoding="utf-8") as f:
+                data = json.load(f)
+            self.assertEqual(len(data["agents"]), 1)
+            self.assertEqual(data["agents"][0]["agent_id"], "test_ux_1")
+            self.assertEqual(data["agents"][0]["role"], "UX Specialist")
+            self.assertEqual(data["agents"][0]["recommendations"], ["Fix contrast", "Add spacing"])
+            
+            # Verify sync to session
+            session = load_session()
+            self.assertEqual(len(session.get("analysis_agents", [])), 1)
+            self.assertEqual(session["analysis_agents"][0]["agent_id"], "test_ux_1")
+            
+            # 2. Add another agent
+            res = subprocess.run([
+                sys.executable, cli_path, "analysis-agent", "add",
+                "--agent-id", "test_sec_2",
+                "--role", "Security Specialist",
+                "--status", "completed",
+                "--summary", "Verifying token leakage",
+                "--recommendations", '["Secure localStorage"]'
+            ], capture_output=True, text=True)
+            self.assertEqual(res.returncode, 0)
+            
+            # 3. Merge agents
+            res = subprocess.run([
+                sys.executable, cli_path, "analysis-agent", "merge"
+            ], capture_output=True, text=True)
+            self.assertEqual(res.returncode, 0)
+            self.assertIn("UX Specialist", res.stdout)
+            self.assertIn("Security Specialist", res.stdout)
+            self.assertIn("[UX Specialist] Fix contrast", res.stdout)
+            
+            # 4. Clear agents
+            res = subprocess.run([
+                sys.executable, cli_path, "analysis-agent", "clear"
+            ], capture_output=True, text=True)
+            self.assertEqual(res.returncode, 0)
+            with open(analysis_file, "r", encoding="utf-8") as f:
+                data = json.load(f)
+            self.assertEqual(len(data["agents"]), 0)
+            
+            # Verify session also cleared
+            session = load_session()
+            self.assertEqual(len(session.get("analysis_agents", [])), 0)
+            
+        finally:
+            if os.path.exists(analysis_file):
+                try:
+                    os.remove(analysis_file)
+                except Exception:
+                    pass
 
 
 if __name__ == "__main__":

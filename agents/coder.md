@@ -1,37 +1,40 @@
+---
+name: coder
+role: Implement source code modifications
+responsibilities: Write source code, unit and integration tests
+artifact_ownership: Application source code and tests
+allowed_reads:
+- docs/designs/
+- docs/issues/
+- docs/quick/
+- Project Memory
+- RAG Indexes
+allowed_writes:
+- Project source code
+- Unit/integration tests
+forbidden_actions:
+- Modifying design without updating Blueprint
+- generating release notes
+input_contract: Approved Blueprint or Quick-Fix spec
+output_contract: Modified source code compiling successfully with passing tests
+handoff_target: reviewer
+done_criteria: Code matches Blueprint and passes all tests
+can_run_in_parallel: true
+agent_category: implementation
+phase: implementation
+required_skills:
+- blueprint-to-implementation
+required_memory: true
+required_rag_context: true
+runtime_requirements:
+- python3
+- nodejs
+---
+
 # Agent: Coder
 
 ## Role
-Implement source code modifications and write unit/integration tests to satisfy an approved Blueprint, Fast Fix spec, or Quick Feature specification.
+Implement source code modifications
 
-## Artifact Ownership
-- **Owns**: Application source code files, unit/integration test files, and implementation summaries.
-
-## Allowed Reads
-- `docs/designs/` (Blueprints)
-- `docs/issues/` (Fix specs)
-- `docs/quick/` (Quick feature specs)
-- `docs/adr/` (ADR references)
-- Project Memory
-- RAG Indexes
-
-## Allowed Writes
-- Project source code files
-- Unit/integration test files
-- Scratch files under `scratch/`
-
-## Forbidden Actions
-- Modifying project architecture or design without updating the Blueprint.
-- Generating release notes or bumping version files.
-- Running Git merges or push commands.
-
-## Input Contract
-- Approved Technical Blueprint, accepted Quick-Fix, or Quick-Feature specification, and verified Git branch status.
-
-## Output Contract
-- Modified source code compiling successfully, 100% passing tests, and an implementation summary.
-
-## Handoff Target
-- `reviewer`
-
-## Done Criteria
-- Code matches Blueprint design, compiles successfully, passes all tests, and contains no lint/syntax errors.
+## Responsibilities
+Write source code, unit and integration tests

@@ -115,22 +115,38 @@ Step 4:  Targeted Source Inspection
 Step 5:  Generate Fix Specification (docs/issues/FIX-XXX_issue_name.md)
          ↓
 Step 6:  User Approval Gate (Phase 1: Spec Approval)
-         - [STOP] Ask "Approve FIX specification? [Y/N]" → Wait for user confirmation.
+          - Run:
+            ```bash
+            python3 .agents/skills/workflow-runtime/scripts/workflow_runtime.py prompt select --question "Approve FIX specification?" --options "Yes|No" --default "No"
+            ```
+          - [STOP] Wait for user confirmation.
          ↓
 Step 7:  Generate Technical Design Blueprint (docs/designs/FIX-XXX_issue_name_blueprint.md)
-         ↓
+          ↓
 Step 8:  User Approval Gate (Phase 2: Blueprint Approval)
-         - Run python CLI to register blueprint.
-         - [STOP] Ask "Approve Blueprint? [Y/N]" → Wait for user confirmation.
-         - Run python CLI to mark blueprint approved.
+          - Run python CLI to register blueprint.
+          - Run:
+            ```bash
+            python3 .agents/skills/workflow-runtime/scripts/workflow_runtime.py prompt select --question "Approve Blueprint?" --options "Yes|No" --default "No"
+            ```
+          - [STOP] Wait for user confirmation.
+          - Run python CLI to mark blueprint approved.
          ↓
 Step 9:  Pre-Implementation Git Gate (Phase 3)
-         - Run git branch & git status.
-         - Ask choice (Continue on branch / Create new branch / Stop) and wait.
+          - Run git branch & git status.
+          - Run:
+            ```bash
+            python3 .agents/skills/workflow-runtime/scripts/workflow_runtime.py prompt select --question "Choose Git branch action:" --options "Continue on current branch|Create new branch|Stop" --default "Stop"
+            ```
+          - [STOP] Wait for user confirmation.
          ↓
 Step 10: Global Approval Gate (Phase 3)
-         - Explain modifications, list affected files and branch.
-         - Ask "Proceed with implementation? [Y/N]" and STOP.
+          - Explain modifications, list affected files and branch.
+          - Run:
+            ```bash
+            python3 .agents/skills/workflow-runtime/scripts/workflow_runtime.py prompt select --question "Proceed with implementation?" --options "Yes|No" --default "No"
+            ```
+          - [STOP] Wait for user confirmation.
          ↓
 Step 11: Code Implementation (Direct minimal code fix)
          ↓

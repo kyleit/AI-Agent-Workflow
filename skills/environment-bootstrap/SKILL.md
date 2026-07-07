@@ -350,7 +350,8 @@ If missing:
 Docker is not installed.
 Docker enables running Qdrant (vector database) for semantic search.
 
-Install Docker? [y/N]
+```bash
+python3 .agents/skills/workflow-runtime/scripts/workflow_runtime.py prompt select --question "Install Docker?" --options "Yes|No" --default "No"
 ```
 
 If `y`:
@@ -369,7 +370,8 @@ If Docker is installed but not running:
 ```
 Docker is installed but the daemon is not running.
 
-Start Docker? [y/N]
+```bash
+python3 .agents/skills/workflow-runtime/scripts/workflow_runtime.py prompt select --question "Start Docker?" --options "Yes|No" --default "No"
 ```
 
 If `y`:
@@ -397,7 +399,8 @@ If not running and Docker is available:
 Qdrant vector database is not running.
 Qdrant enables semantic search via project-rag-search.
 
-Start Qdrant using Docker? [y/N]
+```bash
+python3 .agents/skills/workflow-runtime/scripts/workflow_runtime.py prompt select --question "Start Qdrant using Docker?" --options "Yes|No" --default "No"
 ```
 
 If `y`:
@@ -427,7 +430,8 @@ If collection missing:
 ```
 Collection "[name]" does not exist in Qdrant.
 
-Create collection? [y/N]
+```bash
+python3 .agents/skills/workflow-runtime/scripts/workflow_runtime.py prompt select --question "Create collection?" --options "Yes|No" --default "No"
 ```
 
 ---
@@ -458,28 +462,10 @@ Check all providers. If NONE detected:
 ```
 No embedding provider is configured.
 Embedding providers are used for semantic search.
+```
 
-Options:
-
-1. Ollama (local, free, private):
-   Install Ollama? [y/N]
-   → Downloads binary (~50MB) + embedding model (~300MB)
-
-2. OpenAI (cloud, paid):
-   Set OPENAI_API_KEY environment variable.
-   → No installation needed.
-
-3. Google Gemini (cloud, has free tier):
-   Set GEMINI_API_KEY environment variable.
-   → No installation needed.
-
-4. Anthropic Claude (cloud, developer API):
-   Set ANTHROPIC_API_KEY environment variable.
-   → No installation needed.
-
-4. Sentence Transformers (local Python):
-   Install? [y/N]
-   → pip install sentence-transformers (~500MB)
+```bash
+python3 .agents/skills/workflow-runtime/scripts/workflow_runtime.py prompt select --question "Choose embedding provider to configure/install:" --options "Ollama (local, free)|Sentence Transformers (local Python)|OpenAI (cloud, paid)|Google Gemini (cloud)|Anthropic Claude (cloud)|None" --default "None"
 ```
 
 **Ollama installation (if user confirms):**
@@ -487,7 +473,8 @@ Options:
 Installing Ollama and embedding model.
 This will download approximately 350MB.
 
-Proceed? [y/N]
+```bash
+python3 .agents/skills/workflow-runtime/scripts/workflow_runtime.py prompt select --question "Proceed with Ollama installation?" --options "Yes|No" --default "No"
 ```
 
 If `y`:
@@ -522,7 +509,8 @@ If `.agents/` does not exist:
 ```
 .agents/ directory not found.
 
-Create project AI configuration directory? [y/N]
+```bash
+python3 .agents/skills/workflow-runtime/scripts/workflow_runtime.py prompt select --question "Create project AI configuration directory?" --options "Yes|No" --default "No"
 ```
 
 If `y`:
@@ -534,15 +522,15 @@ echo "Created: .agents/skills/"
 echo "Created: .agents/memory/"
 ```
 
----
-
 #### Step 4.2 — Initialize Memory Configuration
 
 If `.agents/memory.config.json` does not exist:
 ```
 Project Memory configuration not found.
 
-Initialize .agents/memory.config.json? [y/N]
+```bash
+python3 .agents/skills/workflow-runtime/scripts/workflow_runtime.py prompt select --question "Initialize .agents/memory.config.json?" --options "Yes|No" --default "No"
+```
 
 This will create:
 {
@@ -578,7 +566,8 @@ If exists but fields are invalid/missing, print specific field errors:
   ❌ project_id: missing
   ❌ memory_root: missing
 
-Repair configuration? [y/N]
+```bash
+python3 .agents/skills/workflow-runtime/scripts/workflow_runtime.py prompt select --question "Repair configuration?" --options "Yes|No" --default "No"
 ```
 
 ---

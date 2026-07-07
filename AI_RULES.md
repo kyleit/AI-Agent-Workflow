@@ -405,4 +405,13 @@ To ensure centralized decision making, task isolation, and secure parallel execu
 9. **Allowed Execution Modes**: Supported implementation modes are Parallel and Sequential. If Parallel is chosen, the Orchestrator runs concurrent workers for task groups with non-overlapping write sets. If Sequential is chosen, tasks are run one-by-one according to topological order.
 10. **Choice Gate Stop**: If the user does not select a mode when prompted at the implementation start (1. Parallel, 2. Sequential, 3. Re-split, 4. Cancel), execution must stop immediately without modifying any workspace files.
 
+---
 
+## 20. Multi-Agent Analysis Policy
+
+To support deep engineering research, architecture reviews, and validation while keeping workspace mutations safe:
+1. **Multi-Agent Analysis Availability**: Every workflow phase (discovery, brainstorming, planning, blueprint generation, design, verification, and release) may dispatch temporary analysis agents or sub-agents for research, validation, auditing, and review purposes.
+2. **Analysis-Only Scope (Read-Only)**: Analysis agents are strictly read-only. They are permitted to inspect project memory, vector RAG database, blueprints, plans, source files, configuration, logs, and git status.
+3. **No Code Modification**: Analysis agents must never modify any source code files, update session or runtime state, create git commits/tags, perform releases, or edit final canonical workflow documents.
+4. **Structured Recommendations**: Analysis agents return only structured recommendations and summaries. Only the owning phase agent (e.g., the planner during planning, the architect during blueprinting) is authorized to compile and output the final canonical workflow artifact (e.g., the plan, the design blueprint, the verification report).
+5. **Lifespan Boundaries**: All analysis agents are temporary. Their metadata, status, and recommendations are tracked in `analysis-agents.json` and synchronized with the visualizer, and they must be automatically cleaned up upon phase completion.

@@ -1,35 +1,37 @@
+---
+name: reviewer
+role: Inspect source code and test logs
+responsibilities: Perform quality audits before release
+artifact_ownership: Code review reports
+allowed_reads:
+- Project source code
+- Test run logs
+- docs/designs/
+allowed_writes:
+- Review reports
+forbidden_actions:
+- Modifying version files
+- performing git merges
+input_contract: Modified source code diffs and passing test logs
+output_contract: Code review report
+handoff_target: release-manager
+done_criteria: Certified implementation as ready for release
+can_run_in_parallel: false
+agent_category: verification
+phase: debug
+required_skills:
+- implementation-to-debug
+- debug-to-verify
+required_memory: true
+required_rag_context: true
+runtime_requirements:
+- python3
+---
+
 # Agent: Reviewer
 
 ## Role
-Inspect modified source code, test execution logs, and architecture alignment to perform quality audits before releasing a feature or fix.
+Inspect source code and test logs
 
-## Artifact Ownership
-- **Owns**: Code review reports and small fix suggestions.
-
-## Allowed Reads
-- Project source code files and diffs
-- Test run logs and outputs
-- `docs/designs/` (Blueprints)
-- `docs/issues/` (Fix specs)
-- `docs/quick/` (Quick feature specs)
-
-## Allowed Writes
-- Review reports and feedback markdown files
-- Small code fix suggestions (within review feedback)
-
-## Forbidden Actions
-- Modifying project version configs or `CHANGELOG.md`.
-- Performing Git merges, commits, tags, or pushes.
-- Introducing large architectural changes.
-
-## Input Contract
-- Diffs of modified source code, passing test logs, and the implementation design specification.
-
-## Output Contract
-- Code review feedback report detailing code quality, security checks, and test coverage findings.
-
-## Handoff Target
-- `release-manager`
-
-## Done Criteria
-- Code review is completed, any blocking issues are resolved by the coder, and the implementation is certified as ready for release.
+## Responsibilities
+Perform quality audits before release

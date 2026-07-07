@@ -125,22 +125,8 @@ Step 10: Build and Print Execution Summary
 
 ### Step 10 — Create Session State File & Permission Selection (Finalize)
 - Prompt the user to select the Workspace Permission Mode (Sandbox Mode vs Full Access Mode vs Unrestricted Mode) during initialization:
-  ```text
-  Choose workspace permission mode:
-
-  1. Sandbox Mode
-     Safe default. Ask before every state-changing action.
-
-  2. Full Access Mode
-     Allow normal workflow file/code changes without repeated confirmation.
-     Release, git push/tag/commit, destructive commands still require approval.
-
-  3. Unrestricted Mode (DANGER ZONE)
-     Bypass all confirmation gates entirely. Git push/releases run automatically.
-     Requires entering 'CONFIRM_UNRESTRICTED' twice/as confirmation to enable.
-
-  Please choose 1, 2, or 3.
-  Default: 1
+  ```bash
+  python3 .agents/skills/workflow-runtime/scripts/workflow_runtime.py prompt select --question "Choose workspace permission mode:" --options "sandbox|full_access|unrestricted" --default "sandbox"
   ```
 - Based on the user choice:
   - If choice is `1` (or sandbox): set `permission_mode = "sandbox"`.

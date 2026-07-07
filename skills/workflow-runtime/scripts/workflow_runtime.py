@@ -288,6 +288,17 @@ def do_complete(args):
     
     update_context_health(session)
     save_session_atomic(session)
+    
+    # Clean temporary analysis agents
+    analysis_file = os.path.join(".agents", "runtime", "analysis-agents.json")
+    if os.path.exists(analysis_file):
+        try:
+            os.remove(analysis_file)
+        except Exception:
+            pass
+    # Sync session to clear analysis_agents list
+    sync_analysis_agents_to_session()
+    
     print("Step completed.")
 
 def do_fail(args):
@@ -506,6 +517,28 @@ def do_suggest(args):
                 print(f"Error: Invalid choice {choice}.", file=sys.stderr)
                 sys.exit(1)
                 
+    if not args.choose and suggestion["active"]:
+        from utils import prompt_select
+        if suggestion.get("options"):
+            opts = suggestion["options"]
+            default_opt = suggestion.get("recommended_skill")
+            if default_opt not in opts:
+                default_opt = opts[0]
+            choice = prompt_select(f"Which workflow/skill should be used for request '{suggestion['raw_request']}'?", opts, default=default_opt)
+            suggestion["recommended_skill"] = choice
+            suggestion["status"] = "confirmed"
+            suggestion["active"] = False
+            print(f"Option selected: {choice}")
+        elif suggestion.get("recommended_skill"):
+            opts = ["Yes", "No"]
+            choice = prompt_select(f"Confirm using skill '{suggestion['recommended_skill']}' for request '{suggestion['raw_request']}'?", opts, default="Yes")
+            if choice == "Yes":
+                suggestion["status"] = "confirmed"
+            else:
+                suggestion["status"] = "rejected"
+            suggestion["active"] = False
+            print(f"Suggestion {suggestion['status']}.")
+
     session["suggestion_gate"] = suggestion
     update_context_health(session)
     save_session_atomic(session)
@@ -956,7 +989,126 @@ Reason
 """
         print(summary_text)
 
-    sync_execution_state_to_session()
+        sync_execution_state_to_session()
+
+def sync_analysis_agents_to_session() -> None:
+    session = load_session()
+    analysis_file = os.path.join(".agents", "runtime", "analysis-agents.json")
+    if os.path.exists(analysis_file):
+        try:
+            with open(analysis_file, "r", encoding="utf-8") as f:
+                data = json.load(f)
+            session["analysis_agents"] = data.get("agents", [])
+        except Exception:
+            session["analysis_agents"] = []
+    else:
+        session["analysis_agents"] = []
+    save_session_atomic(session)
+
+def do_analysis_agent(args) -> None:
+    analysis_file = os.path.join(".agents", "runtime", "analysis-agents.json")
+    os.makedirs(os.path.dirname(analysis_file), exist_ok=True)
+    
+    data = {"phase": "unknown", "agents": []}
+    if os.path.exists(analysis_file):
+        try:
+            with open(analysis_file, "r", encoding="utf-8") as f:
+                data = json.load(f)
+        except Exception:
+            pass
+            
+    session = load_session()
+    current_skill = session.get("active_skill", "unknown")
+    data["phase"] = current_skill
+
+    if args.subaction == "add":
+        if not args.agent_id or not args.role:
+            print("Error: --agent-id and --role are required.", file=sys.stderr)
+            sys.exit(1)
+        
+        recs = []
+        if args.recommendations:
+            try:
+                recs = json.loads(args.recommendations)
+                if not isinstance(recs, list):
+                    recs = [recs]
+            except Exception:
+                recs = [args.recommendations]
+
+        existing_agent = None
+        for a in data["agents"]:
+            if a["agent_id"] == args.agent_id:
+                existing_agent = a
+                break
+        
+        if existing_agent:
+            existing_agent["role"] = args.role
+            existing_agent["status"] = args.status or "completed"
+            existing_agent["summary"] = args.summary or ""
+            existing_agent["recommendations"] = recs
+        else:
+            data["agents"].append({
+                "agent_id": args.agent_id,
+                "role": args.role,
+                "status": args.status or "running",
+                "summary": args.summary or "",
+                "recommendations": recs
+            })
+            
+        with open(analysis_file, "w", encoding="utf-8") as f:
+            json.dump(data, f, indent=2, ensure_ascii=False)
+        print(f"Analysis agent {args.agent_id} ({args.role}) added/updated.")
+        
+    elif args.subaction == "list":
+        print(json.dumps(data, indent=2, ensure_ascii=False))
+        
+    elif args.subaction == "clear":
+        data["agents"] = []
+        with open(analysis_file, "w", encoding="utf-8") as f:
+            json.dump(data, f, indent=2, ensure_ascii=False)
+        print("Analysis agents cleared.")
+        
+    elif args.subaction == "merge":
+        print("Merging recommendations from analysis agents:")
+        all_recs = []
+        for a in data["agents"]:
+            print(f"- Agent {a['agent_id']} ({a['role']}): {a.get('summary')}")
+            for r in a.get("recommendations", []):
+                all_recs.append(f"[{a['role']}] {r}")
+        print("Merged recommendations:")
+        for idx, r in enumerate(all_recs):
+            print(f"{idx+1}. {r}")
+            
+    sync_analysis_agents_to_session()
+
+def do_routing(args) -> None:
+    from agent_routing import load_routing_table, validate_routing
+    manifest_path = "MANIFEST.json"
+    agents_dir = "agents"
+    
+    if args.subaction == "list":
+        table = load_routing_table(manifest_path)
+        print("| Skill | Owner | Specialist Agents | Phase | Execution Mode |")
+        print("|---|---|---|---|---|")
+        for skill_name, info in sorted(table.items()):
+            specs = ", ".join(info["specialist_agents"])
+            print(f"| {skill_name} | {info['owner_agent']} | {specs} | {info['phase']} | {info['execution_mode']} |")
+            
+    elif args.subaction == "validate":
+        errors = validate_routing(manifest_path, agents_dir)
+        if errors:
+            print("Routing validation failed with errors:")
+            for err in errors:
+                print(f"❌ {err}", file=sys.stderr)
+            sys.exit(1)
+        else:
+            print("✔ Routing validation passed successfully.")
+
+def do_prompt(args) -> None:
+    from utils import prompt_select
+    options_list = [o.strip() for o in args.options.split("|")]
+    res = prompt_select(args.question, options_list, args.default)
+    print(res)
 
 
 def main():
@@ -1035,6 +1187,24 @@ def main():
     _ = exec_p.add_argument("--reason", type=str)
     _ = exec_p.add_argument("--approve", action="store_true")
     
+    analysis_p = subparsers.add_parser("analysis-agent")
+    _ = analysis_p.add_argument("subaction", choices=["add", "list", "clear", "merge"])
+    _ = analysis_p.add_argument("--agent-id", type=str)
+    _ = analysis_p.add_argument("--role", type=str)
+    _ = analysis_p.add_argument("--status", type=str)
+    _ = analysis_p.add_argument("--summary", type=str)
+    _ = analysis_p.add_argument("--recommendations", type=str)
+    
+    routing_p = subparsers.add_parser("routing")
+    _ = routing_p.add_argument("subaction", choices=["list", "validate"])
+    
+    prompt_p = subparsers.add_parser("prompt")
+    prompt_sub = prompt_p.add_subparsers(dest="subaction", required=True)
+    select_p = prompt_sub.add_parser("select")
+    _ = select_p.add_argument("--question", required=True, type=str)
+    _ = select_p.add_argument("--options", required=True, type=str)
+    _ = select_p.add_argument("--default", type=str, default=None)
+    
     args = parser.parse_args()
     
     cmds = {
@@ -1055,10 +1225,13 @@ def main():
         "dependency": do_dependency,
         "merge": do_merge,
         "conflict": do_conflict,
-        "execution": do_execution
+        "execution": do_execution,
+        "analysis-agent": do_analysis_agent,
+        "routing": do_routing,
+        "prompt": do_prompt
     }
     
-    modifying_actions = ["init", "start", "step", "complete", "fail", "blueprint", "suggest", "compact", "task", "execution"]
+    modifying_actions = ["init", "start", "step", "complete", "fail", "blueprint", "suggest", "compact", "task", "execution", "analysis-agent"]
     if args.action in modifying_actions:
         with SessionLock():
             cmds[args.action](args)
