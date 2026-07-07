@@ -41,7 +41,15 @@
         "setup",
         "bootstrap",
         "environment"
-      ]
+      ],
+      "owner_agent": "release-manager",
+      "specialist_agents": [
+        "setup-specialist",
+        "infrastructure-developer",
+        "devops-developer"
+      ],
+      "phase": "environment",
+      "execution_mode": "sequential"
     },
     {
       "name": "environment-health",
@@ -55,7 +63,14 @@
         "diagnostics",
         "health",
         "system"
-      ]
+      ],
+      "owner_agent": "reviewer",
+      "specialist_agents": [
+        "diagnostics-specialist",
+        "performance-planner"
+      ],
+      "phase": "environment",
+      "execution_mode": "sequential"
     },
     {
       "name": "project-memory-bootstrap",
@@ -68,7 +83,14 @@
         "memory",
         "bootstrap",
         "initialization"
-      ]
+      ],
+      "owner_agent": "planner",
+      "specialist_agents": [
+        "memory-specialist",
+        "memory-analyst"
+      ],
+      "phase": "memory",
+      "execution_mode": "sequential"
     },
     {
       "name": "project-memory-update",
@@ -82,7 +104,14 @@
         "memory",
         "synchronization",
         "update"
-      ]
+      ],
+      "owner_agent": "planner",
+      "specialist_agents": [
+        "memory-specialist",
+        "memory-analyst"
+      ],
+      "phase": "memory",
+      "execution_mode": "sequential"
     },
     {
       "name": "project-rag-search",
@@ -96,7 +125,14 @@
         "search",
         "rag",
         "retrieval"
-      ]
+      ],
+      "owner_agent": "planner",
+      "specialist_agents": [
+        "search-specialist",
+        "rag-analyst"
+      ],
+      "phase": "memory",
+      "execution_mode": "sequential"
     },
     {
       "name": "brainstorming",
@@ -110,7 +146,16 @@
         "requirements",
         "discovery",
         "brainstorming"
-      ]
+      ],
+      "owner_agent": "planner",
+      "specialist_agents": [
+        "product-analyst",
+        "business-analyst",
+        "requirement-analyst",
+        "research-agent"
+      ],
+      "phase": "brainstorming",
+      "execution_mode": "sequential"
     },
     {
       "name": "brainstorming-to-plan",
@@ -124,7 +169,16 @@
         "planning",
         "workflow",
         "scoping"
-      ]
+      ],
+      "owner_agent": "planner",
+      "specialist_agents": [
+        "dependency-analyst",
+        "risk-analyst",
+        "security-planner",
+        "test-planner"
+      ],
+      "phase": "planning",
+      "execution_mode": "sequential"
     },
     {
       "name": "plan-to-blueprint",
@@ -138,7 +192,18 @@
         "blueprint",
         "design",
         "architecture"
-      ]
+      ],
+      "owner_agent": "architect",
+      "specialist_agents": [
+        "backend-architect",
+        "api-architect",
+        "frontend-architect",
+        "database-architect",
+        "infrastructure-architect",
+        "security-architect"
+      ],
+      "phase": "blueprint",
+      "execution_mode": "sequential"
     },
     {
       "name": "create-adr",
@@ -151,7 +216,14 @@
         "adr",
         "architecture",
         "decision"
-      ]
+      ],
+      "owner_agent": "architect",
+      "specialist_agents": [
+        "database-architect",
+        "security-architect"
+      ],
+      "phase": "blueprint",
+      "execution_mode": "sequential"
     },
     {
       "name": "blueprint-to-implementation",
@@ -165,7 +237,17 @@
         "implementation",
         "code",
         "generation"
-      ]
+      ],
+      "owner_agent": "coder",
+      "specialist_agents": [
+        "backend-developer",
+        "frontend-developer",
+        "database-developer",
+        "test-developer",
+        "migration-developer"
+      ],
+      "phase": "implementation",
+      "execution_mode": "parallel"
     },
     {
       "name": "frontend-design",
@@ -179,7 +261,14 @@
         "ui",
         "design",
         "ux"
-      ]
+      ],
+      "owner_agent": "coder",
+      "specialist_agents": [
+        "frontend-architect",
+        "ux-designer"
+      ],
+      "phase": "implementation",
+      "execution_mode": "parallel"
     },
     {
       "name": "implementation-to-debug",
@@ -193,7 +282,18 @@
         "debug",
         "testing",
         "verification"
-      ]
+      ],
+      "owner_agent": "reviewer",
+      "specialist_agents": [
+        "qa-reviewer",
+        "code-reviewer",
+        "security-reviewer",
+        "performance-reviewer",
+        "accessibility-reviewer",
+        "architecture-reviewer"
+      ],
+      "phase": "debug",
+      "execution_mode": "sequential"
     },
     {
       "name": "debug-to-verify",
@@ -207,7 +307,13 @@
         "verification",
         "quality",
         "compliance"
-      ]
+      ],
+      "owner_agent": "reviewer",
+      "specialist_agents": [
+        "compliance-auditor"
+      ],
+      "phase": "verification",
+      "execution_mode": "sequential"
     },
     {
       "name": "implementation-to-release",
@@ -221,7 +327,17 @@
         "release",
         "versioning",
         "publish"
-      ]
+      ],
+      "owner_agent": "release-manager",
+      "specialist_agents": [
+        "changelog-manager",
+        "version-manager",
+        "release-validator",
+        "package-builder",
+        "publisher"
+      ],
+      "phase": "release",
+      "execution_mode": "sequential"
     },
     {
       "name": "software-development-workflow",
@@ -235,7 +351,13 @@
         "workflow",
         "status",
         "orchestrator"
-      ]
+      ],
+      "owner_agent": "release-manager",
+      "specialist_agents": [
+        "workflow-auditor"
+      ],
+      "phase": "release",
+      "execution_mode": "sequential"
     },
     {
       "name": "quick-fix",
@@ -248,7 +370,13 @@
         "utility",
         "bugfix",
         "patch"
-      ]
+      ],
+      "owner_agent": "coder",
+      "specialist_agents": [
+        "bug-analyst"
+      ],
+      "phase": "debug",
+      "execution_mode": "sequential"
     },
     {
       "name": "quick-feature",
@@ -261,7 +389,14 @@
         "utility",
         "feature",
         "scaffolding"
-      ]
+      ],
+      "owner_agent": "coder",
+      "specialist_agents": [
+        "product-analyst",
+        "documentation-writer"
+      ],
+      "phase": "implementation",
+      "execution_mode": "sequential"
     },
     {
       "name": "initialize-workflow",
@@ -274,7 +409,13 @@
         "initialization",
         "bootstrap",
         "runtime"
-      ]
+      ],
+      "owner_agent": "release-manager",
+      "specialist_agents": [
+        "workflow-auditor"
+      ],
+      "phase": "environment",
+      "execution_mode": "sequential"
     },
     {
       "name": "resume-workflow",
@@ -287,7 +428,13 @@
         "resume",
         "recovery",
         "runtime"
-      ]
+      ],
+      "owner_agent": "release-manager",
+      "specialist_agents": [
+        "workflow-auditor"
+      ],
+      "phase": "environment",
+      "execution_mode": "sequential"
     },
     {
       "name": "workflow-runtime",
@@ -300,7 +447,13 @@
         "runtime",
         "controller",
         "session"
-      ]
+      ],
+      "owner_agent": "release-manager",
+      "specialist_agents": [
+        "runtime-specialist"
+      ],
+      "phase": "environment",
+      "execution_mode": "sequential"
     },
     {
       "name": "frontend-visual-debug",
@@ -324,7 +477,13 @@
       ],
       "next": [
         "debug-to-verify"
-      ]
+      ],
+      "owner_agent": "reviewer",
+      "specialist_agents": [
+        "visual-qa"
+      ],
+      "phase": "debug",
+      "execution_mode": "sequential"
     },
     {
       "name": "project-discovery",
@@ -340,7 +499,13 @@
         "workflow",
         "profile",
         "discovery"
-      ]
+      ],
+      "owner_agent": "planner",
+      "specialist_agents": [
+        "tech-analyst"
+      ],
+      "phase": "environment",
+      "execution_mode": "sequential"
     },
     {
       "name": "orchestrator",
@@ -357,7 +522,13 @@
         "parallel",
         "multi-agent",
         "runtime"
-      ]
+      ],
+      "owner_agent": "release-manager",
+      "specialist_agents": [
+        "workflow-auditor"
+      ],
+      "phase": "orchestration",
+      "execution_mode": "sequential"
     }
   ],
   "templates": [

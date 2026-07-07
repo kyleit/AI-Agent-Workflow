@@ -436,6 +436,83 @@ const simStepsData = {
         { type: "warn", text: "Confirm release version 5.1.3 & push to GitLab/GitHub? [Y/N]" }
       ]
     }
+  ],
+  orchestrated: [
+    {
+      title: "Khởi tạo (Initialize)",
+      cli: "python skills/workflow-runtime/scripts/workflow_runtime.py init --permission 1",
+      agentAction: "Khởi tạo phiên làm việc với phân quyền Sandbox.",
+      gate: "proceed",
+      terminal: [
+        { type: "prompt", text: "$ python skills/workflow-runtime/scripts/workflow_runtime.py init --permission 1" },
+        { type: "success", text: "Session initialized with permission_mode=sandbox." }
+      ]
+    },
+    {
+      title: "Khảo sát ý tưởng (Brainstorm)",
+      cli: "python skills/workflow-runtime/scripts/workflow_runtime.py start --skill \"brainstorming\" --command \"brainstorm\" --checkpoint 3 --step \"Orchestrating Brainstorming\"",
+      agentAction: "Khởi tạo pha Brainstorming. Điều phối 2 Agent phân tích (UX Analyst và Security Analyst) chạy song song thu thập ý kiến trước khi tổng hợp tài liệu đặc tả.",
+      gate: "proceed",
+      terminal: [
+        { type: "prompt", text: "$ python skills/workflow-runtime/scripts/workflow_runtime.py start --skill \"brainstorming\" --command \"brainstorm\" --checkpoint 3 --step \"Orchestrating Brainstorming\"" },
+        { type: "output", text: "Spawning Read-Only Analysis Agents: [UX_Analyst, Security_Analyst]" },
+        { type: "success", text: "UX_Analyst completed: UX recommendations added." },
+        { type: "success", text: "Security_Analyst completed: Security recommendations added." },
+        { type: "output", text: "Generating canonical brainstorming specification docs/brainstorming/FEAT-020_multi_agent_analysis.md." }
+      ]
+    },
+    {
+      title: "Lập kế hoạch (Planning)",
+      cli: "python skills/workflow-runtime/scripts/workflow_runtime.py start --skill \"brainstorming-to-plan\" --command \"plan\" --checkpoint 4 --step \"Creating plan with Architect Agent\"",
+      agentAction: "Khởi tạo pha lập kế hoạch. Triển khai Agent Architect phân tích rủi ro và các tệp tin liên quan trước khi ghi nhận Kế hoạch thực hiện.",
+      gate: "approval",
+      gateText: "Approve Implementation Plan for FEAT-020? [Y/N]",
+      terminal: [
+        { type: "prompt", text: "$ python skills/workflow-runtime/scripts/workflow_runtime.py start --skill \"brainstorming-to-plan\" --command \"plan\" --checkpoint 4 --step \"Creating plan with Architect Agent\"" },
+        { type: "output", text: "Spawning Read-Only Analysis Agent: [Architect_Agent]" },
+        { type: "success", text: "Architect_Agent completed: Risk assessment & lock verification done." },
+        { type: "output", text: "Creating docs/plans/FEAT-020_multi_agent_analysis_plan.md." },
+        { type: "warn", text: "Approve Implementation Plan for FEAT-020? [Y/N]" }
+      ]
+    },
+    {
+      title: "Thiết kế kỹ thuật (Blueprint)",
+      cli: "python skills/workflow-runtime/scripts/workflow_runtime.py start --skill \"plan-to-blueprint\" --command \"blueprint\" --checkpoint 5 --step \"Drafting blueprint\" && python skills/workflow-runtime/scripts/workflow_runtime.py blueprint --path docs/designs/FEAT-020_multi_agent_analysis_blueprint.md",
+      agentAction: "Tạo Thiết kế kỹ thuật chi tiết. Đăng ký blueprint lên CLI.",
+      gate: "approval",
+      gateText: "Approve Blueprint docs/designs/FEAT-020_multi_agent_analysis_blueprint.md? [Y/N]",
+      terminal: [
+        { type: "prompt", text: "$ python skills/workflow-runtime/scripts/workflow_runtime.py start --skill \"plan-to-blueprint\" --command \"blueprint\" --checkpoint 5 --step \"Drafting blueprint\"" },
+        { type: "prompt", text: "$ python skills/workflow-runtime/scripts/workflow_runtime.py blueprint --path docs/designs/FEAT-020_multi_agent_analysis_blueprint.md" },
+        { type: "success", text: "Blueprint docs/designs/FEAT-020_multi_agent_analysis_blueprint.md registered." },
+        { type: "warn", text: "Approve Blueprint docs/designs/FEAT-020_multi_agent_analysis_blueprint.md? [Y/N]" }
+      ]
+    },
+    {
+      title: "Song song viết code (Parallel Implementation)",
+      cli: "python skills/workflow-runtime/scripts/workflow_runtime.py execution mode --mode parallel",
+      agentAction: "Chọn chế độ thực thi song song (Parallel Mode) cho Pha Viết code. Hệ sinh thái kiểm tra xung đột phân luồng ghi và khóa file lock trước khi thực thi.",
+      gate: "proceed",
+      terminal: [
+        { type: "prompt", text: "$ python skills/workflow-runtime/scripts/workflow_runtime.py execution mode --mode parallel" },
+        { type: "output", text: "Execution Mode set to: PARALLEL." },
+        { type: "output", text: "Topological groups: Group 1: [rules, runtime], Group 2: [webview, docs], Group 3: [tests]." },
+        { type: "output", text: "Spawning worker agents for Group 1..." },
+        { type: "success", text: "Workers for Group 1 completed successfully." }
+      ]
+    },
+    {
+      title: "Phát hành (Release)",
+      cli: "python skills/workflow-runtime/scripts/workflow_runtime.py complete --checkpoint 5 --step \"Feature completed\" --next-skill \"implementation-to-release\" --next-command \"release\"",
+      agentAction: "Đóng gói release, bump version lên 5.1.3, cập nhật changelog và push code lên GitHub.",
+      gate: "release",
+      gateText: "Confirm release version 5.1.3 & push to GitHub? [Y/N]",
+      terminal: [
+        { type: "prompt", text: "$ python skills/workflow-runtime/scripts/workflow_runtime.py complete --checkpoint 5 --step \"Feature completed\" --next-skill \"implementation-to-release\" --next-command \"release\"" },
+        { type: "output", text: "Preparing release package... Bumping version..." },
+        { type: "warn", text: "Confirm release version 5.1.3 & push to GitHub? [Y/N]" }
+      ]
+    }
   ]
 };
 

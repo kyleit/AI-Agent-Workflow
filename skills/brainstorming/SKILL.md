@@ -114,7 +114,6 @@ This Skill MUST strictly adhere to the global policies defined in [AI_RULES.md](
 ## Multi-Agent Contract
 
 Runs under the Multi-Agent Workflow. Respect agent ownership and handoff rules defined in [agents/](../../agents/) and [runtime/](../../runtime/).
-Multi-agent analysis is available: this phase may leverage temporary analysis agents or sub-agents (e.g. UX Analyst, Security Analyst) for research and review. All analysis agents must remain strictly read-only.
 
 ---
 
