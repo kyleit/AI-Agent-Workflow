@@ -2,6 +2,7 @@
 
 Every AI agent working inside this project **MUST** follow the AI Workflow Framework.
 
+<!-- AIWF:RULES:BEGIN -->
 ## Primary Workflow
 
 Before executing any task:

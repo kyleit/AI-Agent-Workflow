@@ -517,7 +517,7 @@ def do_suggest(args):
                 print(f"Error: Invalid choice {choice}.", file=sys.stderr)
                 sys.exit(1)
                 
-    if not args.choose and suggestion["active"]:
+    if not args.choose and suggestion["active"] and os.environ.get("TESTING") != "1":
         from utils import prompt_select
         if suggestion.get("options"):
             opts = suggestion["options"]
