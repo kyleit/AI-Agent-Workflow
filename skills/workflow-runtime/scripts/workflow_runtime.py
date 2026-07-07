@@ -5,7 +5,7 @@ import os
 import json
 import subprocess
 from datetime import datetime
-from typing import cast
+from typing import cast, Any
 
 # Add the directory containing this script to sys.path to resolve sibling modules
 sys.path.append(os.path.dirname(os.path.abspath(__file__)))
@@ -238,10 +238,29 @@ def do_validate(args):
     print("Validation passed.")
 
 def do_start(args):
-    session = load_session()
+    session: dict[str, Any] = load_session()
     if not session:
         session = {"workspace": {"path": ".", "valid": True}}
     
+    # Enforce No Blueprint, No Code policy
+    is_implementing = (args.skill in ["blueprint-to-implementation", "implement"] or 
+                       (args.skill in ["quick-fix", "quick-feature"] and "implement" in args.step.lower()))
+    if is_implementing:
+        bypass = os.environ.get("BYPASS_BLUEPRINT") == "1" or getattr(args, "bypass_blueprint", False)
+        if not bypass:
+            bp = session.get("blueprint", {})
+            bp_path = bp.get("path", "")
+            approved = bp.get("approved", False)
+            
+            # Blueprint file must exist under docs/ directory
+            exists = False
+            if bp_path and isinstance(bp_path, str) and bp_path.startswith("docs/") and os.path.exists(bp_path):
+                exists = True
+                
+            if not approved or not exists:
+                print(f"Error: No approved Technical Design Blueprint found under docs/ (approved={approved}, exists={exists} at '{bp_path}'). Code implementation is locked. Use --bypass-blueprint to bypass.", file=sys.stderr)
+                sys.exit(1)
+                
     session["status"] = "in_progress"
     if args.checkpoint is not None:
         session["checkpoint"] = args.checkpoint
@@ -1129,6 +1148,7 @@ def main():
     _ = st.add_argument("--command", required=True, type=str)
     _ = st.add_argument("--checkpoint", type=int)
     _ = st.add_argument("--step", required=True, type=str)
+    _ = st.add_argument("--bypass-blueprint", action="store_true", help="Bypass No Blueprint No Code guardrail")
     
     sp = subparsers.add_parser("step")
     _ = sp.add_argument("--step", required=True, type=str)
