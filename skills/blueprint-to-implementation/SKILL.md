@@ -126,6 +126,9 @@ Workflow Paused.
 ---
 
 ## 🔒 GIT BRANCH GATE
-Before initiating code generation, query the user's branch intention by calling the `ask_question` tool directly:
-- **Question**: "Choose Git branch action:"
-- **Options**: `["Continue on current branch", "Create new branch", "Stop"]`
+Before initiating code generation, check if a Git branch action has already been selected by reading `git.branch_action` in `.session.json`.
+- If `git.branch_action` is already set (e.g., "continue", "create", or "stop"), skip the prompt and proceed with that action.
+- If not set, query the user's branch intention by calling the `ask_question` tool directly:
+  - **Question**: "Choose Git branch action:"
+  - **Options**: `["Continue on current branch", "Create new branch", "Stop"]`
+- Once selected, save the choice in `.session.json` under `git.branch_action` ("continue", "create", or "stop").

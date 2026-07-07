@@ -43,6 +43,9 @@ All Git actions must be performed with explicit visibility and approval.
     *   Tags must use the format `vX.Y.Z`.
 *   **Non-Git Projects**:
     *   If no `.git` directory is detected, skip Git branch/merge/commit/push steps entirely, but still execute build, test, and summary actions.
+*   **Branch Action Persistence**:
+    *   Once the user selects a Git branch action (e.g., "Continue on current branch" or "Create new branch"), the Agent must save this choice in `.session.json` under `git.branch_action` (value can be `"continue"`, `"create"`, or `"stop"`).
+    *   On subsequent steps or runs within the same active session, if `git.branch_action` is already set, the Agent MUST skip the Git branch prompt entirely and default to the previously selected action without asking the user again.
 
 ---
 
