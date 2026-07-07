@@ -5,6 +5,16 @@ All notable changes to this project will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [5.2.4] - 2026-07-07
+
+### Added
+- **Visualizer Spec**: Documented UI/UX guidelines and specifications under `docs/designs/visualizer_ui_ux_spec.md`.
+
+### Fixed
+- **No Blueprint No Code guardrail in CLI**: Added hard-lock checks in `do_start` of `workflow_runtime.py` to prevent writing code without an approved blueprint in the `docs/` folder (with `--bypass-blueprint` support).
+- **Dynamic Rules block extraction**: Updated installer and updater scripts (`install.sh`, `update.sh`, `install.ps1`, `update.ps1`) to parse the rules block dynamically from `AGENTS.md` instead of using static hardcoded templates.
+- **Branch intent persistence and ask_question migration**: Deprecated blocking CLI `prompt select` command to prevent deadlocks in subprocesses, mandated direct usage of native `ask_question` tool, and saved branch actions under `git.branch_action` in `.session.json` to skip redundant prompts.
+
 ## [5.2.3] - 2026-07-07
 
 ### Fixed
