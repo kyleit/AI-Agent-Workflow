@@ -1,16 +1,19 @@
 {
-  "release_mode": "single",
-  "default_branch": "main",
-  "root_changelog": "CHANGELOG.md",
+  "project_type": "multi-module",
   "modules": [
     {
-      "name": "root",
+      "name": "framework-core",
       "path": ".",
-      "version_files": [
-        "package.json"
-      ],
-      "changelog": "CHANGELOG.md",
-      "tag_format": "v{version}"
+      "version_file": "MANIFEST.json",
+      "changelog_file": "CHANGELOG.md"
+    },
+    {
+      "name": "visualizer-extension",
+      "path": "extensions/visualizer",
+      "version_file": "extensions/visualizer/package.json",
+      "changelog_file": "CHANGELOG.md"
     }
-  ]
+  ],
+  "default_branch": "main",
+  "remote_name": "origin"
 }
