@@ -164,6 +164,19 @@ Step 10: Build and Print Execution Summary
   - **Context Usage Token Estimation**: Estimate the current conversation's token count from the active transcript file size (at `<appDataDir>/brain/<conversation_id>/.system_generated/logs/transcript.jsonl` using `fileSize / 3` as an approximation) and write it to the `"context_usage"` object.
   - **CRITICAL**: The `"path"` field of the `"workspace"` object in `.agents/.session.json` MUST be exactly `"."` (a relative path representation to prevent path leakage). Under no circumstances should an absolute path be written.
 
+### Step 11 — Auto-Resume & Git Auto-Stash Recovery (Rollover Mechanism)
+- Prior to finalizing initialization, the AI Agent **MUST** check for the existence of `.agents/runtime/context_snapshot.json`.
+- If the snapshot file exists:
+  1. Read the snapshot data (extract `checkpoint`, `current_skill`, `current_command`, `current_step`, `git_stash_ref`).
+  2. Overwrite the corresponding fields in `.agents/.session.json` with the snapshot data to restore the state from the previous thread.
+  3. If `git_stash_ref` is present and not empty, the Agent **MUST** run (or instruct/ask approval to run):
+     ```bash
+     git stash pop
+     ```
+     to restore any unstaged code changes.
+  4. Delete the `.agents/runtime/context_snapshot.json` file immediately to prevent duplicate recovery loops.
+  5. Print a clear recovery confirmation notice to the user:
+     `✨ [SYSTEM]: Recovered SDLC context from thread rollover. Checkpoint restored to X, Git changes unstashed.`
 
 ---
 

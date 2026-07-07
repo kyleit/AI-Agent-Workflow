@@ -49,6 +49,12 @@ def session_start(skill: str, command: str, checkpoint: int, step: str):
             session = load_session()
             if not session:
                 session = {"workspace": {"path": ".", "valid": True}}
+            
+            active_skill = session.get("current_skill")
+            if active_skill and active_skill != skill:
+                log_info(f"Skipping session start for '{skill}' because active skill is '{active_skill}'.")
+                return
+
             session["status"] = "in_progress"  # type: ignore
             session["checkpoint"] = checkpoint  # type: ignore
             session["current_skill"] = skill  # type: ignore
@@ -71,6 +77,10 @@ def session_step(step: str, log_msg: str):
             
             session = load_session()
             if session:
+                active_skill = session.get("current_skill")
+                if active_skill and active_skill not in ["project-memory-update", "project-memory-bootstrap"]:
+                    return
+
                 session["current_step"] = step  # type: ignore
                 if "current_logs" not in session or not isinstance(session["current_logs"], list):
                     session["current_logs"] = []  # type: ignore
@@ -91,6 +101,13 @@ def session_complete(checkpoint: int, step: str, next_skill: str, next_cmd: str)
             
             session = load_session()
             if session:
+                active_skill = session.get("current_skill")
+                if active_skill and active_skill not in ["project-memory-update", "project-memory-bootstrap"]:
+                    workflow_runtime.update_context_health(session)
+                    save_session_atomic(session)
+                    log_info("Skipped workflow routing update of session, but updated context health successfully.")
+                    return
+
                 session["status"] = "completed"  # type: ignore
                 session["checkpoint"] = checkpoint  # type: ignore
                 session["current_step"] = step  # type: ignore
@@ -115,6 +132,10 @@ def session_fail(step: str, log_msg: str):
             
             session = load_session()
             if session:
+                active_skill = session.get("current_skill")
+                if active_skill and active_skill not in ["project-memory-update", "project-memory-bootstrap"]:
+                    return
+
                 session["status"] = "failed"  # type: ignore
                 session["current_step"] = step  # type: ignore
                 if "current_logs" not in session or not isinstance(session["current_logs"], list):

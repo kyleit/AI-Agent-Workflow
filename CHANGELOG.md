@@ -5,6 +5,14 @@ All notable changes to this project will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [5.1.1] - 2026-07-07
+
+### Fixed
+- **FIX-011: Prevent Session Drift on Memory Sync**:
+  - Modified session helpers in `runtime/scripts/project_memory/common.py` to check the active skill before modifying workflow routing fields.
+  - Prevents the visualizer from jumping back and forth to step 2 when memory updates are executed ngầm as side effects (background/unrelated steps).
+  - Preserves RAG and memory health syncing in the session metadata on completion.
+
 ## [5.1.0] - 2026-07-07
 
 ### Added

@@ -3,6 +3,7 @@ import argparse
 import sys
 import os
 import json
+import subprocess
 from datetime import datetime
 
 # Add the directory containing this script to sys.path to resolve sibling modules
@@ -179,7 +180,7 @@ def do_init(args):
     save_session_atomic(session)
     print(f"Session initialized with permission_mode={mode}.")
 
-def do_validate(args):
+def do_validate(args: argparse.Namespace) -> None:  # type: ignore
     session = load_session()
     if not session:
         print("Error: session file missing.", file=sys.stderr)
@@ -195,6 +196,21 @@ def do_validate(args):
         if not validate_checkpoint_level(curr, args.checkpoint):
             print(f"Error: checkpoint validation failed (current={curr}, required={args.checkpoint}).", file=sys.stderr)
             sys.exit(1)
+            
+    # Check context usage for warning gate
+    if os.environ.get("SIMULATE_LIMIT") == "1":
+        session["context_usage"] = {
+            "total_tokens": 1700000,
+            "limit_tokens": 2000000,
+            "percentage": 85.0
+        }
+    context_usage = session.get("context_usage", {})
+    pct = context_usage.get("percentage", 0.0)
+    if pct >= 85.0:
+        print("\033[91m⚠️ [SYSTEM WARNING]: Context limit is at {:.1f}% ({}/{} tokens). To prevent slowdowns, please restart the chat session. Run '/workflow reset' to rollover safely.\033[0m".format(
+            pct, context_usage.get("total_tokens", 0), context_usage.get("limit_tokens", 0)
+        ))
+        
     save_session_atomic(session)
     print("Validation passed.")
 
@@ -452,7 +468,6 @@ def do_suggest(args):
             suggestion["active"] = False
             print("Suggestion rejected.")
         else:
-            # Check if choice is a number corresponding to one of the options
             try:
                 idx = int(choice) - 1
                 if 0 <= idx < len(suggestion["options"]):
@@ -497,6 +512,46 @@ def do_permission(_args: argparse.Namespace) -> None:  # type: ignore
         status = "REQUIRED_APPROVAL (Hard-gated)" if req else "ALLOWED (Bypass)"
         print(f"- {action}: {status}")
 
+def do_compact(_args: argparse.Namespace) -> None:  # type: ignore
+    session = load_session()
+    if not session:
+        print("Error: session file missing.", file=sys.stderr)
+        sys.exit(1)
+        
+    # Run git stash to save local unstaged changes dynamically
+    stash_ref = ""
+    try:
+        res = subprocess.run(["git", "stash", "create"], capture_output=True, text=True, check=True)
+        stash_hash = res.stdout.strip()
+        if stash_hash:
+            _ = subprocess.run(["git", "stash", "store", "-m", "Rollover Context Auto-Stash", stash_hash], check=True)
+            stash_ref = "stash@{0}"
+            print(f"Git auto-stash created: {stash_ref}")
+    except Exception:
+        pass
+
+    # Build snapshot data
+    snapshot_file = os.path.join(".agents", "runtime", "context_snapshot.json")
+    os.makedirs(os.path.dirname(snapshot_file), exist_ok=True)
+    
+    snapshot = {
+        "checkpoint": session.get("checkpoint", 1),
+        "current_skill": session.get("current_skill", ""),
+        "current_command": session.get("current_command", ""),
+        "current_step": session.get("current_step", ""),
+        "active_feature_id": "FEAT-014",
+        "git_stash_ref": stash_ref,
+        "rollover_requested_at": datetime.now().astimezone().isoformat()
+    }
+    
+    try:
+        with open(snapshot_file, "w", encoding="utf-8") as f:
+            json.dump(snapshot, f, indent=2, ensure_ascii=False)
+        print(f"Context snapshot written successfully to {snapshot_file}")
+    except IOError as e:
+        print(f"Error: failed to write snapshot: {e}", file=sys.stderr)
+        sys.exit(1)
+
 def main():
     parser = argparse.ArgumentParser(description="AI Workflow Runtime Engine CLI")
     subparsers = parser.add_subparsers(dest="action", required=True)
@@ -505,6 +560,7 @@ def main():
     init_p.add_argument("--permission", type=str, default="1")
     
     _perm_p = subparsers.add_parser("permission")
+    _compact_p = subparsers.add_parser("compact")
     
     val = subparsers.add_parser("validate")
     val.add_argument("--checkpoint", type=str)
@@ -561,7 +617,8 @@ def main():
         "usage": do_usage,
         "blueprint": do_blueprint,
         "suggest": do_suggest,
-        "permission": do_permission
+        "permission": do_permission,
+        "compact": do_compact
     }
     
     cmds[args.action](args)

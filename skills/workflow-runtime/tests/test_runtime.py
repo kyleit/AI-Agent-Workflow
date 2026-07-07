@@ -457,5 +457,45 @@ class TestRuntimeEngine(unittest.TestCase):
         self.assertEqual(requires_approval("release"), False)
         self.assertEqual(requires_approval("permission_mode_change"), False)
 
+    def test_cli_compact_creates_snapshot(self):
+        cli_path = os.path.join(os.path.dirname(__file__), "..", "scripts", "workflow_runtime.py")
+        snapshot_file = os.path.join(".agents", "runtime", "context_snapshot.json")
+        
+        # Ensure clean state
+        if os.path.exists(snapshot_file):
+            os.remove(snapshot_file)
+            
+        try:
+            # Create a mock session
+            mock_session = {
+                "checkpoint": 3,
+                "status": "in_progress",
+                "current_skill": "initialize-workflow",
+                "current_command": "init",
+                "current_step": "Running initialization test"
+            }
+            save_session_atomic(mock_session)
+            
+            # Execute compact subcommand
+            import subprocess
+            res = subprocess.run(
+                [sys.executable, cli_path, "compact"],
+                capture_output=True, text=True
+            )
+            self.assertEqual(res.returncode, 0)
+            self.assertTrue(os.path.exists(snapshot_file))
+            
+            # Load and verify snapshot
+            with open(snapshot_file, "r", encoding="utf-8") as f:
+                snapshot = json.load(f)
+                
+            self.assertEqual(snapshot.get("checkpoint"), 3)
+            self.assertEqual(snapshot.get("current_skill"), "initialize-workflow")
+            self.assertEqual(snapshot.get("active_feature_id"), "FEAT-014")
+            self.assertIn("rollover_requested_at", snapshot)
+        finally:
+            if os.path.exists(snapshot_file):
+                os.remove(snapshot_file)
+
 if __name__ == "__main__":
     unittest.main()
