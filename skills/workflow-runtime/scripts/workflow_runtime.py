@@ -5,6 +5,7 @@ import os
 import json
 import subprocess
 from datetime import datetime
+from typing import cast
 
 # Add the directory containing this script to sys.path to resolve sibling modules
 sys.path.append(os.path.dirname(os.path.abspath(__file__)))
@@ -61,6 +62,22 @@ def requires_approval(action_type: str) -> bool:
     return False
 
 def update_context_health(session: dict) -> None:
+    # Auto-detect and sync current conversation_id from environment metadata
+    metadata_str = os.environ.get("ANTIGRAVITY_SOURCE_METADATA")
+    if metadata_str:
+        try:
+            metadata_raw = json.loads(metadata_str)
+            if isinstance(metadata_raw, dict):
+                metadata = cast(dict[str, object], metadata_raw)
+                tool_data = metadata.get("tool")
+                if isinstance(tool_data, dict):
+                    tool_data_dict = cast(dict[str, object], tool_data)
+                    env_conv_id = tool_data_dict.get("conversationId")
+                    if isinstance(env_conv_id, str) and env_conv_id:
+                        session["conversation_id"] = env_conv_id
+        except Exception:
+            pass
+
     if "suggestion_gate" not in session:
         session["suggestion_gate"] = {
             "active": False,
@@ -180,7 +197,7 @@ def do_init(args):
     save_session_atomic(session)
     print(f"Session initialized with permission_mode={mode}.")
 
-def do_validate(args: argparse.Namespace) -> None:  # type: ignore
+def do_validate(args):
     session = load_session()
     if not session:
         print("Error: session file missing.", file=sys.stderr)
@@ -196,21 +213,6 @@ def do_validate(args: argparse.Namespace) -> None:  # type: ignore
         if not validate_checkpoint_level(curr, args.checkpoint):
             print(f"Error: checkpoint validation failed (current={curr}, required={args.checkpoint}).", file=sys.stderr)
             sys.exit(1)
-            
-    # Check context usage for warning gate
-    if os.environ.get("SIMULATE_LIMIT") == "1":
-        session["context_usage"] = {
-            "total_tokens": 1700000,
-            "limit_tokens": 2000000,
-            "percentage": 85.0
-        }
-    context_usage = session.get("context_usage", {})
-    pct = context_usage.get("percentage", 0.0)
-    if pct >= 85.0:
-        print("\033[91m⚠️ [SYSTEM WARNING]: Context limit is at {:.1f}% ({}/{} tokens). To prevent slowdowns, please restart the chat session. Run '/workflow reset' to rollover safely.\033[0m".format(
-            pct, context_usage.get("total_tokens", 0), context_usage.get("limit_tokens", 0)
-        ))
-        
     save_session_atomic(session)
     print("Validation passed.")
 
@@ -468,6 +470,7 @@ def do_suggest(args):
             suggestion["active"] = False
             print("Suggestion rejected.")
         else:
+            # Check if choice is a number corresponding to one of the options
             try:
                 idx = int(choice) - 1
                 if 0 <= idx < len(suggestion["options"]):

@@ -5,6 +5,19 @@ All notable changes to this project will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [5.1.2] - 2026-07-07
+
+### Fixed
+- **FIX-012: Auto-Sync Conversation ID on Rollover**:
+  - Tự động trích xuất `conversationId` từ biến môi trường `ANTIGRAVITY_SOURCE_METADATA` trong hàm `update_context_health` của `workflow_runtime.py`.
+  - Đồng bộ kịp thời và ghi đè trực tiếp `conversation_id` mới vào `.agents/.session.json` bất cứ khi nào bất kỳ thao tác nào của CLI Runtime được gọi.
+  - Khắc phục triệt để lỗi tính toán Fallback Token Estimation bị giữ ở mức 85% của thread cũ khi chuyển sang hội thoại mới.
+  - Khôi phục subcommand `compact` và `permission` trong `workflow_runtime.py` bị mất do thao tác checkout.
+
+### Added
+- **Global Rule 6: Mandatory SDLC Skill Binding**:
+  - Bổ sung quy tắc bắt buộc mọi hoạt động thay đổi mã nguồn phải diễn ra trong phạm vi của một SDLC Skill tương ứng (`quick-fix`, `quick-feature`), cấm tự ý sửa đổi file trực tiếp trong `AI_RULES.md`.
+
 ## [5.1.1] - 2026-07-07
 
 ### Fixed

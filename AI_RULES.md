@@ -272,6 +272,7 @@ This is a mandatory global policy. The following rules are absolute and cannot b
 *   **Rule 3: Explicit User Approval**: The Blueprint must be explicitly approved by the user. Accepted approval keywords are: `Y`, `Yes`, `Proceed`, `Continue` (case-insensitive). The AI must never assume blueprint approval.
 *   **Rule 4: Stop Condition**: If no approved Blueprint exists, the AI must IMMEDIATELY STOP, explain the requirement, recommend generating or approving the Blueprint, and wait for input.
 *   **Rule 5: Override Priority**: This policy overrides all implementation-capable Skills. No exceptions.
+*   **Rule 6: Mandatory SDLC Skill Binding**: Mọi hoạt động chỉnh sửa, thêm, xóa tệp mã nguồn dự án bắt buộc phải được thực hiện trong phạm vi hoạt động của một SDLC Skill tương ứng (như `quick-fix` cho sửa lỗi nhanh, `quick-feature` cho tính năng nhanh). Nghiêm cấm AI Agent tự ý thay đổi file mã nguồn trực tiếp bên ngoài ranh giới của các Skill này, ngay cả khi tài liệu lập kế hoạch `implementation_plan.md` ở tầng IDE đã được duyệt.
 
 ---
 
