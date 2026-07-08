@@ -294,7 +294,7 @@ def do_start(args):
         bp = session.get("blueprint", {})
         if not bp.get("approved"):
             print("Error: Cannot start implementation. Technical Design Blueprint is not approved.", file=sys.stderr)
-            print("Please create a design blueprint and approve it using: aiwf blueprint --approve <path> first.", file=sys.stderr)
+            print("Please create a design blueprint and approve it using: aiwf blueprint --path <path> --approve first.", file=sys.stderr)
             sys.exit(1)
             
     session["status"] = "in_progress"
