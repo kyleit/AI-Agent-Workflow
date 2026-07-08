@@ -5,6 +5,26 @@ All notable changes to this project will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [6.2.0] - 2026-07-08
+
+### Added
+- **QUICK-013: Stricter Blueprint Generation**:
+  - Nâng cấp `plan-to-blueprint` Skill để Technical Design Blueprint đóng vai trò là hợp đồng triển khai (Implementation Contract) chặt chẽ.
+  - Áp dụng các quy tắc tự kiểm tra nghiêm ngặt: cấm link `file://` và đường dẫn tuyệt đối, yêu cầu tương thích ngược, enum an toàn cho `permission_mode`, xác thực đường dẫn pseudo-code, và mô tả đầy đủ acceptance criteria & extension changes.
+- **FIX-016: Fix aiwf Git Repository Detection for Worktrees/Submodules**:
+  - Khắc phục sự cố cài đặt, cập nhật, và chẩn đoán framework (`install`, `update`, `doctor`) không hoạt động trên Git worktrees, submodules (nơi `.git` là một tệp văn bản) và khi chạy từ thư mục con lồng nhau.
+  - Sử dụng `git rev-parse --is-inside-work-tree` và `git rev-parse --show-toplevel` làm nguồn dữ liệu tin cậy nhất để tự động phát hiện project root và di chuyển vị trí thực thi.
+
+## [6.1.0] - 2026-07-08
+
+### Added
+- **FEAT-022: Split Runtime State, Optimize Initialize Workflow, and Update Extension**:
+  - Tái cấu trúc cơ chế lưu trữ trạng thái: Tách tệp tin `.session.json` monolit thành 8 file trạng thái con chuyên biệt trong `.agents/state/` (`context.json`, `workflow.json`, v.v.).
+  - Triển khai lớp đồng bộ hai chiều (Aggregate & Deconstruct) bảo đảm tương thích ngược với các Agent đời cũ.
+  - Tối ưu hóa tốc độ khởi động `initialize-workflow` bằng cơ chế kiểm tra cache vân tay dự án (Project Fingerprint SHA-256), giảm thời gian tải xuống dưới 50ms.
+  - Cập nhật VS Code Extension watch thư mục `state/` để ghép ViewModel in-memory và live update giao diện mượt mà không nhấp nháy.
+  - Bổ sung 5 lệnh CLI quản trị trạng thái mới: `context`, `rules status`, `state status/recover/validate`.
+
 ## [6.0.0] - 2026-07-08
 
 ### Added

@@ -33,6 +33,7 @@ def get_rag_info() -> dict:
 
 def is_stdin_ready() -> bool:
     import sys
+    ret = False
     if sys.platform == 'win32':
         import msvcrt
         import ctypes
@@ -44,18 +45,30 @@ def is_stdin_ready() -> bool:
                 res = ctypes.windll.kernel32.PeekNamedPipe(
                     handle, None, 0, None, ctypes.byref(avail), None
                 )
-                return bool(res and avail.value > 0)
+                ret = bool(res and avail.value > 0)
             else:
-                return msvcrt.kbhit()
+                ret = msvcrt.kbhit()
         except Exception:
-            return False
+            ret = False
     else:
         import select
+        import fcntl
+        import termios
+        import array
         try:
-            ready, _, _ = select.select([sys.stdin], [], [], 0)
-            return len(ready) > 0
+            buf = array.array('i', [0])
+            fcntl.ioctl(sys.stdin.fileno(), termios.FIONREAD, buf)
+            ret = buf[0] > 0
         except Exception:
-            return False
+            if not sys.stdin.isatty():
+                ret = False
+            else:
+                try:
+                    ready, _, _ = select.select([sys.stdin], [], [], 0)
+                    ret = len(ready) > 0
+                except Exception:
+                    ret = False
+    return ret
 
 def prompt_select(question: str, options: list[str], default: str | None = None) -> str:
     """

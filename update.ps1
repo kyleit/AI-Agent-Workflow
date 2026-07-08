@@ -42,6 +42,38 @@ $SkillDir = $SrcManifest.skill_directory
 $TemplateDir = $SrcManifest.template_directory
 $SrcVersion = $SrcManifest.version
 
+function Test-GitWorkTree {
+    $gitExists = Get-Command git -ErrorAction SilentlyContinue
+    if (-not $gitExists) {
+        return $false
+    }
+    git rev-parse --is-inside-work-tree 2>$null | Out-Null
+    return $LASTEXITCODE -eq 0
+}
+
+function Get-GitRoot {
+    $root = git rev-parse --show-toplevel 2>$null
+    if ($LASTEXITCODE -ne 0 -or [string]::IsNullOrWhiteSpace($root)) {
+        return $null
+    }
+    return $root.Trim()
+}
+
+$IsGit = $false
+$ProjectRoot = "."
+
+if (Test-GitWorkTree) {
+    $IsGit = $true
+    $ProjectRoot = Get-GitRoot
+} elseif (Test-Path ".git") {
+    $IsGit = $true
+    $ProjectRoot = "."
+}
+
+if ($IsGit) {
+    Set-Location $ProjectRoot
+}
+
 $TargetManifestPath = Join-Path $InstallTarget "MANIFEST.json"
 if (-not (Test-Path $TargetManifestPath)) {
     Log-Error "No active installation found at $TargetManifestPath."

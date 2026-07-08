@@ -29,20 +29,27 @@ class TestProjectMemoryEngine(unittest.TestCase):
         import bootstrap
         import update
         
-        # Monkey patch get_project_root của từng module về thư mục test
-        self.mock_func = lambda: self.test_root
-        common.get_project_root = self.mock_func
-        config.get_project_root = self.mock_func
-        filesystem.get_project_root = self.mock_func
-        git_diff.get_project_root = self.mock_func
-        scanner.get_project_root = self.mock_func
-        analyzer.get_project_root = self.mock_func
-        sqlite_writer.get_project_root = self.mock_func
-        search.get_project_root = self.mock_func
-        bootstrap.get_project_root = self.mock_func
-        update.get_project_root = self.mock_func
+        # Lưu các hàm gốc và patch dynamically
+        self.orig_funcs = {}
+        modules_to_patch = [
+            ("common", common), ("config", config), ("filesystem", filesystem),
+            ("git_diff", git_diff), ("scanner", scanner), ("analyzer", analyzer),
+            ("sqlite_writer", sqlite_writer), ("search", search),
+            ("bootstrap", bootstrap), ("update", update)
+        ]
         
+        self.mock_func = lambda: self.test_root
+        
+        for name, mod in modules_to_patch:
+            if hasattr(mod, "get_project_root"):
+                self.orig_funcs[name] = mod.get_project_root
+                mod.get_project_root = self.mock_func
+
         # Enforce offline status for git tests
+        self.orig_funcs["git_diff_is_git"] = git_diff.is_git_repository
+        self.orig_funcs["git_diff_uncommitted"] = git_diff.get_uncommitted_files
+        self.orig_funcs["git_diff_changed"] = git_diff.get_changed_files
+        
         git_diff.is_git_repository = lambda *args, **kwargs: False
         git_diff.get_uncommitted_files = lambda *args, **kwargs: []
         git_diff.get_changed_files = lambda *args, **kwargs: []
@@ -63,7 +70,33 @@ class TestProjectMemoryEngine(unittest.TestCase):
             json.dump(self.mem_config, f)
 
     def tearDown(self):
-        # Khôi phục các hàm nếu cần thiết
+        # Khôi phục các hàm gốc
+        import common
+        import config
+        import filesystem
+        import git_diff
+        import scanner
+        import analyzer
+        import sqlite_writer
+        import search
+        import bootstrap
+        import update
+
+        modules_to_restore = [
+            ("common", common), ("config", config), ("filesystem", filesystem),
+            ("git_diff", git_diff), ("scanner", scanner), ("analyzer", analyzer),
+            ("sqlite_writer", sqlite_writer), ("search", search),
+            ("bootstrap", bootstrap), ("update", update)
+        ]
+        
+        for name, mod in modules_to_restore:
+            if name in self.orig_funcs:
+                mod.get_project_root = self.orig_funcs[name]
+                
+        git_diff.is_git_repository = self.orig_funcs["git_diff_is_git"]
+        git_diff.get_uncommitted_files = self.orig_funcs["git_diff_uncommitted"]
+        git_diff.get_changed_files = self.orig_funcs["git_diff_changed"]
+
         # Xóa thư mục test
         if os.path.exists(self.test_root):
             shutil.rmtree(self.test_root)

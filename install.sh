@@ -48,12 +48,43 @@ log_warn() { echo -e "\033[1;33m[WARN]\033[0m $1"; }
 log_error() { echo -e "\033[1;31m[ERROR]\033[0m $1"; }
 log_success() { echo -e "\033[1;32m[SUCCESS]\033[0m $1"; }
 
-# 1. Verify current directory is a Git project
-if [ ! -d ".git" ]; then
-    log_error "The current directory is not a Git repository."
-    log_error "The AI Skill Framework must be installed at the root of a Git project."
-    exit 1
+is_git_worktree() {
+  git rev-parse --is-inside-work-tree >/dev/null 2>&1
+}
+
+get_git_root() {
+  git rev-parse --show-toplevel 2>/dev/null
+}
+
+# 1. Verify current directory is a Git project (supporting worktrees and submodules)
+if ! command -v git &> /dev/null; then
+    # Git command not found, check fallback
+    if [ -d ".git" ] || [ -f ".git" ]; then
+        PROJECT_ROOT="."
+    else
+        log_error "git command line tool is missing, and no .git folder/file found."
+        log_error "Please install git or run this script from a Git repository root."
+        exit 1
+    fi
+else
+    # Git command exists
+    if ! is_git_worktree; then
+        if [ -d ".git" ] || [ -f ".git" ]; then
+            PROJECT_ROOT="."
+        else
+            log_error "The current directory is not a Git repository."
+            log_error "The AI Skill Framework must be installed at the root of a Git project."
+            exit 1
+        fi
+    else
+        PROJECT_ROOT="$(get_git_root)"
+    fi
 fi
+
+cd "$PROJECT_ROOT" || exit 1
+log_success "Git repository detected."
+log_info "Project root: $PROJECT_ROOT"
+log_info "Installing AI Skill Framework into $PROJECT_ROOT/.agents"
 
 # Locate the framework package directory (where this script lives)
 SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"

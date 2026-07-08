@@ -10,8 +10,10 @@ from typing import cast
 # Add the directory containing this script to sys.path to resolve sibling modules
 sys.path.append(os.path.dirname(os.path.abspath(__file__)))
 
-from session import load_session, save_session_atomic, SessionLock
-from context import estimate_context_usage
+from session import load_session, save_session_atomic, SessionLock # type: ignore
+from fingerprint import calculate_project_fingerprint # type: ignore
+from state_sync import read_json_safe, write_json_atomic, aggregate_state, deconstruct_state # type: ignore
+from context import estimate_context_usage # type: ignore
 from checkpoint import validate_checkpoint_level, get_checkpoint_name
 from validator import get_git_info, get_version_info
 from drift import check_context_drift
@@ -131,8 +133,23 @@ def update_context_health(session: dict) -> None:
     session["context_health"] = "broken" if drifted else "healthy"
 
 def do_init(args):
-    session = load_session()
-    if not session:
+    new_fp = calculate_project_fingerprint(".")
+    state_dir = os.path.join(".agents", "state")
+    context_path = os.path.join(state_dir, "context.json")
+    
+    use_cache = False
+    session = {}
+    if os.path.exists(context_path):
+        try:
+            with open(context_path, "r", encoding="utf-8") as f:
+                context_data = json.load(f)
+            if context_data.get("project_fingerprint") == new_fp:
+                use_cache = True
+                session = load_session()
+        except Exception:
+            pass
+            
+    if not use_cache or not session:
         session = {
             "workspace": {"path": ".", "valid": True},
             "git": get_git_info(),
@@ -165,6 +182,10 @@ def do_init(args):
             "suggested_next_command": "discover",
             "context_health": "healthy"
         }
+        session["project_fingerprint"] = new_fp
+    else:
+        session["current_logs"] = ["> Initialization completed successfully (loaded from cache)."]
+        session["updated_at"] = datetime.now().astimezone().isoformat()
     
     permission_arg = getattr(args, "permission", None)
     if permission_arg is None:
@@ -826,10 +847,16 @@ def do_active_workflow(args) -> None:
         
     if args.subaction == "get":
         aw = session.get("active_workflow", {})
+        if isinstance(aw, str):
+            aw = {"type": aw}
+        elif not isinstance(aw, dict):
+            aw = {}
         print(json.dumps(aw, ensure_ascii=False))
         
     elif args.subaction == "set":
         aw = session.get("active_workflow", {})
+        if not isinstance(aw, dict):
+            aw = {}
         if args.type: aw["type"] = args.type
         if args.phase: aw["phase"] = args.phase
         if args.skill: aw["skill"] = args.skill
@@ -853,6 +880,10 @@ def do_active_workflow(args) -> None:
         
     elif args.subaction == "resume":
         aw = session.get("active_workflow", {})
+        if isinstance(aw, str):
+            aw = {"type": aw}
+        elif not isinstance(aw, dict):
+            aw = {}
         if not aw:
             print("Error: No active workflow to resume.", file=sys.stderr)
             sys.exit(1)
@@ -883,6 +914,8 @@ def do_active_workflow(args) -> None:
         
     elif args.subaction == "set-waiting":
         aw = session.get("active_workflow", {})
+        if not isinstance(aw, dict):
+            aw = {}
         val = args.waiting_for if args.waiting_for and args.waiting_for.lower() != "null" else None
         aw["waiting_for"] = val
         session["active_workflow"] = aw
@@ -1637,6 +1670,120 @@ def do_release_action(args):
     if res["status"] != "success":
         sys.exit(1)
 
+def do_context(args):
+    state_dir = os.path.join(".agents", "state")
+    context_file = os.path.join(state_dir, "context.json")
+    if os.path.exists(context_file):
+        data = read_json_safe(context_file)
+    else:
+        data = {
+            "workspace_path": ".",
+            "project_version": "1.0.0",
+            "git": get_git_info(),
+            "permission_mode": get_permission_mode(),
+        }
+    print(json.dumps(data, indent=2))
+
+def do_rules_action(args):
+    if args.subaction == "status":
+        state_dir = os.path.join(".agents", "state")
+        rules_file = os.path.join(state_dir, "rules.json")
+        rules_data = read_json_safe(rules_file)
+        if not rules_data or not rules_data.get("active_rules"):
+            rules_list = []
+            rules_path = "AI_RULES.md"
+            if os.path.exists(rules_path):
+                try:
+                    with open(rules_path, "r", encoding="utf-8") as f:
+                        lines = f.readlines()
+                    current_section = "General"
+                    for line in lines:
+                        if line.startswith("#"):
+                            current_section = line.strip("# \n")
+                        elif line.strip().startswith("-") or line.strip().startswith("*"):
+                            rules_list.append({
+                                "rule_id": f"RULE-{len(rules_list)+1:03d}",
+                                "rule_text": line.strip("-* \n"),
+                                "source": f"AI_RULES.md ({current_section})"
+                            })
+                except Exception:
+                    pass
+            rules_data = {
+                "active_rules": rules_list,
+                "loaded_at": datetime.now().astimezone().isoformat()
+            }
+            write_json_atomic(rules_file, rules_data)
+        print(json.dumps(rules_data, indent=2))
+
+def do_state_action(args):
+    state_dir = os.path.join(".agents", "state")
+    session_file = os.path.join(".agents", ".session.json")
+    
+    if args.subaction == "status":
+        files = ["context.json", "workflow.json", "runtime.json", "approvals.json", "usage.json", "agents.json", "rules.json", "recovery.json"]
+        present = [f for f in files if os.path.exists(os.path.join(state_dir, f))]
+        
+        status = "healthy"
+        synced = True
+        
+        if len(present) < len(files) - 1:
+            status = "uninitialized"
+            synced = False
+        else:
+            if os.path.exists(session_file):
+                session_time = os.path.getmtime(session_file)
+                for f in present:
+                    if f != "recovery.json" and os.path.getmtime(os.path.join(state_dir, f)) > session_time + 1.0:
+                        status = "out_of_sync"
+                        synced = False
+                        break
+        
+        res = {
+            "status": status,
+            "state_files_present": present,
+            "session_synced": synced
+        }
+        print(json.dumps(res, indent=2))
+        
+    elif args.subaction == "recover":
+        restored = []
+        if os.path.exists(session_file):
+            try:
+                with open(session_file, "r", encoding="utf-8") as f:
+                    session_data = json.load(f)
+                deconstruct_state(".", session_data)
+                restored = ["context.json", "workflow.json", "runtime.json", "approvals.json", "usage.json", "agents.json"]
+            except Exception:
+                pass
+        
+        res = {
+            "status": "success" if restored else "failed",
+            "recovered_files": restored
+        }
+        print(json.dumps(res, indent=2))
+        
+    elif args.subaction == "validate":
+        errors = []
+        files = ["context.json", "workflow.json", "runtime.json", "approvals.json", "usage.json", "agents.json"]
+        for f in files:
+            p = os.path.join(state_dir, f)
+            if not os.path.exists(p):
+                errors.append(f"Missing {f}")
+            else:
+                try:
+                    with open(p, "r", encoding="utf-8") as file:
+                        json.load(file)
+                except Exception:
+                    errors.append(f"Corrupted JSON in {f}")
+                    
+        res = {
+            "status": "success" if not errors else "failed",
+            "errors": errors
+        }
+        print(json.dumps(res, indent=2))
+        if errors:
+            sys.exit(1)
+
 def main():
     parser = argparse.ArgumentParser(description="AI Workflow Runtime Engine CLI")
     subparsers = parser.add_subparsers(dest="action", required=True)
@@ -1827,6 +1974,18 @@ def main():
     rel_exec = release_sub.add_parser("execute")
     _ = rel_exec.add_argument("--approve", action="store_true")
     
+    _ = subparsers.add_parser("context")
+    
+    rules_p = subparsers.add_parser("rules")
+    rules_sub = rules_p.add_subparsers(dest="subaction", required=True)
+    _ = rules_sub.add_parser("status")
+    
+    state_p = subparsers.add_parser("state")
+    state_sub = state_p.add_subparsers(dest="subaction", required=True)
+    _ = state_sub.add_parser("status")
+    _ = state_sub.add_parser("recover")
+    _ = state_sub.add_parser("validate")
+    
     args = parser.parse_args()
     
     cmds = {
@@ -1860,10 +2019,13 @@ def main():
         "env": do_env_action,
         "debug": do_debug_action,
         "verify": do_verify_action,
-        "release": do_release_action
+        "release": do_release_action,
+        "context": do_context,
+        "rules": do_rules_action,
+        "state": do_state_action
     }
     
-    modifying_actions = ["init", "start", "step", "complete", "fail", "blueprint", "suggest", "compact", "task", "execution", "analysis-agent", "choice", "active-workflow", "resume", "discover", "classify", "memory", "env", "debug", "verify", "release"]
+    modifying_actions = ["init", "start", "step", "complete", "fail", "blueprint", "suggest", "compact", "task", "execution", "analysis-agent", "choice", "active-workflow", "resume", "discover", "classify", "memory", "env", "debug", "verify", "release", "state"]
     if args.action in modifying_actions:
         with SessionLock():
             cmds[args.action](args)

@@ -24,6 +24,7 @@ Di chuyển terminal đến dự án Git mà bạn muốn sử dụng các Skill
 aiwf install
 ```
 Lệnh này sẽ tạo thư mục `.agents/` chứa luật cấu hình `AI_RULES.md`, danh sách `skills/` và các mẫu prompts tại `templates/`.
+*(Hỗ trợ cài đặt trên cả các kho lưu trữ Git tiêu chuẩn, Git worktrees, Git submodules, và tự động tìm gốc dự án khi gọi từ thư mục con).*
 
 ### ⚙️ Lựa chọn Workspace Permission Mode (Chế độ Phân quyền)
 Khi bắt đầu khởi chạy lệnh `/init` (hoặc `/initialize-workflow`), bạn sẽ được hỏi lựa chọn chế độ phân quyền:
@@ -156,6 +157,11 @@ Trong terminal dự án, bạn có thể chạy các lệnh quản trị tiện 
 | `aiwf memory bootstrap` | Khởi tạo Project Memory từ đầu (phát hiện ngôn ngữ, frameworks, parser symbols và lưu trữ SQLite/file). |
 | `aiwf memory update [--full]` | Cập nhật tăng cường tri thức dự án thông qua git-diff hoặc timestamp fallback. |
 | `aiwf memory search "<query>"` | Truy vấn tìm kiếm RAG kết hợp từ khóa cục bộ và vector Qdrant. |
+| `aiwf context` | Lấy dữ liệu tĩnh của project (ngôn ngữ, frameworks, git remote) từ context.json. |
+| `aiwf rules status` | Xem các quy tắc hệ thống đang được kích hoạt từ rules.json. |
+| `aiwf state status` | Kiểm tra tình trạng sức khỏe và tính toàn vẹn của các file trạng thái con. |
+| `aiwf state recover` | Thực hiện khôi phục trạng thái từ session.json hoặc tệp tin sao lưu. |
+| `aiwf state validate` | Xác thực cấu trúc dữ liệu JSON của các tệp tin trạng thái con. |
 
 
 ---

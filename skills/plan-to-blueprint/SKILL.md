@@ -121,57 +121,90 @@ previous_artifact: ../plans/FEAT-XXX_feature_slug_plan.md
 next_artifact: [Implementation (Source Code)](../../)
 ---
 
-# Technical Blueprint – [Human Readable Name]
+# Technical Blueprint & Implementation Contract – [Human Readable Name]
 
-## 0. Project Memory Baseline
-- Memory state & Confidence
-- RAG Queries and search results summarized
-- Inspected source files (if any)
+## 0. Baseline Context & References
+- **Memory Baseline**: [State and confidence levels retrieved from project memory summary]
+- **RAG Query Summaries**: [List of vector search query results, matched files, and key findings]
+- **Inspected Source Files**: [Target files inspected directly, including line references]
 
-## 1. Component Architecture & Design
-- **Affected Layers & Folders**: [Detailed directories and namespaces]
-- **Public APIs / Interface Contracts**: [REST endpoints, RPC definitions, schemas]
-- **Class / Interface Signatures**: [Exact types, fields, methods, parameters, and return types]
-- **Data Models / Database Schema Definitions**: [SQL schemas, indexes, migrations, JSON layouts]
-- **Folder / File Structure**: [NEW and MODIFY files mapped out]
+## 1. File-by-File Analysis & Proposed Mutations
+All file mutations must be listed explicitly. No generic statements like "modify related files" or placeholders are allowed.
 
-## 2. Sequence & Interaction Diagrams
-- [Mermaid sequence diagrams showing exact interaction loops between classes/services/APIs]
+**CRITICAL PATH RULES**:
+- Never generate absolute paths or `file://` links. All file references must be relative workspace paths (e.g. `skills/workflow-runtime/scripts/session.py` instead of `/path/to/session.py` or `file:///path/to/session.py`).
 
-## 3. Data Flow / Sequence Flow
-- [Detailed walkthrough of how data flows through components]
+| File Path | Operation | Responsibility | Dependency | Impact & Risk |
+| :--- | :--- | :--- | :--- | :--- |
+| `relative/path/to/file` | `[NEW | MODIFY | DELETE | RENAME]` | `Specific responsibility of the file's logic` | `Dependencies on other modules/files` | `Risk level, migration impacts, side effects` |
 
-## 4. Alternative Solutions Considered & Trade-offs
-- [Alternate designs, evaluated trade-offs, and reasons for rejection]
+## 2. Target Folder Structure
+Provide the complete directory tree structure of the workspace showing the exact location of all new/modified files. No folders may be omitted, and placeholders like `...` or `etc.` are strictly forbidden.
+```text
+.
+├── (exact directory structure)
+```
 
-## 5. Architecture Decision Assessment
-ADR Required: [Yes | No]
+## 3. Interface Contracts (Public & Internal)
+- **Public Interface Contracts**:
+  - *CLI Command Syntax*: `command subcommand [args] [options]` (specify types, optional/required, default values).
+  - *REST / GraphQL / RPC API Schema*: Complete request/response JSON schemas, header specs, error codes, HTTP statuses.
+  - *Data Models & Database Schema*: Table definitions, columns (types, constraints, nullability), indices, migration script payloads.
+  - *Backward Compatibility*: Every schema must preserve backward compatibility with the existing `.agents/.session.json`. If a legacy field exists, the blueprint must define exactly where it migrates.
+  - *Enum Constraint*: Do not invent unsafe enum values. For `permission_mode`, only allow: `sandbox`, `full_access`. Never allow `unrestricted`.
+- **Internal Component Contracts**:
+  - *Module/Class Signatures*: Interfaces, classes, types, function signatures with exact input types, output types, and thrown exception/error types.
+- **Extension Changes (if applicable)**:
+  If the feature modifies the VSCode / Antigravity extension, the blueprint MUST define:
+  - *ViewModel Schema*: The exact UI model structure.
+  - *File Watch Strategy*: How and when the extension watches state files.
+  - *Debounce Behavior*: Throttle/debounce settings for UI updates.
+  - *Fallback Order*: The sequence of settings to resolve if files are missing.
+  - *Missing/Corrupted State UI*: UI representation when state files are empty or corrupted.
+  - *Partial Refresh Rules*: Which components are refreshed instead of full reload.
 
-Reason:
-[Justification for why an Architecture Decision Record is required or not. Examples: adding database dependencies, changing central authentication, introducing new frameworks.]
+## 4. Algorithms & Logic Specifications
+Describe all non-trivial logic (search, routing, state transition, retry, synchronization, data diffing).
+- *Algorithm Flow / Pseudo-code*: Complete pseudo-code or step-by-step logic.
+- *Pseudo-code Path Validation*: `.agents/.session.json` must never become `.agents/session.json`. Validate all paths used.
+- *Error Handling & Recovery*: Fallback behavior, retry policies (exponential backoff, max retries), circuit breakers.
 
-Recommended ADR Title:
-[Proposed title, e.g., ADR-001 Cache Strategy for Playwright Assets]
+## 5. State Machine & Transitions
+If the feature modifies workflow state, define the exact state machine:
+- *States*: `State A`, `State B`, `etc.`
+- *Transitions*: `State A` --(Event)--> `State B`
+- *Abnormal Conditions*: Resume checkpoint rules, rollback mechanics, failure/timeout recovery paths.
 
-Recommended Next Step:
-- If ADR Required = Yes: run `/adr`
-- If ADR Required = No: run `/implement`
+## 6. Validation and Safety Constraints
+- *Input Validation Rules*: Format validation, length, types, regex checks, range limits.
+- *Permission / Security Checks*: Required authentication, token checks, directory restriction gates (sandbox verification).
 
-## 6. Migration & Rollback Strategy
-- [Database migration path, application backward compatibility, zero-downtime deployment plan]
-- [Detailed rollback instructions and triggers]
+## 7. Backward Compatibility & Migration Mapping
+Every blueprint must include this section if state schemas or files are modified:
+| Old Field | New File | New Field | Migration Rule | Recovery Rule |
+| :--- | :--- | :--- | :--- | :--- |
+| `legacy_field` | `relative/path/to/new_file` | `new_field` | `How old field translates to new field` | `Rollback strategy if migration fails` |
 
-## 7. Security & Permissions
-- [Authentication protocols, authorization levels, input validation schemas, data encryption rules]
+## 8. Implementation Checklist
+Provide an objectively verifiable, step-by-step list of tasks.
+- [ ] Task 1...
+- [ ] Task 2...
 
-## 8. Performance & Scalability
-- [Concurrency models, caching strategies, scaling considerations, latency impacts]
+## 9. Acceptance Criteria & Test Mapping
+Every implementation requirement must map directly to validation test assertions.
+**CRITICAL RULE**: Acceptance Criteria must cover every requirement. If the blueprint claims N tests, all N must be listed and mapped. Rushing or grouping tests like "Task 2..11" is strictly forbidden.
 
-## 9. Error Handling & Resilience
-- [Retry rules, fallback behaviors, timeout parameters, circuit breaker patterns]
+| Requirement ID | Requirement Description | Expected Result | Verification Method | Unit/Integration Test Target |
+| :--- | :--- | :--- | :--- | :--- |
+| `REQ-001` | `Description` | `Exact outcome` | `Automated/Manual Command` | `Target test file & assertion name` |
 
-## 10. Verification & Test Strategy
-- [Unit test coverage specifications, mock boundaries, assertions, integration testing plan]
+## 10. Disallowed Outputs Validation
+Verify and ensure the following outputs are NOT present in this blueprint:
+- [ ] No `file://` or absolute paths used.
+- [ ] No placeholders like `...` or `etc.` in code/structures.
+- [ ] No `TBD` or `To Be Determined` placeholders.
+- [ ] No unsafe permission values (e.g. `unrestricted`).
+- [ ] No unmapped legacy fields without migration rules.
 ```
 
 ---
@@ -196,6 +229,7 @@ First line must be:
 - Do NOT skip sections.
 - Keep naming consistent with project (from memory).
 - **Do NOT create ADR files**. Only assess and recommend if they are required.
+- **Run a self-review of the generated blueprint against the "Disallowed Outputs Validation" checklist and fix all violations before saving.**
 
 ---
 

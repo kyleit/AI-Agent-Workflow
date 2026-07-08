@@ -89,6 +89,7 @@ Once bootstrapped, open a new terminal in any Git project and execute:
   aiwf install
   ```
   *Deploys `AI_RULES.md`, `MANIFEST.json`, `skills/`, and `templates/` into the project's local `.agents/` folder.*
+  *(Supports standard Git repositories, Git worktrees, Git submodules, and execution from nested directories).*
 
 * **Update/Sync Framework Skills**:
   ```bash
@@ -114,12 +115,35 @@ Once bootstrapped, open a new terminal in any Git project and execute:
   ```
   *Handles full project memory bootstrapping, incremental updates via git-diff/timestamp, and semantic/keyword query searching.*
 
+* **Inspect Project Context**:
+  ```bash
+  aiwf context
+  ```
+  *Retrieves the static project context from context.json.*
+
+* **Inspect Active Rules**:
+  ```bash
+  aiwf rules status
+  ```
+  *Retrieves active rules configuration from rules.json.*
+
+* **Inspect State Status**:
+  ```bash
+  aiwf state <status | recover | validate>
+  ```
+  *Manages the split state engine files (context, workflow, runtime, approvals, usage, agents) and handles recovery or validation checks.*
+
 * **Safely Remove Skills**:
   ```bash
   aiwf uninstall
   ```
   *Cleans up local framework skills and rules, keeping user memory files intact.*
 
+* **Verify Skill Quality**:
+  ```bash
+  aiwf verify-skill <skill-name>
+  ```
+  *Executes static analysis, simulation, and quality validation for target skill, exporting report to docs/verification/.*
 
 ---
 

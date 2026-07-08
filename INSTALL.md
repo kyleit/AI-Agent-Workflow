@@ -40,6 +40,9 @@ For AI Coding Agents (e.g., Antigravity IDE, Cursor, Claude Code) to seamlessly 
 
 ## Installation Methods
 
+> [!NOTE]
+> The installation script (`aiwf install` or `./install.sh`) automatically detects standard Git repositories, Git worktrees, Git submodules, and supports execution from nested directories. It resolves the true project root via `git rev-parse` and sets up the framework files at the workspace root.
+
 ### Method 1: Directory Copying (Recommended for Simplicity)
 Simply copy the `skills/` directory from this framework into your project's `.agents/` folder.
 

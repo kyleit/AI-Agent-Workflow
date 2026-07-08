@@ -80,8 +80,37 @@ $HasAnthropicKey = -not [string]::IsNullOrEmpty($env:ANTHROPIC_API_KEY)
 Check-Item "AI Provider API Key is configured (Gemini or Anthropic)" { $HasGeminiKey -or $HasAnthropicKey } "Set either GEMINI_API_KEY or ANTHROPIC_API_KEY environment variable to use AI coding skills."
 
 # Check 6: Check active project environment
-if (Test-Path ".git") {
-    Log-Info "Active Git repository detected at current path."
+function Test-GitWorkTree {
+    $gitExists = Get-Command git -ErrorAction SilentlyContinue
+    if (-not $gitExists) {
+        return $false
+    }
+    git rev-parse --is-inside-work-tree 2>$null | Out-Null
+    return $LASTEXITCODE -eq 0
+}
+
+function Get-GitRoot {
+    $root = git rev-parse --show-toplevel 2>$null
+    if ($LASTEXITCODE -ne 0 -or [string]::IsNullOrWhiteSpace($root)) {
+        return $null
+    }
+    return $root.Trim()
+}
+
+$IsGit = $false
+$ProjectRoot = "."
+
+if (Test-GitWorkTree) {
+    $IsGit = $true
+    $ProjectRoot = Get-GitRoot
+} elseif (Test-Path ".git") {
+    $IsGit = $true
+    $ProjectRoot = "."
+}
+
+if ($IsGit) {
+    Set-Location $ProjectRoot
+    Log-Info "Active Git repository detected at $ProjectRoot."
     
     Check-Item "Framework installed in active project ($InstallTarget/)" { Test-Path $InstallTarget } "Run 'aiwf install' to deploy framework skills into this project."
                

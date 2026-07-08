@@ -1,3 +1,4 @@
+<!-- AIWF:RULES:BEGIN -->
 # AI Engineering Workflow Agents
 
 Every AI agent working inside this project **MUST** follow the AI Workflow Framework.
@@ -15,6 +16,7 @@ Before executing any task:
 3. Use the matching workflow Skill whenever one exists.
 4. Respect runtime checkpoints and resume rules.
 5. Never bypass approval gates or other framework policies.
+6. Use `.agents/state/` sub-states and CLI `state` commands to inspect or restore system status.
 
 ## Global Policies
 
@@ -55,6 +57,4 @@ The framework divides agents into **Core Phase Owners** and **Specialist Assista
 - **Release**: Version Manager, Release Validator, Package Builder, ChangeLog Manager, Publisher.
 
 GitHub Repository: https://github.com/kyleit/AI-Agent-Workflow
-
 <!-- AIWF:RULES:END -->
-

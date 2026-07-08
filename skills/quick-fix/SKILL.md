@@ -207,10 +207,38 @@ workflow: quick-fix
 status: draft
 ---
 # Technical Design Blueprint – [Issue Name]
+
 ## 1. Proposed Code Changes
-[Specify file changes with exact classes, methods, or blocks]
-## 2. Test Plan
-- Run compilation and tests
+All files to create, modify, or delete must be listed here. No placeholders allowed.
+
+### [File Path]
+- **Operation**: [NEW | MODIFY | DELETE]
+- **Responsibility**: [Explain the file change's specific role]
+- **Changes**: [List classes, methods, or blocks affected]
+
+## 2. Target Folder Structure
+Complete directory layout after modifications:
+```text
+.
+├── (folders and files structure)
+```
+
+## 3. Interface & Data Contracts
+- **API/CLI Contracts**: [CLI flags, REST payloads, response schema, config properties]
+- **Data Schema**: [JSON schemas, DB columns, or state models]
+
+## 4. Algorithms & Key Logic
+- [Pseudo-code or step-by-step logic description]
+
+## 5. Validation Rules
+- [Specify validation checks and input formatting constraints]
+
+## 6. Implementation Checklist
+- [ ] Task...
+
+## 7. Verification & Test Plan
+- **Acceptance Assertions**:
+  - *REQ-001*: Test method and target file.
 ```
 
 ---

@@ -20,12 +20,30 @@ class TestScriptFirstExecution(unittest.TestCase):
             shutil.copy2(self.session_file, self.session_backup)
             os.remove(self.session_file)
 
+        # Back up state directory
+        self.state_dir = os.path.join(".agents", "state")
+        self.state_backup = None
+        if os.path.exists(self.state_dir):
+            self.state_backup = self.state_dir + ".testbackup"
+            if os.path.exists(self.state_backup):
+                shutil.rmtree(self.state_backup)
+            shutil.copytree(self.state_dir, self.state_backup)
+            shutil.rmtree(self.state_dir)
+
     def tearDown(self):
         if os.path.exists(self.session_file):
             try:
                 os.remove(self.session_file)
             except Exception:
                 pass
+        
+        # Clean state directory
+        if os.path.exists(self.state_dir):
+            shutil.rmtree(self.state_dir)
+        if self.state_backup and os.path.exists(self.state_backup):
+            shutil.copytree(self.state_backup, self.state_dir)
+            shutil.rmtree(self.state_backup)
+
         if self.session_backup and os.path.exists(self.session_backup):
             shutil.move(self.session_backup, self.session_file)
             

@@ -91,6 +91,29 @@ SRC_SKILL_DIR=$(get_manifest_val "skill_directory" "$SCRIPT_DIR/MANIFEST.json")
 SRC_TEMPLATE_DIR=$(get_manifest_val "template_directory" "$SCRIPT_DIR/MANIFEST.json")
 
 # Verify current directory has target installation
+is_git_worktree() {
+  git rev-parse --is-inside-work-tree >/dev/null 2>&1
+}
+
+get_git_root() {
+  git rev-parse --show-toplevel 2>/dev/null
+}
+
+IS_GIT_REPO=false
+PROJECT_ROOT="."
+
+if command -v git &> /dev/null && is_git_worktree; then
+    IS_GIT_REPO=true
+    PROJECT_ROOT="$(get_git_root)"
+elif [ -d ".git" ] || [ -f ".git" ]; then
+    IS_GIT_REPO=true
+    PROJECT_ROOT="."
+fi
+
+if [ "$IS_GIT_REPO" = true ]; then
+    cd "$PROJECT_ROOT" || exit 1
+fi
+
 TARGET_MANIFEST="$SRC_INSTALL_TARGET/MANIFEST.json"
 if [ ! -f "$TARGET_MANIFEST" ]; then
     log_error "No active installation found at $SRC_INSTALL_TARGET/MANIFEST.json"

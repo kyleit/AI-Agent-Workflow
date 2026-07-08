@@ -8,6 +8,9 @@ import tempfile
 
 class TestAgentsMerge(unittest.TestCase):
     def setUp(self):
+        if sys.platform != "win32" and "powershell" in getattr(self, "_testMethodName", ""):
+            self.skipTest("PowerShell only available on Windows")
+            
         # Create a temporary sandbox directory
         self.test_dir = tempfile.mkdtemp()
         self.script_dir = os.path.abspath(os.path.join(os.path.dirname(__file__), "..", "..", ".."))

@@ -62,3 +62,9 @@ Wait for user choice and call `workflow-runtime execution mode --mode <choice> -
 - **Option 2 (Sequential)**: Run tasks sequentially in topological DAG order. Ignore all execution groups.
 - **Option 3 (Re-split)**: Regenerate task decomposition and plan, then display choice menu again.
 - **Option 4 (Cancel)**: Abort execution immediately. Modifies no workspace files.
+
+## Post-Modification Check
+- Sau khi bất kỳ Skill nào trong framework được tạo mới hoặc chỉnh sửa, Orchestrator PHẢI khuyến nghị người dùng chạy lệnh xác thực chất lượng Skill để đảm bảo không vi phạm các chính sách an toàn:
+  ```bash
+  /verify-skill <skill-name>
+  ```

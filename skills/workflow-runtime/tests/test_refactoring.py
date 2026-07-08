@@ -22,6 +22,16 @@ class TestRefactoringEngine(unittest.TestCase):
             self.session_backup = SESSION_FILE + ".testbackup"
             shutil.copy2(SESSION_FILE, self.session_backup)
             os.remove(SESSION_FILE)
+            
+        # Back up state directory
+        self.state_dir = os.path.join(".agents", "state")
+        self.state_backup = None
+        if os.path.exists(self.state_dir):
+            self.state_backup = self.state_dir + ".testbackup"
+            if os.path.exists(self.state_backup):
+                shutil.rmtree(self.state_backup)
+            shutil.copytree(self.state_dir, self.state_backup)
+            shutil.rmtree(self.state_dir)
         
         save_session_atomic({"checkpoint": 1, "permission_mode": "sandbox"})
             
@@ -46,6 +56,14 @@ class TestRefactoringEngine(unittest.TestCase):
                     pass
         if os.path.exists(SESSION_FILE):
             os.remove(SESSION_FILE)
+        
+        # Clean state directory
+        if os.path.exists(self.state_dir):
+            shutil.rmtree(self.state_dir)
+        if self.state_backup and os.path.exists(self.state_backup):
+            shutil.copytree(self.state_backup, self.state_dir)
+            shutil.rmtree(self.state_backup)
+
         if self.session_backup and os.path.exists(self.session_backup):
             shutil.copy2(self.session_backup, SESSION_FILE)
             os.remove(self.session_backup)

@@ -1,7 +1,7 @@
 {
   "name": "ai-skill-framework",
   "description": "A reusable collection of engineering skills for AI coding agents to manage SDLC lifecycle",
-  "version": "6.0.0",
+  "version": "6.2.0",
   "min_ai_platform_version": "1.0.0",
   "author": {
     "name": "Kyle Dang",
@@ -529,6 +529,28 @@
       ],
       "phase": "orchestration",
       "execution_mode": "sequential"
+    },
+    {
+      "name": "skill-self-verification",
+      "command": "verify-skill",
+      "aliases": [
+        "verify-skill",
+        "skill-verify",
+        "self-verify"
+      ],
+      "category": "quality",
+      "tags": [
+        "verification",
+        "testing",
+        "skills",
+        "runtime"
+      ],
+      "owner_agent": "reviewer",
+      "specialist_agents": [
+        "qa-reviewer"
+      ],
+      "phase": "verification",
+      "execution_mode": "sequential"
     }
   ],
   "templates": [
@@ -582,6 +604,9 @@
       "quick-fix",
       "quick-feature",
       "frontend-design"
+    ],
+    "quality": [
+      "skill-self-verification"
     ]
   }
 }

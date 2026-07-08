@@ -29,6 +29,16 @@ class TestRuntimeEngine(unittest.TestCase):
             shutil.copy2(SESSION_FILE, self.session_backup)
             os.remove(SESSION_FILE)
             
+        # Back up state directory
+        self.state_dir = os.path.join(".agents", "state")
+        self.state_backup = None
+        if os.path.exists(self.state_dir):
+            self.state_backup = self.state_dir + ".testbackup"
+            if os.path.exists(self.state_backup):
+                shutil.rmtree(self.state_backup)
+            shutil.copytree(self.state_dir, self.state_backup)
+            shutil.rmtree(self.state_dir)
+
         # Clean session.json.bak if it exists
         bak_file = SESSION_FILE + ".bak"
         if os.path.exists(bak_file):
@@ -52,6 +62,13 @@ class TestRuntimeEngine(unittest.TestCase):
         bak_file = SESSION_FILE + ".bak"
         if os.path.exists(bak_file):
             os.remove(bak_file)
+
+        # Clean state directory
+        if os.path.exists(self.state_dir):
+            shutil.rmtree(self.state_dir)
+        if self.state_backup and os.path.exists(self.state_backup):
+            shutil.copytree(self.state_backup, self.state_dir)
+            shutil.rmtree(self.state_backup)
 
         # Restore backup files
         for current, backup in [
@@ -252,6 +269,8 @@ class TestRuntimeEngine(unittest.TestCase):
             [sys.executable, cli_path, "suggest", "--request", "Tôi bị crash ở hàm submit", "--recommend", "quick-fix"],
             capture_output=True, text=True
         )
+        print("CLI STDOUT:", res.stdout)
+        print("CLI STDERR:", res.stderr)
         self.assertEqual(res.returncode, 0)
         session = load_session()
         self.assertEqual(session["suggestion_gate"]["active"], True)

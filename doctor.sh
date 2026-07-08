@@ -91,8 +91,28 @@ check_item "AI Provider API Key is configured (Gemini or Anthropic)" \
            "Set either GEMINI_API_KEY or ANTHROPIC_API_KEY environment variable to use AI coding skills."
 
 # Check 6: Check active project environment
-if [ -d ".git" ]; then
-    log_info "Active Git repository detected at current path."
+is_git_worktree() {
+  git rev-parse --is-inside-work-tree >/dev/null 2>&1
+}
+
+get_git_root() {
+  git rev-parse --show-toplevel 2>/dev/null
+}
+
+IS_GIT_REPO=false
+PROJECT_ROOT="."
+
+if command -v git &> /dev/null && is_git_worktree; then
+    IS_GIT_REPO=true
+    PROJECT_ROOT="$(get_git_root)"
+elif [ -d ".git" ] || [ -f ".git" ]; then
+    IS_GIT_REPO=true
+    PROJECT_ROOT="."
+fi
+
+if [ "$IS_GIT_REPO" = true ]; then
+    cd "$PROJECT_ROOT" || exit 1
+    log_info "Active Git repository detected at $PROJECT_ROOT."
     
     # Check if framework is installed in the active project
     INSTALL_TARGET=$(get_manifest_val "installation_target" "$SCRIPT_DIR/MANIFEST.json")

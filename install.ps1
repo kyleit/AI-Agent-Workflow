@@ -21,11 +21,49 @@ function Log-Error ($msg) { Write-Error "[ERROR] $msg" }
 function Log-Success ($msg) { Write-Host "[SUCCESS] $msg" -ForegroundColor Green }
 
 # 1. Verify current directory is a Git project
-if (-not (Test-Path ".git")) {
-    Log-Error "The current directory is not a Git repository."
-    Log-Error "The AI Skill Framework must be installed at the root of a Git project."
+function Test-GitWorkTree {
+    $gitExists = Get-Command git -ErrorAction SilentlyContinue
+    if (-not $gitExists) {
+        return $false
+    }
+    git rev-parse --is-inside-work-tree 2>$null | Out-Null
+    return $LASTEXITCODE -eq 0
+}
+
+function Get-GitRoot {
+    $root = git rev-parse --show-toplevel 2>$null
+    if ($LASTEXITCODE -ne 0 -or [string]::IsNullOrWhiteSpace($root)) {
+        return $null
+    }
+    return $root.Trim()
+}
+
+$IsGit = $false
+$ProjectRoot = "."
+
+if (Test-GitWorkTree) {
+    $IsGit = $true
+    $ProjectRoot = Get-GitRoot
+} elseif (Test-Path ".git") {
+    $IsGit = $true
+    $ProjectRoot = "."
+}
+
+if (-not $IsGit) {
+    $gitExists = Get-Command git -ErrorAction SilentlyContinue
+    if (-not $gitExists) {
+        Log-Error "git command line tool is missing, and no .git folder/file found."
+    } else {
+        Log-Error "The current directory is not a Git repository."
+        Log-Error "The AI Skill Framework must be installed at the root of a Git project."
+    }
     exit 1
 }
+
+Set-Location $ProjectRoot
+Log-Success "Git repository detected."
+Log-Info "Project root: $ProjectRoot"
+Log-Info "Installing AI Skill Framework into $ProjectRoot/.agents"
 
 # Locate the framework package directory (where this script lives)
 $ScriptDir = Split-Path -Parent $MyInvocation.MyCommand.Path
