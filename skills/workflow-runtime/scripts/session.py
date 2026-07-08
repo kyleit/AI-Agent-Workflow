@@ -100,6 +100,7 @@ SESSION_LOCK_FILE = SESSION_FILE + ".lock"
 
 def acquire_session_lock(timeout: float = 10.0, delay: float = 0.05) -> None:
     import time
+    os.makedirs(os.path.dirname(SESSION_LOCK_FILE), exist_ok=True)
     start_time = time.time()
     while True:
         try:

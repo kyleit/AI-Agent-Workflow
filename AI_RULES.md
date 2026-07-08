@@ -21,6 +21,7 @@ The framework is strictly **approval-driven**. Before executing any state-changi
     4.  Prompt the user for confirmation using the `ask_question` tool with options `["Yes (Proceed)", "No (Halt)"]`. If the tool is not supported by the client/IDE, fall back to asking in the chat text interface. Then **STOP**.
 *   **Accepted Approval Keywords**: `Y`, `Yes`, `Proceed`, `Continue` (case-insensitive) or selecting the corresponding option in the interactive UI.
 *   **Halt Condition**: Any other input (or selecting "No (Halt)") is treated as a **STOP**. The Skill must immediately halt execution. Never assume approval.
+*   **No Double Confirmation Policy**: Mọi hành động mà người dùng đã phê duyệt hoặc lựa chọn thông qua giao diện tương tác (như `ask_question` hoặc CLI `prompt select` / `choice`) thì Agent **không được phép hỏi lại hoặc yêu cầu xác nhận lại** trong đoạn chat. Agent phải trực tiếp thực hiện hành động đó ngay sau khi có kết quả lựa chọn của người dùng, ngoại trừ việc chọn chế độ nguy hiểm `unrestricted` thì bắt buộc phải cảnh báo và xác nhận lại.
 
 ---
 
@@ -415,3 +416,12 @@ To support deep engineering research, architecture reviews, and validation while
 3. **No Code Modification**: Analysis agents must never modify any source code files, update session or runtime state, create git commits/tags, perform releases, or edit final canonical workflow documents.
 4. **Structured Recommendations**: Analysis agents return only structured recommendations and summaries. Only the owning phase agent (e.g., the planner during planning, the architect during blueprinting) is authorized to compile and output the final canonical workflow artifact (e.g., the plan, the design blueprint, the verification report).
 5. **Lifespan Boundaries**: All analysis agents are temporary. Their metadata, status, and recommendations are tracked in `analysis-agents.json` and synchronized with the visualizer, and they must be automatically cleaned up upon phase completion.
+
+---
+
+## 21. Script-First Execution Policy
+
+To minimize token consumption, eliminate LLM logic errors, and ensure repeatable, verifiable execution of procedural tasks:
+1. **Deterministic Tasks**: All deterministic, repeatable, file-based, validation-based, and state-management actions MUST be executed by Python CLI scripts instead of natural language prompt instructions.
+2. **Hybrid Tasks Separation**: For hybrid tasks (brainstorming, quick-fix, quick-feature, brainstorming-to-plan, plan-to-blueprint, ADR creation, blueprint-to-implementation), the LLM is restricted to reasoning, design, code generation, and rationale writing. The CLI script commands must handle ID allocation, path generation, YAML/markdown validation, checkpoint/session state persistence, and command execution.
+3. **Structured JSON Output**: Every script-first CLI command must return structured JSON formatting on standard output.

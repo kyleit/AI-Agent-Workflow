@@ -31,6 +31,32 @@ def get_rag_info() -> dict:
         info["provider"] = "qdrant"
     return info
 
+def is_stdin_ready() -> bool:
+    import sys
+    if sys.platform == 'win32':
+        import msvcrt
+        import ctypes
+        from ctypes import wintypes
+        try:
+            handle = msvcrt.get_osfhandle(sys.stdin.fileno())
+            if ctypes.windll.kernel32.GetFileType(handle) == 3:  # FILE_TYPE_PIPE
+                avail = wintypes.DWORD()
+                res = ctypes.windll.kernel32.PeekNamedPipe(
+                    handle, None, 0, None, ctypes.byref(avail), None
+                )
+                return bool(res and avail.value > 0)
+            else:
+                return msvcrt.kbhit()
+        except Exception:
+            return False
+    else:
+        import select
+        try:
+            ready, _, _ = select.select([sys.stdin], [], [], 0)
+            return len(ready) > 0
+        except Exception:
+            return False
+
 def prompt_select(question: str, options: list[str], default: str | None = None) -> str:
     """
     In ra cấu trúc XML/JSON đặc biệt để Agent bắt sự kiện hiển thị UI ask_question.
@@ -40,13 +66,14 @@ def prompt_select(question: str, options: list[str], default: str | None = None)
     import sys
     # Bỏ qua tương tác nếu đang chạy test tự động
     if (os.environ.get("TESTING") == "1" or any(m in sys.modules for m in ["unittest", "pytest"])) and os.environ.get("TEST_PROMPT") != "1":
-        import select
-        try:
-            ready, _, _ = select.select([sys.stdin], [], [], 0.1)
-            if not ready:
-                return default if default is not None else options[0]
-        except Exception:
-            return default if default is not None else options[0]
+        if is_stdin_ready():
+            try:
+                line = sys.stdin.readline().strip()
+                if line:
+                    return line
+            except Exception:
+                pass
+        return default if default is not None else options[0]
         
     payload = {
         "question": question,
@@ -54,14 +81,26 @@ def prompt_select(question: str, options: list[str], default: str | None = None)
         "default": default
     }
     # In ra XML tag đặc biệt để Agent phát hiện
-    print(f"\n<interactive_prompt type=\"select\">\n{json.dumps(payload, indent=2)}\n</interactive_prompt>", flush=True)
+    xml_str = f"\n<interactive_prompt type=\"select\">\n{json.dumps(payload, indent=2, ensure_ascii=False)}\n</interactive_prompt>\n"
+    try:
+        sys.stdout.write(xml_str)
+        sys.stdout.flush()
+    except UnicodeEncodeError:
+        sys.stdout.buffer.write(xml_str.encode('utf-8'))
+        sys.stdout.buffer.flush()
     
     # Fallback cho terminal/human nếu IDE không tự động bắt thẻ XML
     if sys.stdin.isatty():
-        print(f"\n[Prompt] {question}")
+        prompt_str = f"\n[Prompt] {question}\n"
         for idx, opt in enumerate(options):
-            print(f"  {idx + 1}. {opt}")
-        print(f"Select option (1-{len(options)}) [Default: {default}]: ", end="", flush=True)
+            prompt_str += f"  {idx + 1}. {opt}\n"
+        prompt_str += f"Select option (1-{len(options)}) [Default: {default}]: "
+        try:
+            sys.stdout.write(prompt_str)
+            sys.stdout.flush()
+        except UnicodeEncodeError:
+            sys.stdout.buffer.write(prompt_str.encode('utf-8'))
+            sys.stdout.buffer.flush()
     
     try:
         # Block chờ phản hồi qua stdin
@@ -82,5 +121,48 @@ def prompt_select(question: str, options: list[str], default: str | None = None)
         return line
     except (IOError, KeyboardInterrupt):
         return default if default is not None else options[0]
+
+def get_current_branch() -> str:
+    import subprocess
+    try:
+        res = subprocess.run(["git", "branch", "--show-current"], capture_output=True, text=True)
+        if res.returncode == 0:
+            return res.stdout.strip()
+    except Exception:
+        pass
+    return ""
+
+def suggest_branch_name(artifact_id: str, slug: str) -> str:
+    import re
+    slug_clean = re.sub(r'[^a-zA-Z0-9]+', '-', slug.strip().lower()).strip('-')
+    art_upper = artifact_id.upper()
+    if art_upper.startswith("FIX-"):
+        return f"fix/{art_upper.lower()}-{slug_clean}"
+    elif art_upper.startswith("QUICK-"):
+        return f"quick/{art_upper.lower()}-{slug_clean}"
+    else:
+        return f"feature/{art_upper.lower()}-{slug_clean}"
+
+def build_branch_selection_options(artifact_id: str, slug: str) -> dict:
+    current = get_current_branch()
+    suggested = suggest_branch_name(artifact_id, slug)
+    
+    if not current:
+        opt1 = "Continue on current branch (detached HEAD — not recommended)"
+    else:
+        opt1 = f"Continue on current branch ({current})"
+        
+    opt2 = f"Create new branch ({suggested})"
+    
+    warn = False
+    if current in ["main", "master"]:
+        warn = True
+        
+    return {
+        "current_branch": current or "detached HEAD",
+        "suggested_branch": suggested,
+        "options": [opt1, opt2, "Stop"],
+        "warn_main": warn
+    }
 
 

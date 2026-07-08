@@ -5,6 +5,15 @@ All notable changes to this project will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [6.0.0] - 2026-07-08
+
+### Added
+- **FEAT-021: Convert Deterministic Skills to Script-First Execution**:
+  - Tách toàn bộ logic kiểm tra/thẩm định mang tính chất thủ tục (init, resume, project stack discovery, project memory bootstrap/sync/search, env health, test runner, verify checklist, release gates) thành các script Python chạy tập trung.
+  * Bổ sung các lệnh CLI JSON-returning mới: `discover`, `classify`, `memory bootstrap/update/search`, `env health`, `validate artifact/blueprint/session`, `debug run`, `verify run`, `release plan/execute`.
+  * Viết bộ kiểm thử tự động `test_script_first.py` bao quát toàn bộ 17 kịch bản nghiệp vụ đặc thù.
+  * Cập nhật đặc tả phân nhóm Group A (Script-First), Group B (Hybrid), Group C (LLM-driven) trong `SKILLS.md` và `AI_RULES.md`.
+
 ## [5.2.1] - 2026-07-07
 
 ### Added

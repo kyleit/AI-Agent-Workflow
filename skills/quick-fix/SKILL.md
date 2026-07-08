@@ -188,7 +188,7 @@ status: pending
 
 ### Step 6: User Approval Gate
 
-Ask `Approve FIX specification? [Y/N]`. Do NOT create a Blueprint or modify source code until the user responds Y (or "yes").
+Ask `Approve FIX specification?` using the CLI `prompt select` command (which prints the special interactive prompt tag for IDE/client UI choice modal) or the `ask_question` tool. Once the choice is resolved (e.g. Yes), immediately proceed to Step 7. **Do NOT prompt for confirmation again in the chat text.**
 
 ---
 
@@ -219,9 +219,10 @@ status: draft
 
 1. Register the blueprint via CLI:
    `python skills/workflow-runtime/scripts/workflow_runtime.py blueprint --path docs/designs/FIX-XXX_issue_name_blueprint.md`
-2. Ask: `Approve Blueprint? [Y/N]` and STOP.
-3. If approved, run:
+2. Ask: `Approve Blueprint?` using the CLI `prompt select` command or the `ask_question` tool, and STOP.
+3. Once the choice is resolved as approved (Yes), run:
    `python skills/workflow-runtime/scripts/workflow_runtime.py blueprint --path docs/designs/FIX-XXX_issue_name_blueprint.md --approve`
+   **Do NOT prompt for confirmation again in the chat text.**
 
 ---
 

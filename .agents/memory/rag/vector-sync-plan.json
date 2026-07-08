@@ -1,0 +1,18 @@
+{
+  "generated_at": "2026-07-08T09:11:08.821436+07:00",
+  "collection": "ai-skill-framework",
+  "upsert": [
+    {
+      "id": "known-problems-fix-015",
+      "text": "Fix Specification \u2013 Choice Protocol, Double Confirmation, and Parallel Execution (FIX-015): Problem: G\u1eb7p l\u1ed7i ho\u1ea1t \u0111\u1ed9ng. Fix: \u0110\u00e3 th\u1ef1c hi\u1ec7n v\u00e1 l\u1ed7i.",
+      "metadata": {
+        "type": "lessons",
+        "tags": [
+          "known-problems",
+          "bug-fix"
+        ]
+      }
+    }
+  ],
+  "delete": []
+}

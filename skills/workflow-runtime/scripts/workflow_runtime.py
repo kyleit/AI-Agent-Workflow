@@ -186,7 +186,7 @@ def do_init(args):
             
     if str(permission_arg) in ["3", "unrestricted"]:
         print("\n" + "="*70)
-        print("⚠️  WARNING: DANGER ZONE - ENABLING UNRESTRICTED MODE")
+        print("[WARNING] WARNING: DANGER ZONE - ENABLING UNRESTRICTED MODE")
         print("This mode completely disables all confirmation gates.")
         print("The AI will execute git push, tagging, releases, file changes, and")
         print("credentials editing AUTOMATICALLY without prompting you.")
@@ -219,6 +219,31 @@ def do_init(args):
     print(f"Session initialized with permission_mode={mode}.")
 
 def do_validate(args):
+    if getattr(args, "subaction", None):
+        if args.subaction == "blueprint":
+            from artifact_validator import validate_blueprint_file
+            res = validate_blueprint_file(args.file)
+        elif args.subaction == "artifact":
+            from artifact_validator import validate_artifact_general
+            res = validate_artifact_general(args.file)
+        elif args.subaction == "session":
+            session = load_session()
+            if not session:
+                res = {"status": "failure", "command": "validate session", "summary": "Session file not found."}
+            else:
+                from drift import check_context_drift
+                drifted, msg = check_context_drift(session)
+                if drifted:
+                    res = {"status": "failure", "command": "validate session", "summary": f"Session is unhealthy (drift detected: {msg})."}
+                else:
+                    res = {"status": "success", "command": "validate session", "summary": "Session is healthy."}
+        else:
+            res = {"status": "failure", "command": "validate", "summary": "Invalid validate subaction."}
+        print(json.dumps(res, indent=2))
+        if res["status"] != "success":
+            sys.exit(1)
+        return
+
     session = load_session()
     if not session:
         print("Error: session file missing.", file=sys.stderr)
@@ -518,32 +543,448 @@ def do_suggest(args):
                 sys.exit(1)
                 
     if not args.choose and suggestion["active"]:
-        from utils import prompt_select
-        if suggestion.get("options"):
-            opts = suggestion["options"]
-            default_opt = suggestion.get("recommended_skill")
-            if default_opt not in opts:
-                default_opt = opts[0]
-            choice = prompt_select(f"Which workflow/skill should be used for request '{suggestion['raw_request']}'?", opts, default=default_opt)
-            suggestion["recommended_skill"] = choice
-            suggestion["status"] = "confirmed"
-            suggestion["active"] = False
-            print(f"Option selected: {choice}")
-        elif suggestion.get("recommended_skill"):
-            opts = ["Yes", "No"]
-            choice = prompt_select(f"Confirm using skill '{suggestion['recommended_skill']}' for request '{suggestion['raw_request']}'?", opts, default="Yes")
-            if choice == "Yes":
+        from utils import is_stdin_ready
+        if os.environ.get("TESTING") == "1" and not is_stdin_ready():
+            pass
+        else:
+            from utils import prompt_select
+            if suggestion.get("options"):
+                opts = suggestion["options"]
+                default_opt = suggestion.get("recommended_skill")
+                if default_opt not in opts:
+                    default_opt = opts[0]
+                choice = prompt_select(f"Which workflow/skill should be used for request '{suggestion['raw_request']}'?", opts, default=default_opt)
+                suggestion["recommended_skill"] = choice
                 suggestion["status"] = "confirmed"
-            else:
-                suggestion["status"] = "rejected"
-            suggestion["active"] = False
-            print(f"Suggestion {suggestion['status']}.")
+                suggestion["active"] = False
+                print(f"Option selected: {choice}")
+            elif suggestion.get("recommended_skill"):
+                opts = ["Yes", "No"]
+                choice = prompt_select(f"Confirm using skill '{suggestion['recommended_skill']}' for request '{suggestion['raw_request']}'?", opts, default="Yes")
+                if choice == "Yes":
+                    suggestion["status"] = "confirmed"
+                else:
+                    suggestion["status"] = "rejected"
+                suggestion["active"] = False
+                print(f"Suggestion {suggestion['status']}.")
 
+    # Map orchestrator state for compatibility
+    orchestrator_state = {
+        "active": suggestion.get("active", False),
+        "raw_request": suggestion.get("raw_request", ""),
+        "classification": suggestion.get("classification", ""),
+        "recommended_skill": suggestion.get("recommended_skill", ""),
+        "recommended_command": "",
+        "options": suggestion.get("options", []),
+        "selected_skill": suggestion.get("recommended_skill") if suggestion.get("status") == "confirmed" else "",
+        "selected_command": "",
+        "routing_status": "waiting_for_user",
+        "reason": suggestion.get("reason", "")
+    }
+    
+    def map_cmd(skill_name):
+        if not skill_name: return ""
+        if skill_name == "quick-fix": return "fix"
+        if skill_name == "quick-feature": return "feature"
+        if skill_name == "brainstorming": return "brainstorm"
+        if skill_name == "project-rag-search": return "search"
+        if skill_name == "project-memory-bootstrap": return "bootstrap"
+        if skill_name == "project-memory-update": return "update"
+        if skill_name == "blueprint-to-implementation": return "implement"
+        if skill_name == "implementation-to-debug": return "debug"
+        if skill_name == "debug-to-verify": return "verify"
+        if skill_name == "implementation-to-release": return "release"
+        return ""
+        
+    orchestrator_state["recommended_command"] = map_cmd(orchestrator_state["recommended_skill"])
+    if orchestrator_state["selected_skill"]:
+        orchestrator_state["selected_command"] = map_cmd(orchestrator_state["selected_skill"])
+        orchestrator_state["routing_status"] = "dispatched"
+    elif not orchestrator_state["active"]:
+        orchestrator_state["routing_status"] = "stopped"
+        
+    session["orchestrator"] = orchestrator_state
     session["suggestion_gate"] = suggestion
     update_context_health(session)
     save_session_atomic(session)
     if not args.choose:
         print(f"Suggestion gate updated (active={suggestion['active']}, status={suggestion['status']}).")
+
+def do_choice(args) -> None:
+    session = load_session()
+    if not session:
+        print("Error: session file missing.", file=sys.stderr)
+        sys.exit(1)
+
+    runtime_dir = os.path.join(".agents", "runtime")
+    os.makedirs(runtime_dir, exist_ok=True)
+    
+    pending_path = os.path.join(runtime_dir, "pending-choice.json")
+    response_path = os.path.join(runtime_dir, "choice-response.json")
+    ui_capabilities_path = os.path.join(runtime_dir, "ui-capabilities.json")
+    
+    if args.subaction == "create":
+        raw_options = args.options.strip() if args.options else ""
+        options = []
+        if raw_options.startswith("["):
+            try:
+                options = json.loads(raw_options)
+            except json.JSONDecodeError as e:
+                print(f"Error parsing options JSON: {e}", file=sys.stderr)
+                sys.exit(1)
+        elif raw_options:
+            for opt in raw_options.split(","):
+                opt = opt.strip()
+                if opt:
+                    options.append({"id": opt, "label": opt})
+                    
+        choice_type = args.type or "choice"
+        choice_data = {
+            "type": choice_type,
+            "id": args.id,
+            "title": args.title,
+            "description": args.desc or "",
+            "required": args.required,
+            "allow_cancel": args.allow_cancel,
+            "options": options
+        }
+        
+        tmp_path = pending_path + ".tmp"
+        with open(tmp_path, "w", encoding="utf-8") as f:
+            json.dump(choice_data, f, indent=2, ensure_ascii=False)
+        if os.path.exists(pending_path):
+            os.replace(tmp_path, pending_path)
+        else:
+            os.rename(tmp_path, pending_path)
+            
+        print(f"Choice {args.id} created successfully.")
+        
+    elif args.subaction == "wait":
+        import time
+        interactive_choice = False
+        if os.path.exists(ui_capabilities_path):
+            try:
+                with open(ui_capabilities_path, "r", encoding="utf-8") as f:
+                    caps = json.load(f)
+                    interactive_choice = caps.get("interactive_choice", False)
+            except Exception:
+                pass
+                
+        if os.environ.get("AIWF_INTERACTIVE_CHOICE") == "true":
+            interactive_choice = True
+            
+        timeout = args.timeout or 60
+        start_time = time.time()
+        choice_resolved = False
+        selected_option = None
+        
+        if interactive_choice:
+            print(f"Waiting for UI choice response for {args.id} (timeout={timeout}s)...")
+            while time.time() - start_time < timeout:
+                if os.path.exists(response_path):
+                    try:
+                        with open(response_path, "r", encoding="utf-8") as f:
+                            resp_data = json.load(f)
+                        if resp_data.get("id") == args.id:
+                            selected_option = resp_data.get("selected")
+                            choice_resolved = True
+                            break
+                    except Exception:
+                        pass
+                time.sleep(0.5)
+                
+        if not choice_resolved:
+            if interactive_choice:
+                print("\nTimeout waiting for UI response. Switching to Text Fallback Mode...")
+            
+            if os.path.exists(pending_path):
+                try:
+                    with open(pending_path, "r", encoding="utf-8") as f:
+                        choice_data = json.load(f)
+                except Exception:
+                    choice_data = {}
+            else:
+                choice_data = {}
+                
+            title = choice_data.get("title", args.id or "Choice Required")
+            desc = choice_data.get("description", "")
+            options = choice_data.get("options", [])
+            choice_type = choice_data.get("type", "choice")
+            allow_cancel = choice_data.get("allow_cancel", True)
+            
+            print(f"\n=== {title} ===")
+            if desc:
+                print(desc)
+            print("-" * len(title))
+            
+            option_ids = []
+            if choice_type == "approval":
+                print("[Y] Yes / Continue")
+                print("[N] No / Cancel")
+                option_ids = ["y", "yes", "proceed", "continue", "n", "no", "cancel"]
+            else:
+                for idx, opt in enumerate(options):
+                    lbl = opt.get("label", opt.get("id"))
+                    opt_desc = opt.get("description", "")
+                    suffix = f" ({opt_desc})" if opt_desc else ""
+                    print(f"{idx + 1}. {lbl}{suffix}")
+                    option_ids.append(opt.get("id"))
+                    
+            if allow_cancel and choice_type != "approval":
+                print("C. Cancel")
+                
+            while True:
+                user_val = input("\nEnter selection: ").strip()
+                if not user_val:
+                    continue
+                val_lower = user_val.lower()
+                
+                if val_lower == "c" or val_lower == "cancel":
+                    if allow_cancel:
+                        selected_option = "cancel"
+                        break
+                    else:
+                        print("Cancel is not allowed for this choice.")
+                        continue
+                        
+                if choice_type == "approval":
+                    if val_lower in ["y", "yes", "proceed", "continue"]:
+                        selected_option = "approve"
+                        break
+                    elif val_lower in ["n", "no", "cancel"]:
+                        selected_option = "cancel"
+                        break
+                    else:
+                        print("Invalid selection. Please enter Y or N.")
+                        continue
+                        
+                try:
+                    idx = int(user_val) - 1
+                    if 0 <= idx < len(options):
+                        selected_option = options[idx]["id"]
+                        break
+                except ValueError:
+                    pass
+                    
+                matched = False
+                for opt in options:
+                    if opt["id"].lower() == val_lower or opt["label"].lower() == val_lower:
+                        selected_option = opt["id"]
+                        matched = True
+                        break
+                if matched:
+                    break
+                print("Invalid selection. Please try again.")
+                
+            resp_payload = {
+                "id": args.id or "unknown",
+                "selected": selected_option,
+                "cancelled": selected_option == "cancel"
+            }
+            tmp_resp = response_path + ".tmp"
+            with open(tmp_resp, "w", encoding="utf-8") as f:
+                json.dump(resp_payload, f, indent=2, ensure_ascii=False)
+            if os.path.exists(response_path):
+                os.replace(tmp_resp, response_path)
+            else:
+                os.rename(tmp_resp, response_path)
+                
+            if os.path.exists(pending_path):
+                try:
+                    os.remove(pending_path)
+                except Exception:
+                    pass
+                    
+        print(f"Choice resolved: {selected_option}")
+        
+    elif args.subaction == "read":
+        if os.path.exists(response_path):
+            try:
+                with open(response_path, "r", encoding="utf-8") as f:
+                    resp_data = json.load(f)
+                if resp_data.get("id") == args.id:
+                    print(resp_data.get("selected", ""))
+                    return
+            except Exception:
+                pass
+        print("")
+        
+    elif args.subaction == "clear":
+        for p in [pending_path, response_path]:
+            if os.path.exists(p):
+                try:
+                    os.remove(p)
+                except Exception:
+                    pass
+        print("Choice files cleared.")
+
+def do_active_workflow(args) -> None:
+    session = load_session()
+    if not session:
+        print("Error: session file missing.", file=sys.stderr)
+        sys.exit(1)
+        
+    if args.subaction == "get":
+        aw = session.get("active_workflow", {})
+        print(json.dumps(aw, ensure_ascii=False))
+        
+    elif args.subaction == "set":
+        aw = session.get("active_workflow", {})
+        if args.type: aw["type"] = args.type
+        if args.phase: aw["phase"] = args.phase
+        if args.skill: aw["skill"] = args.skill
+        if args.command: aw["command"] = args.command
+        if args.artifact_id: aw["artifact_id"] = args.artifact_id
+        if args.spec_path: aw["spec_path"] = args.spec_path
+        if args.blueprint_path: aw["blueprint_path"] = args.blueprint_path
+        if args.waiting_for:
+            aw["waiting_for"] = None if args.waiting_for.lower() == "null" else args.waiting_for
+        if args.last_user_prompt: aw["last_user_prompt"] = args.last_user_prompt
+        if args.resume_instruction: aw["resume_instruction"] = args.resume_instruction
+        session["active_workflow"] = aw
+        save_session_atomic(session)
+        print("Active workflow updated successfully.")
+        
+    elif args.subaction == "clear":
+        if "active_workflow" in session:
+            del session["active_workflow"]
+        save_session_atomic(session)
+        print("Active workflow cleared.")
+        
+    elif args.subaction == "resume":
+        aw = session.get("active_workflow", {})
+        if not aw:
+            print("Error: No active workflow to resume.", file=sys.stderr)
+            sys.exit(1)
+        
+        session["current_skill"] = aw.get("skill")
+        session["current_command"] = aw.get("command")
+        session["status"] = "in_progress"
+        
+        phase = aw.get("phase")
+        if phase == "spec":
+            session["checkpoint"] = 2
+            session["current_step"] = "Writing Specification"
+        elif phase == "spec_approval":
+            session["checkpoint"] = 2
+            session["current_step"] = "Specification Approval Gate"
+        elif phase == "blueprint":
+            session["checkpoint"] = 4
+            session["current_step"] = "Writing Design Blueprint"
+        elif phase == "blueprint_approval":
+            session["checkpoint"] = 4
+            session["current_step"] = "Blueprint Approval Gate"
+        elif phase == "implementation":
+            session["checkpoint"] = 5
+            session["current_step"] = "Implementing changes"
+            
+        save_session_atomic(session)
+        print(f"Resumed workflow: {aw.get('type')} (phase={phase})")
+        
+    elif args.subaction == "set-waiting":
+        aw = session.get("active_workflow", {})
+        val = args.waiting_for if args.waiting_for and args.waiting_for.lower() != "null" else None
+        aw["waiting_for"] = val
+        session["active_workflow"] = aw
+        save_session_atomic(session)
+        print(f"Active workflow waiting_for updated to {val}.")
+        
+    elif args.subaction == "validate-blueprint":
+        if not args.path:
+            print("Error: --path is required.", file=sys.stderr)
+            sys.exit(1)
+        
+        bp_path = args.path
+        if not os.path.exists(bp_path):
+            print(f"Error: Blueprint file does not exist at {bp_path}.", file=sys.stderr)
+            sys.exit(1)
+            
+        norm_path = bp_path.replace("\\", "/")
+        if not norm_path.startswith("docs/designs/"):
+            print(f"Error: Blueprint file must be located under docs/designs/.", file=sys.stderr)
+            sys.exit(1)
+            
+        if not bp_path.endswith("_blueprint.md"):
+            print(f"Error: Blueprint file name must end with _blueprint.md.", file=sys.stderr)
+            sys.exit(1)
+            
+        basename = os.path.basename(bp_path)
+        id_prefix = None
+        for prefix in ["FIX", "QUICK", "FEAT"]:
+            if basename.startswith(prefix + "-"):
+                id_prefix = prefix
+                break
+                
+        if not id_prefix:
+            print("Error: Blueprint filename must start with FIX-, QUICK-, or FEAT-.", file=sys.stderr)
+            sys.exit(1)
+            
+        if args.workflow:
+            wf = args.workflow.lower()
+            if wf == "quick-fix" and id_prefix != "FIX":
+                print("Error: Workflow quick-fix requires a FIX- prefix.", file=sys.stderr)
+                sys.exit(1)
+            elif wf == "quick-feature" and id_prefix != "QUICK":
+                print("Error: Workflow quick-feature requires a QUICK- prefix.", file=sys.stderr)
+                sys.exit(1)
+            elif wf in ["standard-feature", "blueprint-to-implementation"] and id_prefix != "FEAT":
+                print("Error: Standard feature workflow requires a FEAT- prefix.", file=sys.stderr)
+                sys.exit(1)
+                
+        try:
+            with open(bp_path, "r", encoding="utf-8") as f:
+                content = f.read()
+        except IOError as e:
+            print(f"Error reading blueprint file: {e}", file=sys.stderr)
+            sys.exit(1)
+            
+        if not content.strip().startswith("---"):
+            print("Error: Blueprint file must contain YAML frontmatter.", file=sys.stderr)
+            sys.exit(1)
+            
+        required_headers = [
+            "Summary",
+            "Scope",
+            "Technical Design",
+            "Files to Change",
+            "Implementation Steps",
+            "Validation Plan",
+            "Rollback Plan"
+        ]
+        
+        import re
+        missing = []
+        for h in required_headers:
+            pattern = r'^\s*#+\s+' + re.escape(h)
+            if not re.search(pattern, content, re.MULTILINE | re.IGNORECASE):
+                missing.append(h)
+                
+        if missing:
+            print(f"Error: Blueprint is missing required sections: {', '.join(missing)}.", file=sys.stderr)
+            sys.exit(1)
+            
+        print("Blueprint validation passed.")
+        
+    elif args.subaction == "get-branch":
+        from utils import get_current_branch
+        branch = get_current_branch()
+        print(branch)
+        
+    elif args.subaction == "suggest-branch":
+        if not args.artifact_id or not args.slug:
+            print("Error: --artifact-id and --slug are required.", file=sys.stderr)
+            sys.exit(1)
+        from utils import suggest_branch_name
+        suggested = suggest_branch_name(args.artifact_id, args.slug)
+        print(suggested)
+        
+    elif args.subaction == "branch-options":
+        if not args.artifact_id or not args.slug:
+            print("Error: --artifact-id and --slug are required.", file=sys.stderr)
+            sys.exit(1)
+        from utils import build_branch_selection_options
+        options = build_branch_selection_options(args.artifact_id, args.slug)
+        print(json.dumps(options, ensure_ascii=False))
 
 def do_permission(_args: argparse.Namespace) -> None:  # type: ignore
     mode = get_permission_mode()
@@ -981,7 +1422,7 @@ Potential Conflicts:
 
 Recommended Mode
 
-✔ {rec_mode.capitalize()} ({'Safe' if rec_mode == 'parallel' else 'Caution'})
+* {rec_mode.capitalize()} ({'Safe' if rec_mode == 'parallel' else 'Caution'})
 
 Reason
 
@@ -1111,6 +1552,91 @@ def do_prompt(args) -> None:
     print(res)
 
 
+def do_resume_action(args):
+    from workflow_state import resume_session
+    res = resume_session()
+    print(json.dumps(res, indent=2))
+    if res["status"] != "success":
+        sys.exit(1)
+
+def do_discover_action(args):
+    from project_discovery import run_discovery
+    res = run_discovery()
+    print(json.dumps(res, indent=2))
+    if res["status"] != "success":
+        sys.exit(1)
+
+def do_classify_action(args):
+    from skill_classifier import classify_intent
+    res = classify_intent(args.request)
+    print(json.dumps(res, indent=2))
+    if res["status"] != "success":
+        sys.exit(1)
+
+def do_memory_action(args):
+    sys.path.append(os.path.join(os.path.dirname(os.path.abspath(__file__)), "memory"))
+    if args.subaction == "bootstrap":
+        from memory.bootstrap import run_bootstrap
+        res = run_bootstrap()
+    elif args.subaction == "update":
+        from memory.update import run_update
+        res = run_update()
+    elif args.subaction == "search":
+        from memory.search import RAGSearcher
+        searcher = RAGSearcher()
+        res = searcher.execute_search(args.query)
+    else:
+        res = {"status": "failure", "summary": "Invalid memory subaction."}
+    
+    # Enforce standard return JSON
+    result = {
+        "status": res.get("status", "success"),
+        "command": f"memory {args.subaction}",
+        "summary": res.get("message") or res.get("summary") or "Memory operation complete.",
+        "warnings": res.get("warnings", []),
+        "files_read": res.get("files_read", []),
+        "files_written": res.get("files_written", []),
+        "next_skill": res.get("next_skill")
+    }
+    print(json.dumps(result, indent=2))
+    if result["status"] != "success":
+        sys.exit(1)
+
+def do_env_action(args):
+    from environment_health import run_health_check
+    res = run_health_check()
+    print(json.dumps(res, indent=2))
+    if res["status"] != "success":
+        sys.exit(1)
+
+def do_debug_action(args):
+    from validation_runner import run_debug
+    res = run_debug()
+    print(json.dumps(res, indent=2))
+    if res["status"] != "success":
+        sys.exit(1)
+
+def do_verify_action(args):
+    from validation_runner import run_verify
+    res = run_verify()
+    print(json.dumps(res, indent=2))
+    if res["status"] != "success":
+        sys.exit(1)
+
+def do_release_action(args):
+    if args.subaction == "plan":
+        from release_manager import run_release_plan
+        res = run_release_plan()
+    elif args.subaction == "execute":
+        from release_manager import run_release_execute
+        res = run_release_execute(approve=args.approve)
+    else:
+        res = {"status": "failure", "summary": "Invalid release subaction."}
+        
+    print(json.dumps(res, indent=2))
+    if res["status"] != "success":
+        sys.exit(1)
+
 def main():
     parser = argparse.ArgumentParser(description="AI Workflow Runtime Engine CLI")
     subparsers = parser.add_subparsers(dest="action", required=True)
@@ -1123,6 +1649,12 @@ def main():
     
     val = subparsers.add_parser("validate")
     _ = val.add_argument("--checkpoint", type=str)
+    val_sub = val.add_subparsers(dest="subaction", required=False)
+    val_art = val_sub.add_parser("artifact")
+    _ = val_art.add_argument("--file", required=True, type=str)
+    val_bp = val_sub.add_parser("blueprint")
+    _ = val_bp.add_argument("--file", required=True, type=str)
+    _ = val_sub.add_parser("session")
     
     st = subparsers.add_parser("start")
     _ = st.add_argument("--skill", required=True, type=str)
@@ -1204,6 +1736,96 @@ def main():
     _ = select_p.add_argument("--question", required=True, type=str)
     _ = select_p.add_argument("--options", required=True, type=str)
     _ = select_p.add_argument("--default", type=str, default=None)
+
+    choice_p = subparsers.add_parser("choice")
+    choice_sub = choice_p.add_subparsers(dest="subaction", required=True)
+    
+    choice_create = choice_sub.add_parser("create")
+    _ = choice_create.add_argument("--id", required=True, type=str)
+    _ = choice_create.add_argument("--title", required=True, type=str)
+    _ = choice_create.add_argument("--desc", type=str)
+    _ = choice_create.add_argument("--options", required=True, type=str)
+    _ = choice_create.add_argument("--type", type=str, default="choice")
+    _ = choice_create.add_argument("--required", action="store_true")
+    _ = choice_create.add_argument("--allow-cancel", action="store_true")
+    
+    choice_wait = choice_sub.add_parser("wait")
+    _ = choice_wait.add_argument("--id", required=True, type=str)
+    _ = choice_wait.add_argument("--timeout", type=int)
+    
+    choice_read = choice_sub.add_parser("read")
+    _ = choice_read.add_argument("--id", required=True, type=str)
+    
+    _ = choice_sub.add_parser("clear")
+    
+    aw_p = subparsers.add_parser("active-workflow")
+    aw_sub = aw_p.add_subparsers(dest="subaction", required=True)
+    
+    _ = aw_sub.add_parser("get")
+    
+    aw_set = aw_sub.add_parser("set")
+    _ = aw_set.add_argument("--type", type=str)
+    _ = aw_set.add_argument("--phase", type=str)
+    _ = aw_set.add_argument("--skill", type=str)
+    _ = aw_set.add_argument("--command", type=str)
+    _ = aw_set.add_argument("--artifact-id", type=str)
+    _ = aw_set.add_argument("--spec-path", type=str)
+    _ = aw_set.add_argument("--blueprint-path", type=str)
+    _ = aw_set.add_argument("--waiting-for", type=str)
+    _ = aw_set.add_argument("--last-user-prompt", type=str)
+    _ = aw_set.add_argument("--resume-instruction", type=str)
+    
+    _ = aw_sub.add_parser("clear")
+    _ = aw_sub.add_parser("resume")
+    
+    aw_wait = aw_sub.add_parser("set-waiting")
+    _ = aw_wait.add_argument("--waiting-for", type=str)
+    
+    aw_val = aw_sub.add_parser("validate-blueprint")
+    _ = aw_val.add_argument("--path", required=True, type=str)
+    _ = aw_val.add_argument("--workflow", type=str)
+    
+    _ = aw_sub.add_parser("get-branch")
+    
+    aw_sug = aw_sub.add_parser("suggest-branch")
+    _ = aw_sug.add_argument("--artifact-id", required=True, type=str)
+    _ = aw_sug.add_argument("--slug", required=True, type=str)
+    
+    aw_opts = aw_sub.add_parser("branch-options")
+    _ = aw_opts.add_argument("--artifact-id", required=True, type=str)
+    _ = aw_opts.add_argument("--slug", required=True, type=str)
+    
+    # New subcommands registration
+    _ = subparsers.add_parser("resume")
+    _ = subparsers.add_parser("discover")
+    
+    classify_p = subparsers.add_parser("classify")
+    _ = classify_p.add_argument("request", type=str)
+    
+    memory_p = subparsers.add_parser("memory")
+    memory_sub = memory_p.add_subparsers(dest="subaction", required=True)
+    _ = memory_sub.add_parser("bootstrap")
+    _ = memory_sub.add_parser("update")
+    mem_search_p = memory_sub.add_parser("search")
+    _ = mem_search_p.add_argument("query", type=str)
+    
+    env_p = subparsers.add_parser("env")
+    env_sub = env_p.add_subparsers(dest="subaction", required=True)
+    _ = env_sub.add_parser("health")
+    
+    debug_p = subparsers.add_parser("debug")
+    debug_sub = debug_p.add_subparsers(dest="subaction", required=True)
+    _ = debug_sub.add_parser("run")
+    
+    verify_p = subparsers.add_parser("verify")
+    verify_sub = verify_p.add_subparsers(dest="subaction", required=True)
+    _ = verify_sub.add_parser("run")
+    
+    release_p = subparsers.add_parser("release")
+    release_sub = release_p.add_subparsers(dest="subaction", required=True)
+    _ = release_sub.add_parser("plan")
+    rel_exec = release_sub.add_parser("execute")
+    _ = rel_exec.add_argument("--approve", action="store_true")
     
     args = parser.parse_args()
     
@@ -1228,10 +1850,20 @@ def main():
         "execution": do_execution,
         "analysis-agent": do_analysis_agent,
         "routing": do_routing,
-        "prompt": do_prompt
+        "prompt": do_prompt,
+        "choice": do_choice,
+        "active-workflow": do_active_workflow,
+        "resume": do_resume_action,
+        "discover": do_discover_action,
+        "classify": do_classify_action,
+        "memory": do_memory_action,
+        "env": do_env_action,
+        "debug": do_debug_action,
+        "verify": do_verify_action,
+        "release": do_release_action
     }
     
-    modifying_actions = ["init", "start", "step", "complete", "fail", "blueprint", "suggest", "compact", "task", "execution", "analysis-agent"]
+    modifying_actions = ["init", "start", "step", "complete", "fail", "blueprint", "suggest", "compact", "task", "execution", "analysis-agent", "choice", "active-workflow", "resume", "discover", "classify", "memory", "env", "debug", "verify", "release"]
     if args.action in modifying_actions:
         with SessionLock():
             cmds[args.action](args)

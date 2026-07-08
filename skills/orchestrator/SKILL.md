@@ -32,17 +32,25 @@ The Orchestrator is the single entry point for all framework workflows. It autom
 
 ## Entry Flow
 1. **Load Context**: Load `AI_RULES.md`, `AGENTS.md`, `MANIFEST.json`, `project-profile.json`, memory, RAG, and current session.
-2. **Workflow Check**: Determine if a workflow already exists; if yes, resume it (reading `approved` in `execution-plan.json`), otherwise create one.
-3. **Intent Detection**: Understand user request (bug, feature, memory, release, etc.) and automatically choose the workflow.
-   - **Dynamic Specialist Agent Selection**: Select only the required specialist agents based on:
-     - *Project Type & Tech Stack*: (e.g., Python projects load `backend-developer`, `backend-architect`; Web projects load `frontend-developer`, `frontend-architect`).
-     - *Task Area*: (e.g., DB schema migrations load `database-architect`, `database-developer`; Security review loads `security-architect`, `security-reviewer`).
-     - *Artifact Scope*: Unused specialists are skipped. Owner agents remain the single authority producing canonical artifacts.
+2. **Active Workflow Continuation Check**:
+   * Before classifying any user request, check the session file (`.agents/.session.json`) for an existing `active_workflow`.
+   * If `active_workflow` has `waiting_for` set, and the user's prompt is a continue phrase (e.g., "continue", "tiếp", "tiếp đi", "proceed", "go"):
+     * Immediately bypass reclassification.
+     * Run the CLI to resume the active workflow:
+       ```bash
+       python skills/workflow-runtime/scripts/workflow_runtime.py active-workflow resume
+       ```
+     * Immediately transfer control and execute the instructions of the resumed skill.
+     * Stop processing.
+3. **Intent Detection & Classification**:
+   * If no active workflow is continuation-resumed, classify the user request according to the rules in `software-development-workflow`'s classification matrix.
+   * Call `workflow_runtime.py suggest` to persist routing decisions.
+   * Present single or ambiguous option layouts, wait for user confirmation via choice protocol, and dispatch to the selected skill via `workflow_runtime.py start`.
 4. **Planning & Recommendation (Implementation Phase Only)**:
-   - For all early phases (discovery, brainstorming, planning, blueprint generation), execution runs strictly sequentially. Do NOT analyze parallel task splits or prompt the user for execution mode choice during these phases.
-   - When entering Phase 6 (Implementation / Execute) after blueprint approval (checkpoint >= 5), the Orchestrator calculates task splits and write sets:
-     - If overlaps exist, recommend Sequential mode.
-     - If no overlaps, recommend Parallel mode.
+   * For all early phases (discovery, brainstorming, planning, blueprint generation), execution runs strictly sequentially.
+   * When entering Phase 6 (Implementation / Execute) after blueprint approval (checkpoint >= 5), the Orchestrator calculates task splits and write sets:
+     * If overlaps exist, recommend Sequential mode.
+     * If no overlaps, recommend Parallel mode.
 5. **Implementation Choice Prompt**: ONLY when entering Phase 6 (Implementation / Execute), run:
 ```bash
 python3 .agents/skills/workflow-runtime/scripts/workflow_runtime.py prompt select --question "Choose implementation execution mode:" --options "Run implementation in Parallel where safe|Run implementation Sequentially|Re-split implementation tasks|Cancel" --default "Run implementation Sequentially"
