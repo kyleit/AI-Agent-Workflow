@@ -18,6 +18,17 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   - Trực quan hóa trạng thái `🟢 Healthy` trung tính, không sử dụng hộp cảnh báo hay biểu tượng khẩn cấp gây hiểu lầm.
   - Căn lề dọc hoàn hảo cho các biểu tượng cảnh báo bên trong Alert Boxes.
 
+
+## [6.3.5] - 2026-07-08
+
+### Added
+- **FEAT-027: Investigate and Fix AIWF Runtime Token Accounting**:
+  - Khắc phục các giá trị token không nhất quán và không hợp lý trên bảng điều khiển bằng cách sửa đổi logic phân tích cú pháp transcript.
+  - Tách biệt dữ liệu Active Context (chỉ đại diện cho kích thước context hoạt động) và các số liệu tích lũy (Input/Output/Cost/Request).
+- **FEAT-028: Pure Split State Management**:
+  - Loại bỏ hoàn toàn tệp tin trạng thái lớn `.agents/.session.json` để chuyển hẳn sang sử dụng cơ chế lưu trữ phân tách (Pure Split State) trong thư mục `.agents/state/`.
+  - Giảm thiểu I/O đĩa thừa, tránh lỗi tranh chấp ghi khóa tệp và tối ưu hóa tốc độ khởi tạo.
+
 ## [6.3.4] - 2026-07-08
 
 ### Fixed
