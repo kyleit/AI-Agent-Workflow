@@ -256,9 +256,9 @@ if [ ! -f "$INSTALL_TARGET/.session.json" ]; then
     "latest_tag": "none"
   },
   "work_item": {
-    "type": "N/A",
-    "id": "N/A",
-    "title": "Awaiting active task selection..."
+    "type": "FEAT",
+    "id": "FEAT-001",
+    "title": "Initial Scaffolding"
   },
   "version": {
     "version": "1.0.0",
@@ -272,9 +272,31 @@ if [ ! -f "$INSTALL_TARGET/.session.json" ]; then
     "connected": false,
     "provider": "none"
   },
+  "blueprint": {
+    "path": "",
+    "exists": false,
+    "approved": false,
+    "approved_at": "",
+    "approved_by": ""
+  },
+  "suggestion_gate": {
+    "active": false,
+    "raw_request": "",
+    "classification": "",
+    "recommended_skill": "",
+    "options": [],
+    "status": "idle"
+  },
   "checkpoint": 1,
+  "status": "completed",
   "current_skill": "initialize-workflow",
-  "current_step": "Awaiting initial command",
+  "current_command": "init",
+  "current_step": "Initialization Complete",
+  "current_logs": [
+    "> Initialization completed successfully."
+  ],
+  "suggested_next_skill": "project-discovery",
+  "suggested_next_command": "discover",
   "context_health": "healthy"
 }
 EOF
@@ -301,6 +323,7 @@ if command -v python3 >/dev/null 2>&1; then
         INIT_ARGS="--permission $PERMISSION"
     fi
     python3 "$INSTALL_TARGET/$SKILL_DIR/workflow-runtime/scripts/workflow_runtime.py" init $INIT_ARGS || log_warn "Failed to sync initial session with SQLite."
+    python3 "$INSTALL_TARGET/$SKILL_DIR/workflow-runtime/scripts/workflow_runtime.py" registry register --source install --framework-root "$SCRIPT_DIR" || log_warn "Failed to register project in global registry."
 fi
 
 log_success "AI Skill Framework v$VERSION has been successfully installed!"

@@ -9,7 +9,9 @@
 
 [CmdletBinding()]
 param(
-    [switch]$Force
+    [switch]$Force,
+    [switch]$All,
+    [switch]$Current
 )
 
 # Logging helpers
@@ -21,6 +23,12 @@ function Log-Success ($msg) { Write-Host "[SUCCESS] $msg" -ForegroundColor Green
 # Locate Script Directory
 $ScriptDir = Split-Path -Parent $MyInvocation.MyCommand.Path
 if ([string]::IsNullOrEmpty($ScriptDir)) { $ScriptDir = Get-Location }
+
+if ($All) {
+    Log-Info "Updating all registered projects globally..."
+    python3 (Join-Path $ScriptDir "skills/workflow-runtime/scripts/workflow_runtime.py") update --all
+    exit 0
+}
 
 $ManifestPath = Join-Path $ScriptDir "MANIFEST.json"
 if (-not (Test-Path $ManifestPath)) {

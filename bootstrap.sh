@@ -47,6 +47,7 @@ show_help() {
     echo "  version      Report current CLI and repository versions"
     echo "  memory       Manage project memory (bootstrap, update, search)"
     echo "  blueprint    Register or approve design blueprints"
+    echo "  registry     Manage centralized global project registry"
     echo "  help         Show this help message"
 }
 
@@ -79,6 +80,9 @@ case "$COMMAND" in
         ;;
     blueprint)
         python3 "$FRAMEWORK_ROOT/skills/workflow-runtime/scripts/workflow_runtime.py" blueprint "$@"
+        ;;
+    registry)
+        python3 "$FRAMEWORK_ROOT/skills/workflow-runtime/scripts/workflow_runtime.py" registry "$@"
         ;;
     help|-h|--help)
         show_help

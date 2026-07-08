@@ -261,9 +261,9 @@ if (-not (Test-Path $SessionPath)) {
     "latest_tag": "none"
   },
   "work_item": {
-    "type": "N/A",
-    "id": "N/A",
-    "title": "Awaiting active task selection..."
+    "type": "FEAT",
+    "id": "FEAT-001",
+    "title": "Initial Scaffolding"
   },
   "version": {
     "version": "1.0.0",
@@ -277,9 +277,31 @@ if (-not (Test-Path $SessionPath)) {
     "connected": false,
     "provider": "none"
   },
+  "blueprint": {
+    "path": "",
+    "exists": false,
+    "approved": false,
+    "approved_at": "",
+    "approved_by": ""
+  },
+  "suggestion_gate": {
+    "active": false,
+    "raw_request": "",
+    "classification": "",
+    "recommended_skill": "",
+    "options": [],
+    "status": "idle"
+  },
   "checkpoint": 1,
+  "status": "completed",
   "current_skill": "initialize-workflow",
-  "current_step": "Awaiting initial command",
+  "current_command": "init",
+  "current_step": "Initialization Complete",
+  "current_logs": [
+    "> Initialization completed successfully."
+  ],
+  "suggested_next_skill": "project-discovery",
+  "suggested_next_command": "discover",
   "context_health": "healthy"
 }
 '@
@@ -302,14 +324,8 @@ if ($MissingFiles -gt 0) {
     exit 1
 }
 
-if (Get-Command python3 -ErrorAction SilentlyContinue) {
-    Log-Info "Synchronizing initial session state with SQLite..."
-    $InitArgs = @("init")
-    if (-not [string]::IsNullOrEmpty($Permission)) {
-        $InitArgs += "--permission"
-        $InitArgs += $Permission
-    }
     python3 (Join-Path (Join-Path $InstallTarget $SkillDir) "workflow-runtime/scripts/workflow_runtime.py") $InitArgs
+    python3 (Join-Path (Join-Path $InstallTarget $SkillDir) "workflow-runtime/scripts/workflow_runtime.py") registry register --source install --framework-root $ScriptDir
 }
 
 Log-Success "AI Skill Framework v$VERSION has been successfully installed!"

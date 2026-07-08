@@ -135,6 +135,12 @@ else
     log_info "No active Git project detected at current path. Skipping local workspace check."
 fi
 
+# Check 7: Registry status
+if command -v python3 >/dev/null 2>&1; then
+    log_info "Diagnosing global project registry..."
+    python3 "$SCRIPT_DIR/skills/workflow-runtime/scripts/workflow_runtime.py" registry doctor || log_warn "Failed to diagnose project registry."
+fi
+
 echo "=================================================="
 echo "Diagnostic Summary:"
 echo "  Errors:   $STATUS_FAIL"

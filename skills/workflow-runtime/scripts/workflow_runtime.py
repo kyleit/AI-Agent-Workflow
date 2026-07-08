@@ -288,6 +288,15 @@ def do_start(args):
     if not session:
         session = {"workspace": {"path": ".", "valid": True}}
     
+    # Check blueprint approval before starting implementation
+    is_impl = (args.skill == "blueprint-to-implementation") or (args.checkpoint is not None and args.checkpoint >= 6)
+    if is_impl:
+        bp = session.get("blueprint", {})
+        if not bp.get("approved"):
+            print("Error: Cannot start implementation. Technical Design Blueprint is not approved.", file=sys.stderr)
+            print("Please create a design blueprint and approve it using: aiwf blueprint --approve <path> first.", file=sys.stderr)
+            sys.exit(1)
+            
     session["status"] = "in_progress"
     if args.checkpoint is not None:
         session["checkpoint"] = args.checkpoint
@@ -1784,6 +1793,107 @@ def do_state_action(args):
         if errors:
             sys.exit(1)
 
+def do_registry(args):
+    import aiwf_registry
+    if args.subaction == "register":
+        res = aiwf_registry.register_project(
+            args.path, 
+            force=args.force, 
+            source=args.source,
+            framework_root=args.framework_root
+        )
+        if res["status"] == "success":
+            print(f"AIWF project registered successfully.")
+            print(f"Project Path: {res['project_path']}")
+            print(f"Registry Path: {res['registry_path']}")
+        else:
+            print(f"[ERROR] {res['message']}")
+            sys.exit(1)
+    elif args.subaction == "unregister":
+        target = args.path if args.path else "."
+        success = aiwf_registry.unregister_project(target)
+        if success:
+            print(f"Project unregistered successfully: {target}")
+        else:
+            print(f"Project not found in registry: {target}")
+    elif args.subaction == "list":
+        projects = aiwf_registry.list_projects()
+        if not projects:
+            print("No projects registered yet.")
+            return
+        print(f"{'ID':<34} | {'Name':<20} | {'Status':<8} | {'Version':<8} | {'Path'}")
+        print("-" * 100)
+        for p in projects:
+            print(f"{p['id']:<34} | {p['name'][:20]:<20} | {p['status']:<8} | {p['aiwf_version']:<8} | {p['path']}")
+    elif args.subaction == "doctor":
+        report = aiwf_registry.doctor_registry()
+        print(f"Registry Path: {report['registry_path']}")
+        print(f"Total Registered: {report['total_registered']}")
+        print(f"Active Projects: {report['active']}")
+        print(f"Missing Projects: {report['missing']}")
+        if report["details"]:
+            print("\nDetails:")
+            for d in report["details"]:
+                status_str = f"[{d['status'].upper()}]"
+                issues_str = f" (Issues: {', '.join(d['issues'])})" if d["issues"] else ""
+                print(f"  - {d['name']} ({d['path']}) {status_str}{issues_str}")
+    elif args.subaction == "cleanup":
+        res = aiwf_registry.cleanup_registry()
+        print(f"Cleanup complete. Total Removed: {res['total_removed']}. Remaining active: {res['remaining']}.")
+        if res["removed_paths"]:
+            print("Removed paths:")
+            for rp in res["removed_paths"]:
+                print(f"  - {rp}")
+
+def do_update(args):
+    import aiwf_registry
+    update_all = args.all
+    update_current = args.current
+    
+    if not update_all and not update_current:
+        if sys.stdout.isatty():
+            print("Update mode:")
+            print("1. Current project only")
+            print("2. All registered projects")
+            print("3. Cancel")
+            try:
+                choice = input("Enter choice (1-3): ").strip()
+                if choice == "1":
+                    update_current = True
+                elif choice == "2":
+                    update_all = True
+                else:
+                    print("Cancelled.")
+                    return
+            except (KeyboardInterrupt, EOFError):
+                print("\nCancelled.")
+                return
+        else:
+            update_current = True
+            
+    if update_all:
+        print("Starting batch update of all registered projects...")
+        summary = aiwf_registry.update_all_projects()
+        print("\n==================================================")
+        print("AIWF Update Summary:")
+        print(f"  Total registered: {summary['total']}")
+        print(f"  Updated:          {summary['updated']}")
+        print(f"  Skipped:          {summary['skipped']}")
+        print(f"  Failed:           {summary['failed']}")
+        print(f"  Missing:          {summary['missing']}")
+        print("==================================================")
+        if summary["failed"] > 0:
+            print("\nFailed updates:")
+            for d in summary["details"]:
+                if d["status"] == "failed":
+                    print(f"  - {d['path']}: {d['reason']}")
+            sys.exit(1)
+    elif update_current:
+        from memory.update import run_update
+        res = run_update()
+        if res.get("status") == "failed":
+            sys.exit(1)
+
 def main():
     parser = argparse.ArgumentParser(description="AI Workflow Runtime Engine CLI")
     subparsers = parser.add_subparsers(dest="action", required=True)
@@ -1946,6 +2056,26 @@ def main():
     _ = subparsers.add_parser("resume")
     _ = subparsers.add_parser("discover")
     
+    reg_p = subparsers.add_parser("registry")
+    reg_sub = reg_p.add_subparsers(dest="subaction", required=True)
+    
+    reg_reg = reg_sub.add_parser("register")
+    _ = reg_reg.add_argument("--path", type=str, default=".")
+    _ = reg_reg.add_argument("--force", action="store_true")
+    _ = reg_reg.add_argument("--source", type=str, default="register")
+    _ = reg_reg.add_argument("--framework-root", type=str, default=None)
+    
+    reg_unreg = reg_sub.add_parser("unregister")
+    _ = reg_unreg.add_argument("--path", type=str, default=".")
+    
+    _ = reg_sub.add_parser("list")
+    _ = reg_sub.add_parser("doctor")
+    _ = reg_sub.add_parser("cleanup")
+    
+    upd_p = subparsers.add_parser("update")
+    _ = upd_p.add_argument("--all", action="store_true")
+    _ = upd_p.add_argument("--current", action="store_true")
+    
     classify_p = subparsers.add_parser("classify")
     _ = classify_p.add_argument("request", type=str)
     
@@ -2022,7 +2152,9 @@ def main():
         "release": do_release_action,
         "context": do_context,
         "rules": do_rules_action,
-        "state": do_state_action
+        "state": do_state_action,
+        "registry": do_registry,
+        "update": do_update
     }
     
     modifying_actions = ["init", "start", "step", "complete", "fail", "blueprint", "suggest", "compact", "task", "execution", "analysis-agent", "choice", "active-workflow", "resume", "discover", "classify", "memory", "env", "debug", "verify", "release", "state"]

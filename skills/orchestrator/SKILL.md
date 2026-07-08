@@ -45,6 +45,7 @@ The Orchestrator is the single entry point for all framework workflows. It autom
 3. **Intent Detection & Classification**:
    * If no active workflow is continuation-resumed, classify the user request according to the rules in `software-development-workflow`'s classification matrix.
    * Call `workflow_runtime.py suggest` to persist routing decisions.
+   * **Workflow Skill Auto-Dispatch**: If the detected skill is `quick-fix`, `quick-feature`, or `brainstorming`, the Orchestrator MUST immediately transfer execution control to that skill. The Agent must then strictly execute following the specific phases of the target skill (e.g. Specification -> Blueprint -> Implementation for quick-fix/quick-feature), and NEVER bypass any specification or blueprint steps to write source code directly.
    * Present single or ambiguous option layouts, wait for user confirmation via choice protocol, and dispatch to the selected skill via `workflow_runtime.py start`.
 4. **Planning & Recommendation (Implementation Phase Only)**:
    * For all early phases (discovery, brainstorming, planning, blueprint generation), execution runs strictly sequentially.
@@ -56,6 +57,14 @@ The Orchestrator is the single entry point for all framework workflows. It autom
 python3 .agents/skills/workflow-runtime/scripts/workflow_runtime.py prompt select --question "Choose implementation execution mode:" --options "Run implementation in Parallel where safe|Run implementation Sequentially|Re-split implementation tasks|Cancel" --default "Run implementation Sequentially"
 ```
 Wait for user choice and call `workflow-runtime execution mode --mode <choice> --approve` before launching implementation execution.
+
+## 🔒 Blueprint Enforcement & IDE Integration Guide
+1. **Quy tắc phối hợp giữa Antigravity IDE và Framework**:
+   - Tệp `implementation_plan.md` (yêu cầu của Antigravity IDE) chỉ đóng vai trò là "cầu nối phê duyệt" với IDE để xin phép sửa đổi file.
+   - Nội dung của `implementation_plan.md` phải tuân thủ và khớp 100% với tệp Design Blueprint (`docs/designs/FEAT-XXX_*` hoặc `docs/designs/FIX-XXX_*`) trong dự án.
+   - Agent không được tự biên tự diễn giải pháp mới trong `implementation_plan.md` nếu chưa có Design Blueprint được đăng ký và phê duyệt hợp lệ qua CLI (`aiwf blueprint --approve`).
+2. **Chặn cứng Phase 6 (Implementation)**:
+   - Nếu session có checkpoint < 5 (chưa phê duyệt Blueprint) và yêu cầu thuộc về một active feature/fix đang triển khai, Orchestrator cấm tuyệt đối đề xuất chạy Implementation. Phải hướng dẫn người dùng chạy Spec/Blueprint phase trước.
 
 ## Execution Behavior
 - **Option 1 (Parallel)**: Launch concurrent workers for task groups having no write_set overlap. Maintain locks registry in `.agents/runtime/file-locks.json`.

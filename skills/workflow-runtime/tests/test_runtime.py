@@ -384,7 +384,7 @@ class TestRuntimeEngine(unittest.TestCase):
         self.assertEqual(session["current_skill"], "brainstorming")
         
         # Scenario 12: Explicit /release is allowed only as explicit release request
-        save_session_atomic({"checkpoint": 9})
+        save_session_atomic({"checkpoint": 9, "blueprint": {"approved": True}})
         res = subprocess.run(
             [sys.executable, cli_path, "start", "--skill", "implementation-to-release", "--command", "release", "--checkpoint", "10", "--step", "Releasing"],
             capture_output=True, text=True
@@ -800,6 +800,53 @@ class TestRuntimeEngine(unittest.TestCase):
                     os.remove(analysis_file)
                 except Exception:
                     pass
+
+
+    def test_start_implementation_without_approved_blueprint(self):
+        cli_path = os.path.join(os.path.dirname(__file__), "..", "scripts", "workflow_runtime.py")
+        
+        # 1. Setup session with unapproved blueprint
+        session = {
+            "workspace": {"path": ".", "valid": True},
+            "git": {"is_git_repository": True, "branch": "main", "working_tree": "clean"},
+            "work_item": {"type": "FEAT", "id": "FEAT-001", "title": "Initial Scaffolding"},
+            "version": {"version": "1.0.0", "source": "MANIFEST.json"},
+            "checkpoint": 1,
+            "blueprint": {
+                "path": "docs/designs/test_blueprint.md",
+                "exists": True,
+                "approved": False
+            }
+        }
+        save_session_atomic(session)
+        
+        # 2. Try starting implementation - should fail
+        res = subprocess.run([
+            sys.executable, cli_path, "start",
+            "--skill", "blueprint-to-implementation",
+            "--command", "implement",
+            "--checkpoint", "6",
+            "--step", "Testing implementation start"
+        ], capture_output=True, text=True)
+        self.assertNotEqual(res.returncode, 0)
+        self.assertIn("Blueprint is not approved", res.stderr)
+        
+        # 3. Approve the blueprint and try again - should pass
+        session["blueprint"]["approved"] = True
+        save_session_atomic(session)
+        
+        res = subprocess.run([
+            sys.executable, cli_path, "start",
+            "--skill", "blueprint-to-implementation",
+            "--command", "implement",
+            "--checkpoint", "6",
+            "--step", "Testing implementation start"
+        ], capture_output=True, text=True)
+        self.assertEqual(res.returncode, 0)
+        
+        updated_session = load_session()
+        self.assertEqual(updated_session["current_skill"], "blueprint-to-implementation")
+        self.assertEqual(updated_session["checkpoint"], 6)
 
 
 if __name__ == "__main__":

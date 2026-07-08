@@ -556,15 +556,19 @@ Frontend/Desktop Visual Debug           Skipped (Backend Only)
   4. Perform checkpoints (1 to 9) at major SDLC milestones.
   5. Print plain text heartbeats and end-of-skill status reports.
   6. Support `/resume` to recover and continue from the last valid checkpoint.
-* **Input**: State changes or explicit commands (e.g. `/resume`).
-* **Output**: Updated `.session.json` state, console heartbeats, and runtime reports.
-* **Capability Boundary**: Read-only regarding source code. Only modifies the local session file `.agents/.session.json`.
+  7. Maintain a centralized global registry of active framework projects on the local machine.
+  8. Perform global batch updates for all registered projects via `update --all`.
+* **Input**: State changes or explicit commands (e.g. `/resume`, `registry list`, `update --all`).
+* **Output**: Updated `.session.json` state, global registry `projects.json`, console heartbeats, and runtime reports.
+* **Capability Boundary**: Read-only regarding source code. Modifies the local session file `.agents/.session.json` and the global registry file `projects.json`.
 * **Recommended Next Skill**: Varied (continues from the last active checkpoint).
 * **Example Invocation**:
   ```bash
-  /resume
+  aiwf registry list
+  aiwf registry doctor
+  aiwf update --all
   ```
-* **Current Status**: Production Stable (v2.3.0 — Runtime Layer).
+* **Current Status**: Production Stable (v2.4.0 — Runtime & Registry Layer).
 * **Dependencies**: Requires a completed `initialize-workflow` run to bootstrap the session state.
 
 ---

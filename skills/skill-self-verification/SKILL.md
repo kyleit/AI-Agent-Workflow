@@ -1,6 +1,6 @@
 ---
 name: skill-self-verification
-description: Tự động kiểm tra và xác thực các Skill trong AI Skill Framework để bảo đảm chất lượng và tính ổn định.
+description: Automatically check and verify other Skills within the AI Skill Framework using Behavioral Acceptance Testing (BAT).
 command: /verify-skill
 aliases:
   - verify-skill
@@ -14,25 +14,29 @@ tags:
   - runtime
 ---
 
-# Skill Self-Verification
+# Skill: skill-self-verification (Behavioral Acceptance Testing)
 
-Skill này dùng để kiểm tra tính đúng đắn và sự tương thích của các Skill khác trong hệ thống trước khi phát hành (release).
+## Overview
+This Skill acts as a simulated end user executing **Behavioral Acceptance Testing (BAT)** to evaluate interaction flows, user experience (UX), token consumption, and business value of any newly created or modified Skill before release.
 
 ## 1. Purpose & Scope
-Mục tiêu là tự động hóa quá trình xác thực các Skill mới được tạo hoặc chỉnh sửa để đảm bảo:
-- Cấu trúc thư mục, tệp tin và metadata trong `SKILL.md` hợp lệ.
-- Không vi phạm các chính sách an toàn của `AI_RULES.md` (chẳng hạn như cấm sử dụng link `file://` tuyệt đối).
-- Các luồng nghiệp vụ thông thường (Happy Path) và lỗi đầu vào (Invalid Inputs) hoạt động chính xác.
-- Tương tác với người dùng giả lập được mô phỏng đầy đủ.
+The objective is to automate behavioral validation to ensure:
+- Realistic user personas are simulated to interact with the target Skill.
+- End-to-end conversations, prompts, and approval gates are tested and resolved (accept/reject).
+- Quantitative UX review, workflow quality, and productivity gains are measured.
+- Detailed Before vs After code diff comparison is provided for modified Skills.
+- A comprehensive BAT verification report is generated to guarantee intended business value.
 
 ## 2. Input Schema
-- `skill` (string, required): Tên thư mục của Skill cần kiểm tra.
+- `skill` (string, required): Folder name of the target Skill to verify (e.g., `orchestrator`, `quick-fix`).
 
-## 3. Workflow
-1. **Static Analysis Phase**: Quét metadata, YAML frontmatter, và đường dẫn tương đối trong `SKILL.md`.
-2. **Simulation Phase**: Thực thi các kịch bản tương tác người dùng giả lập để kiểm tra phản hồi.
-3. **Runtime & Boundary Phase**: Kiểm tra sự tương thích với state engine thông qua tệp `.agents/.session.json`.
-4. **Report Generation Phase**: Xuất báo cáo markdown tại `docs/verification/SKILL-VERIFY_<skill-name>.md`.
+## 3. Workflow (BAT Pipeline)
+1. **Goal Extraction**: Read the target Skill's description and design goals.
+2. **Persona Generation**: Create realistic personas mapping to the target Skill's domains.
+3. **Simulation Phase**: Execute simulated end-to-end sessions, resolving all choice prompts and gates.
+4. **Before vs After comparison**: Run automated git diff analysis to capture change summaries.
+5. **Metrics Evaluation**: Measure UX rating, productivity gains, and Gemini API token costs.
+6. **Report Generation Phase**: Write the markdown BAT report at `docs/verification/SKILL-VERIFY_<skill-name>.md`.
 
 ## 4. Run Commands
 ```bash
@@ -40,5 +44,5 @@ python skills/skill-self-verification/scripts/verify_skill.py verify --skill <sk
 ```
 
 ## 5. Completion Criteria
-- Báo cáo xác thực được tạo thành công với kết quả `PASS`.
-- Không phát hiện vi phạm quy tắc an toàn.
+- Verification report generated with all 12 mandatory BAT sections.
+- Achieves a final `PASS` status approved by the simulated user agent.

@@ -7,4 +7,11 @@ __pycache__/
 *.tmp
 *.bak
 .agents/.session.json
+.agents/state/
+.agents/runtime/*.db
+.agents/runtime/*.db-journal
+.agents/runtime/*.db-wal
+.agents/runtime/env_cache.json
+public_export/
 **/screenshots/
+**/__pycache__/

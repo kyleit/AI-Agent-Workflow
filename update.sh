@@ -24,23 +24,34 @@ show_help() {
 
 # Parse options
 FORCE=false
+UPDATE_ALL=false
+UPDATE_CURRENT=false
 for arg in "$@"; do
     case $arg in
         -f|--force)
             FORCE=true
-            shift
+            ;;
+        -a|--all)
+            UPDATE_ALL=true
+            ;;
+        -c|--current)
+            UPDATE_CURRENT=true
             ;;
         -h|--help)
             show_help
             exit 0
             ;;
-        *)
-            echo "Unknown option: $arg"
-            show_help
-            exit 1
-            ;;
     esac
 done
+
+# Locate SCRIPT_DIR
+SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
+
+if [ "$UPDATE_ALL" = true ]; then
+    log_info "Updating all registered projects globally..."
+    python3 "$SCRIPT_DIR/skills/workflow-runtime/scripts/workflow_runtime.py" update --all
+    exit 0
+fi
 
 # Logging helpers
 log_info() { echo -e "\033[1;34m[INFO]\033[0m $1"; }

@@ -48,6 +48,7 @@ function Show-Help {
     Write-Host "  version      Report current CLI and repository versions"
     Write-Host "  memory       Manage project memory (bootstrap, update, search)"
     Write-Host "  blueprint    Register or approve design blueprints"
+    Write-Host "  registry     Manage centralized global project registry"
     Write-Host "  help         Show this help message"
 }
 
@@ -77,6 +78,9 @@ switch (`$Command) {
     }
     "blueprint" {
         python (Join-Path `$FrameworkRoot "skills/workflow-runtime/scripts/workflow_runtime.py") blueprint @args
+    }
+    "registry" {
+        python (Join-Path `$FrameworkRoot "skills/workflow-runtime/scripts/workflow_runtime.py") registry @args
     }
     "help" {
         Show-Help

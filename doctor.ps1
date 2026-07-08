@@ -124,6 +124,13 @@ else {
     Log-Info "No active Git project detected at current path. Skipping local workspace check."
 }
 
+# Diagnosing global project registry
+if (Get-Command python3 -ErrorAction SilentlyContinue) {
+    Log-Info "Diagnosing global project registry..."
+    python3 (Join-Path $ScriptDir "skills/workflow-runtime/scripts/workflow_runtime.py") registry doctor
+}
+
+
 Write-Host "=================================================="
 Write-Host "Diagnostic Summary:"
 Write-Host "  Errors:   $global:StatusFail"

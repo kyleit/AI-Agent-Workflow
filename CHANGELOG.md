@@ -5,6 +5,19 @@ All notable changes to this project will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [6.3.0] - 2026-07-08
+
+### Added
+- **QUICK-015: Upgrade skill-self-verification into a Behavioral Acceptance Testing (BAT) Skill**:
+  - Nâng cấp bộ xác thực Skill sang kiểm thử hành vi thực tế (Behavioral Acceptance Testing - BAT).
+  - Tích hợp giả lập User Personas đa nhân vật, sinh Simulated Conversation Transcript tương tác với các Cổng kiểm soát (Gates) và Prompts.
+  - Tự động so sánh git diff Trước vs Sau (**Before vs After**) cho các Skill được chỉnh sửa.
+  - Đo lường đánh giá UX Review, Productivity Impact và Token/API Cost.
+  - Xuất báo cáo BAT nghiệm thu đầy đủ 12 chương mục chất lượng cao dưới `docs/verification/`.
+- **FIX-017: Fix Orchestrator Routing & Blueprint Enforcement**:
+  - Khắc phục lỗi Orchestrator tự ý code bỏ qua blueprint. Tự động dispatch sang `quick-fix`/`quick-feature`/`brainstorming` nếu phát hiện và tuân thủ rule/guide từng Phase.
+  - Chặn cứng Phase 6 (Implementation) từ CLI nếu tệp Design Blueprint tương ứng chưa được phê duyệt (`blueprint.approved == True`).
+
 ## [6.2.0] - 2026-07-08
 
 ### Added
