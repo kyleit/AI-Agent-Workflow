@@ -433,3 +433,13 @@ To minimize token consumption, eliminate LLM logic errors, and ensure repeatable
 1. **Deterministic Tasks**: All deterministic, repeatable, file-based, validation-based, and state-management actions MUST be executed by Python CLI scripts instead of natural language prompt instructions.
 2. **Hybrid Tasks Separation**: For hybrid tasks (brainstorming, quick-fix, quick-feature, brainstorming-to-plan, plan-to-blueprint, ADR creation, blueprint-to-implementation), the LLM is restricted to reasoning, design, code generation, and rationale writing. The CLI script commands must handle ID allocation, path generation, YAML/markdown validation, checkpoint/session state persistence, and command execution.
 3. **Structured JSON Output**: Every script-first CLI command must return structured JSON formatting on standard output.
+
+---
+
+## 22. Absolute Path Prohibition Policy
+
+To prevent the leakage of user directory structures, usernames, and system details when project files and changes are pushed to remote Git repositories:
+1. **No Absolute Paths**: All AI agents and CLI scripts are strictly prohibited from generating, writing, or placing absolute file paths (e.g., `/Users/username/...`, `C:\Users\username\...`, or `file:///path/to/user/...`) in any project files, documents, configuration files, prompt responses, source code, or tests.
+2. **Mandatory Relative Paths**: All references to files, folders, and resources must use project-relative paths (e.g., `./skills/...`, `docs/plans/...`, or `.agents/workflow.config.json`).
+3. **Markdown Links**: Fenced markdown links and file pointers must use relative URLs/paths instead of absolute URLs/schemes pointing to the local filesystem (unless using relative links like `[link](file://./relative_path)` or generic references).
+4. **Scope of Application**: This rule applies universally to all Skills, docs, issues, plans, designs, code comments, tests, and CLI outputs.

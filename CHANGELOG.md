@@ -5,6 +5,15 @@ All notable changes to this project will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [6.3.4] - 2026-07-08
+
+### Fixed
+- **FIX-018: Standardize generic workflow templates and auto-generate actual configuration files**:
+  - Chuyển đổi các tệp mẫu cấu hình `release.config.json` và `workflow.config.json.template` thành dạng tổng quát (`single` project_type).
+  - Tích hợp logic tự động sinh tệp cấu hình thực tế cho dự án đích khi chạy lệnh `discover`.
+  - Loại bỏ trường dư thừa `feature_prefix` trong tất cả cấu hình mẫu và script runtime.
+  - Thêm quy tắc an toàn bảo mật `Absolute Path Prohibition Policy` vào `AI_RULES.md` ngăn chặn rò rỉ username và đường dẫn tuyệt đối khi push Git.
+
 ## [6.3.3] - 2026-07-08
 
 ### Added

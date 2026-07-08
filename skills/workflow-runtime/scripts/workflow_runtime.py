@@ -763,48 +763,58 @@ def do_choice(args) -> None:
             if allow_cancel and choice_type != "approval":
                 print("C. Cancel")
                 
-            while True:
-                user_val = input("\nEnter selection: ").strip()
-                if not user_val:
-                    continue
-                val_lower = user_val.lower()
-                
-                if val_lower == "c" or val_lower == "cancel":
-                    if allow_cancel:
-                        selected_option = "cancel"
-                        break
-                    else:
-                        print("Cancel is not allowed for this choice.")
-                        continue
-                        
+            from utils import is_stdin_ready
+            if not sys.stdin.isatty() and not is_stdin_ready():
+                # Auto-select default/first option or fail instead of hanging
                 if choice_type == "approval":
-                    if val_lower in ["y", "yes", "proceed", "continue"]:
-                        selected_option = "approve"
-                        break
-                    elif val_lower in ["n", "no", "cancel"]:
-                        selected_option = "cancel"
-                        break
-                    else:
-                        print("Invalid selection. Please enter Y or N.")
+                    selected_option = "cancel"
+                else:
+                    selected_option = option_ids[0] if option_ids else "cancel"
+                print(f"Non-interactive environment and no stdin input available. Auto-selecting default/fallback: {selected_option}")
+                choice_resolved = True
+            else:
+                while True:
+                    user_val = input("\nEnter selection: ").strip()
+                    if not user_val:
                         continue
+                    val_lower = user_val.lower()
+                
+                    if val_lower == "c" or val_lower == "cancel":
+                        if allow_cancel:
+                            selected_option = "cancel"
+                            break
+                        else:
+                            print("Cancel is not allowed for this choice.")
+                            continue
+                            
+                    if choice_type == "approval":
+                        if val_lower in ["y", "yes", "proceed", "continue"]:
+                            selected_option = "approve"
+                            break
+                        elif val_lower in ["n", "no", "cancel"]:
+                            selected_option = "cancel"
+                            break
+                        else:
+                            print("Invalid selection. Please enter Y or N.")
+                            continue
+                            
+                    try:
+                        idx = int(user_val) - 1
+                        if 0 <= idx < len(options):
+                            selected_option = options[idx]["id"]
+                            break
+                    except ValueError:
+                        pass
                         
-                try:
-                    idx = int(user_val) - 1
-                    if 0 <= idx < len(options):
-                        selected_option = options[idx]["id"]
+                    matched = False
+                    for opt in options:
+                        if opt["id"].lower() == val_lower or opt["label"].lower() == val_lower:
+                            selected_option = opt["id"]
+                            matched = True
+                            break
+                    if matched:
                         break
-                except ValueError:
-                    pass
-                    
-                matched = False
-                for opt in options:
-                    if opt["id"].lower() == val_lower or opt["label"].lower() == val_lower:
-                        selected_option = opt["id"]
-                        matched = True
-                        break
-                if matched:
-                    break
-                print("Invalid selection. Please try again.")
+                    print("Invalid selection. Please try again.")
                 
             resp_payload = {
                 "id": args.id or "unknown",

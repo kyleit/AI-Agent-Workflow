@@ -174,7 +174,6 @@ def load_workflow_config() -> dict[str, Any]:  # type: ignore
         "git_flow": {
             "development_branch": "main",
             "release_branch": "main",
-            "feature_prefix": "feature/FEAT-",
             "sync_method": "merge",
             "extra_push_branches": []
         },

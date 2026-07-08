@@ -1,16 +1,10 @@
 {
-  "project_type": "multi-module",
+  "project_type": "single",
   "modules": [
     {
-      "name": "framework-core",
+      "name": "core",
       "path": ".",
-      "version_file": "MANIFEST.json",
-      "changelog_file": "CHANGELOG.md"
-    },
-    {
-      "name": "visualizer-extension",
-      "path": "extensions/visualizer",
-      "version_file": "extensions/visualizer/package.json",
+      "version_file": "package.json",
       "changelog_file": "CHANGELOG.md"
     }
   ],

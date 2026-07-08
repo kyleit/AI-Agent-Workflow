@@ -129,12 +129,103 @@ def run_discovery() -> dict:
     with open(profile_path, "w", encoding="utf-8") as f:
         json.dump(profile, f, indent=2, ensure_ascii=False)
         
+    # Auto-generate release.config.json if missing
+    release_config_path = os.path.join(".agents", "release.config.json")
+    files_written = [profile_path]
+    if not os.path.exists(release_config_path):
+        # Auto-detect version file based on project type
+        version_file = "MANIFEST.json"
+        if os.path.exists("package.json"):
+            version_file = "package.json"
+        elif os.path.exists("pyproject.toml"):
+            version_file = "pyproject.toml"
+        elif os.path.exists("setup.py"):
+            version_file = "setup.py"
+        elif os.path.exists("cargo.toml"):
+            version_file = "cargo.toml"
+        elif os.path.exists("go.mod"):
+            version_file = "go.mod"
+            
+        release_config = {
+            "project_type": "single",
+            "modules": [
+                {
+                    "name": "core",
+                    "path": ".",
+                    "version_file": version_file,
+                    "changelog_file": "CHANGELOG.md"
+                }
+            ],
+            "default_branch": "main",
+            "remote_name": "origin"
+        }
+        
+        # Try to query git for default branch
+        try:
+            import subprocess
+            git_res = subprocess.run(["git", "symbolic-ref", "--short", "HEAD"], capture_output=True, text=True)
+            if git_res.returncode == 0 and git_res.stdout.strip():
+                release_config["default_branch"] = git_res.stdout.strip()
+        except Exception:
+            pass
+            
+        with open(release_config_path, "w", encoding="utf-8") as f:
+            json.dump(release_config, f, indent=2, ensure_ascii=False)
+        files_written.append(release_config_path)
+
+    # Auto-generate workflow.config.json if missing
+    workflow_config_path = os.path.join(".agents", "workflow.config.json")
+    if not os.path.exists(workflow_config_path):
+        workflow_template_path = os.path.join(".agents", "templates", "workflow.config.json.template")
+        workflow_config = None
+        if os.path.exists(workflow_template_path):
+            try:
+                with open(workflow_template_path, "r", encoding="utf-8") as tf:
+                    workflow_config = json.load(tf)
+            except Exception:
+                pass
+                
+        if not workflow_config:
+            # Fallback template if template file is missing
+            workflow_config = {
+                "project_name": "example-project",
+                "git_flow": {
+                    "development_branch": "main",
+                    "release_branch": "main",
+                    "sync_method": "merge",
+                    "extra_push_branches": []
+                },
+                "release_pipeline": {
+                    "steps": ["bump_version", "update_changelog", "git_commit", "git_tag", "custom_commands", "git_push"],
+                    "custom_commands": {
+                        "core": ["echo 'Chạy lệnh build/test cho module core ở đây!'"],
+                        "global": ["echo 'Chạy lệnh release global ở đây!'"]
+                    }
+                }
+            }
+            
+        # Dynamically customize for this project
+        workflow_config["project_name"] = os.path.basename(os.getcwd())
+        try:
+            import subprocess
+            git_res = subprocess.run(["git", "symbolic-ref", "--short", "HEAD"], capture_output=True, text=True)
+            if git_res.returncode == 0 and git_res.stdout.strip():
+                branch = git_res.stdout.strip()
+                workflow_config["git_flow"]["development_branch"] = branch
+                workflow_config["git_flow"]["release_branch"] = branch
+        except Exception:
+            pass
+            
+        with open(workflow_config_path, "w", encoding="utf-8") as f:
+            json.dump(workflow_config, f, indent=2, ensure_ascii=False)
+        files_written.append(workflow_config_path)
+        
     return {
         "status": "success",
         "command": "discover",
         "summary": f"Technologies detected: Languages={languages}, Frameworks={frameworks}.",
         "warnings": [],
         "files_read": [],
-        "files_written": [profile_path],
+        "files_written": files_written,
         "next_skill": "project-memory-bootstrap"
     }

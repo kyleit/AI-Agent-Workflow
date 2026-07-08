@@ -33,6 +33,8 @@ def get_rag_info() -> dict:
 
 def is_stdin_ready() -> bool:
     import sys
+    if type(sys.stdin).__name__ in ['Mock', 'MagicMock', 'StringIO', 'BytesIO']:
+        return True
     ret = False
     if sys.platform == 'win32':
         import msvcrt
@@ -116,6 +118,10 @@ def prompt_select(question: str, options: list[str], default: str | None = None)
             sys.stdout.buffer.flush()
     
     try:
+        # Prevent blocking indefinitely in non-interactive environments
+        if not sys.stdin.isatty() and not is_stdin_ready():
+            return default if default is not None else options[0]
+            
         # Block chờ phản hồi qua stdin
         line = sys.stdin.readline().strip()
         if not line:
