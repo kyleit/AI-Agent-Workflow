@@ -230,6 +230,7 @@ GitHub Repository: https://github.com/kyleit/AI-Agent-Workflow
 # 4. Copy required files/directories
 Merge-AgentsBlock -FilePath (Join-Path $InstallTarget "AGENTS.md") -SourcePath (Join-Path $ScriptDir "AGENTS.md")
 Copy-ItemWithCheck -Src (Join-Path $ScriptDir "AI_RULES.md") -Dest (Join-Path $InstallTarget "AI_RULES.md") -IsDir $false
+Copy-ItemWithCheck -Src (Join-Path $ScriptDir "SKILLS.md") -Dest (Join-Path $InstallTarget "SKILLS.md") -IsDir $false
 Copy-ItemWithCheck -Src (Join-Path $ScriptDir $SkillDir) -Dest (Join-Path $InstallTarget $SkillDir) -IsDir $true
 Copy-ItemWithCheck -Src (Join-Path $ScriptDir $TemplateDir) -Dest (Join-Path $InstallTarget $TemplateDir) -IsDir $true
 Copy-ItemWithCheck -Src (Join-Path $ScriptDir "agents") -Dest (Join-Path $InstallTarget "agents") -IsDir $true

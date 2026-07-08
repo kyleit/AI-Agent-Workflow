@@ -227,6 +227,7 @@ with open(file_path, 'w', encoding='utf-8') as f:
 # 4. Copy required files/directories
 merge_agents_block "$INSTALL_TARGET/AGENTS.md" "$SCRIPT_DIR/AGENTS.md"
 copy_item "$SCRIPT_DIR/AI_RULES.md" "$INSTALL_TARGET/AI_RULES.md" false
+copy_item "$SCRIPT_DIR/SKILLS.md" "$INSTALL_TARGET/SKILLS.md" false
 copy_item "$SCRIPT_DIR/$SKILL_DIR" "$INSTALL_TARGET/$SKILL_DIR" true
 copy_item "$SCRIPT_DIR/$TEMPLATE_DIR" "$INSTALL_TARGET/$TEMPLATE_DIR" true
 copy_item "$SCRIPT_DIR/agents" "$INSTALL_TARGET/agents" true
