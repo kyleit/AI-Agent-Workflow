@@ -1,10 +1,7 @@
-#!/usr/bin/env bash
-# ==============================================================================
-# AI Skill Framework Installer
-# Usage: ./install.sh [options]
 # Options:
-#   -f, --force    Force overwrite of existing files without prompting
-#   -h, --help     Show this help message
+#   -f, --force         Force overwrite of existing files without prompting
+#   -p, --permission    Set permission mode (sandbox, full_access, unrestricted)
+#   -h, --help          Show this help message
 # ==============================================================================
 
 set -euo pipefail
@@ -15,27 +12,33 @@ show_help() {
     echo "Usage: ./install.sh [options]"
     echo ""
     echo "Options:"
-    echo "  -f, --force    Force overwrite of existing files without prompting"
-    echo "  -h, --help     Show this help message"
+    echo "  -f, --force         Force overwrite of existing files without prompting"
+    echo "  -p, --permission    Set permission mode (sandbox, full_access, unrestricted)"
+    echo "  -h, --help          Show this help message"
     echo ""
     echo "Example:"
-    echo "  ./install.sh --force"
+    echo "  ./install.sh --force --permission sandbox"
 }
 
 # Parse options
 FORCE=false
-for arg in "$@"; do
-    case $arg in
+PERMISSION=""
+while [ $# -gt 0 ]; do
+    case "$1" in
         -f|--force)
             FORCE=true
             shift
+            ;;
+        -p|--permission)
+            PERMISSION="$2"
+            shift 2
             ;;
         -h|--help)
             show_help
             exit 0
             ;;
         *)
-            echo "Unknown option: $arg"
+            echo "Unknown option: $1"
             show_help
             exit 1
             ;;
@@ -293,7 +296,11 @@ fi
 
 if command -v python3 >/dev/null 2>&1; then
     log_info "Synchronizing initial session state with SQLite..."
-    python3 "$INSTALL_TARGET/$SKILL_DIR/workflow-runtime/scripts/workflow_runtime.py" init || log_warn "Failed to sync initial session with SQLite."
+    INIT_ARGS=""
+    if [ -n "$PERMISSION" ]; then
+        INIT_ARGS="--permission $PERMISSION"
+    fi
+    python3 "$INSTALL_TARGET/$SKILL_DIR/workflow-runtime/scripts/workflow_runtime.py" init $INIT_ARGS || log_warn "Failed to sync initial session with SQLite."
 fi
 
 log_success "AI Skill Framework v$VERSION has been successfully installed!"

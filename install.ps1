@@ -11,7 +11,8 @@
 
 [CmdletBinding()]
 param(
-    [switch]$Force
+    [switch]$Force,
+    [string]$Permission = $null
 )
 
 # Logging helpers
@@ -303,7 +304,12 @@ if ($MissingFiles -gt 0) {
 
 if (Get-Command python3 -ErrorAction SilentlyContinue) {
     Log-Info "Synchronizing initial session state with SQLite..."
-    python3 (Join-Path (Join-Path $InstallTarget $SkillDir) "workflow-runtime/scripts/workflow_runtime.py") init
+    $InitArgs = @("init")
+    if (-not [string]::IsNullOrEmpty($Permission)) {
+        $InitArgs += "--permission"
+        $InitArgs += $Permission
+    }
+    python3 (Join-Path (Join-Path $InstallTarget $SkillDir) "workflow-runtime/scripts/workflow_runtime.py") $InitArgs
 }
 
 Log-Success "AI Skill Framework v$VERSION has been successfully installed!"
