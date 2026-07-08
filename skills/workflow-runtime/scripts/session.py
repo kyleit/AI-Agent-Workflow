@@ -166,3 +166,46 @@ class SessionLock:
         
     def __exit__(self, exc_type: Any, exc_val: Any, exc_tb: Any) -> None:
         release_session_lock()
+
+def load_workflow_config() -> dict[str, Any]:  # type: ignore
+    config_path = os.path.join(".agents", "workflow.config.json")
+    default_config = {
+        "project_name": "unknown",
+        "git_flow": {
+            "development_branch": "main",
+            "release_branch": "main",
+            "feature_prefix": "feature/FEAT-",
+            "sync_method": "merge",
+            "extra_push_branches": []
+        },
+        "release_pipeline": {
+            "steps": [
+                "bump_version",
+                "update_changelog",
+                "git_commit",
+                "git_tag",
+                "custom_commands",
+                "git_push"
+            ],
+            "custom_commands": {}
+        }
+    }
+    if not os.path.exists(config_path):
+        return default_config
+    try:
+        with open(config_path, "r", encoding="utf-8") as f:
+            data = json.load(f)
+            if isinstance(data, dict):
+                # Deep merge defaults
+                for k, v in default_config.items():
+                    if k not in data:
+                        data[k] = v
+                    elif isinstance(v, dict) and isinstance(data[k], dict):
+                        for sub_k, sub_v in v.items():
+                            if sub_k not in data[k]:
+                                data[k][sub_k] = sub_v
+                return data
+    except Exception:
+        pass
+    return default_config
+

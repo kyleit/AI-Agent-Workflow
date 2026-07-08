@@ -5,6 +5,14 @@ All notable changes to this project will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [6.3.3] - 2026-07-08
+
+### Added
+- **FEAT-025: Project-specific Workflow Templates & Release Configuration**:
+  - Hỗ trợ cơ chế cấu hình quy trình Git Flow (development_branch, release_branch, feature_prefix, sync_method) tùy biến riêng cho từng dự án thông qua `.agents/workflow.config.json`.
+  - Hỗ trợ Release Pipeline tùy biến thông qua custom commands cho từng module bị ảnh hưởng và custom commands global.
+  - Tự động hóa các tác vụ Git Flow (merge/rebase) và release pipeline shell commands trong `release_manager.py`.
+
 ## [6.3.0] - 2026-07-08
 
 ### Added

@@ -848,6 +848,53 @@ class TestRuntimeEngine(unittest.TestCase):
         self.assertEqual(updated_session["current_skill"], "blueprint-to-implementation")
         self.assertEqual(updated_session["checkpoint"], 6)
 
+    def test_load_workflow_config_defaults(self):
+        # Temp path setup to make sure we don't read actual config if it exists
+        config_path = os.path.join(".agents", "workflow.config.json")
+        backup_path = config_path + ".unittest_bak"
+        if os.path.exists(config_path):
+            os.rename(config_path, backup_path)
+            
+        try:
+            from session import load_workflow_config
+            cfg = load_workflow_config()
+            self.assertEqual(cfg["git_flow"]["development_branch"], "main")
+            self.assertEqual(cfg["git_flow"]["sync_method"], "merge")
+        finally:
+            if os.path.exists(backup_path):
+                os.rename(backup_path, config_path)
+
+    def test_load_workflow_config_custom(self):
+        config_path = os.path.join(".agents", "workflow.config.json")
+        backup_path = config_path + ".unittest_bak"
+        if os.path.exists(config_path):
+            os.rename(config_path, backup_path)
+            
+        try:
+            os.makedirs(os.path.dirname(config_path), exist_ok=True)
+            custom_data = {
+                "project_name": "test-project",
+                "git_flow": {
+                    "development_branch": "dev",
+                    "sync_method": "rebase"
+                }
+            }
+            with open(config_path, "w", encoding="utf-8") as f:
+                json.dump(custom_data, f)
+                
+            from session import load_workflow_config
+            cfg = load_workflow_config()
+            self.assertEqual(cfg["project_name"], "test-project")
+            self.assertEqual(cfg["git_flow"]["development_branch"], "dev")
+            self.assertEqual(cfg["git_flow"]["sync_method"], "rebase")
+            # Should inherit other default fields
+            self.assertEqual(cfg["git_flow"]["release_branch"], "main")
+        finally:
+            if os.path.exists(config_path):
+                os.remove(config_path)
+            if os.path.exists(backup_path):
+                os.rename(backup_path, config_path)
+
 
 if __name__ == "__main__":
     unittest.main()
