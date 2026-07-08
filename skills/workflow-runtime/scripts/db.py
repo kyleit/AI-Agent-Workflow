@@ -181,7 +181,7 @@ def get_workflow_summary(conversation_id: str, provider: str, model: str) -> dic
         "updated_at": datetime.now().astimezone().isoformat()
     }
 
-def get_project_summary() -> dict:
+def get_project_summary(project_id: str) -> dict:
     if not os.path.exists(PROJECT_DB):
         return {
             "input_tokens": 0,
@@ -201,7 +201,8 @@ def get_project_summary() -> dict:
             SELECT SUM(input_tokens), SUM(output_tokens), SUM(cache_tokens),
                    SUM(thinking_tokens), SUM(total_tokens), SUM(estimated_cost_usd)
             FROM usage_records
-        """)
+            WHERE project_id = ?
+        """, (project_id,))
         row = cursor.fetchone()
         if row and row[4] is not None:
             return {

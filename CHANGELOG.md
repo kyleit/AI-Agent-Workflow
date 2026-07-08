@@ -5,6 +5,19 @@ All notable changes to this project will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [6.3.6] - 2026-07-08
+
+### Added
+- **FEAT-029: Project/Global Usage Scope Aggregation & Normalization Fix**:
+  - Hỗ trợ lọc thống kê sử dụng token và chi phí API chính xác theo từng mã dự án riêng biệt (`project_id`).
+  - Hỗ trợ câu lệnh `usage normalize` để tự động dọn dẹp, chuẩn hóa và sửa đổi các số liệu token rác/khổng lồ của các phiên cũ về mức thực tế.
+- **FEAT-030: Config-driven Telemetry & Cost Warning Thresholds**:
+  - Nạp động cấu hình các ngưỡng tỷ lệ phần trăm đầy Context và cảnh báo chi phí tích lũy từ tệp cấu hình dự án.
+- **FEAT-031: Redesigned AIWF Context Status Visualizer UX**:
+  - Phân tách giao diện Footer hiển thị thông số sử dụng thành 3 thẻ card riêng biệt: **Context Analytics**, **Accumulated API Usage**, và **Efficiency & Optimization**.
+  - Trực quan hóa trạng thái `🟢 Healthy` trung tính, không sử dụng hộp cảnh báo hay biểu tượng khẩn cấp gây hiểu lầm.
+  - Căn lề dọc hoàn hảo cho các biểu tượng cảnh báo bên trong Alert Boxes.
+
 ## [6.3.4] - 2026-07-08
 
 ### Fixed

@@ -121,6 +121,7 @@ def aggregate_state(workspace_root: str) -> dict[str, Any]:
         "project_usage_summary": usage.get("project_usage_summary", {}),
         "global_usage_summary": usage.get("global_usage_summary", {}),
         "context_usage": usage.get("context_usage", {}),
+        "telemetry_config": runtime.get("telemetry_config", {}),
         "updated_at": runtime.get("updated_at") or datetime.now().astimezone().isoformat(),
         "execution_mode": agents.get("execution_mode", "parallel"),
         "recommended_mode": agents.get("recommended_mode", "parallel"),
@@ -184,6 +185,7 @@ def deconstruct_state(workspace_root: str, session: dict[str, Any]) -> None:
         "status": session.get("status", "completed"),
         "context_health": session.get("context_health", "healthy"),
         "suggestion_gate": session.get("suggestion_gate", {}),
+        "telemetry_config": session.get("telemetry_config", {}),
         "updated_at": session.get("updated_at")
     }
     

@@ -10,6 +10,7 @@ import subprocess
 
 # Add scripts directory to path
 sys.path.append(os.path.join(os.path.dirname(__file__), "..", "scripts"))
+sys.path.append(os.path.abspath(os.path.join(os.path.dirname(__file__), "..", "..", "..", ".agents", "skills", "workflow-runtime", "scripts")))
 
 from session import load_session, save_session_atomic, SESSION_FILE
 from checkpoint import validate_checkpoint_level, get_checkpoint_name
@@ -18,6 +19,7 @@ from drift import check_context_drift
 from heartbeat import generate_heartbeat_string
 from context import estimate_context_usage, parse_transcript
 from db import PROJECT_DB, get_global_db_path, save_usage_to_dbs, get_workflow_summary, get_project_summary, get_global_summary
+import analytics_engine
 
 class TestRuntimeEngine(unittest.TestCase):
     def setUp(self):
@@ -183,7 +185,7 @@ class TestRuntimeEngine(unittest.TestCase):
         self.assertEqual(wf_2["estimated_cost_usd"], 0.10)
         
         # Verify Project summary (sums both conversations)
-        project_sum = get_project_summary()
+        project_sum = get_project_summary(proj_id)
         self.assertEqual(project_sum["total_tokens"], 43000)
         self.assertEqual(project_sum["estimated_cost_usd"], 0.15)
         
@@ -889,6 +891,109 @@ class TestRuntimeEngine(unittest.TestCase):
             self.assertEqual(cfg["git_flow"]["sync_method"], "rebase")
             # Should inherit other default fields
             self.assertEqual(cfg["git_flow"]["release_branch"], "main")
+        finally:
+            if os.path.exists(config_path):
+                os.remove(config_path)
+            if os.path.exists(backup_path):
+                os.rename(backup_path, config_path)
+
+    def test_telemetry_config_loading_and_fallback(self):
+        # 1. Setup session with mock data
+        session = {
+            "workspace": {"path": ".", "valid": True},
+            "git": {"is_git_repository": True, "branch": "main", "working_tree": "clean"},
+            "work_item": {"type": "FEAT", "id": "FEAT-001", "title": "Initial Scaffolding"},
+            "version": {"version": "1.0.0", "source": "MANIFEST.json"},
+            "checkpoint": 1
+        }
+        
+        # Backup config
+        config_path = os.path.join(".agents", "workflow.config.json")
+        backup_path = config_path + ".unittest_bak"
+        if os.path.exists(config_path):
+            os.rename(config_path, backup_path)
+            
+        try:
+            # Test 1: No config file -> should load defaults
+            from unittest.mock import patch
+            from workflow_runtime import update_context_health
+            
+            with patch('analytics_engine.update_analytics') as mock_analytics, \
+                 patch('workflow_runtime.get_project_summary') as mock_project_summary, \
+                 patch('workflow_runtime.get_global_summary') as mock_global_summary, \
+                 patch('workflow_runtime.save_usage_to_dbs'):
+                 
+                 mock_analytics.return_value = {
+                     "active_context": {"total_tokens": 120000, "limit_tokens": 1000000, "percentage": 12.0},
+                     "accumulated_usage": {"total_tokens": 120000}
+                 }
+                 mock_project_summary.return_value = {"total_tokens": 120000}
+                 mock_global_summary.return_value = {"total_tokens": 120000}
+                 
+                 update_context_health(session)
+                 
+            self.assertIn("telemetry_config", session)
+            self.assertEqual(session["telemetry_config"]["context_thresholds"]["warning"], 60)
+            self.assertEqual(session["telemetry_config"]["cost_thresholds"]["warning_usd"], 10.0)
+            self.assertIn("context_styles", session["telemetry_config"])
+            self.assertEqual(session["telemetry_config"]["context_styles"]["healthy"]["color"], "#10b981")
+            
+            # Test 2: Custom config file with custom telemetry
+            custom_data = {
+                "project_name": "test-project",
+                "telemetry": {
+                    "context_thresholds": {
+                        "warning": 50,
+                        "high": 75,
+                        "critical": 90
+                    },
+                    "context_styles": {
+                        "healthy": {
+                            "color": "#00ff00",
+                            "bg": "rgba(0, 255, 0, 0.1)",
+                            "border": "rgba(0, 255, 0, 0.3)",
+                            "icon": "🟢",
+                            "label": "All Good"
+                        }
+                    },
+                    "cost_thresholds": {
+                        "warning_usd": 5.0,
+                        "critical_usd": 25.0
+                    }
+                }
+            }
+            os.makedirs(os.path.dirname(config_path), exist_ok=True)
+            with open(config_path, "w", encoding="utf-8") as f:
+                json.dump(custom_data, f)
+                
+            session_custom = {
+                "workspace": {"path": ".", "valid": True},
+                "git": {"is_git_repository": True, "branch": "main", "working_tree": "clean"},
+                "work_item": {"type": "FEAT", "id": "FEAT-001", "title": "Initial Scaffolding"},
+                "version": {"version": "1.0.0", "source": "MANIFEST.json"},
+                "checkpoint": 1
+            }
+            
+            with patch('analytics_engine.update_analytics') as mock_analytics, \
+                 patch('workflow_runtime.get_project_summary') as mock_project_summary, \
+                 patch('workflow_runtime.get_global_summary') as mock_global_summary, \
+                 patch('workflow_runtime.save_usage_to_dbs'):
+                 
+                 mock_analytics.return_value = {
+                     "active_context": {"total_tokens": 120000, "limit_tokens": 1000000, "percentage": 12.0},
+                     "accumulated_usage": {"total_tokens": 120000}
+                 }
+                 mock_project_summary.return_value = {"total_tokens": 120000}
+                 mock_global_summary.return_value = {"total_tokens": 120000}
+                 
+                 update_context_health(session_custom)
+                 
+            self.assertEqual(session_custom["telemetry_config"]["context_thresholds"]["warning"], 50)
+            self.assertEqual(session_custom["telemetry_config"]["context_thresholds"]["high"], 75)
+            self.assertEqual(session_custom["telemetry_config"]["cost_thresholds"]["warning_usd"], 5.0)
+            self.assertEqual(session_custom["telemetry_config"]["context_styles"]["healthy"]["color"], "#00ff00")
+            self.assertEqual(session_custom["telemetry_config"]["context_styles"]["healthy"]["label"], "All Good")
+            
         finally:
             if os.path.exists(config_path):
                 os.remove(config_path)

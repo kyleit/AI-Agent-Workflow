@@ -23,5 +23,46 @@
         "echo 'Chạy lệnh release global ở đây!'"
       ]
     }
+  },
+  "telemetry": {
+    "context_thresholds": {
+      "warning": 60,
+      "high": 80,
+      "critical": 95
+    },
+    "context_styles": {
+      "healthy": {
+        "color": "#10b981",
+        "bg": "rgba(16, 185, 129, 0.1)",
+        "border": "rgba(16, 185, 129, 0.3)",
+        "icon": "🟢",
+        "label": "Healthy"
+      },
+      "warning": {
+        "color": "#f59e0b",
+        "bg": "rgba(245, 158, 11, 0.1)",
+        "border": "rgba(245, 158, 11, 0.3)",
+        "icon": "🟡",
+        "label": "Warning"
+      },
+      "high": {
+        "color": "#f97316",
+        "bg": "rgba(249, 115, 22, 0.1)",
+        "border": "rgba(249, 115, 22, 0.3)",
+        "icon": "🟠",
+        "label": "High"
+      },
+      "critical": {
+        "color": "#ef4444",
+        "bg": "rgba(239, 68, 68, 0.1)",
+        "border": "rgba(239, 68, 68, 0.3)",
+        "icon": "🔴",
+        "label": "Critical"
+      }
+    },
+    "cost_thresholds": {
+      "warning_usd": 10.0,
+      "critical_usd": 50.0
+    }
   }
 }
