@@ -293,7 +293,14 @@ def update_all_projects() -> dict:
     if framework_root and Path(framework_root).exists():
         root_dir = Path(framework_root)
     else:
-        root_dir = script_dir.parents[2] # Walk up from skills/workflow-runtime/scripts to root
+        curr = script_dir
+        found_root = None
+        for _ in range(6):
+            if (curr / "update.sh").exists() or (curr / "update.ps1").exists():
+                found_root = curr
+                break
+            curr = curr.parent
+        root_dir = found_root if found_root else script_dir.parents[2]
         
     update_script_sh = root_dir / "update.sh"
     update_script_ps = root_dir / "update.ps1"

@@ -26,6 +26,7 @@ def parse_transcript(log_file: str) -> dict:
     total_output_chars = 0
     thinking_chars = 0
     current_history_chars = 0
+    request_count = 0
     
     try:
         with open(log_file, "r", encoding="utf-8") as f:
@@ -53,9 +54,11 @@ def parse_transcript(log_file: str) -> dict:
                             provider = "openai"
                 
                 source = line.get("source")
-                if source == "MODEL":
+                type_ = line.get("type")
+                if source == "MODEL" and type_ in ["PLANNER_RESPONSE", "ASK_QUESTION"]:
                     # This turn's input is the context compiled so far
                     total_input_chars += current_history_chars
+                    request_count += 1
                     
                     # Calculate this turn's output characters
                     thinking = line.get("thinking", "")
@@ -106,6 +109,7 @@ def parse_transcript(log_file: str) -> dict:
             "limit_tokens": LIMIT_TOKENS,
             "percentage": round((active_tokens / LIMIT_TOKENS) * 100, 2),
             "estimated_cost_usd": round(cost, 4),
+            "request_count": request_count,
             "accuracy": "estimated",
             "updated_at": datetime.now().astimezone().isoformat()
         }

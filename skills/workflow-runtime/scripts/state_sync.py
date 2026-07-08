@@ -139,7 +139,7 @@ def aggregate_state(workspace_root: str) -> dict[str, Any]:
         if k in session and session[k] is None:
             del session[k]
             
-    write_json_atomic(session_path, session)
+    # In Pure Split State mode, we do not write .session.json to disk.
     update_recovery_file(workspace_root)
     return session
 

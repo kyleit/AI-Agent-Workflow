@@ -215,6 +215,81 @@ class TestRuntimeEngine(unittest.TestCase):
             if os.path.exists(mock_log):
                 os.remove(mock_log)
 
+    def test_accurate_token_estimation_and_database_normalization(self):
+        import sqlite3
+        import db
+        # Create a mock transcript file representing multiple turns
+        mock_log = "mock_transcript_accurate.jsonl"
+        lines = [
+            {"source": "USER_EXPLICIT", "content": "Start conversation", "type": "USER_INPUT"},
+            # Model response (should trigger input and request_count increment)
+            {"source": "MODEL", "content": "Response 1", "thinking": "Thinking 1", "type": "PLANNER_RESPONSE"},
+            # Tool call / result (should NOT trigger request_count increment or prompt input accumulation)
+            {"source": "SYSTEM", "content": "Tool output", "type": "TOOL_RESULT"},
+            # Model response 2 (should trigger input and request_count increment)
+            {"source": "MODEL", "content": "Response 2", "thinking": "Thinking 2", "type": "PLANNER_RESPONSE"},
+        ]
+        with open(mock_log, "w", encoding="utf-8") as f:
+            for l in lines:
+                f.write(json.dumps(l) + "\n")
+                
+        try:
+            parsed = parse_transcript(mock_log)
+            self.assertEqual(parsed["request_count"], 2)
+            
+            # Database normalization test
+            # 1. Write an inflated legacy record
+            db_path = "test_normalizer.db"
+            if os.path.exists(db_path):
+                os.remove(db_path)
+            
+            from db import save_usage_to_dbs, normalize_database_records
+            # We save with simulated flat legacy payload representing massive values
+            legacy_usage = {
+                "input_tokens": 100000,
+                "output_tokens": 50000,
+                "cache_tokens": 10000,
+                "thinking_tokens": 5000,
+                "active_tokens": 20000,
+                "total_tokens": 150000,
+                "estimated_cost_usd": 1.5,
+                "provider": "openai",
+                "model": "gpt-4",
+                "accuracy": "estimated"
+            }
+            
+            # Mock configuration
+            orig_project_db = db.PROJECT_DB
+            db.PROJECT_DB = db_path
+            try:
+                save_usage_to_dbs("mock_conversation_123", "proj_123", "skill", "cmd", legacy_usage)
+                
+                # Check DB contents
+                conn = sqlite3.connect(db_path)
+                cursor = conn.cursor()
+                cursor.execute("SELECT total_tokens FROM usage_records WHERE conversation_id = 'mock_conversation_123'")
+                total_tok = cursor.fetchone()[0]
+                self.assertEqual(total_tok, 150000)
+                conn.close()
+                
+                # Normalize database (since transcript doesn't exist for mock_conversation_123, it should scale down by 10)
+                normalize_database_records(db_path)
+                
+                conn = sqlite3.connect(db_path)
+                cursor = conn.cursor()
+                cursor.execute("SELECT total_tokens, input_tokens FROM usage_records WHERE conversation_id = 'mock_conversation_123'")
+                row = cursor.fetchone()
+                self.assertEqual(row[0], 15000)  # scaled down by 10
+                self.assertEqual(row[1], 10000)  # scaled down by 10
+                conn.close()
+            finally:
+                db.PROJECT_DB = orig_project_db
+                if os.path.exists(db_path):
+                    os.remove(db_path)
+        finally:
+            if os.path.exists(mock_log):
+                os.remove(mock_log)
+
     def test_blueprint_registration_and_approval(self):
         # Initial empty session
         save_session_atomic({"checkpoint": 1})

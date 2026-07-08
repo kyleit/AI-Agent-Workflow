@@ -65,8 +65,31 @@ def _save_record(db_path: str, record: tuple) -> None:
         conn.close()
 
 def save_usage_to_dbs(conversation_id: str, project_id: str, skill: str, command: str, usage: dict) -> None:
-    new_total = usage.get("total_tokens", 0)
-    
+    if "accumulated_usage" in usage:
+        # Structured payload
+        new_total = usage["accumulated_usage"].get("total_tokens", 0)
+        active_context_tokens = usage["active_context"].get("total_tokens", 0)
+        input_tokens = usage["accumulated_usage"].get("input_tokens", 0)
+        output_tokens = usage["accumulated_usage"].get("output_tokens", 0)
+        cache_tokens = usage["accumulated_usage"].get("cache_tokens", 0)
+        thinking_tokens = usage["accumulated_usage"].get("thinking_tokens", 0)
+        estimated_cost_usd = usage["accumulated_usage"].get("estimated_cost_usd", 0.0)
+        provider = usage.get("provider", "unknown")
+        model = usage.get("model", "unknown")
+        accuracy = usage.get("accuracy", "unknown")
+    else:
+        # Flat legacy payload
+        new_total = usage.get("total_tokens", 0)
+        active_context_tokens = usage.get("active_tokens", 0)
+        input_tokens = usage.get("input_tokens", 0)
+        output_tokens = usage.get("output_tokens", 0)
+        cache_tokens = usage.get("cache_tokens", 0)
+        thinking_tokens = usage.get("thinking_tokens", 0)
+        estimated_cost_usd = usage.get("estimated_cost_usd", 0.0)
+        provider = usage.get("provider", "unknown")
+        model = usage.get("model", "unknown")
+        accuracy = usage.get("accuracy", "unknown")
+        
     # Read existing total_tokens from Project DB if it exists
     existing_total = 0
     if os.path.exists(PROJECT_DB):
@@ -84,7 +107,7 @@ def save_usage_to_dbs(conversation_id: str, project_id: str, skill: str, command
         finally:
             conn.close()
             
-    if new_total <= existing_total and existing_total > 0:
+    if command != "init" and new_total <= existing_total and existing_total > 0:
         # Keep existing record if new estimate is smaller or equal
         return
 
@@ -93,16 +116,16 @@ def save_usage_to_dbs(conversation_id: str, project_id: str, skill: str, command
         project_id,
         skill,
         command,
-        usage.get("input_tokens", 0),
-        usage.get("output_tokens", 0),
-        usage.get("cache_tokens", 0),
-        usage.get("thinking_tokens", 0),
-        usage.get("active_tokens", 0),
-        usage.get("total_tokens", 0),
-        usage.get("estimated_cost_usd", 0.0),
-        usage.get("provider", "unknown"),
-        usage.get("model", "unknown"),
-        usage.get("accuracy", "unknown"),
+        input_tokens,
+        output_tokens,
+        cache_tokens,
+        thinking_tokens,
+        active_context_tokens,
+        new_total,
+        estimated_cost_usd,
+        provider,
+        model,
+        accuracy,
         datetime.now().astimezone().isoformat()
     )
     
@@ -278,3 +301,57 @@ def get_global_summary() -> dict:
         "estimated_cost_usd": 0.0,
         "updated_at": datetime.now().astimezone().isoformat()
     }
+
+def normalize_database_records(db_path: str) -> None:
+    if not os.path.exists(db_path):
+        return
+    from context import parse_transcript
+    conn = sqlite3.connect(db_path)
+    try:
+        cursor = conn.cursor()
+        cursor.execute("SELECT name FROM sqlite_master WHERE type='table' AND name='usage_records'")
+        if not cursor.fetchone():
+            return
+        
+        cursor.execute("SELECT conversation_id, total_tokens FROM usage_records")
+        rows = cursor.fetchall()
+        for conv_id, total_tok in rows:
+            home = os.path.expanduser("~")
+            log_path = os.path.join(home, ".gemini", "antigravity-ide", "brain", conv_id, ".system_generated", "logs", "transcript.jsonl")
+            if os.path.exists(log_path):
+                usage = parse_transcript(log_path)
+                if usage:
+                    cursor.execute("""
+                        UPDATE usage_records
+                        SET input_tokens = ?, output_tokens = ?, cache_tokens = ?,
+                            thinking_tokens = ?, active_tokens = ?, total_tokens = ?,
+                            estimated_cost_usd = ?
+                        WHERE conversation_id = ?
+                    """, (
+                        usage.get("input_tokens", 0),
+                        usage.get("output_tokens", 0),
+                        usage.get("cache_tokens", 0),
+                        usage.get("thinking_tokens", 0),
+                        usage.get("active_tokens", 0),
+                        usage.get("total_tokens", 0),
+                        usage.get("estimated_cost_usd", 0.0),
+                        conv_id
+                    ))
+            else:
+                # Scale down by 10 as correction factor
+                cursor.execute("""
+                    UPDATE usage_records
+                    SET input_tokens = CAST(input_tokens / 10 AS INTEGER),
+                        output_tokens = CAST(output_tokens / 10 AS INTEGER),
+                        cache_tokens = CAST(cache_tokens / 10 AS INTEGER),
+                        thinking_tokens = CAST(thinking_tokens / 10 AS INTEGER),
+                        active_tokens = CAST(active_tokens / 10 AS INTEGER),
+                        total_tokens = CAST(total_tokens / 10 AS INTEGER),
+                        estimated_cost_usd = estimated_cost_usd / 10.0
+                    WHERE conversation_id = ?
+                """, (conv_id,))
+        conn.commit()
+    except Exception as e:
+        print(f"Error normalizing database {db_path}: {e}")
+    finally:
+        conn.close()
