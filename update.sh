@@ -22,6 +22,12 @@ show_help() {
     echo "  ./update.sh --force"
 }
 
+# Logging helpers
+log_info() { echo -e "\033[1;34m[INFO]\033[0m $1"; }
+log_warn() { echo -e "\033[1;33m[WARN]\033[0m $1"; }
+log_error() { echo -e "\033[1;31m[ERROR]\033[0m $1"; }
+log_success() { echo -e "\033[1;32m[SUCCESS]\033[0m $1"; }
+
 # Parse options
 FORCE=false
 UPDATE_ALL=false
@@ -52,15 +58,6 @@ if [ "$UPDATE_ALL" = true ]; then
     python3 "$SCRIPT_DIR/skills/workflow-runtime/scripts/workflow_runtime.py" update --all
     exit 0
 fi
-
-# Logging helpers
-log_info() { echo -e "\033[1;34m[INFO]\033[0m $1"; }
-log_warn() { echo -e "\033[1;33m[WARN]\033[0m $1"; }
-log_error() { echo -e "\033[1;31m[ERROR]\033[0m $1"; }
-log_success() { echo -e "\033[1;32m[SUCCESS]\033[0m $1"; }
-
-# Locate SCRIPT_DIR
-SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
 
 # Verify MANIFEST.json exists in source
 if [ ! -f "$SCRIPT_DIR/MANIFEST.json" ]; then
