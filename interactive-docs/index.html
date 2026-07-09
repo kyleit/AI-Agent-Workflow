@@ -499,53 +499,38 @@
                     </div>
 
                     <div style="background: rgba(0,0,0,0.2); padding: 10px; border-radius: 6px; border: 1px solid rgba(255,255,255,0.03);">
-                        <span style="font-size: 10px; color: var(--dim); display: block; margin-bottom: 4px;">Lệnh CLI Agent sẽ chạy:</span>
-                        <code id="simCliCommand" style="font-family: monospace; font-size: 11px; color: #a5d6ff; word-break: break-all;">Lệnh CLI...</code>
-                    </div>
-
-                    <div class="sim-btn-container">
-                        <button id="btnRunCli" class="sim-btn sim-btn-primary">Chạy CLI</button>
-                        <button id="btnApprove" class="sim-btn" style="display: none;">Phê duyệt [Y]</button>
-                        <button id="btnReset" class="sim-btn sim-btn-secondary">Reset</button>
-                    </div>
-
-                    <div style="text-align: center; font-size: 11px; color: var(--dim); margin-top: auto;">
-                        Tiến độ: <span id="simProgress">Bước 1 / 10</span>
-                    </div>
-                </div>
-
-                <!-- Khung terminal giả lập bên phải -->
-                <div class="simulator-terminal">
-                    <div class="terminal-header">
-                        <span class="term-dot term-dot-red"></span>
-                        <span class="term-dot term-dot-yellow"></span>
-                        <span class="term-dot term-dot-green"></span>
-                        <span class="term-title">interactive_bash_session.sh</span>
-                    </div>
-                    <div id="terminalBody" class="terminal-body">
-                        <!-- Sẽ được cập nhật động bằng app.js -->
-                    </div>
-                </div>
-            </div>
-        </section>
-
-        <!-- TAB 6: ĐỒNG BỘ OBSIDIAN -->
+                        <span style="fon        <!-- TAB 6: ĐỒNG BỘ OBSIDIAN -->
         <section id="obsidian" class="tab-content">
             <style>
-                .obsidian-guide-container {
+                .obsidian-slider-wrapper {
+                    background: rgba(255, 255, 255, 0.01);
+                    border: 1px solid rgba(255, 255, 255, 0.05);
+                    border-radius: 16px;
+                    padding: 24px;
+                    margin-top: 10px;
                     display: flex;
                     flex-direction: column;
-                    gap: 32px;
-                    padding: 8px 0;
+                    gap: 20px;
+                    box-shadow: 0 8px 32px rgba(0, 0, 0, 0.2);
+                }
+                .obsidian-slider-container {
+                    width: 100%;
+                    overflow: hidden;
+                    border-radius: 12px;
+                    border: 1px solid rgba(255, 255, 255, 0.03);
+                    background: rgba(0, 0, 0, 0.2);
+                }
+                .obsidian-slider-track {
+                    display: flex;
+                    transition: transform 0.5s cubic-bezier(0.4, 0, 0.2, 1);
                 }
                 .obsidian-step-card {
-                    background: rgba(255, 255, 255, 0.02);
-                    border: 1px solid rgba(255, 255, 255, 0.05);
-                    border-radius: 12px;
+                    flex: 0 0 100%;
                     padding: 24px;
                     display: grid;
                     grid-template-columns: 1.2fr 1fr;
                     gap: 24px;
+                    box-sizing: border-box;
                 }
                 @media (max-width: 900px) {
                     .obsidian-step-card {
@@ -554,22 +539,22 @@
                 }
                 .obsidian-step-info h3 {
                     color: var(--cyan);
-                    font-size: 1.2rem;
+                    font-size: 1.25rem;
                     margin-bottom: 12px;
                     display: flex;
                     align-items: center;
-                    gap: 8px;
+                    gap: 10px;
                 }
                 .obsidian-step-info .step-num {
                     background: var(--cyan-glow);
                     color: var(--cyan);
-                    width: 28px;
-                    height: 28px;
+                    width: 32px;
+                    height: 32px;
                     border-radius: 50%;
                     display: flex;
                     align-items: center;
                     justify-content: center;
-                    font-size: 0.9rem;
+                    font-size: 0.95rem;
                     font-weight: 700;
                     border: 1px solid rgba(0, 242, 254, 0.3);
                 }
@@ -597,7 +582,7 @@
                     box-shadow: 0 8px 24px rgba(0,0,0,0.5);
                     display: flex;
                     flex-direction: column;
-                    height: 240px;
+                    height: 250px;
                 }
                 .ui-mockup-header {
                     background: #202024;
@@ -763,136 +748,314 @@
                     height: 1px;
                     transform-origin: left center;
                 }
+
+                /* Control Stepper Bar */
+                .obsidian-stepper-controls {
+                    display: flex;
+                    justify-content: space-between;
+                    align-items: center;
+                    border-top: 1px solid rgba(255,255,255,0.05);
+                    padding-top: 16px;
+                }
+                .stepper-btn {
+                    background: rgba(255, 255, 255, 0.04);
+                    border: 1px solid rgba(255, 255, 255, 0.08);
+                    color: #fff;
+                    padding: 10px 20px;
+                    border-radius: 8px;
+                    cursor: pointer;
+                    font-size: 0.9rem;
+                    font-weight: 600;
+                    transition: all 0.3s ease;
+                    display: flex;
+                    align-items: center;
+                    gap: 8px;
+                }
+                .stepper-btn:hover:not(:disabled) {
+                    background: rgba(255, 255, 255, 0.08);
+                    border-color: rgba(255, 255, 255, 0.15);
+                }
+                .stepper-btn:disabled {
+                    opacity: 0.3;
+                    cursor: not-allowed;
+                }
+                .stepper-btn-primary {
+                    background: var(--cyan-glow);
+                    border: 1px solid rgba(0, 242, 254, 0.3);
+                    color: var(--cyan);
+                }
+                .stepper-btn-primary:hover:not(:disabled) {
+                    background: rgba(0, 242, 254, 0.15);
+                    box-shadow: 0 0 15px rgba(0, 242, 254, 0.25);
+                }
+                .stepper-btn-success {
+                    background: rgba(39, 201, 63, 0.15);
+                    border: 1px solid rgba(39, 201, 63, 0.4);
+                    color: #27c93f;
+                }
+                .stepper-btn-success:hover:not(:disabled) {
+                    background: rgba(39, 201, 63, 0.25);
+                    box-shadow: 0 0 15px rgba(39, 201, 63, 0.3);
+                }
+                .stepper-dots {
+                    display: flex;
+                    gap: 8px;
+                }
+                .stepper-dot {
+                    width: 10px;
+                    height: 10px;
+                    border-radius: 50%;
+                    background: rgba(255, 255, 255, 0.15);
+                    cursor: pointer;
+                    transition: all 0.3s;
+                }
+                .stepper-dot.active {
+                    background: var(--cyan);
+                    transform: scale(1.3);
+                    box-shadow: 0 0 8px var(--cyan);
+                }
             </style>
 
-            <div class="obsidian-guide-container">
-                
-                <!-- BƯỚC 1 -->
-                <div class="obsidian-step-card">
-                    <div class="obsidian-step-info">
-                        <h3><span class="step-num">1</span> Bước 1: Tạo Vault trên ứng dụng Obsidian</h3>
-                        <p>Mở ứng dụng Obsidian trên máy tính của Ba để khởi tạo thư viện tri thức trống.</p>
-                        <ul>
-                            <li>Chọn <strong>Create new vault</strong> (Tạo mới vault).</li>
-                            <li>Nhập tên Vault (Ví dụ: <code>AIWF-Knowledge</code>).</li>
-                            <li>Chọn đường dẫn thư mục cha để lưu trữ (Ví dụ thư mục Documents hoặc ổ đĩa gắn ngoài).</li>
-                            <li>Hệ thống AIWF sẽ tự tạo thư mục con mang tên dự án bên trong thư mục cha này.</li>
-                        </ul>
-                    </div>
-                    <div class="ui-mockup-wrapper">
-                        <div class="ui-mockup-header">
-                            <div class="ui-mockup-dots">
-                                <span class="ui-mockup-dot dot-red"></span>
-                                <span class="ui-mockup-dot dot-yellow"></span>
-                                <span class="ui-mockup-dot dot-green"></span>
+            <div class="obsidian-slider-wrapper">
+                <div class="obsidian-slider-container">
+                    <div class="obsidian-slider-track" id="obsidianSliderTrack">
+                        
+                        <!-- BƯỚC 1 -->
+                        <div class="obsidian-step-card">
+                            <div class="obsidian-step-info">
+                                <h3><span class="step-num">1</span> Bước 1: Tạo Vault trên ứng dụng Obsidian</h3>
+                                <p>Mở ứng dụng Obsidian trên máy tính của Ba để khởi tạo thư viện tri thức trống.</p>
+                                <ul>
+                                    <li>Chọn <strong>Create new vault</strong> (Tạo mới vault).</li>
+                                    <li>Nhập tên Vault (Ví dụ: <code>AIWF-Knowledge</code>).</li>
+                                    <li>Chọn đường dẫn thư mục cha để lưu trữ (Ví dụ thư mục Documents hoặc ổ đĩa gắn ngoài).</li>
+                                    <li>Hệ thống AIWF sẽ tự tạo thư mục con mang tên dự án bên trong thư mục cha này.</li>
+                                </ul>
                             </div>
-                            <span>Obsidian - Create Vault</span>
-                        </div>
-                        <div class="mockup-vault-body">
-                            <div class="mockup-vault-modal">
-                                <h4>Create New Vault</h4>
-                                <div class="mockup-field">
-                                    <label>Vault name</label>
-                                    <input type="text" class="mockup-input" value="AIWF-Knowledge" disabled>
+                            <div class="ui-mockup-wrapper">
+                                <div class="ui-mockup-header">
+                                    <div class="ui-mockup-dots">
+                                        <span class="ui-mockup-dot dot-red"></span>
+                                        <span class="ui-mockup-dot dot-yellow"></span>
+                                        <span class="ui-mockup-dot dot-green"></span>
+                                    </div>
+                                    <span>Obsidian - Create Vault</span>
                                 </div>
-                                <div class="mockup-field">
-                                    <label>Vault location</label>
-                                    <input type="text" class="mockup-input" value="/path/to/your/obsidian/vaults" disabled>
+                                <div class="mockup-vault-body">
+                                    <div class="mockup-vault-modal">
+                                        <h4>Create New Vault</h4>
+                                        <div class="mockup-field">
+                                            <label>Vault name</label>
+                                            <input type="text" class="mockup-input" value="AIWF-Knowledge" disabled>
+                                        </div>
+                                        <div class="mockup-field">
+                                            <label>Vault location</label>
+                                            <input type="text" class="mockup-input" value="/path/to/your/obsidian/vaults" disabled>
+                                        </div>
+                                        <button class="mockup-btn">Create Vault</button>
+                                    </div>
                                 </div>
-                                <button class="mockup-btn">Create Vault</button>
                             </div>
                         </div>
+
+                        <!-- BƯỚC 2 -->
+                        <div class="obsidian-step-card">
+                            <div class="obsidian-step-info">
+                                <h3><span class="step-num">2</span> Bước 2: Thiết lập Plugin Local REST API</h3>
+                                <p>Bật và cấu hình API Key của plugin Local REST API trên Obsidian (Nếu Ba dùng chế độ đồng bộ qua mạng REST).</p>
+                                <ul>
+                                    <li>Nhấn biểu tượng bánh răng <strong>Settings</strong> ở góc dưới bên trái Obsidian.</li>
+                                    <li>Vào <strong>Community Plugins</strong> ➔ Tìm kiếm và cài đặt <code>Local REST API</code>.</li>
+                                    <li>Bật plugin <strong>Enable</strong>.</li>
+                                    <li>Trong màn hình cài đặt plugin, sao chép chuỗi mã bảo mật <strong>API Key</strong> để điền cho CLI ở bước sau.</li>
+                                </ul>
+                            </div>
+                            <div class="ui-mockup-wrapper">
+                                <div class="ui-mockup-header">
+                                    <div class="ui-mockup-dots">
+                                        <span class="ui-mockup-dot dot-red"></span>
+                                        <span class="ui-mockup-dot dot-yellow"></span>
+                                        <span class="ui-mockup-dot dot-green"></span>
+                                    </div>
+                                    <span>Obsidian - Settings</span>
+                                </div>
+                                <div class="mockup-settings-body">
+                                    <div class="mockup-settings-sidebar">
+                                        <div class="mockup-settings-item">Core plugins</div>
+                                        <div class="mockup-settings-item">Community plugins</div>
+                                        <div class="mockup-settings-item active">Local REST API</div>
+                                    </div>
+                                    <div class="mockup-settings-content">
+                                        <h4>Local REST API Settings</h4>
+                                        <div class="mockup-field">
+                                            <label>API Port</label>
+                                            <input type="text" class="mockup-input" value="27124" disabled>
+                                        </div>
+                                        <div class="mockup-field">
+                                            <label>API Key</label>
+                                            <input type="text" class="mockup-input" value="••••••••••••••••••••••••" disabled>
+                                        </div>
+                                        <button class="mockup-btn" style="background:#27c93f; width:auto; align-self:flex-start;">Copy API Key</button>
+                                    </div>
+                                </div>
+                            </div>
+                        </div>
+
+                        <!-- BƯỚC 3 -->
+                        <div class="obsidian-step-card">
+                            <div class="obsidian-step-info">
+                                <h3><span class="step-num">3</span> Bước 3: Cấu hình CLI cho dự án mới</h3>
+                                <p>Sử dụng CLI wrapper <code>aiwf</code> để cấu hình nhanh Obsidian Provider trực tiếp trên terminal của dự án.</p>
+                                <ul>
+                                    <li>Chạy lệnh: <code>aiwf provider add obsidian --project</code>.</li>
+                                    <li>Hệ thống sẽ hỏi và tự điền các thông số mặc định (Ba chỉ cần ấn Enter).</li>
+                                    <li>Cấu hình tự động được lưu vào tệp <code>.agents/memory.config.json</code>.</li>
+                                </ul>
+                            </div>
+                            <div class="ui-mockup-wrapper">
+                                <div class="ui-mockup-header">
+                                    <div class="ui-mockup-dots">
+                                        <span class="ui-mockup-dot dot-red"></span>
+                                        <span class="ui-mockup-dot dot-yellow"></span>
+                                        <span class="ui-mockup-dot dot-green"></span>
+                                    </div>
+                                    <span>Terminal - Configuration</span>
+                                </div>
+                                <div class="mockup-cli-body">
+                                    <div>$ aiwf provider add obsidian --project</div>
+                                    <div>Enter vault_root [/path/to/obsidian]: <span style="color:#fff;">[Enter]</span></div>
+                                    <div>Enter mode [file-sync]: <span style="color:#fff;">[Enter]</span></div>
+                                    <div>Create if missing? (y/n) [y]: <span style="color:#fff;">[Enter]</span></div>
+                                    <div class="mockup-cli-success">[SUCCESS] Configured obsidian provider successfully.</div>
+                                </div>
+                            </div>
+                        </div>
+
+                        <!-- BƯỚC 4 -->
+                        <div class="obsidian-step-card">
+                            <div class="obsidian-step-info">
+                                <h3><span class="step-num">4</span> Bước 4: Đồng bộ &amp; Kiểm tra đồ thị Graph View</h3>
+                                <p>Kích hoạt đồng bộ hóa lần đầu để sinh cấu trúc tri thức và liên kết chéo trên Obsidian Graph View.</p>
+                                <ul>
+                                    <li>Gõ lệnh <code>aiwf sync obsidian</code> để đồng bộ thủ công.</li>
+                                    <li>Mở Obsidian lên, Ba sẽ thấy 11 thư mục tri thức mới được phân loại tự động.</li>
+                                    <li>Mở biểu đồ <strong>Graph View</strong> trong Obsidian để xem mạng lưới liên kết Wiki-links cực kỳ sinh động của các nốt tri thức.</li>
+                                </ul>
+                            </div>
+                            <div class="ui-mockup-wrapper">
+                                <div class="ui-mockup-header">
+                                    <div class="ui-mockup-dots">
+                                        <span class="ui-mockup-dot dot-red"></span>
+                                        <span class="ui-mockup-dot dot-yellow"></span>
+                                        <span class="ui-mockup-dot dot-green"></span>
+                                    </div>
+                                    <span>Obsidian - Graph View</span>
+                                </div>
+                                <div class="mockup-graph-body">
+                                    <!-- SVG lines to simulate nodes connection -->
+                                    <svg width="100%" height="100%" style="position:absolute; top:0; left:0;">
+                                        <line x1="100" y1="100" x2="180" y2="70" stroke="rgba(255,255,255,0.1)" stroke-width="1.5" />
+                                        <line x1="100" y1="100" x2="80" y2="150" stroke="rgba(255,255,255,0.1)" stroke-width="1.5" />
+                                        <line x1="180" y1="70" x2="220" y2="140" stroke="rgba(255,255,255,0.1)" stroke-width="1.5" />
+                                        <line x1="80" y1="150" x2="220" y2="140" stroke="rgba(255,255,255,0.1)" stroke-width="1.5" />
+                                    </svg>
+                                    <!-- Glowing Nodes -->
+                                    <div class="graph-node" style="top:90px; left:90px;">
+                                        <span class="graph-node-label" style="color:#fff;">Project Memory</span>
+                                    </div>
+                                    <div class="graph-node cyan" style="top:60px; left:170px;">
+                                        <span class="graph-node-label">QUICK-028</span>
+                                    </div>
+                                    <div class="graph-node cyan" style="top:140px; left:70px;">
+                                        <span class="graph-node-label">FIX-024</span>
+                                    </div>
+                                    <div class="graph-node" style="top:130px; left:210px;">
+                                        <span class="graph-node-label">Blueprints</span>
+                                    </div>
+                                </div>
+                            </div>
+                        </div>
+
                     </div>
                 </div>
 
-                <!-- BƯỚC 2 -->
-                <div class="obsidian-step-card">
-                    <div class="obsidian-step-info">
-                        <h3><span class="step-num">2</span> Bước 2: Thiết lập Plugin Local REST API</h3>
-                        <p>Bật và cấu hình API Key của plugin Local REST API trên Obsidian (Nếu Ba dùng chế độ đồng bộ qua mạng REST).</p>
-                        <ul>
-                            <li>Nhấn biểu tượng bánh răng <strong>Settings</strong> ở góc dưới bên trái Obsidian.</li>
-                            <li>Vào <strong>Community Plugins</strong> ➔ Tìm kiếm và cài đặt <code>Local REST API</code>.</li>
-                            <li>Bật plugin <strong>Enable</strong>.</li>
-                            <li>Trong màn hình cài đặt plugin, sao chép chuỗi mã bảo mật <strong>API Key</strong> để điền cho CLI ở bước sau.</li>
-                        </ul>
+                <!-- Điều khiển và thanh chấm -->
+                <div class="obsidian-stepper-controls">
+                    <button id="btnObsidianPrev" class="stepper-btn" disabled>
+                        <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><line x1="19" y1="12" x2="5" y2="12"></line><polyline points="12 19 5 12 12 5"></polyline></svg>
+                        Quay lại
+                    </button>
+                    <div class="stepper-dots">
+                        <span class="stepper-dot active" data-step="0"></span>
+                        <span class="stepper-dot" data-step="1"></span>
+                        <span class="stepper-dot" data-step="2"></span>
+                        <span class="stepper-dot" data-step="3"></span>
                     </div>
-                    <div class="ui-mockup-wrapper">
-                        <div class="ui-mockup-header">
-                            <div class="ui-mockup-dots">
-                                <span class="ui-mockup-dot dot-red"></span>
-                                <span class="ui-mockup-dot dot-yellow"></span>
-                                <span class="ui-mockup-dot dot-green"></span>
-                            </div>
-                            <span>Obsidian - Settings</span>
-                        </div>
-                        <div class="mockup-settings-body">
-                            <div class="mockup-settings-sidebar">
-                                <div class="mockup-settings-item">Core plugins</div>
-                                <div class="mockup-settings-item">Community plugins</div>
-                                <div class="mockup-settings-item active">Local REST API</div>
-                            </div>
-                            <div class="mockup-settings-content">
-                                <h4>Local REST API Settings</h4>
-                                <div class="mockup-field">
-                                    <label>API Port</label>
-                                    <input type="text" class="mockup-input" value="27124" disabled>
-                                </div>
-                                <div class="mockup-field">
-                                    <label>API Key</label>
-                                    <input type="text" class="mockup-input" value="••••••••••••••••••••••••" disabled>
-                                </div>
-                                <button class="mockup-btn" style="background:#27c93f; width:auto; align-self:flex-start;">Copy API Key</button>
-                            </div>
-                        </div>
-                    </div>
+                    <button id="btnObsidianNext" class="stepper-btn stepper-btn-primary">
+                        Tiếp theo
+                        <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><line x1="5" y1="12" x2="19" y2="12"></line><polyline points="12 5 19 12 12 19"></polyline></svg>
+                    </button>
                 </div>
+            </div>
 
-                <!-- BƯỚC 3 -->
-                <div class="obsidian-step-card">
-                    <div class="obsidian-step-info">
-                        <h3><span class="step-num">3</span> Bước 3: Cấu hình CLI cho dự án mới</h3>
-                        <p>Sử dụng CLI wrapper <code>aiwf</code> để cấu hình nhanh Obsidian Provider trực tiếp trên terminal của dự án.</p>
-                        <ul>
-                            <li>Chạy lệnh: <code>aiwf provider add obsidian --project</code>.</li>
-                            <li>Hệ thống sẽ hỏi và tự điền các thông số mặc định (Ba chỉ cần ấn Enter).</li>
-                            <li>Cấu hình tự động được lưu vào tệp <code>.agents/memory.config.json</code>.</li>
-                        </ul>
-                    </div>
-                    <div class="ui-mockup-wrapper">
-                        <div class="ui-mockup-header">
-                            <div class="ui-mockup-dots">
-                                <span class="ui-mockup-dot dot-red"></span>
-                                <span class="ui-mockup-dot dot-yellow"></span>
-                                <span class="ui-mockup-dot dot-green"></span>
-                            </div>
-                            <span>Terminal - Configuration</span>
-                        </div>
-                        <div class="mockup-cli-body">
-                            <div>$ aiwf provider add obsidian --project</div>
-                            <div>Enter vault_root [/path/to/obsidian]: <span style="color:#fff;">[Enter]</span></div>
-                            <div>Enter mode [file-sync]: <span style="color:#fff;">[Enter]</span></div>
-                            <div>Create if missing? (y/n) [y]: <span style="color:#fff;">[Enter]</span></div>
-                            <div class="mockup-cli-success">[SUCCESS] Configured obsidian provider successfully.</div>
-                        </div>
-                    </div>
-                </div>
+            <script>
+                document.addEventListener("DOMContentLoaded", () => {
+                    const track = document.getElementById("obsidianSliderTrack");
+                    if (!track) return;
 
-                <!-- BƯỚC 4 -->
-                <div class="obsidian-step-card">
-                    <div class="obsidian-step-info">
-                        <h3><span class="step-num">4</span> Bước 4: Đồng bộ &amp; Kiểm tra đồ thị Graph View</h3>
-                        <p>Kích hoạt đồng bộ hóa lần đầu để sinh cấu trúc tri thức và liên kết chéo trên Obsidian Graph View.</p>
-                        <ul>
-                            <li>Gõ lệnh <code>aiwf sync obsidian</code> để đồng bộ thủ công.</li>
-                            <li>Mở Obsidian lên, Ba sẽ thấy 11 thư mục tri thức mới được phân loại tự động.</li>
-                            <li>Mở biểu đồ <strong>Graph View</strong> trong Obsidian để xem mạng lưới liên kết Wiki-links cực kỳ sinh động của các nốt tri thức.</li>
-                        </ul>
-                    </div>
-                    <div class="ui-mockup-wrapper">
-                        <div class="ui-mockup-header">
-                            <div class="ui-mockup-dots">
-                                <span class="ui-mockup-dot dot-red"></span>
+                    const prevBtn = document.getElementById("btnObsidianPrev");
+                    const nextBtn = document.getElementById("btnObsidianNext");
+                    const dots = document.querySelectorAll(".stepper-dot");
+                    const cards = document.querySelectorAll(".obsidian-step-card");
+                    let currentStep = 0;
+                    const totalSteps = cards.length;
+
+                    function updateSlider() {
+                        track.style.transform = `translateX(-${currentStep * 100}%)`;
+                        prevBtn.disabled = currentStep === 0;
+
+                        if (currentStep === totalSteps - 1) {
+                            nextBtn.innerHTML = `Đồng bộ ngay <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><polyline points="20 6 9 17 4 12"></polyline></svg>`;
+                            nextBtn.className = "stepper-btn stepper-btn-success";
+                        } else {
+                            nextBtn.innerHTML = `Tiếp theo <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><line x1="5" y1="12" x2="19" y2="12"></line><polyline points="12 5 19 12 12 19"></polyline></svg>`;
+                            nextBtn.className = "stepper-btn stepper-btn-primary";
+                        }
+
+                        dots.forEach((dot, index) => {
+                            if (index === currentStep) {
+                                dot.classList.add("active");
+                            } else {
+                                dot.classList.remove("active");
+                            }
+                        });
+                    }
+
+                    prevBtn.addEventListener("click", () => {
+                        if (currentStep > 0) {
+                            currentStep--;
+                            updateSlider();
+                        }
+                    });
+
+                    nextBtn.addEventListener("click", () => {
+                        if (currentStep < totalSteps - 1) {
+                            currentStep++;
+                            updateSlider();
+                        } else {
+                            alert("Ba hãy chạy lệnh 'aiwf sync obsidian' trên Terminal của dự án để tiến hành đồng bộ tri thức!");
+                        }
+                    });
+
+                    dots.forEach((dot, index) => {
+                        dot.addEventListener("click", () => {
+                            currentStep = index;
+                            updateSlider();
+                        });
+                    });
+                });
+            </script>
+        </section>="ui-mockup-dot dot-red"></span>
                                 <span class="ui-mockup-dot dot-yellow"></span>
                                 <span class="ui-mockup-dot dot-green"></span>
                             </div>
