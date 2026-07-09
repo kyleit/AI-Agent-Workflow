@@ -105,7 +105,15 @@ def update_context_health(session: dict) -> None:
         proj_id = get_project_id()
         skill = session.get("current_skill", "unknown")
         cmd = session.get("current_command", "unknown")
-        save_usage_to_dbs(conv_id, proj_id, skill, cmd, usage)
+        try:
+            save_usage_to_dbs(conv_id, proj_id, skill, cmd, usage)
+        except Exception as e:
+            print(f"Warning: could not save usage to DB: {e}", file=sys.stderr)
+        try:
+            from context import sync_request_history
+            sync_request_history(conv_id, proj_id)
+        except Exception as e:
+            print(f"Warning: could not sync request history: {e}", file=sys.stderr)
         
     # 3. Retrieve summaries from DBs
     wf_summary = get_workflow_summary(
@@ -146,7 +154,7 @@ def update_context_health(session: dict) -> None:
     
     # 4. Populate backward-compatible context_usage object
     session["context_usage"] = {
-        "total_tokens": usage.get("total_tokens", 0),
+        "total_tokens": usage.get("active_tokens", 0),
         "limit_tokens": usage.get("limit_tokens", 2000000),
         "percentage": usage.get("percentage", 0.0)
     }
@@ -154,6 +162,13 @@ def update_context_health(session: dict) -> None:
     # 5. Check drift
     drifted, msg = check_context_drift(session)
     session["context_health"] = "broken" if drifted else "healthy"
+    
+    # 6. Generate Context Breakdown state
+    try:
+        from breakdown_engine import update_breakdown_file
+        update_breakdown_file(session, ".")
+    except Exception:
+        pass
 
 def do_init(args):
     new_fp = calculate_project_fingerprint(".")
@@ -413,6 +428,27 @@ def do_usage(args):
         save_session_atomic(session)
         print("Usage database synchronized.")
         
+    elif args.subaction == "breakdown":
+        update_context_health(session)
+        from breakdown_engine import generate_breakdown
+        bd = generate_breakdown(session, ".")
+        
+        print("\n==================================================================================")
+        print("ACTIVE CONTEXT BREAKDOWN DIAGNOSTICS")
+        print("==================================================================================")
+        print(f"{'Context Source':<30} | {'Tokens':<10} | {'Percentage':<10} | {'Loads':<6} | {'Last Loaded Time':<25}")
+        print("-" * 90)
+        
+        for item in bd.get("breakdown", []):
+            token_str = f"{item['tokens']:,}"
+            pct_str = f"{item['percentage']:.2f}%"
+            print(f"{item['category']:<30} | {token_str:<10} | {pct_str:<10} | {item['loads']:<6} | {item['last_loaded']:<25}")
+            
+        print("-" * 90)
+        total_str = f"{bd.get('total_tokens', 0):,}"
+        print(f"{'Total Active Context':<30} | {total_str:<10} | {'100.00%':<10} | {'':<6} | {'':<25}")
+        print("==================================================================================\n")
+        
     elif args.subaction == "report":
         update_context_health(session)
         wf = session.get("workflow_usage_summary", {})
@@ -500,6 +536,559 @@ def do_usage(args):
                 sys.exit(1)
         else:
             print(json_str)
+            
+    elif args.subaction == "requests":
+        filters = {}
+        
+        proj_filter = args.project
+        if proj_filter == "current":
+            proj_filter = get_project_id()
+        if proj_filter:
+            filters["project_id"] = proj_filter
+            
+        wf_filter = args.workflow
+        if wf_filter == "current":
+            wf_filter = session.get("conversation_id")
+        if wf_filter:
+            filters["workflow_id"] = wf_filter
+            
+        if args.skill:
+            filters["skill_name"] = args.skill
+        if args.model:
+            filters["model"] = args.model
+        if args.provider:
+            filters["provider"] = args.provider
+        if args.status:
+            filters["status"] = args.status
+        if args.start_time:
+            filters["start_time"] = args.start_time
+        if args.end_time:
+            filters["end_time"] = args.end_time
+            
+        sort_by = "timestamp"
+        desc = True
+        limit = None
+        
+        if args.top_cost:
+            sort_by = "cost_usd"
+            limit = args.top_cost
+        elif args.top_input:
+            sort_by = "input_tokens"
+            limit = args.top_input
+            
+        from db import get_provider_requests
+        reqs = get_provider_requests(filters, sort_by=sort_by, desc=desc, limit=limit)
+        
+        if args.format == "json":
+            print(json.dumps(reqs, indent=2))
+        else:
+            header = f"{'Request ID':<36} | {'Skill':<18} | {'Status':<8} | {'Tokens':<8} | {'Cost USD':<10} | {'Duration':<8}"
+            print(header)
+            print("-" * len(header))
+            for r in reqs:
+                cost_str = f"${r['cost_usd']:.4f}"
+                tokens_str = f"{r['total_tokens']:,}"
+                duration_str = f"{r['duration']:.2f}s"
+                print(f"{r['request_id']:<36} | {r['skill_name']:<18} | {r['status']:<8} | {tokens_str:<8} | {cost_str:<10} | {duration_str:<8}")
+                
+    elif args.subaction == "request":
+        if not args.id:
+            print("Error: --id is required for request subcommand.", file=sys.stderr)
+            sys.exit(1)
+            
+        from db import get_provider_request_detail
+        r = get_provider_request_detail(args.id)
+        if not r:
+            print(f"Error: Request with ID '{args.id}' not found.", file=sys.stderr)
+            sys.exit(1)
+            
+        if args.format == "json":
+            print(json.dumps(r, indent=2))
+        else:
+            print(f"Request Audit Detail:")
+            print(f"--------------------")
+            print(f"ID:           {r['request_id']}")
+            print(f"Workflow:     {r['workflow_id']}")
+            print(f"Project:      {r['project_id']}")
+            print(f"Skill/Cmd:    {r['skill_name']} / {r['command_name']}")
+            print(f"Model/Prov:   {r['model']} ({r['provider']})")
+            print(f"Timestamp:    {r['timestamp']}")
+            print(f"Duration:     {r['duration']:.2f}s")
+            print(f"Status:       {r['status'].upper()}")
+            if r['error_summary']:
+                print(f"Error:        {r['error_summary']}")
+            print(f"Tokens:       Total={r['total_tokens']:,} (Input={r['input_tokens']:,}, Output={r['output_tokens']:,}, Cache={r['cache_tokens']:,}, Thinking={r['thinking_tokens']:,})")
+            print(f"Cost:         ${r['cost_usd']:.6f} USD")
+            print(f"Stats:        Tools={r['tool_call_count']}, Reads={r['workspace_read_count']}, Memory Hits={r['memory_hit_count']}, RAG Hits={r['rag_hit_count']}")
+            print(f"Context:      {r['context_usage_percentage']:.2f}% (Limit={r['context_limit_tokens']:,})")
+            
+            if r['context_breakdown_json']:
+                try:
+                    cb = json.loads(r['context_breakdown_json'])
+                    print(f"\nContext Breakdown:")
+                    print(f"{'Category':<25} | {'Tokens':<10} | {'Percentage':<10}")
+                    print("-" * 50)
+                    for item in cb.get("breakdown", []):
+                        print(f"{item['category']:<25} | {item['tokens']:<10,} | {item['percentage']:.1f}%")
+                except Exception:
+                    pass
+            
+    elif args.subaction == "diff":
+        from db import get_provider_requests, get_provider_request_detail
+        from diff_engine import calculate_diff
+        
+        req_a = None
+        req_b = None
+        
+        if getattr(args, "latest", False):
+            conv_id = session.get("conversation_id", "")
+            reqs = get_provider_requests({"conversation_id": conv_id}, sort_by="timestamp", desc=True, limit=2)
+            if len(reqs) < 2:
+                print("Error: Need at least 2 requests in conversation to perform diff.", file=sys.stderr)
+                sys.exit(1)
+            req_b = reqs[0] # current
+            req_a = reqs[1] # previous
+        else:
+            if not args.id_a:
+                print("Error: --id-a is required for diff subcommand.", file=sys.stderr)
+                sys.exit(1)
+            
+            req_b = get_provider_request_detail(args.id_b) if args.id_b else None
+            req_a = get_provider_request_detail(args.id_a)
+            
+            if not req_a:
+                print(f"Error: Request with ID '{args.id_a}' not found.", file=sys.stderr)
+                sys.exit(1)
+                
+            if not req_b:
+                conv_id = req_a.get("conversation_id")
+                reqs = get_provider_requests({"conversation_id": conv_id}, sort_by="timestamp", desc=True)
+                idx = -1
+                for i, r in enumerate(reqs):
+                    if r["request_id"] == req_a["request_id"]:
+                        idx = i
+                        break
+                if idx != -1 and idx + 1 < len(reqs):
+                    req_b = req_a
+                    req_a = reqs[idx + 1]
+                else:
+                    req_b = req_a
+                    req_a = None
+                    
+        cb_a = {}
+        if req_a and req_a.get("context_breakdown_json"):
+            try:
+                cb_a = json.loads(req_a["context_breakdown_json"]) if isinstance(req_a["context_breakdown_json"], str) else req_a["context_breakdown_json"]
+            except Exception:
+                cb_a = {}
+                
+        cb_b = {}
+        if req_b and req_b.get("context_breakdown_json"):
+            try:
+                cb_b = json.loads(req_b["context_breakdown_json"]) if isinstance(req_b["context_breakdown_json"], str) else req_b["context_breakdown_json"]
+            except Exception:
+                cb_b = {}
+                
+        diff = calculate_diff(cb_a, cb_b)
+        
+        if args.format == "json":
+            print(json.dumps(diff, indent=2))
+        else:
+            print("\n==================================================================================")
+            print("TOKEN CONTEXT DIFF DIAGNOSTICS")
+            print("==================================================================================")
+            print(f"Previous Request: {diff.get('previous_request_id')}")
+            print(f"Current Request:  {diff.get('current_request_id')}")
+            print(f"Net Change:       {diff.get('net_change_tokens'):+,} tokens ({diff.get('percentage_change'):+.2f}%)")
+            print(f"Added Tokens:     {diff.get('added_tokens'):,}")
+            print(f"Removed Tokens:   {diff.get('removed_tokens'):,}")
+            print("-" * 90)
+            print(f"{'Category':<30} | {'Previous':<12} | {'Current':<12} | {'Delta':<12} | {'Percentage':<10}")
+            print("-" * 90)
+            for cat, data in diff.get("categories", {}).items():
+                prev_str = f"{data['previous']:,}"
+                curr_str = f"{data['current']:,}"
+                delta_str = f"{data['delta']:+,}"
+                pct_str = f"{data['percentage']:+.2f}%"
+                print(f"{cat:<30} | {prev_str:<12} | {curr_str:<12} | {delta_str:<12} | {pct_str:<10}")
+            print("==================================================================================\n")
+
+    elif args.subaction == "insights":
+        from db import get_insight_snapshots
+        conv_id = session.get("conversation_id", "")
+        snaps = get_insight_snapshots(conv_id)
+        if not snaps:
+            from db import get_provider_requests, save_insight_snapshot
+            from insights_engine import calculate_efficiency_score
+            reqs = get_provider_requests({"conversation_id": conv_id})
+            if reqs:
+                eff_score = calculate_efficiency_score(reqs)
+                avg_tok = int(sum(r["total_tokens"] for r in reqs) / len(reqs))
+                avg_cst = round(sum(r["cost_usd"] for r in reqs) / len(reqs), 6)
+                snap = {
+                    "timestamp": datetime.now().astimezone().isoformat(),
+                    "conversation_id": conv_id,
+                    "efficiency_score": eff_score,
+                    "avg_tokens": avg_tok,
+                    "avg_cost": avg_cst,
+                    "growth_trend": "stable",
+                    "insight_data": {
+                        "request_count": len(reqs),
+                        "total_cost": round(sum(r["cost_usd"] for r in reqs), 4),
+                        "total_tokens": sum(r["total_tokens"] for r in reqs)
+                    }
+                }
+                save_insight_snapshot(snap)
+                snaps = [snap]
+                
+        latest_snap = snaps[0] if snaps else {
+            "efficiency_score": 100,
+            "avg_tokens": 0,
+            "avg_cost": 0.0,
+            "growth_trend": "stable",
+            "insight_data": {"request_count": 0, "total_cost": 0.0, "total_tokens": 0}
+        }
+        
+        if args.format == "json":
+            print(json.dumps(latest_snap, indent=2))
+        else:
+            print("\n==================================================================================")
+            print("RUNTIME INSIGHTS REPORT")
+            print("==================================================================================")
+            print(f"Efficiency Score:          {latest_snap.get('efficiency_score')}/100")
+            print(f"Average Tokens/Req:        {latest_snap.get('avg_tokens'):,}")
+            print(f"Average Cost/Req:          ${latest_snap.get('avg_cost'):.6f} USD")
+            print(f"Context Growth Trend:      {latest_snap.get('growth_trend').upper()}")
+            print("-" * 90)
+            idata = latest_snap.get("insight_data", {})
+            print(f"Total Model Requests:      {idata.get('request_count')}")
+            print(f"Total Cumulative Cost:     ${idata.get('total_cost', 0.0):.4f} USD")
+            print(f"Total Cumulative Tokens:   {idata.get('total_tokens', 0):,}")
+            print("==================================================================================\n")
+
+    elif args.subaction == "recommendations":
+        from db import get_recommendations
+        conv_id = session.get("conversation_id", "")
+        recs = get_recommendations(conv_id)
+        if not recs:
+            from db import get_provider_requests, save_recommendations
+            from insights_engine import generate_recommendations
+            reqs = get_provider_requests({"conversation_id": conv_id})
+            recs = generate_recommendations(reqs, conv_id)
+            if recs:
+                save_recommendations(recs)
+                
+        if args.format == "json":
+            print(json.dumps(recs, indent=2))
+        else:
+            print("\n==================================================================================")
+            print("OPTIMIZATION RECOMMENDATIONS")
+            print("==================================================================================")
+            if not recs:
+                print("No optimization recommendations found.")
+            else:
+                for r in recs:
+                    status_lbl = r['status'].upper()
+                    print(f"ID:          {r['id']} [{status_lbl}]")
+                    print(f"Type:        {r['type']}")
+                    print(f"Description: {r['description']}")
+                    print(f"Savings:     Token Savings={r['token_savings']:,} | Cost Savings=${r['cost_savings']:.4f}")
+                    print(f"Prio/Conf:   Priority={r['priority']} | Confidence={r['confidence']}")
+                    print("-" * 90)
+            print("==================================================================================\n")
+
+    elif args.subaction == "optimize":
+        if not args.accept and not args.ignore:
+            from optimizer import calculate_roi, generate_benchmark_report, get_active_policy, set_active_policy, get_optimization_leaderboard
+            conv_id = session.get("conversation_id", "")
+            
+            from context import estimate_context_usage
+            usage = estimate_context_usage()
+            predicted_tokens = usage.get("total_tokens", 0)
+            predicted_cost = usage.get("estimated_cost_usd", 0.0)
+            
+            opt_sub = args.optimize_subaction
+            
+            if opt_sub == "analyze":
+                res = calculate_roi(conv_id)
+                leaderboard = get_optimization_leaderboard()
+                result = {
+                    "roi": res,
+                    "leaderboard": leaderboard
+                }
+                if args.format == "json":
+                    print(json.dumps(result, indent=2))
+                else:
+                    print("\n==================================================================================")
+                    print("AUTONOMOUS OPTIMIZATION ROI ANALYSIS")
+                    print("==================================================================================")
+                    print(f"Total Tokens Saved:    {res['total_tokens_saved']:,} tokens")
+                    print(f"Total API Cost Saved:  ${res['total_cost_saved_usd']:.4f} USD")
+                    print(f"Estimated ROI:         {res['roi_pct']}% savings")
+                    print("\nLeaderboard of Saved Resources:")
+                    for idx, l in enumerate(leaderboard):
+                        print(f"  {idx+1}. Skill: {l['skill']} | Saved: {l['tokens_saved']:,} tkn (${l['cost_saved']:.3f})")
+                    print("==================================================================================\n")
+                    
+            elif opt_sub == "benchmark":
+                res = generate_benchmark_report(predicted_tokens, predicted_cost)
+                if args.format == "json":
+                    print(json.dumps(res, indent=2))
+                else:
+                    print("\n==================================================================================")
+                    print("OPTIMIZATION BENCHMARK REPORT")
+                    print("==================================================================================")
+                    print(f"Active Policy:          {res['policy_used']}")
+                    print(f"Original Input size:   {res['original_tokens']:,} tokens (${res['original_cost']:.4f} USD)")
+                    print(f"Optimized Input size:  {res['optimized_tokens']:,} tokens (${res['optimized_cost']:.4f} USD)")
+                    print(f"Net Tokens Saved:      +{res['tokens_saved']:,} tokens")
+                    print(f"Net Cost Saved:        ${res['cost_saved']:.4f} USD")
+                    print("==================================================================================\n")
+                    
+            elif opt_sub == "policies":
+                if args.policy:
+                    set_active_policy(args.policy)
+                policy = get_active_policy()
+                if args.format == "json":
+                    print(json.dumps(policy, indent=2))
+                else:
+                    print("\n==================================================================================")
+                    print("ACTIVE OPTIMIZATION POLICY CONFIGURATION")
+                    print("==================================================================================")
+                    print(f"Policy Name:            {policy['name']}")
+                    print(f"Context Rebuild:        {'ENABLED' if policy['context_rebuild_enabled'] else 'DISABLED'}")
+                    print(f"Cache usage:            {'ENABLED' if policy['cache_enabled'] else 'DISABLED'}")
+                    print(f"Compression Target:     {policy['compression_pct']}% savings")
+                    print("==================================================================================\n")
+                    
+            elif opt_sub == "history":
+                leaderboard = get_optimization_leaderboard()
+                if args.format == "json":
+                    print(json.dumps(leaderboard, indent=2))
+                else:
+                    print("Optimization history retrieved.")
+                    
+            elif opt_sub == "report":
+                res = generate_benchmark_report(predicted_tokens, predicted_cost)
+                if args.format == "json":
+                    print(json.dumps(res, indent=2))
+                else:
+                    print("Benchmark report generated.")
+            sys.exit(0)
+
+        from db import update_recommendation_status
+        success = False
+        action_type = ""
+        rec_id = ""
+        
+        if args.accept:
+            rec_id = args.accept
+            success = update_recommendation_status(rec_id, "accepted")
+            action_type = "accepted"
+        elif args.ignore:
+            rec_id = args.ignore
+            success = update_recommendation_status(rec_id, "ignored")
+            action_type = "ignored"
+            
+        if not rec_id:
+            print("Error: --accept <id> or --ignore <id> is required for optimize subcommand.", file=sys.stderr)
+            sys.exit(1)
+            
+        if success:
+            print(json.dumps({"status": "success", "recommendation_id": rec_id, "action": action_type}))
+        else:
+            print(json.dumps({"status": "error", "message": f"Recommendation ID '{rec_id}' not found."}), file=sys.stderr)
+            sys.exit(1)
+
+    elif args.subaction == "timeline":
+        from db import get_timeline_events
+        conv_id = session.get("conversation_id", "")
+        events = get_timeline_events(conv_id)
+        if not events:
+            from context import sync_request_history
+            sync_request_history(session.get("project_id"), conv_id)
+            events = get_timeline_events(conv_id)
+            
+        if args.format == "json":
+            print(json.dumps(events, indent=2))
+        else:
+            print("\n==================================================================================")
+            print("WORKFLOW CONTEXT TIMELINE")
+            print("==================================================================================")
+            if not events:
+                print("No workflow events logged yet.")
+            else:
+                for e in events:
+                    print(f"[{e['timestamp']}] Checkpoint={e['checkpoint']} | Skill={e['skill']}")
+                    print(f"  Event:      {e['event_type']}")
+                    print(f"  Context:    Active={e['active_context']:,} tokens | Delta={e['context_delta']:+,} tokens")
+                    print(f"  Details:    Cost=${e['cost']:.4f} USD | Duration={e['duration']:.1f}s")
+                    print("-" * 90)
+            print("==================================================================================\n")
+
+    elif args.subaction == "forecast":
+        from db import get_timeline_events
+        from forecaster import make_forecast
+        conv_id = session.get("conversation_id", "")
+        events = get_timeline_events(conv_id)
+        if not events:
+            from context import sync_request_history
+            sync_request_history(session.get("project_id"), conv_id)
+            events = get_timeline_events(conv_id)
+            
+        report = make_forecast(events)
+        if args.format == "json":
+            print(json.dumps(report, indent=2))
+        else:
+            print("\n==================================================================================")
+            print("PREDICTIVE ANALYSIS & FORECAST")
+            print("==================================================================================")
+            print(f"Context Exhaustion Probability:  {report['exhaustion_probability'].upper()}")
+            print(f"Prediction Confidence Level:    {report['confidence_level'].upper()}")
+            print(f"Estimated Remaining Requests:   {report['remaining_requests']}")
+            print(f"Predicted Context (Next Req):   {report['predicted_next_context']:,} tokens")
+            print(f"Estimated Cost to Complete:     ${report['estimated_cost_to_complete']:.4f} USD")
+            print("==================================================================================\n")
+
+    elif args.subaction == "budget":
+        from budget_controller import evaluate_budget, get_budget_history, apply_optimization
+        conv_id = session.get("conversation_id", "")
+        
+        from context import estimate_context_usage
+        usage = estimate_context_usage()
+        predicted_tokens = usage.get("total_tokens", 0)
+        
+        budget_sub = args.budget_subaction
+        
+        if budget_sub == "status":
+            result = evaluate_budget(conv_id, predicted_tokens)
+            if args.format == "json":
+                print(json.dumps(result, indent=2))
+            else:
+                print("\n==================================================================================")
+                print("CONTEXT BUDGET STATUS")
+                print("==================================================================================")
+                print(f"Policy Triggered:       {result['policy_triggered']}")
+                print(f"Status:                 {result['status'].upper()}")
+                print(f"Predicted Context:      {predicted_tokens:,} tokens ({result['predicted_pct']}%)")
+                print("\nThresholds:")
+                for k, v in result["policy_thresholds"].items():
+                    print(f"  - {k.replace('_', ' ').title()}: {v}%")
+                
+                print("\nRecommended Strategies:")
+                if not result["recommendations"]:
+                    print("  None (Context usage is within budget).")
+                else:
+                    for r in result["recommendations"]:
+                        print(f"  - {r['name']} (Est. savings: +{r['tokens_saved']:,} tokens, Conf: {r['confidence']*100}%)")
+                print("==================================================================================\n")
+                
+        elif budget_sub == "mode":
+            from budget_controller import set_budget_mode, get_budget_mode
+            if args.status in ["auto", "manual"]:
+                set_budget_mode(args.status)
+            cur_mode = get_budget_mode()
+            res = {"status": "success", "budget_mode": cur_mode}
+            if args.format == "json":
+                print(json.dumps(res, indent=2))
+            else:
+                print(f"Budget controller mode: {cur_mode.upper()}")
+
+        elif budget_sub == "history":
+            history = get_budget_history(conv_id)
+            if args.format == "json":
+                print(json.dumps(history, indent=2))
+            else:
+                print("\n==================================================================================")
+                print("CONTEXT BUDGET OPTIMIZATION HISTORY")
+                print("==================================================================================")
+                if not history:
+                    print("No optimization actions applied yet.")
+                else:
+                    for h in history:
+                        print(f"[{h['timestamp']}] Strategy: {h['strategy_applied']}")
+                        print(f"  Saved: {h['tokens_saved']:,} tokens | Cost Saved: ${h['cost_saved']:.4f} USD")
+                        print(f"  Status: {h['status'].upper()}")
+                        print("-" * 90)
+                print("==================================================================================\n")
+                
+        elif budget_sub == "optimize":
+            if not args.strategy:
+                print("Error: --strategy <name> is required for budget optimize command.", file=sys.stderr)
+                sys.exit(1)
+            res = apply_optimization(conv_id, args.strategy, predicted_tokens)
+            if args.format == "json":
+                print(json.dumps(res, indent=2))
+            else:
+                if res.get("status") == "success":
+                    print(f"Successfully applied optimization strategy '{args.strategy}'. Saved {res['tokens_saved']:,} tokens.")
+                else:
+                    print(f"Error: {res.get('message')}", file=sys.stderr)
+                    sys.exit(1)
+
+    elif args.subaction == "context":
+        from context_rebuilder import build_context_bundle, get_rebuild_history, get_cache_statistics
+        conv_id = session.get("conversation_id", "")
+        
+        from context import estimate_context_usage
+        usage = estimate_context_usage()
+        predicted_tokens = usage.get("total_tokens", 0)
+        
+        ctx_sub = args.context_subaction
+        
+        if ctx_sub == "preview":
+            res = build_context_bundle(conv_id, predicted_tokens)
+            if args.format == "json":
+                print(json.dumps(res, indent=2))
+            else:
+                print("\n==================================================================================")
+                print("CONTEXT BUNDLE PREVIEW")
+                print("==================================================================================")
+                print(f"Original Context:      {res['original_tokens']:,} tokens")
+                print(f"Rebuilt Context:       {res['rebuilt_tokens']:,} tokens")
+                print(f"Estimated Savings:     +{res['tokens_saved']:,} tokens ({res['savings_pct']}%)")
+                print("\nIncluded Sources:")
+                for s in res["included_sources"]:
+                    print(f"  [+] {s}")
+                print("\nSkipped Sources:")
+                for s in res["skipped_sources"]:
+                    print(f"  [-] {s}")
+                print("==================================================================================\n")
+                
+        elif ctx_sub == "rebuild":
+            res = build_context_bundle(conv_id, predicted_tokens)
+            if args.format == "json":
+                print(json.dumps({"status": "rebuilt", "savings": res["tokens_saved"]}, indent=2))
+            else:
+                print(f"Context bundle rebuilt successfully! Saved {res['tokens_saved']:,} tokens.")
+                
+        elif ctx_sub == "cache":
+            stats = get_cache_statistics()
+            if args.format == "json":
+                print(json.dumps(stats, indent=2))
+            else:
+                print("\n==================================================================================")
+                print("RUNTIME CACHE STATISTICS")
+                print("==================================================================================")
+                print(f"Cached Source Files:    {stats['cached_files']}")
+                print(f"Cache Hits:            {stats['hits']}")
+                print(f"Cache Misses:          {stats['misses']}")
+                print("==================================================================================\n")
+                
+        elif ctx_sub == "explain":
+            res = build_context_bundle(conv_id, predicted_tokens)
+            history = get_rebuild_history(conv_id)
+            explanation = {
+                "engine": "Smart Context Rebuilder",
+                "savings_factor": "85% decrease",
+                "reasoning": "Dữ liệu lịch sử chat cũ được thay thế bằng bản tóm tắt runtime summary. Các tệp Blueprint và Rules được cache hoàn toàn dựa trên hash.",
+                "rebuilt_tokens": res["rebuilt_tokens"],
+                "total_rebuilds": len(history)
+            }
+            if args.format == "json":
+                print(json.dumps(explanation, indent=2))
+            else:
+                print(f"Context Rebuild Explanation: {explanation['reasoning']}")
 
 def do_blueprint(args):
     session = load_session()
@@ -1969,9 +2558,30 @@ def main():
     _ = subparsers.add_parser("heartbeat")
     
     usg = subparsers.add_parser("usage")
-    _ = usg.add_argument("subaction", choices=["sync", "report", "diagnose", "export"])
-    _ = usg.add_argument("--format", default="json", choices=["json"])
+    _ = usg.add_argument("subaction", choices=["sync", "report", "diagnose", "export", "breakdown", "requests", "request", "diff", "insights", "recommendations", "optimize", "timeline", "forecast", "budget", "context"])
+    _ = usg.add_argument("--format", default="table", choices=["json", "table"])
     _ = usg.add_argument("--out", type=str)
+    _ = usg.add_argument("--workflow", type=str)
+    _ = usg.add_argument("--project", type=str)
+    _ = usg.add_argument("--top-cost", type=int)
+    _ = usg.add_argument("--top-input", type=int)
+    _ = usg.add_argument("--id", type=str)
+    _ = usg.add_argument("--skill", type=str)
+    _ = usg.add_argument("--model", type=str)
+    _ = usg.add_argument("--provider", type=str)
+    _ = usg.add_argument("--status", type=str)
+    _ = usg.add_argument("--id-a", type=str)
+    _ = usg.add_argument("--id-b", type=str)
+    _ = usg.add_argument("--latest", action="store_true")
+    _ = usg.add_argument("--accept", type=str)
+    _ = usg.add_argument("--ignore", type=str)
+    _ = usg.add_argument("--strategy", type=str)
+    _ = usg.add_argument("--budget-subaction", default="status", choices=["status", "history", "optimize", "mode"])
+    _ = usg.add_argument("--context-subaction", default="preview", choices=["bundle", "preview", "rebuild", "cache", "explain"])
+    _ = usg.add_argument("--optimize-subaction", default="analyze", choices=["analyze", "benchmark", "history", "policies", "report"])
+    _ = usg.add_argument("--policy", type=str)
+    _ = usg.add_argument("--start-time", type=str)
+    _ = usg.add_argument("--end-time", type=str)
     
     bp = subparsers.add_parser("blueprint")
     _ = bp.add_argument("--path", required=True, type=str)

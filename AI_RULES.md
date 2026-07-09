@@ -243,8 +243,8 @@ To keep the VS Code Visualizer Dashboard synchronized in real-time with minimum 
         4. **After command results**: Append output highlights, status, or errors to the logs.
         5. **On failure**: Set status to `failed` and append error logs.
         6. **On completion**: Set status to `completed` and update suggested next skill/command in `workflow.json` / `runtime.json`.
-*   **Preserving Conversation ID**:
-    *   The `conversation_id` MUST be created once per workflow session and saved in `context.json`. Do NOT regenerate or clear it on subsequent Skill calls. Always preserve the original ID.
+*   **Preserving & Detecting Conversation ID**:
+    *   On every initialize/resume workflow entry, the runtime MUST detect the active conversation ID first. If the active conversation ID differs from `context.json` (or `.agents/.session.json`), update it before calculating context usage. Preserve workflow state, but refresh active context usage using the new transcript.
 *   **Required Session Fields**:
     *   Every update must preserve existing fields and update only changed fields.
     *   The following live tracking fields MUST be updated:
