@@ -9,7 +9,7 @@ tags:
   - requirements
   - discovery
   - brainstorming
-version: 2.6.0
+version: 3.1.0
 author:
   name: Kyle Dang
   email: kyleit@klexpress.net
@@ -17,7 +17,7 @@ author:
 license: MIT
 repository: https://gitlab.com/hngan.it/ai-workflow-skills
 created_at: 2026-07-03
-updated_at: 2026-07-03
+updated_at: 2026-07-09
 description: Skill definition.
 ---
 
@@ -36,7 +36,7 @@ description: Skill definition.
 | I will **NOT** edit any project files. |
 | I will **NOT** implement anything. |
 | I will **ONLY** perform Requirement Discovery. |
-| The ONLY file I may write is: `docs/brainstorm/FEAT-XXX_feature_name.md` |
+| The ONLY file I may write is: `docs/brainstorming/FEAT-XXX_feature_name.md` |
 | And ONLY after explicit user confirmation (Y/N). |
 
 > This output is mandatory. Do not skip it. Do not abbreviate it.
@@ -61,7 +61,7 @@ This Skill MUST interface with the centralized Python CLI Runtime Engine:
 
 ```
 IF you are about to:
-  ✗ Use write_file() on any path except docs/brainstorm/
+  ✗ Use write_file() on any path except docs/brainstorming/
   ✗ Use edit_file(), replace_file(), or multi_replace_file()
   ✗ Run any shell command that modifies files
   ✗ Read source code files to find bugs to fix
@@ -138,9 +138,9 @@ Do not parse it as YAML. Do not treat it as implementation commands.
 
 ## Feature ID Allocation Rule
 
-Feature IDs are determined **ONLY** by scanning `docs/brainstorm/`:
+Feature IDs are determined **ONLY** by scanning `docs/brainstorming/`:
 
-1. Scan `docs/brainstorm/` for files matching `FEAT-XXX_*.md` (3-digit number).
+1. Scan `docs/brainstorming/` for files matching `FEAT-XXX_*.md` (3-digit number).
 2. Ignore: `docs/plans/`, `docs/designs/`, `docs/adr/`, memory, git history, `CHANGELOG.md`.
 3. Empty directory (or only `.gitkeep`) → start at `FEAT-001`.
 4. Files exist → next ID = highest existing ID + 1.
@@ -215,7 +215,7 @@ Do not modify it. Do not skip it. Do not summarize it.
 | I will **NOT** edit any project files. |
 | I will **NOT** implement anything. |
 | I will **ONLY** perform Requirement Discovery. |
-| The ONLY file I may write is: `docs/brainstorm/FEAT-XXX_feature_name.md` |
+| The ONLY file I may write is: `docs/brainstorming/FEAT-XXX_feature_name.md` |
 | And ONLY after explicit user confirmation (Y/N). |
 
 Reading requirement input...
@@ -411,7 +411,7 @@ Recommended Solution:     Option [A/B/C] — [Name]
 
 Continue generating Brainstorming document?
 
-  [Y] Yes — Generate docs/brainstorm/FEAT-XXX_feature_name.md
+  [Y] Yes — Generate docs/brainstorming/FEAT-XXX_feature_name.md
   [N] No  — Stop. I will revise or choose a different option.
 ────────────────────────────────────────────────────
 ```
@@ -427,8 +427,8 @@ Continue generating Brainstorming document?
 
 Only after Y confirmation:
 
-1. Scan `docs/brainstorm/` to calculate the next Feature ID.
-2. Write: `docs/brainstorm/FEAT-XXX_feature_name.md`
+1. Scan `docs/brainstorming/` to calculate the next Feature ID.
+2. Write: `docs/brainstorming/FEAT-XXX_feature_name.md`
    (one file per independent feature if decomposition was chosen)
 3. Use **relative paths only** for all artifact links.
 
@@ -437,7 +437,7 @@ Only after Y confirmation:
 ## Brainstorming Document Template
 
 ```markdown
-<!-- docs/brainstorm/FEAT-XXX_feature_name.md -->
+<!-- docs/brainstorming/FEAT-XXX_feature_name.md -->
 
 ---
 feature_id: FEAT-XXX
@@ -476,26 +476,161 @@ next_artifact: ../plans/FEAT-XXX_feature_name_plan.md
 - **Technical Constraints**:
   - TC-01: [...]
 
-## 5. Clarification Questions & Answers
+## 5. Requirement Traceability Matrix
+| Req ID | Priority (Must/Should/Could/Won't) | Description | Related Blueprint Section | Expected Tests | Acceptance Criteria |
+| :--- | :--- | :--- | :--- | :--- | :--- |
+| FR-01 | Must | [...] | [...] | [...] | [...] |
+| FR-02 | Should | [...] | [...] | [...] | [...] |
+
+## 6. Stakeholder Analysis
+| Stakeholder | Category (Primary/Secondary/Internal/External) | Impact | Priority | Expected Benefits |
+| :--- | :--- | :--- | :--- | :--- |
+| [...] | [...] | [...] | [...] | [...] |
+
+## 7. Scope Boundary
+- **In Scope**:
+  - [...]
+- **Out of Scope**:
+  - [...]
+- **Deferred Scope**:
+  - [...]
+- **Future Scope**:
+  - [...]
+
+## 8. Dependency Graph Preview
+Provide a textual dependency tree of implementation order. (Do NOT generate Mermaid, use structured Markdown):
+- Requirement/Module A (Must)
+  └── Requirement/Module B (Should)
+      └── Requirement/Module C (Could)
+
+## 9. Data Flow Preview
+Provide a textual logical data flow diagram. (Do NOT generate Mermaid, use structured Markdown):
+- Component A
+  └── passes data to ──> Component B
+      └── updates ──> Component C
+
+## 10. Existing Asset Analysis
+| Asset / Component | Location / Path | Operation (Reuse/Extend/Refactor/Replace/Remove) | Rationale |
+| :--- | :--- | :--- | :--- |
+| [...] | [...] | [...] | [...] |
+
+## 11. Dependency & Blast Radius Analysis
+- **Affected Skills**: [...]
+- **Affected Modules/Components**: [...]
+- **Affected Runtime**: [...]
+- **Affected Extension**: [...]
+- **Affected Scripts**: [...]
+- **Affected Database**: [...]
+- **Affected Documentation**: [...]
+- **Impact Level**: [Low | Medium | High]
+
+## 12. Migration Strategy
+- **Backward Compatibility**: [...]
+- **Adapter Strategy**: [...]
+- **Coexistence Period**: [...]
+- **Deprecation Plan**: [...]
+- **Migration Phases**: [...]
+
+## 13. Architecture Principles
+- **API First**: [...]
+- **Provider First**: [...]
+- **Script First**: [...]
+- **Memory First**: [...]
+- **Incremental Updates**: [...]
+- **Backward Compatibility**: [...]
+- **Replaceable Providers**: [...]
+
+## 14. Non Goals
+- [...]
+
+## 15. ROI Analysis
+- **Estimated Implementation Cost**: [...]
+- **Runtime Savings**: [...]
+- **Token Reduction Target**: [...]
+- **API Call Reduction Target**: [...]
+- **Maintenance Impact**: [...]
+- **Expected Break-Even**: [...]
+- **Long-Term ROI**: [...]
+
+## 16. Success Metrics
+- **Latency Target**: [...]
+- **Memory Usage Limit**: [...]
+- **Startup Time Target**: [...]
+- **Cache Hit Ratio Target**: [...]
+- **Accuracy Target**: [...]
+- **Token Reduction Target**: [...]
+- **Expected ROI**: [...]
+
+## 17. Risk Matrix
+| Risk | Impact | Probability | Mitigation | Owner |
+| :--- | :--- | :--- | :--- | :--- |
+| [...] | [...] | [...] | [...] | [...] |
+
+## 18. Technical Questions
+- [...]
+
+## 19. Open Decision Register
+| Topic / Decision | Current Status (Resolved/Pending/Requires ADR/Requires Prototype/Requires Research) | Rationale & Next Steps |
+| :--- | :--- | :--- |
+| [...] | [...] | [...] |
+
+## 20. ADR Detection
+- **ADR Required**: [Yes | No]
+- **Rationale & Focus**: [...]
+
+## 21. Knowledge Update Impact
+Identify which Project Memory layers will change:
+- **project-summary**: [Yes/No + Description]
+- **architecture**: [Yes/No + Description]
+- **modules**: [Yes/No + Description]
+- **lessons**: [Yes/No + Description]
+- **patterns**: [Yes/No + Description]
+- **ADR**: [Yes/No + Description]
+- **SQLite**: [Yes/No + Description]
+- **indexes**: [Yes/No + Description]
+- **vector metadata**: [Yes/No + Description]
+
+## 22. Test Strategy Preview
+- **Unit Tests**: [...]
+- **Integration Tests**: [...]
+- **Regression Tests**: [...]
+- **Performance Tests**: [...]
+- **Migration Tests**: [...]
+- **Compatibility Tests**: [...]
+
+## 23. Extension Impact
+- **Extension UI Changes**: [...]
+- **Affected ViewModels / Watchers**: [...]
+
+## 24. Complexity Estimation
+- **Implementation Complexity**: [Low | Medium | High]
+- **Estimated Refactoring Percentage**: [...]
+
+## 25. Roadmap Alignment
+- **Roadmap Phase**: [...]
+- **Milestones**: [...]
+- **Prerequisites & Dependencies**: [...]
+
+## 26. Clarification Questions & Answers
 | Question | Answer |
 |---|---|
 | [Q1] | [A1 or "Pending"] |
 | [Q2] | [A2 or "Pending"] |
 
-## 6. Requirement Readiness Score
+## 27. Requirement Readiness Score
 - **Score**: [XX/100]
 - **Status**: [Ready ≥ 85 | Below Threshold < 85]
 
-## 7. Existing Project Context
+## 28. Existing Project Context
 - **Memory Source**: [project-summary.md and RAG results referenced]
 - **Existing Architecture Summary**: [Relevant patterns and decisions]
 
-## 8. Existing Modules & Services
-| Module/Service | Location | Relevance |
-|---|---|---|
-| [Module] | [Relative path] | [How it relates to this feature] |
+## 29. Existing Modules & Services
+| Module/Service | Location | Owner | Public APIs | Estimated Reuse % | Estimated Modifications % | Breaking Risk (Low/Med/High) | Relevance |
+|---|---|---|---|---|---|---|---|
+| [Module] | [Relative path] | [...] | [...] | [...] | [...] | [...] | [How it relates] |
 
-## 9. Solution Options Evaluated
+## 30. Solution Options Evaluated
 
 ### Option A: [Name]
 - **Overview**: [...]
@@ -515,7 +650,7 @@ next_artifact: ../plans/FEAT-XXX_feature_name_plan.md
 ### Option C: [Name] (if applicable)
 [Same structure]
 
-## 10. Solution Comparison Table
+## 31. Solution Comparison Table
 | Criteria | Option A | Option B | Option C |
 |---|---|---|---|
 | Complexity | | | |
@@ -526,27 +661,25 @@ next_artifact: ../plans/FEAT-XXX_feature_name_plan.md
 | Future Scalability | | | |
 | Development Cost | | | |
 
-## 11. Selected Solution
+## 32. Selected Solution
 - **Choice**: Option [A/B/C] — [Name]
 - **Why Selected**: [Detailed architectural reasoning]
 - **Trade-offs Accepted**: [...]
 - **Technical Debt**: [...]
 - **Risk Mitigation**: [...]
 
-## 12. Risks & Assumptions
+## 33. Risks & Assumptions
 - **Risks**:
   - R-01: [Risk] → [Mitigation]
   - R-02: [Risk] → [Mitigation]
 - **Assumptions**:
   - A-01: [...]
 
-## 13. Acceptance Criteria
-- [ ] [Verifiable, testable criterion]
-- [ ] [Verifiable, testable criterion]
+## 34. Acceptance Criteria
+- [ ] AC-01 (maps to [FR-XX]): [Description] (Expected Test: [...])
+- [ ] AC-02 (maps to [NFR-XX]): [Description] (Expected Test: [...])
 
----
-
-## 14. Final Planning Prompt
+## 35. Final Planning Prompt
 
 ### Purpose
 Complete, self-contained prompt for the `brainstorming-to-plan` Skill.
@@ -580,7 +713,6 @@ The Planning Agent must require no further clarification from this section.
 > ⚠ The next Skill is `brainstorming-to-plan`.
 > It must be invoked **manually** by the user.
 > This Skill does NOT invoke it automatically.
-```
 
 ---
 
@@ -594,7 +726,7 @@ Before exiting, verify each item. Report any FAIL explicitly.
 | :--- | :---: |
 | Outputted the `DISCOVERY MODE ACTIVE` declaration as the first action | [ ] PASS |
 | Did NOT modify any source code files | [ ] PASS |
-| Did NOT edit any project files outside `docs/brainstorm/` | [ ] PASS |
+| Did NOT edit any project files outside `docs/brainstorming/` | [ ] PASS |
 | Treated all user input as requirements (not implementation commands) | [ ] PASS |
 | Calculated the Requirement Readiness Score | [ ] PASS |
 | Asked clarification questions when score < 85 and stopped | [ ] PASS |
@@ -626,7 +758,7 @@ Output at end of execution:
 | **Solutions Generated** | `[Option A: Name, Option B: Name, Option C: Name (if applicable)]` |
 | **Recommended Solution** | `Option [A/B/C] — [Name]` |
 | **User Confirmed** | `[Yes | No | Pending]` |
-| **Brainstorming File(s)** | `[docs/brainstorm/FEAT-XXX_feature_name.md | None]` |
+| **Brainstorming File(s)** | `[docs/brainstorming/FEAT-XXX_feature_name.md | None]` |
 | **Self-Validation** | `[ALL PASS | FAILED: item list]` |
 
 ---

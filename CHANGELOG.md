@@ -5,6 +5,52 @@ All notable changes to this project will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [6.5.0] - 2026-07-09
+
+### Added
+- **QUICK-023: Ensure New Skills Always Generate a Complete AIWF Skill Skeleton**:
+  - Thêm chính sách bắt buộc `Mandatory Skill Skeleton Policy` vào tệp quy tắc trung tâm `AI_RULES.md`.
+  - Cấu hình kỹ năng Thiết kế (`skills/plan-to-blueprint/SKILL.md`) để từ chối và báo lỗi xác thực nếu bản thiết kế tạo kỹ năng mới mà không định nghĩa đầy đủ tệp `SKILL.md`.
+
+## [6.4.2] - 2026-07-09
+
+### Added
+- **QUICK-022: Upgrade plan-to-blueprint Skill to v3.2 (Complete Implementation Contract)**:
+  - Đồng bộ hóa 100% dữ liệu thiết kế giữa hai định dạng Markdown và JSON (`FEAT-XXX_blueprint.json`).
+  - Bổ sung cấu trúc gói thực thi lập trình `implementation_packages` vào tệp JSON thiết kế để hỗ trợ hạ nguồn lập trình tự động hóa.
+  - Mở rộng chi tiết thiết kế lớp (Class Contracts), thiết kế lưu trữ (Storage Design), CLI và tích hợp.
+
+## [6.4.1] - 2026-07-09
+
+### Added
+- **QUICK-021: Upgrade plan-to-blueprint Skill into an Implementation Contract Generator**:
+  - Nâng cấp kỹ năng Thiết kế (`skills/plan-to-blueprint/SKILL.md`) hỗ trợ tạo Technical Design Blueprint v3.2 với 13 phần phân tích mới.
+  - Hỗ trợ xuất đồng bộ tệp thiết kế có cấu trúc JSON (`FEAT-XXX_blueprint.json`) giúp hạ nguồn triển khai nhanh chóng.
+  - Cấu hình `skills/blueprint-to-implementation/SKILL.md` để ưu tiên đọc tệp JSON thiết kế trước khi bắt đầu lập trình.
+
+## [6.4.0] - 2026-07-09
+
+### Added
+- **QUICK-020: Upgrade quick-feature Skill Based on QUICK-018 Review**:
+  - Nâng cấp kỹ năng Phát triển nhanh (`skills/quick-feature/SKILL.md`) hỗ trợ tạo đặc tả Mini Spec v3.2 với 7 phần bắt buộc nâng cao chất lượng.
+  - Phân định scope rõ ràng (In/Out/Not Modified/Future Work) và cấm tuyệt đối sinh đường dẫn tuyệt đối trong tài liệu spec.
+
+## [6.3.9] - 2026-07-09
+
+### Added
+- **QUICK-019: Upgrade brainstorming-to-plan Skill into an Execution Planning Engine**:
+  - Nâng cấp kỹ năng Lập kế hoạch (`skills/brainstorming-to-plan/SKILL.md`) hỗ trợ tạo Execution Plan v3.2 với 11 phần phân tích mới.
+  - Hỗ trợ xuất đồng bộ tệp kế hoạch có cấu trúc JSON (`FEAT-XXX_plan.json`) giúp các pha hạ nguồn nạp dữ liệu nhanh chóng.
+  - Cấu hình `skills/plan-to-blueprint/SKILL.md` để ưu tiên đọc tệp JSON kế hoạch trước.
+  - Sửa lỗi đường dẫn tương đối trong tất cả các tệp kỹ năng.
+
+## [6.3.8] - 2026-07-09
+
+### Added
+- **FEAT-046: Upgrade Brainstorming Skill to v3 (Master Requirement Discovery)**:
+  - Nâng cấp mẫu tài liệu Động não (`skills/brainstorming/SKILL.md`) hỗ trợ 14 phần phân tích tri thức mới phục vụ hạ nguồn.
+  - Tinh giản tệp hướng dẫn `skills/brainstorming-to-plan/SKILL.md` và `skills/plan-to-blueprint/SKILL.md` để Planner và Architect không phải phân tích lại.
+
 ## [6.3.7] - 2026-07-09
 
 ### Fixed

@@ -9,7 +9,7 @@ tags:
   - planning
   - workflow
   - scoping
-version: 2.5.0
+version: 3.2.0
 author:
   name: Kyle Dang
   email: kyleit@klexpress.net
@@ -17,8 +17,8 @@ author:
 license: MIT
 repository: https://gitlab.com/hngan.it/ai-workflow-skills
 created_at: 2026-07-03
-updated_at: 2026-07-03
-description: Convert a structured master brainstorming document into a formal Implementation Plan using a Memory-First strategy and the FEAT-XXX Feature ID format.
+updated_at: 2026-07-09
+description: Convert a structured master brainstorming document into a formal Execution Plan (Markdown & JSON) using a Memory-First strategy and the FEAT-XXX Feature ID format.
 ---
 
 # Skill: Planning Prompt → Implementation Plan (FEAT-XXX format)
@@ -95,9 +95,9 @@ Runs under the Multi-Agent Workflow. Respect agent ownership and handoff rules d
 ## Step 1 — Read Master Requirement Document
 Read the brainstorming file at:
 ```
-docs/brainstorm/FEAT-XXX_feature_slug.md
+docs/brainstorming/FEAT-XXX_feature_slug.md
 ```
-Extract the **Feature ID**, **Feature Name**, and the **Planning Prompt** section from it.
+Extract the **Feature ID**, **Feature Name**, **MoSCoW Prioritization**, and the **Planning Prompt** section from it.
 
 ---
 
@@ -117,7 +117,7 @@ Inspect only files explicitly referenced by memory or RAG.
 ---
 
 ## Step 5 — Generate Implementation Plan
-Generate the plan document. It must contain the YAML metadata header and the plan sections:
+Generate the plan document. It must contain the YAML metadata header and the plan sections. Planner MUST directly use the MoSCoW prioritization defined in the brainstorming document to group requirements into implementation phases (e.g., all 'Must' requirements must be placed in Phase 1, 'Should' in Phase 2, etc.) without re-analyzing architecture or scope:
 
 ```markdown
 <!-- File path: docs/plans/FEAT-XXX_feature_slug_plan.md -->
@@ -129,43 +129,76 @@ status: reviewed
 stage: planning
 created_at: [YYYY-MM-DD]
 updated_at: [YYYY-MM-DD]
-previous_artifact: ../brainstorm/FEAT-XXX_feature_slug.md
+previous_artifact: ../brainstorming/FEAT-XXX_feature_slug.md
 next_artifact: ../designs/FEAT-XXX_feature_slug_blueprint.md
 ---
 
 # FEAT-XXX: [Human Readable Name]
 
-## Objective
-- [Business objective / Why is this feature needed?]
-- [Expected outcome / Success definition]
+## 1. Requirement Coverage Matrix
+| Req ID | Phase | Task ID | Deliverable | Covered? |
+| :--- | :--- | :--- | :--- | :---: |
+| FR-01 | Phase 1 | Task 1.1 | [...] | [x] |
+| FR-02 | Phase 1 | Task 1.2 | [...] | [x] |
 
-## Scope
-### Included
-- [What is in scope]
+## 2. Task Ownership & Roles
+Phân bổ người chịu trách nhiệm thực thi các tác vụ (Architect, Coder, Reviewer, Verifier, Documentation, Runtime):
+- **Task 1.1**: [Coder] - Triển khai...
+- **Task 1.2**: [Architect] - Thiết kế...
 
-### Excluded
-- [What is explicitly excluded]
+## 3. Parallel Execution Plan
+- **Sequential Tasks**: Task 1.1 -> Task 1.2
+- **Parallel Tasks**: [Task 1.3, Task 1.4]
+- **Blocking Tasks**: Task 2.1 (blocks Task 2.2)
+- **Independent Tasks**: Task 3.1
+- **Recommended Execution Groups**:
+  - Group 1: Task 1.1
+  - Group 2: Task 1.3, Task 1.4 (Parallel)
 
-## Project Impact
-- [High-level impacted areas: Modules, Services, APIs, Database, Cache, Config, UI, Background Jobs]
+## 4. File Change Plan (Implementation Boundary)
+| Task ID | File Path | Operation (Create/Modify/Delete/Do Not Modify) | Rationale |
+| :--- | :--- | :--- | :--- |
+| Task 1.1 | `skills/knowledge-runtime/scripts/...` | Create | Tạo cấu trúc gói |
 
-## Dependencies
-- [External systems, existing project components, prerequisites]
+## 5. Blueprint Preparation Inputs
+Cung cấp định hướng cho pha Blueprint thiết kế chi tiết:
+- **Interfaces / Classes / Modules**: [...]
+- **Provider Pattern details**: [...]
+- **Data Flow / Sequence Flow**: [...]
+- **Migration Strategy & Testing Architecture**: [...]
 
-## Risks
-- [Risk description, impact, suggested mitigation]
+## 6. Verification Strategy & Test Mapping
+- **Unit Tests**: [...] (Mapped to Task 1.1)
+- **Integration Tests**: [...] (Mapped to Task 2.1)
+- **Compatibility / Regression Tests**: [...]
 
-## Acceptance Criteria
-- [Measurable/verifiable completion criteria]
+## 7. Exit Criteria
+- **Phase 1 Exit Criteria**:
+  - [ ] 100% Unit Tests vượt qua (Pass).
+  - [ ] Giao diện API được cài đặt đầy đủ.
+- **Phase 2 Exit Criteria**:
+  - [ ] Đồ thị liên kết backlinks được cập nhật đúng.
 
-## Deliverables
-- [High-level list of deliverables]
+## 8. Rollback Strategy
+- **Phase 1 Rollback**:
+  - Trigger: Gặp lỗi kiểm thử hệ thống nghiêm trọng không thể khắc phục nhanh.
+  - Steps: Revert git commit, khôi phục cấu hình tri thức cũ.
+  - Recovery: Trả về trạng thái hoạt động bình thường trên main.
 
-## Estimated Complexity
-- [Low / Medium / High + explanation]
+## 9. Change Impact Matrix
+| Task ID | Files | Modules | Runtime | Extension | Documentation | Memory | Database |
+| :--- | :--- | :--- | :--- | :--- | :--- | :--- | :--- |
+| Task 1.1 | Yes | Yes | No | No | Yes | Yes | No |
 
-## Recommended Blueprint Focus
-- [Guidance for the subsequent Technical Design Blueprint phase: e.g., cache invalidation strategy, background sync. Guidance only, no technical design]
+## 10. Artifact Production Plan
+- **Phase 1 Artifacts**: docs/designs/FEAT-XXX_blueprint.md
+- **Phase 2 Artifacts**: docs/adr/ADR-XXX.md, docs/releases/Release_Notes.md
+
+## 11. Token & Execution Optimization
+- **Sequential execution cost**: [...]
+- **Parallel execution opportunities**: [...]
+- **Expected token savings**: [...]
+- **Recommended execution strategy**: [...]
 
 ## Recommended Next Skill
 /blueprint
@@ -175,14 +208,55 @@ next_artifact: ../designs/FEAT-XXX_feature_slug_blueprint.md
 
 # Output Rules
 
-Create exactly one file:
-```
-docs/plans/FEAT-XXX_feature_slug_plan.md
-```
+Create exactly two files:
+1. `docs/plans/FEAT-XXX_feature_slug_plan.md`
+2. `docs/plans/FEAT-XXX_feature_slug_plan.json`
 
-First line must be:
+First line of the Markdown file must be:
 ```html
 <!-- File path: docs/plans/FEAT-XXX_feature_slug_plan.md -->
+```
+
+The JSON file must conform to this schema:
+```json
+{
+  "phases": [
+    {
+      "phase_name": "Phase 1: ...",
+      "tasks": ["Task 1.1", "Task 1.2"],
+      "deliverables": ["..."],
+      "milestones": ["..."]
+    }
+  ],
+  "tasks": [
+    {
+      "id": "Task 1.1",
+      "description": "...",
+      "effort_hours": 4,
+      "owner": "Coder",
+      "operations": ["NEW", "MODIFY"],
+      "files": ["relative/path/to/file"]
+    }
+  ],
+  "dependencies": {
+    "Task 1.2": ["Task 1.1"]
+  },
+  "parallel_groups": [
+    ["Task 1.3", "Task 1.4"]
+  ],
+  "exit_criteria": ["..."],
+  "rollback": {
+    "trigger": "...",
+    "steps": ["..."]
+  },
+  "tests": [
+    {
+      "test_target": "relative/path/to/test_file.py",
+      "mapped_tasks": ["Task 1.1"]
+    }
+  ],
+  "artifacts": ["docs/designs/FEAT-XXX_blueprint.md"]
+}
 ```
 
 ---

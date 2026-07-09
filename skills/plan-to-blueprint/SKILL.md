@@ -9,7 +9,7 @@ tags:
   - blueprint
   - design
   - architecture
-version: 2.5.0
+version: 3.2.0
 author:
   name: Kyle Dang
   email: kyleit@klexpress.net
@@ -17,8 +17,8 @@ author:
 license: MIT
 repository: https://gitlab.com/hngan.it/ai-workflow-skills
 created_at: 2026-07-03
-updated_at: 2026-07-03
-description: Generate a production-grade Technical Blueprint from an approved Implementation Plan using a Memory-First strategy and the FEAT-XXX Feature ID format.
+updated_at: 2026-07-09
+description: Generate a production-grade Technical Blueprint (Markdown & JSON) from an approved Implementation Plan using a Memory-First strategy and the FEAT-XXX Feature ID format.
 ---
 
 # Skill: Plan to Blueprint (FEAT-XXX format)
@@ -66,7 +66,7 @@ Runs under the Multi-Agent Workflow. Respect agent ownership and handoff rules d
 # Input
 
 ```yaml
-source_brainstorming: docs/brainstorm/FEAT-XXX_feature_slug.md
+source_brainstorming: docs/brainstorming/FEAT-XXX_feature_slug.md
 source_plan: docs/plans/FEAT-XXX_feature_slug_plan.md
 
 workspace: auto
@@ -85,7 +85,7 @@ output_path: docs/designs/auto
 # Workflow
 
 ## Step 1 — Read Inputs
-Read `docs/brainstorm/FEAT-XXX_feature_slug.md` and `docs/plans/FEAT-XXX_feature_slug_plan.md`. Extract **Feature ID**, **Feature Name**, requirements, scope, constraints, and recommendations from both documents.
+Read `docs/brainstorming/FEAT-XXX_feature_slug.md`. For the implementation plan, Architect MUST search for and read the structured JSON plan at `docs/plans/FEAT-XXX_feature_slug_plan.json` first. If it exists, read it to extract the phases, tasks, dependencies, parallel groups, exit criteria, rollback strategies, and tests with minimal token usage. If the JSON plan does not exist, fall back to reading `docs/plans/FEAT-XXX_feature_slug_plan.md`. Extract **Feature ID**, **Feature Name**, requirements, scope, constraints, and recommendations, as well as the **Traceability Matrix**, **Stakeholder Analysis**, **Data Flow**, **Open Decisions**, and **Risk Matrix** from both documents.
 
 ---
 
@@ -105,7 +105,7 @@ Inspect source files directly only if memory gaps remain.
 ---
 
 ## Step 5 — Generate Technical Blueprint
-Produce the blueprint. It must include the YAML metadata header and the design specifications:
+Produce the blueprint. It must include the YAML metadata header and the design specifications. Architect MUST directly inherit and reuse the architecture principles, dependency graph, data flow, migration strategy, traceability matrix, open decisions, and risk matrix from the brainstorming spec, focusing strictly on detailed code mutations and interface contracts without repeating high-level analysis:
 
 ```markdown
 <!-- File path: docs/designs/FEAT-XXX_feature_slug_blueprint.md -->
@@ -121,7 +121,7 @@ previous_artifact: ../plans/FEAT-XXX_feature_slug_plan.md
 next_artifact: [Implementation (Source Code)](../../)
 ---
 
-# Technical Blueprint & Implementation Contract – [Human Readable Name]
+# Technical Design Blueprint & Implementation Contract – [Human Readable Name]
 
 ## 0. Baseline Context & References
 - **Memory Baseline**: [State and confidence levels retrieved from project memory summary]
@@ -129,96 +129,203 @@ next_artifact: [Implementation (Source Code)](../../)
 - **Inspected Source Files**: [Target files inspected directly, including line references]
 
 ## 1. File-by-File Analysis & Proposed Mutations
-All file mutations must be listed explicitly. No generic statements like "modify related files" or placeholders are allowed.
-
-**CRITICAL PATH RULES**:
-- Never generate absolute paths or `file://` links. All file references must be relative workspace paths (e.g. `skills/workflow-runtime/scripts/session.py` instead of `/path/to/session.py` or `file:///path/to/session.py`).
-
-| File Path | Operation | Responsibility | Dependency | Impact & Risk |
+| File Path | Operation (Create/Modify/Delete/Rename) | Responsibility | Dependency | Impact & Risk |
 | :--- | :--- | :--- | :--- | :--- |
-| `relative/path/to/file` | `[NEW | MODIFY | DELETE | RENAME]` | `Specific responsibility of the file's logic` | `Dependencies on other modules/files` | `Risk level, migration impacts, side effects` |
+| `relative/path/to/file` | `[NEW | MODIFY | DELETE]` | [...] | [...] | [...] |
 
 ## 2. Target Folder Structure
-Provide the complete directory tree structure of the workspace showing the exact location of all new/modified files. No folders may be omitted, and placeholders like `...` or `etc.` are strictly forbidden.
 ```text
 .
 ├── (exact directory structure)
 ```
 
-## 3. Interface Contracts (Public & Internal)
-- **Public Interface Contracts**:
-  - *CLI Command Syntax*: `command subcommand [args] [options]` (specify types, optional/required, default values).
-  - *REST / GraphQL / RPC API Schema*: Complete request/response JSON schemas, header specs, error codes, HTTP statuses.
-  - *Data Models & Database Schema*: Table definitions, columns (types, constraints, nullability), indices, migration script payloads.
-  - *Backward Compatibility*: Every schema must preserve backward compatibility with the existing `.agents/.session.json`. If a legacy field exists, the blueprint must define exactly where it migrates.
-  - *Enum Constraint*: Do not invent unsafe enum values. For `permission_mode`, only allow: `sandbox`, `full_access`. Never allow `unrestricted`.
-- **Internal Component Contracts**:
-  - *Module/Class Signatures*: Interfaces, classes, types, function signatures with exact input types, output types, and thrown exception/error types.
-- **Extension Changes (if applicable)**:
-  If the feature modifies the VSCode / Antigravity extension, the blueprint MUST define:
-  - *ViewModel Schema*: The exact UI model structure.
-  - *File Watch Strategy*: How and when the extension watches state files.
-  - *Debounce Behavior*: Throttle/debounce settings for UI updates.
-  - *Fallback Order*: The sequence of settings to resolve if files are missing.
-  - *Missing/Corrupted State UI*: UI representation when state files are empty or corrupted.
-  - *Partial Refresh Rules*: Which components are refreshed instead of full reload.
+## 3. Complete Class & Module Design
+- **Class / Module Name**: `...`
+  - **Responsibilities**: [...]
+  - **Constructor Parameters**: [...]
+  - **Public Methods**: `def method_name(...)` (Visibility: public)
+  - **Internal Methods**: `def _internal_method(...)` (Visibility: internal)
+  - **Dependencies**: [...]
+  - **Extension Points**: [How subclasses can extend this]
 
-## 4. Algorithms & Logic Specifications
-Describe all non-trivial logic (search, routing, state transition, retry, synchronization, data diffing).
-- *Algorithm Flow / Pseudo-code*: Complete pseudo-code or step-by-step logic.
-- *Pseudo-code Path Validation*: `.agents/.session.json` must never become `.agents/session.json`. Validate all paths used.
-- *Error Handling & Recovery*: Fallback behavior, retry policies (exponential backoff, max retries), circuit breakers.
+## 4. Detailed Interface Contracts
+- **API Signature**: `def api_name(param1: type) -> return_type`
+  - **Parameters**: `param1` (validation rules, defaults)
+  - **Return Types**: `return_type` description
+  - **Exceptions**: `ExceptionName` thrown under Z conditions
+  - **Validation Rules**: [...]
+  - **Compatibility Notes**: [...]
 
-## 5. State Machine & Transitions
-If the feature modifies workflow state, define the exact state machine:
-- *States*: `State A`, `State B`, `etc.`
-- *Transitions*: `State A` --(Event)--> `State B`
-- *Abnormal Conditions*: Resume checkpoint rules, rollback mechanics, failure/timeout recovery paths.
+## 5. Configuration Schema
+- **Current Schema**: [...]
+- **Target Schema**: [...]
+- **Migration Rules**: [...]
+- **Defaults & Validation**: [...]
 
-## 6. Validation and Safety Constraints
-- *Input Validation Rules*: Format validation, length, types, regex checks, range limits.
-- *Permission / Security Checks*: Required authentication, token checks, directory restriction gates (sandbox verification).
+## 6. Database & Storage Design
+- **Tables**:
+  - `table_name`: Columns, keys, nullability, constraints
+- **Indexes**: Column mappings
+- **Relationships / Constraints**: Foreign keys
+- **Migration & Rollback Strategy**: SQL statements or scripts
 
-## 7. Backward Compatibility & Migration Mapping
-Every blueprint must include this section if state schemas or files are modified:
-| Old Field | New File | New Field | Migration Rule | Recovery Rule |
+## 7. Cache Architecture
+- **Cache Keys**: Format and parameters
+- **Invalidation Rules**: When cache is invalidated
+- **TTL**: Time to live in seconds
+- **Hash Strategy**: How keys are hashed
+- **Provider versioning & stale detection**: [...]
+- **Warmup & Cleanup**: [...]
+
+## 8. Error Model
+- **Exception Class**: `ExceptionName`
+  - **Trigger Condition**: [...]
+  - **Recovery Strategy**: [...]
+  - **Retry Policy / Fallback**: Retry count, backoff, fallback behavior
+  - **Logging Requirements**: Log level, context keys
+
+## 9. Skill Integration Contracts
+- **Skill Name**: `...`
+  - **Before Hooks**: [...]
+  - **After Hooks**: [...]
+  - **Runtime Calls**: [...]
+  - **Data Exchanged / Outputs**: [...]
+
+## 10. CLI & Runtime Contracts
+- **Command Syntax**: `python workflow_runtime.py subcommand --arg`
+  - **Parameters**: Option names, types, constraints
+  - **Output**: JSON or text output schema
+  - **Exit Codes**: 0 (success), 1 (general error)
+  - **Failure behavior**: [...]
+
+## 11. Sequence Flows
+- **Normal Execution Flow**:
+  1. Client calls API...
+  2. ...
+- **Cache Miss Flow**:
+  1. Check cache (miss)...
+  2. Query Provider...
+- **Provider Unavailable Flow**:
+  1. Provider throws exception...
+  2. Fallback to default...
+
+## 12. Security & Safety
+- **Workspace Boundary**: Only write to relative workspace paths.
+- **Path Validation**: Do not allow escape sequences like `../` to write outside sandbox.
+- **Write Restrictions**: Specify forbidden directories.
+- **Rollback safety**: [...]
+
+## 13. Complete Test Matrix
+| Requirement ID | Test Type (Unit/Integration/Compatibility/Regression/Performance/Stress/E2E) | Test File Target | Mapped Component | Verification Assertion |
 | :--- | :--- | :--- | :--- | :--- |
-| `legacy_field` | `relative/path/to/new_file` | `new_field` | `How old field translates to new field` | `Rollback strategy if migration fails` |
+| `REQ-001` | Unit Test | `relative/path/to/test_file.py` | `api.py` | `self.assertEqual(...)` |
 
-## 8. Implementation Checklist
-Provide an objectively verifiable, step-by-step list of tasks.
-- [ ] Task 1...
-- [ ] Task 2...
+## 14. Requirement Traceability Matrix
+- `FR-01` -> Task 1.1 -> Class `API` -> `api.py` -> `test_api.py` -> Verified -> Released.
 
-## 9. Acceptance Criteria & Test Mapping
-Every implementation requirement must map directly to validation test assertions.
-**CRITICAL RULE**: Acceptance Criteria must cover every requirement. If the blueprint claims N tests, all N must be listed and mapped. Rushing or grouping tests like "Task 2..11" is strictly forbidden.
-
-| Requirement ID | Requirement Description | Expected Result | Verification Method | Unit/Integration Test Target |
-| :--- | :--- | :--- | :--- | :--- |
-| `REQ-001` | `Description` | `Exact outcome` | `Automated/Manual Command` | `Target test file & assertion name` |
-
-## 10. Disallowed Outputs Validation
-Verify and ensure the following outputs are NOT present in this blueprint:
-- [ ] No `file://` or absolute paths used.
-- [ ] No placeholders like `...` or `etc.` in code/structures.
-- [ ] No `TBD` or `To Be Determined` placeholders.
-- [ ] No unsafe permission values (e.g. `unrestricted`).
-- [ ] No unmapped legacy fields without migration rules.
+## 15. File-Level Implementation Contracts
+- **File**: `relative/path/to/file`
+  - **Purpose**: [...]
+  - **Owner**: [Architect / Coder / Reviewer / Verifier / Documentation / Runtime]
+  - **Inputs / Outputs / Dependencies**: [...]
+  - **Implementation Notes & Risks**: [...]
 ```
 
 ---
 
 # Output Rules
 
-Create exactly one file:
-```
-docs/designs/FEAT-XXX_feature_slug_blueprint.md
-```
+Create exactly two files:
+1. `docs/designs/FEAT-XXX_feature_slug_blueprint.md`
+2. `docs/designs/FEAT-XXX_feature_slug_blueprint.json`
 
-First line must be:
+First line of the Markdown file must be:
 ```html
 <!-- File path: docs/designs/FEAT-XXX_feature_slug_blueprint.md -->
+```
+
+The JSON file must conform to this schema:
+```json
+{
+  "modules": [
+    {
+      "name": "...",
+      "classes": [
+        {
+          "class_name": "...",
+          "responsibilities": ["..."],
+          "methods": [
+            {
+              "name": "...",
+              "parameters": [],
+              "return_type": "..."
+            }
+          ],
+          "lifecycle": "...",
+          "state_ownership": "..."
+        }
+      ]
+    }
+  ],
+  "configuration": {
+    "schema": {},
+    "defaults": {}
+  },
+  "database": {
+    "tables": [],
+    "growth_estimation": "...",
+    "maintenance_strategy": "..."
+  },
+  "cache": {
+    "keys": [],
+    "ttl_seconds": 600,
+    "invalidation_rules": []
+  },
+  "errors": [
+    {
+      "exception_class": "...",
+      "trigger": "...",
+      "recovery": "..."
+    }
+  ],
+  "sequence_flows": [
+    {
+      "flow_name": "...",
+      "steps": []
+    }
+  ],
+  "integration_contracts": [],
+  "cli_contracts": [],
+  "implementation_contracts": [
+    {
+      "file_path": "relative/path/to/file",
+      "owner": "Coder",
+      "notes": "..."
+    }
+  ],
+  "implementation_packages": [
+    {
+      "task_id": "Task 1.1",
+      "module": "...",
+      "read_set": [],
+      "write_set": [],
+      "dependencies": [],
+      "implementation_notes": "...",
+      "verification": "...",
+      "rollback": "...",
+      "expected_outputs": []
+    }
+  ],
+  "tests": [
+    {
+      "requirement_id": "REQ-001",
+      "test_type": "Unit Test",
+      "target_file": "relative/path/to/test_file.py"
+    }
+  ],
+  "traceability": [],
+  "artifacts": []
+}
 ```
 
 ---
@@ -229,6 +336,7 @@ First line must be:
 - Do NOT skip sections.
 - Keep naming consistent with project (from memory).
 - **Do NOT create ADR files**. Only assess and recommend if they are required.
+- **Mandatory Skill Skeleton**: If the blueprint introduces or creates a new skill directory under `skills/<skill-name>/`, it MUST also declare and generate a complete Skill skeleton in its proposed modifications. The skeleton MUST include: `skills/<skill-name>/SKILL.md` (containing Purpose, Public APIs, Workflow Integration, Configuration, Runtime Commands, Provider Strategy, Backward Compatibility, Usage Examples, Extension Points, Limitations), `skills/<skill-name>/scripts/`, and `skills/<skill-name>/tests/` (if executable). If the blueprint creates a new skill path but does not define the SKILL.md file, validation must fail and the blueprint must not be marked complete.
 - **Run a self-review of the generated blueprint against the "Disallowed Outputs Validation" checklist and fix all violations before saving.**
 
 ---

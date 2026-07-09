@@ -1,7 +1,7 @@
 {
   "name": "ai-skill-framework",
   "description": "A reusable collection of engineering skills for AI coding agents to manage SDLC lifecycle",
-  "version": "6.3.6",
+  "version": "6.5.0",
   "min_ai_platform_version": "1.0.0",
   "author": {
     "name": "Kyle Dang",
@@ -456,6 +456,28 @@
       "execution_mode": "sequential"
     },
     {
+      "name": "knowledge-runtime",
+      "command": "knowledge",
+      "aliases": [
+        "rag",
+        "memory"
+      ],
+      "category": "runtime",
+      "tags": [
+        "runtime",
+        "knowledge",
+        "rag",
+        "cache",
+        "search"
+      ],
+      "owner_agent": "release-manager",
+      "specialist_agents": [
+        "runtime-specialist"
+      ],
+      "phase": "environment",
+      "execution_mode": "sequential"
+    },
+    {
       "name": "frontend-visual-debug",
       "command": "visual-debug",
       "aliases": [
@@ -586,7 +608,8 @@
     "memory": [
       "project-memory-bootstrap",
       "project-memory-update",
-      "project-rag-search"
+      "project-rag-search",
+      "knowledge-runtime"
     ],
     "environment": [
       "environment-health",

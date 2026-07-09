@@ -195,9 +195,18 @@ const skillsData = [
     command: "/orchestrate",
     category: "workflow",
     checkpoint: "N/A",
-    purpose: "Điều phối viên tối cao tự động phân tích yêu cầu, xây dựng sơ đồ tác vụ DAG và chạy song song/tuần tự các workers.",
-    input: "Mô tả yêu cầu/tác vụ thô từ người dùng.",
     output: "Tự động phân tách công việc và lập kế hoạch thực thi không cần gọi skill thủ công.",
     pitfall: "Tính năng chạy song song (Parallel execution) chỉ được phép chạy ở pha Code Implementation và luôn cần sự xác nhận duyệt từ người dùng."
+  },
+  {
+    name: "knowledge-runtime",
+    command: "/knowledge",
+    category: "memory",
+    checkpoint: "N/A",
+    purpose: "Bộ máy điều phối và định tuyến tri thức hợp nhất hỗ trợ tìm kiếm từ khóa, backlinks, cache đệm và vector RAG.",
+    input: "Truy vấn tìm kiếm tri thức hoặc lưu/đọc file.",
+    output: "API trả về mảng kết quả JSON tri thức và nội dung tài liệu.",
+    pitfall: "Mặc định sử dụng Markdown Provider cục bộ. Qdrant, SQLite và Obsidian là tùy chọn và sẽ tự động fallback nếu không khả dụng."
   }
 ];
+

@@ -443,3 +443,25 @@ To prevent the leakage of user directory structures, usernames, and system detai
 2. **Mandatory Relative Paths**: All references to files, folders, and resources must use project-relative paths (e.g., `./skills/...`, `docs/plans/...`, or `.agents/workflow.config.json`).
 3. **Markdown Links**: Fenced markdown links and file pointers must use relative URLs/paths instead of absolute URLs/schemes pointing to the local filesystem (unless using relative links like `[link](file://./relative_path)` or generic references).
 4. **Scope of Application**: This rule applies universally to all Skills, docs, issues, plans, designs, code comments, tests, and CLI outputs.
+
+---
+
+## 23. Mandatory Skill Skeleton Policy
+
+Whenever a Blueprint introduces a new AIWF Skill, it MUST generate the complete Skill skeleton including SKILL.md and all required supporting artifacts.
+
+*   **Structure**:
+    The generated Skill folder `skills/<skill-name>/` must contain at least:
+    *   `SKILL.md` (containing Purpose, Public APIs, Workflow Integration, Configuration, Runtime Commands, Provider Strategy, Backward Compatibility, Usage Examples, Extension Points, Limitations).
+    *   `scripts/` (containing Python CLI script or helpers).
+    *   `tests/` (containing unit/integration tests for the CLI script).
+*   **Validation Gate**:
+    Any Blueprint that adds a new skill path under `skills/` but does not define `SKILL.md` or required directories in its write set is invalid and must fail validation.
+
+---
+
+## 24. Unified Knowledge Layer Policy
+
+No AIWF Skill may access knowledge providers (such as Markdown files, SQLite databases, Qdrant vector databases, or Obsidian local REST APIs) directly. All knowledge operations (including search, read, write, and index updates) must go through the Knowledge Runtime API unless explicitly approved as a compatibility adapter.
+
+

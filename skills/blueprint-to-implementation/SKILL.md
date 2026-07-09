@@ -9,7 +9,7 @@ tags:
   - implementation
   - code
   - generation
-version: 3.1.0
+version: 3.2.0
 author:
   name: Kyle Dang
   email: kyleit@klexpress.net
@@ -17,8 +17,8 @@ author:
 license: MIT
 repository: https://gitlab.com/hngan.it/ai-workflow-skills
 created_at: 2026-07-03
-updated_at: 2026-07-06
-description: Enforces Blueprint validation as the sole inputs for implementation.
+updated_at: 2026-07-09
+description: Enforces Blueprint validation as the sole inputs for implementation, upgraded to support v3.2 JSON blueprints.
 ---
 
 # Skill: Blueprint to Implementation (Blueprint-Driven Guardrails)
@@ -60,6 +60,7 @@ Prior to generating any source code, modifying existing files, or conducting any
 2. **Verify Blueprint File Existence**: Confirm that the target blueprint file exists on disk.
 3. **Verify Blueprint Status Check**: Verify that the blueprint is marked as `"approved": true` in the active workflow session data or that explicit approval (`Y`, `Yes`, `Proceed`, `Continue`) was given in the chat log.
 4. **Reject Unapproved Inputs**: Reject any brainstorm documents, planning documents, feature specifications, or quick specifications as source code generation inputs.
+5. **Load Structured JSON Blueprint**: Coder/Developer MUST search for and read the structured JSON representation of the blueprint at `docs/designs/FEAT-XXX_feature_slug_blueprint.json` first. If it exists, load it to extract class structures, methods, dependencies, database schema, test matrices, and implementation contracts with minimal token usage. If the JSON blueprint does not exist, fall back to reading `docs/designs/FEAT-XXX_feature_slug_blueprint.md`.
 
 **If any check fails:**
 - **STOP immediately**.
