@@ -82,7 +82,7 @@ def load_session() -> dict[str, Any]:  # type: ignore
             try:
                 session_mtime = os.path.getmtime(SESSION_FILE)
                 context_mtime = os.path.getmtime(context_file)
-                if session_mtime >= context_mtime:
+                if session_mtime >= context_mtime - 2:
                     use_legacy_file = True
             except Exception:
                 pass

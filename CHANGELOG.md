@@ -5,6 +5,14 @@ All notable changes to this project will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [6.3.7] - 2026-07-09
+
+### Fixed
+- **Gemini Cache Discount Cost Calculation**: Fixed token accounting in `parse_transcript` and `sync_request_history` of `context.py` to calculate accurate accumulated Gemini cost by applying a 75% prompt caching hit discount.
+- **Memory & RAG Telemetry Sync**: Updated `get_workflow_summary` in `db.py` to fetch, aggregate, and return `memory_hit_ratio` and `rag_hit_ratio` to the UI provider.
+
+---
+
 ## [6.3.6] - 2026-07-08
 
 ### Added

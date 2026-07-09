@@ -43,10 +43,16 @@ class TestRequestHistory(unittest.TestCase):
             
         # Restore session file
         if self.original_session_content is not None:
-            with open(self.session_file, "w", encoding="utf-8") as f:
-                f.write(self.original_session_content)
+            try:
+                with open(self.session_file, "w", encoding="utf-8") as f:
+                    f.write(self.original_session_content)
+            except Exception:
+                pass
         elif os.path.exists(self.session_file):
-            os.remove(self.session_file)
+            try:
+                os.remove(self.session_file)
+            except Exception:
+                pass
 
     def test_database_migration(self):
         # Trigger schema initialization via saving a request

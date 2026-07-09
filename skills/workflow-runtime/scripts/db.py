@@ -156,6 +156,16 @@ def init_db_schema(conn: sqlite3.Connection) -> None:
     """)
     cursor.execute("CREATE INDEX IF NOT EXISTS idx_timeline_conversation_id ON timeline_events(conversation_id)")
     
+    # Prune duplicate request events from timeline
+    cursor.execute("""
+        DELETE FROM timeline_events
+        WHERE request_id IS NOT NULL AND id NOT IN (
+            SELECT MIN(id) FROM timeline_events
+            WHERE request_id IS NOT NULL
+            GROUP BY request_id
+        )
+    """)
+    
     # Create budget_policies table
     cursor.execute("""
         CREATE TABLE IF NOT EXISTS budget_policies (
@@ -639,6 +649,15 @@ def save_timeline_event(event: dict) -> None:
             init_db_schema(conn)
             cursor = conn.cursor()
             
+            # Skip if request_id event already logged
+            if event.get("request_id"):
+                cursor.execute(
+                    "SELECT 1 FROM timeline_events WHERE request_id = ? AND event_type = ?",
+                    (event["request_id"], event.get("event_type", "Provider request"))
+                )
+                if cursor.fetchone():
+                    continue
+            
             details_json = event.get("details")
             if isinstance(details_json, (dict, list)):
                 details_json = json.dumps(details_json)
@@ -827,12 +846,63 @@ def get_workflow_summary(conversation_id: str, provider: str, model: str) -> dic
         conn = sqlite3.connect(PROJECT_DB)
         cursor = conn.cursor()
         
+        has_requests = False
         cursor.execute("SELECT name FROM sqlite_master WHERE type='table' AND name='provider_requests'")
-        if not cursor.fetchone():
+        if cursor.fetchone():
+            cursor.execute("SELECT COUNT(*) FROM provider_requests WHERE conversation_id = ?", (conversation_id,))
+            if cursor.fetchone()[0] > 0:
+                has_requests = True
+                
+        if not has_requests:
+            # Fall back to usage_records table
+            cursor.execute("SELECT name FROM sqlite_master WHERE type='table' AND name='usage_records'")
+            if cursor.fetchone():
+                cursor.execute("""
+                    SELECT input_tokens, output_tokens, cache_tokens, thinking_tokens, active_tokens, total_tokens,
+                           estimated_cost_usd, provider, model, accuracy, timestamp
+                    FROM usage_records WHERE conversation_id = ?
+                """, (conversation_id,))
+                row = cursor.fetchone()
+                if row:
+                    active_tokens = row[4] or 0
+                    return {
+                        "provider": row[7] or provider,
+                        "model": row[8] or model,
+                        "active_context": {
+                            "total_tokens": active_tokens,
+                            "limit_tokens": 2000000,
+                            "percentage": round((active_tokens / 2000000) * 100, 2)
+                        },
+                        "accumulated_usage": {
+                            "input_tokens": row[0] or 0,
+                            "output_tokens": row[1] or 0,
+                            "cache_tokens": row[2] or 0,
+                            "thinking_tokens": row[3] or 0,
+                            "total_tokens": row[5] or 0,
+                            "estimated_cost_usd": row[6] or 0.0,
+                            "request_count": 1
+                        },
+                        "efficiency": {
+                            "cache_hit_ratio": round((row[2] or 0) / max(1, row[0] or 1), 2),
+                            "input_to_output_ratio": round(((row[1] or 0) / max(1, row[0] or 1)) * 100, 2)
+                        },
+                        "input_tokens": row[0] or 0,
+                        "output_tokens": row[1] or 0,
+                        "cache_tokens": row[2] or 0,
+                        "thinking_tokens": row[3] or 0,
+                        "active_tokens": active_tokens,
+                        "total_tokens": row[5] or 0,
+                        "limit_tokens": 2000000,
+                        "percentage": round((active_tokens / 2000000) * 100, 2),
+                        "estimated_cost_usd": row[6] or 0.0,
+                        "accuracy": row[9] or "estimated",
+                        "updated_at": row[10] or datetime.now().astimezone().isoformat()
+                    }
             return fallback
-
+            
         cursor.execute("""
-            SELECT COUNT(*), SUM(input_tokens), SUM(output_tokens), SUM(cache_tokens), SUM(thinking_tokens), SUM(cost_usd)
+            SELECT COUNT(*), SUM(input_tokens), SUM(output_tokens), SUM(cache_tokens), SUM(thinking_tokens), SUM(cost_usd),
+                   SUM(memory_hit_count), SUM(rag_hit_count)
             FROM provider_requests WHERE conversation_id = ?
         """, (conversation_id,))
         agg = cursor.fetchone()
@@ -851,6 +921,8 @@ def get_workflow_summary(conversation_id: str, provider: str, model: str) -> dic
             cache_tokens = agg[3] or 0
             thinking_tokens = agg[4] or 0
             cost = round(agg[5] or 0.0, 6)
+            memory_hits = agg[6] or 0
+            rag_hits = agg[7] or 0
             
             active_tokens = latest[0] if latest else 0
             prov = latest[1] if latest else provider
@@ -860,6 +932,8 @@ def get_workflow_summary(conversation_id: str, provider: str, model: str) -> dic
             total_tokens = input_tokens + output_tokens
             cache_hit_ratio = round(cache_tokens / max(1, input_tokens), 2)
             io_ratio = round((output_tokens / max(1, input_tokens)) * 100, 2)
+            memory_hit_ratio = min(1.0, round(memory_hits / max(1, request_count), 2))
+            rag_hit_ratio = min(1.0, round(rag_hits / max(1, request_count), 2))
             
             return {
                 "provider": prov,
@@ -880,7 +954,9 @@ def get_workflow_summary(conversation_id: str, provider: str, model: str) -> dic
                 },
                 "efficiency": {
                     "cache_hit_ratio": cache_hit_ratio,
-                    "input_to_output_ratio": io_ratio
+                    "input_to_output_ratio": io_ratio,
+                    "memory_hit_ratio": memory_hit_ratio,
+                    "rag_hit_ratio": rag_hit_ratio
                 },
                 "input_tokens": input_tokens,
                 "output_tokens": output_tokens,
@@ -919,8 +995,34 @@ def get_project_summary(project_id: str) -> dict:
     try:
         conn = sqlite3.connect(PROJECT_DB)
         cursor = conn.cursor()
+        
+        has_requests = False
         cursor.execute("SELECT name FROM sqlite_master WHERE type='table' AND name='provider_requests'")
-        if not cursor.fetchone():
+        if cursor.fetchone():
+            cursor.execute("SELECT COUNT(*) FROM provider_requests WHERE project_id = ?", (project_id,))
+            if cursor.fetchone()[0] > 0:
+                has_requests = True
+                
+        if not has_requests:
+            cursor.execute("SELECT name FROM sqlite_master WHERE type='table' AND name='usage_records'")
+            if cursor.fetchone():
+                cursor.execute("""
+                    SELECT SUM(input_tokens), SUM(output_tokens), SUM(cache_tokens),
+                           SUM(thinking_tokens), SUM(total_tokens), SUM(estimated_cost_usd)
+                    FROM usage_records
+                    WHERE project_id = ?
+                """, (project_id,))
+                row = cursor.fetchone()
+                if row and row[4] is not None:
+                    return {
+                        "input_tokens": row[0] or 0,
+                        "output_tokens": row[1] or 0,
+                        "cache_tokens": row[2] or 0,
+                        "thinking_tokens": row[3] or 0,
+                        "total_tokens": row[4] or 0,
+                        "estimated_cost_usd": round(row[5] or 0.0, 4),
+                        "updated_at": datetime.now().astimezone().isoformat()
+                    }
             return fallback
 
         cursor.execute("""
@@ -965,8 +1067,33 @@ def get_global_summary() -> dict:
     try:
         conn = sqlite3.connect(global_db)
         cursor = conn.cursor()
+        
+        has_requests = False
         cursor.execute("SELECT name FROM sqlite_master WHERE type='table' AND name='provider_requests'")
-        if not cursor.fetchone():
+        if cursor.fetchone():
+            cursor.execute("SELECT COUNT(*) FROM provider_requests")
+            if cursor.fetchone()[0] > 0:
+                has_requests = True
+                
+        if not has_requests:
+            cursor.execute("SELECT name FROM sqlite_master WHERE type='table' AND name='usage_records'")
+            if cursor.fetchone():
+                cursor.execute("""
+                    SELECT SUM(input_tokens), SUM(output_tokens), SUM(cache_tokens),
+                           SUM(thinking_tokens), SUM(total_tokens), SUM(estimated_cost_usd)
+                    FROM usage_records
+                """)
+                row = cursor.fetchone()
+                if row and row[4] is not None:
+                    return {
+                        "input_tokens": row[0] or 0,
+                        "output_tokens": row[1] or 0,
+                        "cache_tokens": row[2] or 0,
+                        "thinking_tokens": row[3] or 0,
+                        "total_tokens": row[4] or 0,
+                        "estimated_cost_usd": round(row[5] or 0.0, 4),
+                        "updated_at": datetime.now().astimezone().isoformat()
+                    }
             return fallback
 
         cursor.execute("""
@@ -1027,6 +1154,19 @@ def normalize_database_records(db_path: str) -> None:
                         usage.get("estimated_cost_usd", 0.0),
                         conv_id
                     ))
+            else:
+                # Scale down by 10 as correction factor
+                cursor.execute("""
+                    UPDATE usage_records
+                    SET input_tokens = CAST(input_tokens / 10 AS INTEGER),
+                        output_tokens = CAST(output_tokens / 10 AS INTEGER),
+                        cache_tokens = CAST(cache_tokens / 10 AS INTEGER),
+                        thinking_tokens = CAST(thinking_tokens / 10 AS INTEGER),
+                        active_tokens = CAST(active_tokens / 10 AS INTEGER),
+                        total_tokens = CAST(total_tokens / 10 AS INTEGER),
+                        estimated_cost_usd = estimated_cost_usd / 10.0
+                    WHERE conversation_id = ?
+                """, (conv_id,))
         conn.commit()
     except Exception as e:
         print(f"Error normalizing database {db_path}: {e}")

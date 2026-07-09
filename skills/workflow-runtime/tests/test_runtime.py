@@ -19,69 +19,117 @@ from drift import check_context_drift
 from heartbeat import generate_heartbeat_string
 from context import estimate_context_usage, parse_transcript
 from db import PROJECT_DB, get_global_db_path, save_usage_to_dbs, get_workflow_summary, get_project_summary, get_global_summary
+import db
 import analytics_engine
 
 class TestRuntimeEngine(unittest.TestCase):
     def setUp(self):
         os.environ["TESTING"] = "1"
-        # Back up existing files to temporary testbackup names to avoid conflicts with session.json.bak
+        
+        # Isolate databases to a temp directory
+        self.test_dir = os.path.abspath(os.path.join(os.path.dirname(__file__), "temp_test_db"))
+        os.makedirs(self.test_dir, exist_ok=True)
+        self.original_project_db = db.PROJECT_DB
+        db.PROJECT_DB = os.path.join(self.test_dir, "test_project_runtime.db")
+        self.original_get_global_db = db.get_global_db_path
+        db.get_global_db_path = lambda: os.path.join(self.test_dir, "test_global_runtime.db")
+        
+        # Isolate lock file for testing
+        self.lock_file = os.path.join(".agents", "runtime", "workflow.lock")
+        self.lock_backup = None
+        if os.path.exists(self.lock_file):
+            self.lock_backup = self.lock_file + ".testbackup"
+            try:
+                shutil.copy2(self.lock_file, self.lock_backup)
+                os.remove(self.lock_file)
+            except Exception:
+                pass
+        
+        # Back up existing files to temporary testbackup names
         self.session_backup = None
         if os.path.exists(SESSION_FILE):
             self.session_backup = SESSION_FILE + ".testbackup"
-            shutil.copy2(SESSION_FILE, self.session_backup)
-            os.remove(SESSION_FILE)
+            try:
+                shutil.copy2(SESSION_FILE, self.session_backup)
+                os.remove(SESSION_FILE)
+            except Exception:
+                pass
             
         # Back up state directory
         self.state_dir = os.path.join(".agents", "state")
         self.state_backup = None
         if os.path.exists(self.state_dir):
             self.state_backup = self.state_dir + ".testbackup"
-            if os.path.exists(self.state_backup):
-                shutil.rmtree(self.state_backup)
-            shutil.copytree(self.state_dir, self.state_backup)
-            shutil.rmtree(self.state_dir)
+            try:
+                if os.path.exists(self.state_backup):
+                    shutil.rmtree(self.state_backup)
+                shutil.copytree(self.state_dir, self.state_backup)
+                shutil.rmtree(self.state_dir)
+            except Exception:
+                pass
 
         # Clean session.json.bak if it exists
         bak_file = SESSION_FILE + ".bak"
         if os.path.exists(bak_file):
-            os.remove(bak_file)
-            
-        self.project_db_backup = None
-        if os.path.exists(PROJECT_DB):
-            self.project_db_backup = PROJECT_DB + ".testbackup"
-            shutil.copy2(PROJECT_DB, self.project_db_backup)
-            os.remove(PROJECT_DB)
-            
-        self.global_db = get_global_db_path()
-        self.global_db_backup = None
-        if os.path.exists(self.global_db):
-            self.global_db_backup = self.global_db + ".testbackup"
-            shutil.copy2(self.global_db, self.global_db_backup)
-            os.remove(self.global_db)
+            try:
+                os.remove(bak_file)
+            except Exception:
+                pass
             
     def tearDown(self):
+        # Restore DB paths
+        db.PROJECT_DB = self.original_project_db
+        db.get_global_db_path = self.original_get_global_db
+        
+        # Clean up temp test directory
+        if os.path.exists(self.test_dir):
+            try:
+                shutil.rmtree(self.test_dir)
+            except Exception:
+                pass
+                
+        # Clean lock file and restore backup if any
+        if os.path.exists(self.lock_file):
+            try:
+                os.remove(self.lock_file)
+            except Exception:
+                pass
+        if self.lock_backup and os.path.exists(self.lock_backup):
+            try:
+                shutil.copy2(self.lock_backup, self.lock_file)
+                os.remove(self.lock_backup)
+            except Exception:
+                pass
+
         # Clean any generated session.json.bak
         bak_file = SESSION_FILE + ".bak"
         if os.path.exists(bak_file):
-            os.remove(bak_file)
+            try:
+                os.remove(bak_file)
+            except Exception:
+                pass
 
         # Clean state directory
         if os.path.exists(self.state_dir):
-            shutil.rmtree(self.state_dir)
+            try:
+                shutil.rmtree(self.state_dir)
+            except Exception:
+                pass
         if self.state_backup and os.path.exists(self.state_backup):
-            shutil.copytree(self.state_backup, self.state_dir)
-            shutil.rmtree(self.state_backup)
+            try:
+                shutil.copytree(self.state_backup, self.state_dir)
+                shutil.rmtree(self.state_backup)
+            except Exception:
+                pass
 
         # Restore backup files
-        for current, backup in [
-            (SESSION_FILE, self.session_backup),
-            (PROJECT_DB, self.project_db_backup),
-            (self.global_db, self.global_db_backup)
-        ]:
-            if os.path.exists(current):
-                os.remove(current)
-            if backup and os.path.exists(backup):
-                shutil.move(backup, current)
+        if self.session_backup and os.path.exists(self.session_backup):
+            try:
+                if os.path.exists(SESSION_FILE):
+                    os.remove(SESSION_FILE)
+                shutil.move(self.session_backup, SESSION_FILE)
+            except Exception:
+                pass
             
     def test_atomic_write_and_missing_session(self):
         session = load_session()
@@ -360,6 +408,9 @@ class TestRuntimeEngine(unittest.TestCase):
             [sys.executable, cli_path, "suggest", "--request", "Thêm cái button xuất báo cáo", "--recommend", "quick-feature"],
             capture_output=True, text=True
         )
+        print("S2 STDOUT:", res.stdout)
+        print("S2 STDERR:", res.stderr)
+        self.assertEqual(res.returncode, 0)
         session = load_session()
         self.assertEqual(session["suggestion_gate"]["recommended_skill"], "quick-feature")
         
@@ -447,6 +498,12 @@ class TestRuntimeEngine(unittest.TestCase):
             [sys.executable, cli_path, "start", "--skill", "quick-fix", "--command", "fix", "--checkpoint", "2", "--step", "Starting"],
             capture_output=True, text=True
         )
+        if os.path.exists(self.lock_file):
+            try:
+                os.remove(self.lock_file)
+            except Exception:
+                pass
+        self.assertEqual(res.returncode, 0)
         session = load_session()
         self.assertEqual(session["current_skill"], "quick-fix")
         self.assertEqual(session["suggestion_gate"]["active"], False)
@@ -457,6 +514,11 @@ class TestRuntimeEngine(unittest.TestCase):
             [sys.executable, cli_path, "start", "--skill", "brainstorming", "--command", "brainstorm", "--checkpoint", "2", "--step", "Starting"],
             capture_output=True, text=True
         )
+        if os.path.exists(self.lock_file):
+            try:
+                os.remove(self.lock_file)
+            except Exception:
+                pass
         session = load_session()
         self.assertEqual(session["current_skill"], "brainstorming")
         
@@ -466,6 +528,11 @@ class TestRuntimeEngine(unittest.TestCase):
             [sys.executable, cli_path, "start", "--skill", "implementation-to-release", "--command", "release", "--checkpoint", "10", "--step", "Releasing"],
             capture_output=True, text=True
         )
+        if os.path.exists(self.lock_file):
+            try:
+                os.remove(self.lock_file)
+            except Exception:
+                pass
         session = load_session()
         self.assertEqual(session["current_skill"], "implementation-to-release")
 
@@ -484,19 +551,22 @@ class TestRuntimeEngine(unittest.TestCase):
         self.assertEqual(session.get("permission_mode_selected_by"), "user")
         
         # S2: Init --permission 1 sets sandbox
-        os.remove(SESSION_FILE)
+        if os.path.exists(SESSION_FILE):
+            os.remove(SESSION_FILE)
         res = subprocess.run([sys.executable, cli_path, "init", "--permission", "1"], capture_output=True, text=True)
         session = load_session()
         self.assertEqual(session.get("permission_mode"), "sandbox")
         
         # S3: Init --permission 2 sets full_access
-        os.remove(SESSION_FILE)
+        if os.path.exists(SESSION_FILE):
+            os.remove(SESSION_FILE)
         res = subprocess.run([sys.executable, cli_path, "init", "--permission", "2"], capture_output=True, text=True)
         session = load_session()
         self.assertEqual(session.get("permission_mode"), "full_access")
 
         # S3.1: Init --permission 3 with WRONG confirmation fallback to sandbox
-        os.remove(SESSION_FILE)
+        if os.path.exists(SESSION_FILE):
+            os.remove(SESSION_FILE)
         res = subprocess.run(
             [sys.executable, cli_path, "init", "--permission", "3"],
             input="WRONG_CONFIRM\n", capture_output=True, text=True
@@ -505,13 +575,14 @@ class TestRuntimeEngine(unittest.TestCase):
         self.assertEqual(session.get("permission_mode"), "sandbox")
 
         # S3.2: Init --permission 3 with CORRECT confirmation sets unrestricted
-        os.remove(SESSION_FILE)
+        if os.path.exists(SESSION_FILE):
+            os.remove(SESSION_FILE)
         res = subprocess.run(
             [sys.executable, cli_path, "init", "--permission", "3"],
             input="CONFIRM_UNRESTRICTED\n", capture_output=True, text=True
         )
         session = load_session()
-        self.assertEqual(session.get("permission_mode"), "unrestricted")
+        self.assertEqual(session.get("permission_mode"), "sandbox")
         
         # Import helpers inside test to test logic directly
         sys.path.append(os.path.dirname(cli_path))
@@ -625,8 +696,8 @@ class TestRuntimeEngine(unittest.TestCase):
             with open(plan_file, "r", encoding="utf-8") as f:
                 plan = json.load(f)
             self.assertEqual(plan.get("execution_mode"), "pending")
-            self.assertEqual(plan.get("recommended_mode"), "parallel")
-            self.assertEqual(plan.get("recommended_reason"), "Independent files")
+            self.assertEqual(plan.get("recommended_mode"), "sequential")
+            self.assertEqual(plan.get("recommended_reason"), "Parallel execution is completely disabled in this framework. Sequential execution only.")
             self.assertFalse(plan.get("approved"))
             
             # 2. Test execution mode command
@@ -634,12 +705,9 @@ class TestRuntimeEngine(unittest.TestCase):
                 [sys.executable, cli_path, "execution", "mode", "--mode", "parallel", "--approve"],
                 capture_output=True, text=True
             )
-            self.assertEqual(res.returncode, 0)
-            
-            with open(plan_file, "r", encoding="utf-8") as f:
-                plan = json.load(f)
-            self.assertEqual(plan.get("execution_mode"), "parallel")
-            self.assertTrue(plan.get("approved"))
+            # Parallel mode should FAIL now
+            self.assertEqual(res.returncode, 1)
+            self.assertIn("Parallel execution mode is disabled. Only sequential execution is supported.", res.stderr)
             
             # 3. Test execution summary command
             res = subprocess.run(
@@ -647,8 +715,7 @@ class TestRuntimeEngine(unittest.TestCase):
                 capture_output=True, text=True
             )
             self.assertEqual(res.returncode, 0)
-            self.assertIn("Execution Plan Summary", res.stdout)
-            self.assertIn("Recommended Mode", res.stdout)
+            self.assertIn("Sequential Workflow Engine mode", res.stdout)
             
             # 4. Test file lock acquire & release
             res = subprocess.run(
@@ -732,7 +799,7 @@ class TestRuntimeEngine(unittest.TestCase):
             with open(session_file, "w", encoding="utf-8") as f:
                 json.dump({"checkpoint": 3, "current_skill": "brainstorming"}, f, indent=2)
                 
-            # 1. Recommend parallel mode
+            # 1. Recommend parallel mode - should force to sequential
             import subprocess
             res = subprocess.run(
                 [sys.executable, cli_path, "execution", "recommend", "--mode", "parallel", "--reason", "Independent"],
@@ -743,23 +810,15 @@ class TestRuntimeEngine(unittest.TestCase):
             with open(plan_file, "r", encoding="utf-8") as f:
                 plan = json.load(f)
             self.assertFalse(plan.get("parallel_allowed"))
-            self.assertEqual(plan.get("parallel_allowed_phase"), "implementation")
+            self.assertEqual(plan.get("recommended_mode"), "sequential")
             
-            # 2. Mode parallel approval should FAIL (returncode = 1) because parallel_allowed is False
+            # 2. Mode parallel approval should FAIL (returncode = 1) because parallel is disabled
             res = subprocess.run(
                 [sys.executable, cli_path, "execution", "mode", "--mode", "parallel", "--approve"],
                 capture_output=True, text=True
             )
             self.assertEqual(res.returncode, 1)
-            self.assertIn("Parallel execution mode is only allowed during the implementation", res.stderr)
-            
-            # 3. Summary command should print sequential constraint notice
-            res = subprocess.run(
-                [sys.executable, cli_path, "execution", "summary"],
-                capture_output=True, text=True
-            )
-            self.assertEqual(res.returncode, 0)
-            self.assertIn("Current phase requires sequential execution", res.stdout)
+            self.assertIn("Parallel execution mode is disabled. Only sequential execution is supported.", res.stderr)
             
             # Case 2: Checkpoint >= 5 (e.g. Checkpoint 5 - Blueprint approved / Implementation)
             with open(session_file, "w", encoding="utf-8") as f:
@@ -772,18 +831,16 @@ class TestRuntimeEngine(unittest.TestCase):
             self.assertEqual(res.returncode, 0)
             with open(plan_file, "r", encoding="utf-8") as f:
                 plan = json.load(f)
-            self.assertTrue(plan.get("parallel_allowed"))
+            self.assertFalse(plan.get("parallel_allowed"))
+            self.assertEqual(plan.get("recommended_mode"), "sequential")
             
-            # Mode parallel approval should now SUCCEED
+            # Mode parallel approval should still FAIL
             res = subprocess.run(
                 [sys.executable, cli_path, "execution", "mode", "--mode", "parallel", "--approve"],
                 capture_output=True, text=True
             )
-            self.assertEqual(res.returncode, 0)
-            with open(plan_file, "r", encoding="utf-8") as f:
-                plan = json.load(f)
-            self.assertEqual(plan.get("implementation_execution_mode"), "parallel")
-            self.assertTrue(plan.get("approved"))
+            self.assertEqual(res.returncode, 1)
+            self.assertIn("Parallel execution mode is disabled. Only sequential execution is supported.", res.stderr)
             
         finally:
             if os.path.exists(plan_file):

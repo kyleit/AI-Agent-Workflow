@@ -64,21 +64,9 @@ def requires_approval(action_type: str) -> bool:
     return False
 
 def update_context_health(session: dict) -> None:
-    # Auto-detect and sync current conversation_id from environment metadata
-    metadata_str = os.environ.get("ANTIGRAVITY_SOURCE_METADATA")
-    if metadata_str:
-        try:
-            metadata_raw = json.loads(metadata_str)
-            if isinstance(metadata_raw, dict):
-                metadata = cast(dict[str, object], metadata_raw)
-                tool_data = metadata.get("tool")
-                if isinstance(tool_data, dict):
-                    tool_data_dict = cast(dict[str, object], tool_data)
-                    env_conv_id = tool_data_dict.get("conversationId")
-                    if isinstance(env_conv_id, str) and env_conv_id:
-                        session["conversation_id"] = env_conv_id
-        except Exception:
-            pass
+    # Auto-detect and sync current conversation_id and context usage
+    from context import refresh_context_usage_for_active_conversation
+    usage = refresh_context_usage_for_active_conversation(session)
 
     if "suggestion_gate" not in session:
         session["suggestion_gate"] = {
@@ -95,9 +83,6 @@ def update_context_health(session: dict) -> None:
     session["version"] = get_version_info()
     session["memory"] = get_memory_info()
     session["rag"] = get_rag_info()
-        
-    # 1. Estimate current context usage
-    usage = estimate_context_usage()
     
     # 2. Save it to DBs if conversation_id exists
     conv_id = session.get("conversation_id")
@@ -231,42 +216,20 @@ def do_init(args):
             "Choose workspace permission mode:",
             [
                 "1. Sandbox Mode (Safe default. Ask before every state-changing action.)",
-                "2. Full Access Mode (Allow normal workflow file/code changes.)",
-                "3. Unrestricted Mode (DANGER ZONE. Bypass all confirmation gates.)"
+                "2. Full Access Mode (Allow normal workflow file/code changes.)"
             ],
             default="1. Sandbox Mode (Safe default. Ask before every state-changing action.)"
         )
-        if "3" in choice or "Unrestricted" in choice:
-            permission_arg = "3"
-        elif "2" in choice or "Full Access" in choice:
+        if "2" in choice or "Full Access" in choice:
             permission_arg = "2"
         else:
             permission_arg = "1"
             
-    if str(permission_arg) in ["3", "unrestricted"]:
-        print("\n" + "="*70)
-        print("[WARNING] WARNING: DANGER ZONE - ENABLING UNRESTRICTED MODE")
-        print("This mode completely disables all confirmation gates.")
-        print("The AI will execute git push, tagging, releases, file changes, and")
-        print("credentials editing AUTOMATICALLY without prompting you.")
-        print("="*70)
-        try:
-            confirm = prompt_select(
-                "WARNING: DANGER ZONE - ENABLING UNRESTRICTED MODE. Type 'CONFIRM_UNRESTRICTED' to proceed:",
-                ["CONFIRM_UNRESTRICTED", "CANCEL"],
-                default="CANCEL"
-            ).strip()
-            if confirm == "CONFIRM_UNRESTRICTED":
-                mode = "unrestricted"
-            else:
-                print("Warning: Confirmation mismatch. Fallback to sandbox mode.")
-                mode = "sandbox"
-        except (IOError, KeyboardInterrupt):
-            print("\nWarning: Input interrupted. Fallback to sandbox mode.")
-            mode = "sandbox"
-    elif str(permission_arg) in ["2", "full_access"]:
+    if str(permission_arg) in ["2", "full_access"]:
         mode = "full_access"
     else:
+        if str(permission_arg) in ["3", "unrestricted"]:
+            print("Warning: Unrestricted mode is disabled for safety. Fallback to sandbox mode.")
         mode = "sandbox"
         
     session["permission_mode"] = mode
@@ -322,9 +285,31 @@ def do_validate(args):
     print("Validation passed.")
 
 def do_start(args):
+    lock_file = os.path.join(".agents", "runtime", "workflow.lock")
+    if os.path.exists(lock_file):
+        print("Another workflow is already running.", file=sys.stderr)
+        print("Do not continue.", file=sys.stderr)
+        sys.exit(1)
+
     session = load_session()
     if not session:
         session = {"workspace": {"path": ".", "valid": True}}
+
+    # Write new lock file
+    try:
+        os.makedirs(os.path.dirname(lock_file), exist_ok=True)
+        work_item_id = session.get("work_item", {}).get("id", "unknown")
+        with open(lock_file, "w", encoding="utf-8") as f:
+            json.dump({
+                "lock_owner": f"orchestrator|{args.skill}",
+                "work_item_id": work_item_id,
+                "skill": args.skill,
+                "pid": os.getpid(),
+                "started_at": datetime.now().astimezone().isoformat(),
+                "heartbeat_at": datetime.now().astimezone().isoformat()
+            }, f, indent=2, ensure_ascii=False)
+    except Exception:
+        pass
     
     # Check blueprint approval before starting implementation
     is_impl = (args.skill == "blueprint-to-implementation") or (args.checkpoint is not None and args.checkpoint >= 6)
@@ -332,7 +317,11 @@ def do_start(args):
         bp = session.get("blueprint", {})
         if not bp.get("approved"):
             print("Error: Cannot start implementation. Technical Design Blueprint is not approved.", file=sys.stderr)
-            print("Please create a design blueprint and approve it using: aiwf blueprint --path <path> --approve first.", file=sys.stderr)
+            if os.path.exists(lock_file):
+                try:
+                    os.remove(lock_file)
+                except Exception:
+                    pass
             sys.exit(1)
             
     session["status"] = "in_progress"
@@ -348,6 +337,17 @@ def do_start(args):
     print(f"Skill {args.skill} started.")
 
 def do_step(args):
+    lock_file = os.path.join(".agents", "runtime", "workflow.lock")
+    if os.path.exists(lock_file):
+        try:
+            with open(lock_file, "r", encoding="utf-8") as f:
+                lock_data = json.load(f)
+            lock_data["heartbeat_at"] = datetime.now().astimezone().isoformat()
+            with open(lock_file, "w", encoding="utf-8") as f:
+                json.dump(lock_data, f, indent=2, ensure_ascii=False)
+        except Exception:
+            pass
+
     session = load_session()
     if not session:
         print("Error: session file missing.", file=sys.stderr)
@@ -361,6 +361,13 @@ def do_step(args):
     save_session_atomic(session)
 
 def do_complete(args):
+    lock_file = os.path.join(".agents", "runtime", "workflow.lock")
+    if os.path.exists(lock_file):
+        try:
+            os.remove(lock_file)
+        except Exception:
+            pass
+
     session = load_session()
     if not session:
         print("Error: session file missing.", file=sys.stderr)
@@ -395,6 +402,13 @@ def do_complete(args):
     print("Step completed.")
 
 def do_fail(args):
+    lock_file = os.path.join(".agents", "runtime", "workflow.lock")
+    if os.path.exists(lock_file):
+        try:
+            os.remove(lock_file)
+        except Exception:
+            pass
+
     session = load_session()
     if not session:
         print("Error: session file missing.", file=sys.stderr)
@@ -906,7 +920,7 @@ def do_usage(args):
         events = get_timeline_events(conv_id)
         if not events:
             from context import sync_request_history
-            sync_request_history(session.get("project_id"), conv_id)
+            sync_request_history(conv_id, session.get("project_id") or get_project_id())
             events = get_timeline_events(conv_id)
             
         if args.format == "json":
@@ -933,7 +947,7 @@ def do_usage(args):
         events = get_timeline_events(conv_id)
         if not events:
             from context import sync_request_history
-            sync_request_history(session.get("project_id"), conv_id)
+            sync_request_history(conv_id, session.get("project_id") or get_project_id())
             events = get_timeline_events(conv_id)
             
         report = make_forecast(events)
@@ -2003,97 +2017,55 @@ def do_execution(args: argparse.Namespace) -> None:
             
     session = load_session()
     checkpoint = session.get("checkpoint", 1)
-    parallel_allowed = (checkpoint >= 5)
+    parallel_allowed = False
 
     if args.subaction == "recommend":
         if not args.mode or not args.reason:
             print("Error: --mode and --reason are required.", file=sys.stderr)
             sys.exit(1)
+        # Force recommendations to sequential
+        rec_mode = "sequential"
+        rec_reason = "Parallel execution is completely disabled in this framework. Sequential execution only."
         plan["implementation_execution_mode"] = "pending"
         plan["parallel_allowed_phase"] = "implementation"
-        plan["parallel_allowed"] = parallel_allowed
+        plan["parallel_allowed"] = False
         plan["execution_mode"] = "pending"
-        plan["recommended_mode"] = args.mode
-        plan["recommended_reason"] = args.reason
+        plan["recommended_mode"] = rec_mode
+        plan["recommended_reason"] = rec_reason
         plan["approved"] = False
         with open(plan_file, "w", encoding="utf-8") as f:
             json.dump(plan, f, indent=2, ensure_ascii=False)
-        print(f"Recommended execution mode set to {args.mode} (Reason: {args.reason}).")
+        print(f"Recommended execution mode set to {rec_mode} (Reason: {rec_reason}).")
         
     elif args.subaction == "mode":
         if not args.mode:
             print("Error: --mode is required.", file=sys.stderr)
             sys.exit(1)
             
-        if args.mode == "parallel" and not parallel_allowed:
-            print(f"Error: Parallel execution mode is only allowed during the implementation/execution phase (checkpoint >= 5). Current checkpoint is {checkpoint}.", file=sys.stderr)
+        if args.mode == "parallel":
+            print("Error: Parallel execution mode is disabled. Only sequential execution is supported.", file=sys.stderr)
             sys.exit(1)
             
-        plan["implementation_execution_mode"] = args.mode
-        plan["execution_mode"] = args.mode
+        plan["implementation_execution_mode"] = "sequential"
+        plan["execution_mode"] = "sequential"
         if args.approve:
             plan["approved"] = True
         with open(plan_file, "w", encoding="utf-8") as f:
             json.dump(plan, f, indent=2, ensure_ascii=False)
-        print(f"Execution mode updated to {args.mode} (Approved: {plan.get('approved')}).")
+        print(f"Execution mode updated to sequential (Approved: {plan.get('approved')}).")
         
     elif args.subaction == "summary":
-        if not plan.get("parallel_allowed", False):
-            summary_text = """================================================================================
+        summary_text = """================================================================================
 
 Execution Plan Summary
 
-Current phase requires sequential execution. Parallel execution is not allowed
-until entering the implementation phase (checkpoint >= 5).
+This framework operates in a strict Sequential Workflow Engine mode.
+No parallel worker pools or concurrent executions are allowed to prevent
+state drift and write contamination.
 
 ================================================================================
-"""
-            print(summary_text)
-            return
-
-        workflow = plan.get("workflow_name", "Autonomous Workflow Upgrade")
-        agents = plan.get("estimated_agents", "Orchestrator, Worker")
-        duration = plan.get("estimated_duration", "5 minutes")
-        tokens = plan.get("estimated_tokens", "150,000")
-        groups = plan.get("parallel_groups", "None")
-        conflicts = plan.get("potential_conflicts", "None")
-        rec_mode = str(plan.get("recommended_mode", "parallel"))
-        reason = plan.get("recommended_reason", "No overlapping write sets.")
-        
-        summary_text = f"""================================================================================
-
-Execution Plan Summary
-
-Workflow:
-{workflow}
-
-Estimated Agents:
-{agents}
-
-Estimated Duration:
-{duration}
-
-Estimated Tokens:
-{tokens}
-
-Parallel Groups:
-{groups}
-
-Potential Conflicts:
-{conflicts}
-
-================================================================================
-
-Recommended Mode
-
-* {rec_mode.capitalize()} ({'Safe' if rec_mode == 'parallel' else 'Caution'})
-
-Reason
-
-- {reason}
 """
         print(summary_text)
-
         sync_execution_state_to_session()
 
 def sync_analysis_agents_to_session() -> None:
@@ -2414,6 +2386,34 @@ def do_state_action(args):
         print(json.dumps(res, indent=2))
         if errors:
             sys.exit(1)
+            
+    elif args.subaction == "diagnose":
+        session = load_session()
+        lock_file = os.path.join(".agents", "runtime", "workflow.lock")
+        lock_owner = "None"
+        locked_at = "N/A"
+        active_task = "None"
+        if os.path.exists(lock_file):
+            try:
+                with open(lock_file, "r", encoding="utf-8") as f:
+                    lock_data = json.load(f)
+                lock_owner = lock_data.get("skill", "unknown")
+                locked_at = lock_data.get("started_at", "N/A")
+                active_task = f"{lock_owner} ({lock_data.get('lock_owner', '')})"
+            except Exception:
+                lock_owner = "Corrupted"
+        
+        exec_mode = session.get("execution_mode", "sequential")
+        
+        diagnostics = {
+            "execution_mode": exec_mode,
+            "active_task": active_task,
+            "queue_length": 0,
+            "lock_owner": lock_owner,
+            "locked_at": locked_at,
+            "waiting_tasks": []
+        }
+        print(json.dumps(diagnostics, indent=2))
 
 def do_registry(args):
     import aiwf_registry
@@ -2758,6 +2758,7 @@ def main():
     _ = state_sub.add_parser("status")
     _ = state_sub.add_parser("recover")
     _ = state_sub.add_parser("validate")
+    _ = state_sub.add_parser("diagnose")
     
     args = parser.parse_args()
     

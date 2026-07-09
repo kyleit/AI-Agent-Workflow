@@ -89,7 +89,8 @@ def parse_transcript(log_file: str) -> dict:
         
         # Calculate cost based on detected provider/model
         if provider == "antigravity":
-            cost = (input_tokens * 1.25 / 1000000) + (output_tokens * 3.75 / 1000000)
+            uncached = max(0, input_tokens - cache_tokens)
+            cost = (uncached * 1.25 / 1000000) + (cache_tokens * 0.3125 / 1000000) + (output_tokens * 3.75 / 1000000)
         elif provider == "claude-code":
             cost = (input_tokens * 3.00 / 1000000) + (output_tokens * 15.00 / 1000000)
         elif provider == "openai":
@@ -145,21 +146,92 @@ def get_fallback_usage(session: dict, default_provider: str) -> dict:
         "updated_at": datetime.now().astimezone().isoformat()
     }
 
-def estimate_context_usage() -> dict:
-    session = load_session()
+def detect_active_conversation_id() -> str:
+    metadata_str = os.environ.get("ANTIGRAVITY_SOURCE_METADATA")
+    if metadata_str:
+        try:
+            metadata = json.loads(metadata_str)
+            if isinstance(metadata, dict):
+                tool_data = metadata.get("tool")
+                if isinstance(tool_data, dict):
+                    env_conv_id = tool_data.get("conversationId")
+                    if isinstance(env_conv_id, str) and env_conv_id:
+                        return env_conv_id
+        except Exception:
+            pass
+    return ""
+
+def sync_conversation_id(session: dict) -> bool:
+    active_id = detect_active_conversation_id()
+    if not active_id:
+        return False
+    old_id = session.get("conversation_id")
+    if old_id != active_id:
+        session["conversation_id"] = active_id
+        log_msg = f"Conversation changed: {old_id} -> {active_id}. Context usage recalculated."
+        if "current_logs" not in session or not isinstance(session["current_logs"], list):
+            session["current_logs"] = []
+        session["current_logs"].append(log_msg)
+        session["updated_at"] = datetime.now().astimezone().isoformat()
+        return True
+    return False
+
+def refresh_context_usage_for_active_conversation(session: dict) -> dict:
+    sync_conversation_id(session)
     conv_id = session.get("conversation_id")
+    if conv_id:
+        log_file = os.path.join(BRAIN_ROOT, conv_id, ".system_generated", "logs", "transcript.jsonl")
+        if not os.path.exists(log_file):
+            warn_msg = f"Warning: Transcript file not found for conversation {conv_id}. Falling back to zero context usage."
+            if "current_logs" not in session or not isinstance(session["current_logs"], list):
+                session["current_logs"] = []
+            if warn_msg not in session["current_logs"]:
+                session["current_logs"].append(warn_msg)
+    usage = estimate_context_usage(conv_id)
+    session["context_usage"] = {
+        "total_tokens": usage.get("active_tokens", 0),
+        "limit_tokens": usage.get("limit_tokens", 2000000),
+        "percentage": usage.get("percentage", 0.0)
+    }
+    return usage
+
+def estimate_context_usage(conversation_id: str = None) -> dict:
+    if conversation_id is None:
+        session = load_session()
+        conv_id = session.get("conversation_id")
+    else:
+        conv_id = conversation_id
     
     default_provider = "antigravity" if "ANTIGRAVITY_AGENT" in os.environ else "estimate"
     
     if not conv_id:
-        return get_fallback_usage(session, default_provider)
+        return get_fallback_usage({}, default_provider)
         
     log_file = os.path.join(BRAIN_ROOT, conv_id, ".system_generated", "logs", "transcript.jsonl")
+    if not os.path.exists(log_file):
+        # Case C: Missing transcript. Fall back to safe zero/unknown values.
+        return {
+            "provider": default_provider,
+            "model": "auto",
+            "input_tokens": 0,
+            "output_tokens": 0,
+            "cache_tokens": 0,
+            "thinking_tokens": 0,
+            "active_tokens": 0,
+            "total_tokens": 0,
+            "limit_tokens": LIMIT_TOKENS,
+            "percentage": 0.0,
+            "estimated_cost_usd": 0.0,
+            "accuracy": "unknown",
+            "updated_at": datetime.now().astimezone().isoformat()
+        }
+        
     parsed = parse_transcript(log_file)
     if parsed:
         return parsed
         
-    return get_fallback_usage(session, default_provider)
+    session_fallback = load_session() if conversation_id is None else {"conversation_id": conv_id}
+    return get_fallback_usage(session_fallback, default_provider)
 
 def sync_request_history(conversation_id: str, project_id: str, workspace_root: str = ".") -> None:
     if not conversation_id:
@@ -248,7 +320,8 @@ def sync_request_history(conversation_id: str, project_id: str, workspace_root: 
                     duration = max(2.5, min(60.0, output_tokens * 0.05 + 1.5))
                     
                     if provider == "antigravity":
-                        cost = (input_tokens * 1.25 / 1000000) + (output_tokens * 3.75 / 1000000)
+                        uncached = max(0, input_tokens - cache_tokens)
+                        cost = (uncached * 1.25 / 1000000) + (cache_tokens * 0.3125 / 1000000) + (output_tokens * 3.75 / 1000000)
                     elif provider == "claude-code":
                         cost = (input_tokens * 3.00 / 1000000) + (output_tokens * 15.00 / 1000000)
                     elif provider == "openai":

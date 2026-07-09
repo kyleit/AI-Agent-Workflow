@@ -83,13 +83,17 @@ def resume_session() -> dict:
     checkpoint = session.get("checkpoint", 1)
     current_skill = session.get("current_skill", "initialize-workflow")
     
+    # Sync active conversation and refresh context usage
+    from context import refresh_context_usage_for_active_conversation
+    refresh_context_usage_for_active_conversation(session)
+    
     # Perform a light drift check by checking git branch changes
     git_info = get_git_status()
     warnings = []
     if session.get("git_branch") != git_info["branch"]:
         warnings.append(f"Git branch changed from {session.get('git_branch')} to {git_info['branch']}")
         session["git_branch"] = git_info["branch"]
-        save_session_atomic(session)
+    save_session_atomic(session)
         
     # Check next recommended skill based on checkpoint
     next_skill_map = {

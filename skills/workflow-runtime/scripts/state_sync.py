@@ -123,10 +123,10 @@ def aggregate_state(workspace_root: str) -> dict[str, Any]:
         "context_usage": usage.get("context_usage", {}),
         "telemetry_config": runtime.get("telemetry_config", {}),
         "updated_at": runtime.get("updated_at") or datetime.now().astimezone().isoformat(),
-        "execution_mode": agents.get("execution_mode", "parallel"),
-        "recommended_mode": agents.get("recommended_mode", "parallel"),
+        "execution_mode": "sequential" if agents.get("execution_mode", "sequential") == "parallel" else agents.get("execution_mode", "sequential"),
+        "recommended_mode": "sequential" if agents.get("recommended_mode", "sequential") == "parallel" else agents.get("recommended_mode", "sequential"),
         "approved": agents.get("approved", True),
-        "parallel_groups": agents.get("parallel_groups", []),
+        "parallel_groups": [],
         "running_agents": agents.get("running_agents", []),
         "queued_agents": agents.get("queued_agents", []),
         "blocked_agents": agents.get("blocked_agents", []),
@@ -204,10 +204,10 @@ def deconstruct_state(workspace_root: str, session: dict[str, Any]) -> None:
     }
     
     agents = {
-        "execution_mode": session.get("execution_mode", "parallel"),
-        "recommended_mode": session.get("recommended_mode", "parallel"),
+        "execution_mode": "sequential" if session.get("execution_mode", "sequential") == "parallel" else session.get("execution_mode", "sequential"),
+        "recommended_mode": "sequential" if session.get("recommended_mode", "sequential") == "parallel" else session.get("recommended_mode", "sequential"),
         "approved": session.get("approved", True),
-        "parallel_groups": session.get("parallel_groups", []),
+        "parallel_groups": [],
         "running_agents": session.get("running_agents", []),
         "queued_agents": session.get("queued_agents", []),
         "blocked_agents": session.get("blocked_agents", []),
