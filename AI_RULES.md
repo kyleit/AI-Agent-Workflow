@@ -464,4 +464,9 @@ Whenever a Blueprint introduces a new AIWF Skill, it MUST generate the complete 
 
 No AIWF Skill may access knowledge providers (such as Markdown files, SQLite databases, Qdrant vector databases, or Obsidian local REST APIs) directly. All knowledge operations (including search, read, write, and index updates) must go through the Knowledge Runtime API unless explicitly approved as a compatibility adapter.
 
+*   **Machine-Level Global Provider Manager**:
+    *   Cấu hình thông số kết nối và mã khóa bí mật (`api_key`) toàn cục được lưu trữ tại `~/.aiwf/providers.json` (macOS/Linux) hoặc `%USERPROFILE%\.aiwf\providers.json` (Windows).
+    *   Cấm tuyệt đối lưu trữ hoặc commit mã khóa bảo mật (`api_key`) vào tệp cục bộ của dự án. Cấu hình dự án chỉ chứa các thuộc tính override cục bộ (ví dụ: tắt/bật provider hoặc thay đổi vault_path).
+    *   Giao tiếp dòng lệnh CLI của `provider` được tích hợp qua lệnh `aiwf provider` (`list`, `add`, `enable`, `disable`, `test`, `doctor`).
+
 

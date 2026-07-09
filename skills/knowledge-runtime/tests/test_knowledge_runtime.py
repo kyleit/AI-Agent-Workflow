@@ -6,7 +6,7 @@ import shutil
 # Add package directory to sys.path
 sys.path.insert(0, os.path.abspath(os.path.join(os.path.dirname(__file__), "..", "scripts")))
 
-from knowledge_runtime.api import KnowledgeAPI
+from knowledge_runtime import KnowledgeAPI, search, read, save, sync
 from knowledge_runtime.cache import CacheManager
 from knowledge_runtime.index import KnowledgeIndexer
 from knowledge_runtime.analyzer import QualityAnalyzer
@@ -69,6 +69,17 @@ class TestKnowledgeRuntime(unittest.TestCase):
         orphans = analyzer.find_orphan_notes(docs_map)
         self.assertIn("docs/note_a.md", orphans)
         self.assertNotIn("docs/note_b.md", orphans)
+
+    def test_public_exports(self):
+        # Verify functions are callable and correctly exported
+        self.assertTrue(callable(search))
+        self.assertTrue(callable(read))
+        self.assertTrue(callable(save))
+        self.assertTrue(callable(sync))
+        
+        # Test basic calling scaffolding
+        res = sync(provider="unsupported")
+        self.assertEqual(res["status"], "failure")
 
 if __name__ == "__main__":
     unittest.main()

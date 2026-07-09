@@ -40,16 +40,29 @@ class KnowledgeAPI:
                 warnings.warn(f"Failed to read config: {e}. Using defaults.")
 
     def _init_provider(self):
+        from . import provider_manager
+        all_cfgs = provider_manager.resolve_all_providers(self.workspace_root).get("providers", {})
+        
         if self.active_provider_name == "sqlite":
-            prov = SQLiteProvider(workspace_root=self.workspace_root)
+            sql_cfg = all_cfgs.get("sqlite", {})
+            db_path = sql_cfg.get("db_path", ".agents/state/knowledge.db")
+            prov = SQLiteProvider(db_path=db_path, workspace_root=self.workspace_root)
             if prov.is_available():
                 return prov
         elif self.active_provider_name == "vector_db":
-            prov = VectorDBProvider()
+            vec_cfg = all_cfgs.get("qdrant", {})
+            host = vec_cfg.get("host", "127.0.0.1")
+            port = vec_cfg.get("port", 6333)
+            coll = vec_cfg.get("collection", "knowledge")
+            prov = VectorDBProvider(host=host, port=port, collection_name=coll)
             if prov.is_available():
                 return prov
         elif self.active_provider_name == "obsidian":
-            prov = ObsidianProvider()
+            obs_cfg = all_cfgs.get("obsidian", {})
+            host = obs_cfg.get("host", "127.0.0.1")
+            port = obs_cfg.get("port", 27124)
+            token = obs_cfg.get("api_key", "")
+            prov = ObsidianProvider(port=port, token=token)
             if prov.is_available():
                 return prov
         
@@ -91,6 +104,12 @@ class KnowledgeAPI:
         # Write to local markdown store
         return self.markdown_provider.save(path, content)
 
+    def sync(self, provider: str = "obsidian") -> dict:
+        if provider == "obsidian":
+            from . import provider_manager
+            return provider_manager.sync_obsidian(self.workspace_root)
+        return {"status": "failure", "message": f"Sync not supported for provider '{provider}'"}
+
 
 # Global helper functions for quick access
 _api_instance = None
@@ -109,3 +128,6 @@ def read(path: str) -> str:
 
 def save(path: str, content: str) -> bool:
     return _get_api().save(path, content)
+
+def sync(provider: str = "obsidian") -> dict:
+    return _get_api().sync(provider)

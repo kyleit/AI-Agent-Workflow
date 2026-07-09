@@ -8,7 +8,7 @@ tags:
   - fix
   - hotfix
   - quick
-version: 3.1.0
+version: 3.2.0
 author:
   name: Kyle Dang
   email: kyleit@klexpress.net
@@ -16,8 +16,8 @@ author:
 license: MIT
 repository: https://gitlab.com/hngan.it/ai-workflow-skills
 created_at: 2026-07-03
-updated_at: 2026-07-06
-description: Enforces a three-stage workflow (Specification, Blueprint, and Implementation) for quick fixes.
+updated_at: 2026-07-09
+description: Enforces a three-stage workflow (Specification, Blueprint, and Implementation) for quick fixes, upgraded with v3.2 Mini Spec quality standards and rich planning sections.
 ---
 
 # Skill: quick-fix (Three-Phase Workflow with Blueprint-Driven Execution)
@@ -176,12 +176,155 @@ issue_id: FIX-XXX
 workflow: quick-fix
 status: pending
 ---
-# Fix Specification – [Issue Name]
+# Mini Plan & Fix Specification – [Issue Name]
+
 ## 1. Issue Description
 [Detailed description of the issue]
+
 ## 2. Scope
 - **In Scope**: [Minimal change description]
 - **Out of Scope**: [What will NOT be changed]
+
+## 3. Quick Fix Justification
+Giải thích lý do tác vụ đủ điều kiện vá lỗi nhanh thay vì chu trình SDLC đầy đủ:
+- **Estimated Complexity**: [Low / Medium]
+- **Implementation Scope**: [Single module or local change]
+- **Architectural Impact**: [Low / Purely additive]
+- **Risk Level**: [Low / Medium]
+- **Justification**: [Explain why this qualifies]
+
+## 4. Trigger / Execution Flow
+- **Entry Point**: [Where execution starts, e.g., runtime CLI command or hook]
+- **Trigger Source**: [E.g., User explicit CLI call, Git hook, runtime lifecycle event]
+- **Execution Order**: [Logical order of invocation]
+- **Completion Condition**: [What marks execution completion]
+
+## 5. Runtime Sequence
+[Sequence diagram or runtime ordering steps of the logic flow]
+Example:
+Memory Update
+↓
+Indexes
+↓
+SQLite
+↓
+Vector Sync
+↓
+External Sync
+↓
+Complete
+
+## 6. Dependency Contract
+- **Required Dependencies**: [Libraries, modules, or services required]
+- **Optional Dependencies**: [Optional configurations or third-party integrations]
+- **External Runtime**: [External APIs, executables, or services]
+- **Expected Contracts**: [API response schemas, command output formats, or DB schemas]
+- **Detection Method**: [How availability is checked at runtime]
+- **Failure Behavior**: [Action taken when dependencies are unavailable]
+
+## 7. Error Matrix
+| Condition | Expected Behavior | User Visibility | Recovery Action |
+|---|---|---|---|
+| Dependency Missing | Skip operation with warn log | Log outputted to terminal | Proceed without optional step |
+| Timeout | Raise error / fallback | Show retry message | Auto-retry or abort after timeout |
+| Configuration Disabled | Skip operation silently | No output / Info log | Proceed |
+| Invalid State | Abort execution | Direct error warning | Exit with code 1 |
+| Partial Failure | Continue other steps | Highlight failed step | Log error to sync map |
+| Retry Exhausted | Halt execution | Exit code with traceback | Log critical failure |
+
+## 8. Non-functional Requirements
+- **Performance Expectations**: [Execution speed, memory threshold]
+- **Blocking vs Asynchronous**: [Whether operation blocks CLI execution or runs in background]
+- **Timeouts**: [Maximum execution duration before timeout]
+- **Retry Policy**: [Number of retries and backoff delays]
+- **Resource Usage**: [CPU/Memory bounds, temporary disk storage]
+- **Thread Safety**: [Concurrency constraints, file locks]
+- **Idempotency**: [Idempotent behavior: executing multiple times yields identical state]
+- **User Interaction**: [Sandbox prompts, choice protocols, or no-interaction modes]
+
+## 9. Logging Requirements
+- **Start**: [Log output at start, e.g., INFO log]
+- **Progress**: [Step status messages]
+- **Warning**: [Log on non-critical errors or fallbacks]
+- **Skipped**: [Log when configuration/feature is disabled]
+- **Success**: [Success confirmation messages]
+- **Failure**: [Error log with traceback/reason]
+- **Completion**: [End of phase execution summary log]
+
+## 10. Configuration Impact
+- **Existing Configs Reused**: [Properties reused from memory.config.json or session]
+- **New Configs Required**: [New properties introduced]
+- **Migration Required**: [Whether configuration format needs to be upgraded]
+- **Default Behavior**: [Default values when properties are missing]
+- **Backward Compatibility**: [Compatibility with older config formats]
+
+## 11. Design Constraints
+- **CLI/API Constraints**: No new CLI commands, no API modifications unless approved.
+- **Database Constraints**: No database schema changes, no data restructuring.
+- **Architectural Constraints**: Reuse existing runtime package, no duplicate logic, no architectural redesign.
+
+## 12. Blast Radius
+Xác định các thành phần bị ảnh hưởng và đánh giá mức độ tác động:
+- **Affected Skills**: [None / List affected skills]
+- **Affected Runtime**: [None / List affected areas]
+- **Affected Extension**: [None / List affected areas]
+- **Affected Memory**: [None / List affected areas]
+- **Affected Documentation**: [None / List affected areas]
+- **Affected Scripts**: [None / List affected areas]
+- **Impact Level**: [Low | Medium | High]
+
+## 13. File Change Scope
+Biên giới tác động mã nguồn thực tế:
+- **Modify**:
+  - `relative/path/to/file`
+- **Create**:
+  - `relative/path/to/file`
+- **Optional**:
+  - [...]
+- **Do Not Modify**:
+  - [...]
+
+## 14. Success Metrics
+Các chỉ số đo lường hiệu quả thành công:
+- **Regression free**: [Yes / No]
+- **Backward compatible**: [Yes / No]
+- **Token reduction**: [... %] (if applicable)
+- **Latency improvement**: [... ms] (if applicable)
+- **Implementation completeness**: [... %]
+
+## 15. Rollback Strategy
+- **Files Affected**: [List files modified or created]
+- **Safe Rollback Steps**: [Manual/Automated rollback steps, e.g., git checkout / git clean]
+- **Migration Rollback**: [How to revert database/config migration if any]
+- **Behavior After Rollback**: [System health checks to verify state after rollback]
+
+## 16. Expanded Acceptance Criteria
+- [ ] AC-01 (Success Path): [Criteria for correct behavior in normal conditions]
+- [ ] AC-02 (Failure Path): [Criteria for correct behavior under error conditions]
+- [ ] AC-03 (Skipped Path): [Criteria for correct behavior when feature is disabled]
+- [ ] AC-04 (Backward Compatibility): [Criteria validating older workflows continue working]
+- [ ] AC-05 (Regression): [No unexpected changes inside external dependencies/modules]
+- [ ] AC-06 (No duplicate execution): [Idempotency checks: executing twice doesn't duplicate actions]
+- [ ] AC-07 (No behavior change outside scope): [No regression in core runtime actions]
+
+## 17. Self Verification
+Xác minh tự động bắt buộc sau triển khai:
+- [ ] So sánh Trước vs Sau (Before vs After comparison).
+- [ ] Kiểm thử không hồi quy (Regression testing).
+- [ ] Xác thực tương thích hạ nguồn (Downstream workflow validation).
+- [ ] Xác minh tương thích ngược (Compatibility verification).
+
+## 18. Open Questions
+[List any open questions or design decisions to resolve with the user]
+
+## 19. Blueprint Handoff
+Bản thiết kế kỹ thuật (Technical Design Blueprint) ở Phase 2 bắt buộc phải quyết định và làm rõ:
+- Điểm tích hợp mã nguồn (Integration point)
+- Trách nhiệm của các lớp và module (Class/Module responsibilities)
+- Giao diện và cơ chế tiêm phụ thuộc (Interfaces & dependency injection)
+- Triển khai cụ thể cơ chế xử lý lỗi và ghi log (Error handling & logging implementation details)
+- Chiến lược kiểm thử tự động chi tiết (Testing strategy)
+```
 ```
 
 ---

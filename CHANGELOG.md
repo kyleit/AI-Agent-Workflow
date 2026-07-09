@@ -5,6 +5,22 @@ All notable changes to this project will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [6.5.2] - 2026-07-09
+
+### Added
+- **QUICK-028: Add Provider and Sync Commands to Wrapper CLI**:
+  - Bổ sung lệnh con `provider` và `sync` trực tiếp vào wrapper `aiwf` (Bash & PowerShell) để gọi nhanh các tác vụ quản lý tri thức.
+  - Hỗ trợ lệnh viết tắt tiện lợi `aiwf sync <provider_name>` để đồng bộ hóa nhanh sang Obsidian.
+
+## [6.5.1] - 2026-07-09
+
+### Added
+- **QUICK-028: Upgrade Quick Feature & Quick Fix into Blueprint-Ready Mini Plans**:
+  - Làm giàu các mẫu tài liệu đặc tả ở Phase 1 của `quick-feature` và `quick-fix` thành các bản **Mini Plan** hoàn chỉnh chứa đầy đủ 19 mục thông tin hoạt động, ràng buộc kiến trúc, kiểm tra phụ thuộc và ma trận xử lý lỗi.
+- **FIX-024: Missing Obsidian Folder Mappings**:
+  - Bổ sung cấu hình mặc định trong `provider_manager.py` và `.agents/memory.config.json` để đồng bộ hóa đầy đủ 11 thư mục tri thức dưới `docs/` sang Obsidian.
+  - Phân loại tri thức chính xác theo bản chất: QUICK specs ➔ `Brainstorming`, FIX specs ➔ `Plans`, các tài liệu chuyên biệt khác ➔ `Prompts`, `Verification`, `Debug`, `Archive`.
+
 ## [6.5.0] - 2026-07-09
 
 ### Added

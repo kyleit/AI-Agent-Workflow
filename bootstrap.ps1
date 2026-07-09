@@ -49,6 +49,8 @@ function Show-Help {
     Write-Host "  memory       Manage project memory (bootstrap, update, search)"
     Write-Host "  blueprint    Register or approve design blueprints"
     Write-Host "  registry     Manage centralized global project registry"
+    Write-Host "  provider     Manage external knowledge providers (sync, list, config)"
+    Write-Host "  sync         Sync project memory/documentation to external providers (e.g. Obsidian)"
     Write-Host "  help         Show this help message"
 }
 
@@ -81,6 +83,12 @@ switch (`$Command) {
     }
     "registry" {
         python (Join-Path `$FrameworkRoot "skills/workflow-runtime/scripts/workflow_runtime.py") registry @args
+    }
+    "provider" {
+        python (Join-Path `$FrameworkRoot "skills/workflow-runtime/scripts/workflow_runtime.py") provider @args
+    }
+    "sync" {
+        python (Join-Path `$FrameworkRoot "skills/workflow-runtime/scripts/workflow_runtime.py") provider sync @args
     }
     "help" {
         Show-Help

@@ -48,6 +48,8 @@ show_help() {
     echo "  memory       Manage project memory (bootstrap, update, search)"
     echo "  blueprint    Register or approve design blueprints"
     echo "  registry     Manage centralized global project registry"
+    echo "  provider     Manage external knowledge providers (sync, list, config)"
+    echo "  sync         Sync project memory/documentation to external providers (e.g. Obsidian)"
     echo "  help         Show this help message"
 }
 
@@ -83,6 +85,12 @@ case "$COMMAND" in
         ;;
     registry)
         python3 "$FRAMEWORK_ROOT/skills/workflow-runtime/scripts/workflow_runtime.py" registry "$@"
+        ;;
+    provider)
+        python3 "$FRAMEWORK_ROOT/skills/workflow-runtime/scripts/workflow_runtime.py" provider "$@"
+        ;;
+    sync)
+        python3 "$FRAMEWORK_ROOT/skills/workflow-runtime/scripts/workflow_runtime.py" provider sync "$@"
         ;;
     help|-h|--help)
         show_help

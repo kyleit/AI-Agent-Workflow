@@ -2415,6 +2415,327 @@ def do_state_action(args):
         }
         print(json.dumps(diagnostics, indent=2))
 
+def do_provider_action(args):
+    import sys
+    package_dir = os.path.abspath(os.path.join(os.path.dirname(__file__), "..", "..", "knowledge-runtime", "scripts"))
+    if package_dir not in sys.path:
+        sys.path.insert(0, package_dir)
+    from knowledge_runtime import provider_manager
+
+    project_root = "." if getattr(args, "project", False) else None
+
+    if args.subaction == "path":
+        print(provider_manager.get_global_config_path())
+        return
+
+    elif args.subaction == "list":
+        if getattr(args, "project", False):
+            res = provider_manager.list_providers(project_root=".")
+        else:
+            res = provider_manager.mask_secrets(provider_manager.load_global_config().get("providers", {}))
+        print(json.dumps(res, indent=2))
+        return
+
+    elif args.subaction == "add":
+        name = args.name
+        if name == "obsidian":
+            vault_root = input("Enter vault_root [/Volumes/Kyle/Knowledge]: ").strip() or "/Volumes/Kyle/Knowledge"
+            pattern = input("Enter project_folder_pattern [AIWF-Knowledge-{project_slug}]: ").strip() or "AIWF-Knowledge-{project_slug}"
+            mode = input("Enter mode (file-sync | rest | readonly | bidirectional) [file-sync]: ").strip() or "file-sync"
+            create_if_missing_in = input("Create if missing? (y/n) [y]: ").strip().lower() or "y"
+            create_if_missing = (create_if_missing_in == "y")
+            sync_structure_in = input("Sync structure? (y/n) [y]: ").strip().lower() or "y"
+            sync_structure = (sync_structure_in == "y")
+            
+            host = "127.0.0.1"
+            port = 27124
+            api_key = ""
+            if mode in ["rest", "bidirectional"]:
+                host = input("Enter host [127.0.0.1]: ").strip() or "127.0.0.1"
+                port_in = input("Enter port [27124]: ").strip() or "27124"
+                port = int(port_in) if port_in.isdigit() else 27124
+                import getpass
+                api_key = getpass.getpass("Enter API Key or environment variable name: ").strip()
+
+            prov_cfg = {
+                "enabled": True,
+                "mode": mode,
+                "vault_root": vault_root,
+                "project_folder_pattern": pattern,
+                "create_if_missing": create_if_missing,
+                "sync_structure": sync_structure,
+                "host": host,
+                "port": port,
+                "api_key": api_key
+            }
+        else:
+            mode = input("Enter mode (file-sync | rest | readonly | bidirectional) [file-sync]: ").strip() or "file-sync"
+            host = input("Enter host [127.0.0.1]: ").strip() or "127.0.0.1"
+            port_in = input("Enter port [27124]: ").strip() or "27124"
+            port = int(port_in) if port_in.isdigit() else 27124
+            
+            import getpass
+            api_key = getpass.getpass("Enter API Key or environment variable name: ").strip()
+            vault_path = input("Enter vault path: ").strip()
+
+            prov_cfg = {
+                "enabled": True,
+                "mode": mode,
+                "host": host,
+                "port": port,
+                "api_key": api_key,
+                "vault_path": vault_path
+            }
+        
+        if getattr(args, "project", False):
+            proj_cfg = provider_manager.load_project_config(".")
+            if "providers" not in proj_cfg:
+                proj_cfg["providers"] = {}
+            proj_cfg["providers"][name] = prov_cfg
+            proj_cfg_path = os.path.join(".", ".agents", "memory.config.json")
+            os.makedirs(os.path.dirname(proj_cfg_path), exist_ok=True)
+            with open(proj_cfg_path, "w", encoding="utf-8") as f:
+                json.dump(proj_cfg, f, indent=2)
+            print(f"Added provider {name} to project configuration successfully.")
+        else:
+            global_cfg = provider_manager.load_global_config()
+            if "providers" not in global_cfg:
+                global_cfg["providers"] = {}
+            global_cfg["providers"][name] = prov_cfg
+            provider_manager.save_global_config(global_cfg)
+            print(f"Added provider {name} to global configuration successfully.")
+        return
+
+    elif args.subaction == "edit":
+        name = args.name
+        if getattr(args, "project", False):
+            existing = provider_manager.load_project_config(".").get("providers", {}).get(name, {})
+        else:
+            existing = provider_manager.load_global_config().get("providers", {}).get(name, {})
+
+        print(f"Editing provider {name} (leave empty to keep current value):")
+        if name == "obsidian":
+            vault_root = input(f"Enter vault_root ({existing.get('vault_root', '')}): ").strip() or existing.get('vault_root', '')
+            pattern = input(f"Enter project_folder_pattern ({existing.get('project_folder_pattern', 'AIWF-Knowledge-{project_slug}')}): ").strip() or existing.get('project_folder_pattern', 'AIWF-Knowledge-{project_slug}')
+            mode = input(f"Enter mode ({existing.get('mode', 'file-sync')}): ").strip() or existing.get('mode', 'file-sync')
+            
+            create_if_missing_str = "y" if existing.get("create_if_missing", True) else "n"
+            create_if_missing_in = input(f"Create if missing? (y/n) [{create_if_missing_str}]: ").strip().lower() or create_if_missing_str
+            create_if_missing = (create_if_missing_in == "y")
+            
+            sync_structure_str = "y" if existing.get("sync_structure", True) else "n"
+            sync_structure_in = input(f"Sync structure? (y/n) [{sync_structure_str}]: ").strip().lower() or sync_structure_str
+            sync_structure = (sync_structure_in == "y")
+            
+            host = existing.get("host", "127.0.0.1")
+            port = existing.get("port", 27124)
+            api_key = existing.get("api_key", "")
+            if mode in ["rest", "bidirectional"]:
+                host = input(f"Enter host ({existing.get('host', '127.0.0.1')}): ").strip() or existing.get('host', '127.0.0.1')
+                port_in = input(f"Enter port ({existing.get('port', 27124)}): ").strip()
+                port = int(port_in) if port_in.isdigit() else existing.get('port', 27124)
+                import getpass
+                api_key = getpass.getpass("Enter API Key or environment variable name (masked): ").strip() or existing.get('api_key', '')
+
+            prov_cfg = {
+                "enabled": existing.get("enabled", True),
+                "mode": mode,
+                "vault_root": vault_root,
+                "project_folder_pattern": pattern,
+                "create_if_missing": create_if_missing,
+                "sync_structure": sync_structure,
+                "host": host,
+                "port": port,
+                "api_key": api_key
+            }
+        else:
+            mode = input(f"Enter mode ({existing.get('mode', 'file-sync')}): ").strip() or existing.get('mode', 'file-sync')
+            host = input(f"Enter host ({existing.get('host', '127.0.0.1')}): ").strip() or existing.get('host', '127.0.0.1')
+            port_in = input(f"Enter port ({existing.get('port', 27124)}): ").strip()
+            port = int(port_in) if port_in.isdigit() else existing.get('port', 27124)
+            
+            import getpass
+            api_key = getpass.getpass("Enter API Key or environment variable name (masked): ").strip() or existing.get('api_key', '')
+            vault_path = input(f"Enter vault path ({existing.get('vault_path', '')}): ").strip() or existing.get('vault_path', '')
+
+            prov_cfg = {
+                "enabled": existing.get("enabled", True),
+                "mode": mode,
+                "host": host,
+                "port": port,
+                "api_key": api_key,
+                "vault_path": vault_path
+            }
+        
+        if getattr(args, "project", False):
+            proj_cfg = provider_manager.load_project_config(".")
+            if "providers" not in proj_cfg:
+                proj_cfg["providers"] = {}
+            proj_cfg["providers"][name] = prov_cfg
+            proj_cfg_path = os.path.join(".", ".agents", "memory.config.json")
+            with open(proj_cfg_path, "w", encoding="utf-8") as f:
+                json.dump(proj_cfg, f, indent=2)
+            print(f"Edited provider {name} in project configuration successfully.")
+        else:
+            global_cfg = provider_manager.load_global_config()
+            if "providers" not in global_cfg:
+                global_cfg["providers"] = {}
+            global_cfg["providers"][name] = prov_cfg
+            provider_manager.save_global_config(global_cfg)
+            print(f"Edited provider {name} in global configuration successfully.")
+        return
+
+    elif args.subaction == "remove":
+        name = args.name
+        if getattr(args, "project", False):
+            proj_cfg = provider_manager.load_project_config(".")
+            if "providers" in proj_cfg and name in proj_cfg["providers"]:
+                del proj_cfg["providers"][name]
+                proj_cfg_path = os.path.join(".", ".agents", "memory.config.json")
+                with open(proj_cfg_path, "w", encoding="utf-8") as f:
+                    json.dump(proj_cfg, f, indent=2)
+                print(f"Removed provider {name} from project configuration successfully.")
+        else:
+            global_cfg = provider_manager.load_global_config()
+            if "providers" in global_cfg and name in global_cfg["providers"]:
+                del global_cfg["providers"][name]
+                provider_manager.save_global_config(global_cfg)
+                print(f"Removed provider {name} from global configuration successfully.")
+        return
+
+    elif args.subaction == "enable":
+        name = args.name
+        if getattr(args, "project", False):
+            proj_cfg = provider_manager.load_project_config(".")
+            if "providers" not in proj_cfg:
+                proj_cfg["providers"] = {}
+            if name not in proj_cfg["providers"]:
+                proj_cfg["providers"][name] = {}
+            proj_cfg["providers"][name]["enabled"] = True
+            proj_cfg_path = os.path.join(".", ".agents", "memory.config.json")
+            with open(proj_cfg_path, "w", encoding="utf-8") as f:
+                json.dump(proj_cfg, f, indent=2)
+            print(f"Enabled provider {name} in project configuration.")
+        else:
+            provider_manager.enable_provider(name)
+            print(f"Enabled provider {name} in global configuration.")
+        return
+
+    elif args.subaction == "disable":
+        name = args.name
+        if getattr(args, "project", False):
+            proj_cfg = provider_manager.load_project_config(".")
+            if "providers" not in proj_cfg:
+                proj_cfg["providers"] = {}
+            if name not in proj_cfg["providers"]:
+                proj_cfg["providers"][name] = {}
+            proj_cfg["providers"][name]["enabled"] = False
+            proj_cfg_path = os.path.join(".", ".agents", "memory.config.json")
+            with open(proj_cfg_path, "w", encoding="utf-8") as f:
+                json.dump(proj_cfg, f, indent=2)
+            print(f"Disabled provider {name} in project configuration.")
+        else:
+            provider_manager.disable_provider(name)
+            print(f"Disabled provider {name} in global configuration.")
+        return
+
+    elif args.subaction == "test":
+        name = args.name
+        res = provider_manager.test_provider(name, project_root="." if getattr(args, "project", False) else None)
+        print(json.dumps(res, indent=2))
+        return
+
+    elif args.subaction == "resolve":
+        name = args.name
+        if name == "obsidian":
+            path = provider_manager.get_global_config_path()
+            try:
+                resolved_folder = provider_manager.resolve_obsidian_project_folder(project_root=".")
+                exists = os.path.exists(resolved_folder)
+                obs_cfg = provider_manager.resolve_provider_config("obsidian", ".")
+                masked = provider_manager.mask_secrets(obs_cfg)
+                
+                project_slug = ""
+                map_path = os.path.join(".", ".agents", "knowledge", "obsidian-project-map.json")
+                if os.path.exists(map_path):
+                    try:
+                        with open(map_path, "r", encoding="utf-8") as f:
+                            project_slug = json.load(f).get("project_slug", "")
+                    except Exception:
+                        pass
+                
+                res = {
+                    "global_config_path": path,
+                    "vault_root": obs_cfg.get("vault_root") or obs_cfg.get("vault_path"),
+                    "project_slug": project_slug,
+                    "resolved_path": resolved_folder,
+                    "exists": exists,
+                    "sync_mode": obs_cfg.get("mode", "file-sync"),
+                    "provider_config": masked
+                }
+                print(json.dumps(res, indent=2))
+            except Exception as e:
+                print(json.dumps({"status": "failure", "message": str(e)}, indent=2))
+        return
+
+    elif args.subaction == "sync":
+        name = args.name
+        if name == "obsidian":
+            res = provider_manager.sync_obsidian(project_root=".")
+            print(json.dumps(res, indent=2))
+        return
+
+    elif args.subaction == "doctor":
+        name = getattr(args, "name", None)
+        path = provider_manager.get_global_config_path()
+        if name == "obsidian":
+            print("Running security and configuration check for Obsidian...")
+            if not os.path.exists(path):
+                print(f"Global configuration file does not exist at {path}.")
+                return
+            try:
+                resolved = provider_manager.resolve_obsidian_project_folder(project_root=".")
+                print(f"[OK] Resolved Obsidian project path: {resolved}")
+                if os.path.exists(resolved):
+                    print(f"[OK] Resolved path exists.")
+                else:
+                    print(f"[WARNING] Resolved path does not exist on disk.")
+                
+                obs_cfg = provider_manager.resolve_provider_config("obsidian", ".")
+                vault_root = obs_cfg.get("vault_root") or obs_cfg.get("vault_path")
+                if vault_root:
+                    vault_root_abs = os.path.abspath(os.path.expanduser(vault_root))
+                    common = os.path.commonpath([vault_root_abs, resolved])
+                    if common != vault_root_abs:
+                        print(f"[ERROR] Security Violation: Path traversal check failed. Resolved path is outside vault_root.")
+                    else:
+                        print(f"[OK] Security check passed: Resolved path is inside vault_root.")
+                else:
+                    print(f"[ERROR] vault_root is not configured.")
+            except Exception as e:
+                print(f"[ERROR] Obsidian doctor check failed: {e}")
+            return
+            
+        if not os.path.exists(path):
+            print(f"Global configuration file does not exist at {path}.")
+            return
+        
+        import stat
+        try:
+            st = os.stat(path)
+            mode = st.st_mode
+            if os.name != 'nt':
+                group_other = mode & (stat.S_IRWXG | stat.S_IRWXO)
+                if group_other != 0:
+                    print(f"[WARNING] Global config permissions at {path} are too broad: {oct(mode & 0o777)}. Recommended: 600.")
+                else:
+                    print(f"[OK] Global config permissions at {path} are secure: {oct(mode & 0o777)}.")
+            else:
+                print(f"[OK] Windows environment detected, file permissions handled by OS.")
+        except Exception as e:
+            print(f"[ERROR] Failed to read permissions: {e}")
+        return
+
 def do_registry(args):
     import aiwf_registry
     if args.subaction == "register":
@@ -2760,6 +3081,47 @@ def main():
     _ = state_sub.add_parser("validate")
     _ = state_sub.add_parser("diagnose")
     
+    provider_p = subparsers.add_parser("provider")
+    provider_sub = provider_p.add_subparsers(dest="subaction", required=True)
+    
+    pl = provider_sub.add_parser("list")
+    _ = pl.add_argument("--project", action="store_true", help="Operate on project overrides")
+    
+    pa = provider_sub.add_parser("add")
+    _ = pa.add_argument("name", type=str)
+    _ = pa.add_argument("--project", action="store_true")
+    
+    pe = provider_sub.add_parser("edit")
+    _ = pe.add_argument("name", type=str)
+    _ = pe.add_argument("--project", action="store_true")
+    
+    pr = provider_sub.add_parser("remove")
+    _ = pr.add_argument("name", type=str)
+    _ = pr.add_argument("--project", action="store_true")
+    
+    pen = provider_sub.add_parser("enable")
+    _ = pen.add_argument("name", type=str)
+    _ = pen.add_argument("--project", action="store_true")
+    
+    pdi = provider_sub.add_parser("disable")
+    _ = pdi.add_argument("name", type=str)
+    _ = pdi.add_argument("--project", action="store_true")
+    
+    pt = provider_sub.add_parser("test")
+    _ = pt.add_argument("name", type=str)
+    _ = pt.add_argument("--project", action="store_true")
+    
+    pdoc = provider_sub.add_parser("doctor")
+    _ = pdoc.add_argument("name", type=str, nargs="?", default=None)
+    
+    _ = provider_sub.add_parser("path")
+    
+    p_res = provider_sub.add_parser("resolve")
+    _ = p_res.add_argument("name", type=str)
+    
+    p_sync = provider_sub.add_parser("sync")
+    _ = p_sync.add_argument("name", type=str)
+    
     args = parser.parse_args()
     
     cmds = {
@@ -2798,10 +3160,11 @@ def main():
         "rules": do_rules_action,
         "state": do_state_action,
         "registry": do_registry,
-        "update": do_update
+        "update": do_update,
+        "provider": do_provider_action
     }
     
-    modifying_actions = ["init", "start", "step", "complete", "fail", "blueprint", "suggest", "compact", "task", "execution", "analysis-agent", "choice", "active-workflow", "resume", "discover", "classify", "memory", "env", "debug", "verify", "release", "state"]
+    modifying_actions = ["init", "start", "step", "complete", "fail", "blueprint", "suggest", "compact", "task", "execution", "analysis-agent", "choice", "active-workflow", "resume", "discover", "classify", "memory", "env", "debug", "verify", "release", "state", "provider"]
     if args.action in modifying_actions:
         with SessionLock():
             cmds[args.action](args)

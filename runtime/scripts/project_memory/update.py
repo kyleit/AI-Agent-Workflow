@@ -208,6 +208,27 @@ def run_update(force_full: bool = False) -> dict:
             "layers_generated": ["lessons", "rag"]
         })
         
+        # 8. Tự động đồng bộ sang Obsidian qua knowledge-runtime
+        try:
+            try:
+                import knowledge_runtime
+            except ImportError:
+                import sys
+                framework_root = os.path.dirname(os.path.dirname(os.path.dirname(os.path.dirname(os.path.abspath(__file__)))))
+                kr_scripts = os.path.join(framework_root, "skills", "knowledge-runtime", "scripts")
+                if kr_scripts not in sys.path:
+                    sys.path.append(kr_scripts)
+                import knowledge_runtime
+            
+            # Kích hoạt đồng bộ Obsidian
+            sync_res = knowledge_runtime.sync("obsidian")
+            if sync_res.get("status") == "success":
+                log_success("Obsidian sync completed automatically after memory update.")
+            else:
+                log_warn(f"Obsidian auto-sync returned status: {sync_res.get('message')}")
+        except Exception as e:
+            log_warn(f"Auto-sync Obsidian skipped: {e}")
+            
         session_complete(
             checkpoint=2,
             step="Step Complete",

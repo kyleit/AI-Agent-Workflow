@@ -1,7 +1,7 @@
 # bootstrap.py
 import os
 import json
-from common import log_info, log_success, log_error, session_start, session_step, session_complete, session_fail
+from common import log_info, log_success, log_warn, log_error, session_start, session_step, session_complete, session_fail
 from config import load_memory_config, get_memory_paths
 from scanner import ProjectScanner
 from analyzer import ProjectAnalyzer
@@ -86,6 +86,27 @@ def run_bootstrap() -> dict:
             "layers_generated": ["summary", "architecture", "lessons", "indexes"]
         })
         
+        # 8. Tự động đồng bộ sang Obsidian qua knowledge-runtime
+        try:
+            try:
+                import knowledge_runtime
+            except ImportError:
+                import sys
+                framework_root = os.path.dirname(os.path.dirname(os.path.dirname(os.path.dirname(os.path.abspath(__file__)))))
+                kr_scripts = os.path.join(framework_root, "skills", "knowledge-runtime", "scripts")
+                if kr_scripts not in sys.path:
+                    sys.path.append(kr_scripts)
+                import knowledge_runtime
+            
+            # Kích hoạt đồng bộ Obsidian
+            sync_res = knowledge_runtime.sync("obsidian")
+            if sync_res.get("status") == "success":
+                log_success("Obsidian sync completed automatically after memory bootstrap.")
+            else:
+                log_warn(f"Obsidian auto-sync returned status: {sync_res.get('message')}")
+        except Exception as e:
+            log_warn(f"Auto-sync Obsidian skipped: {e}")
+            
         session_complete(
             checkpoint=1,
             step="Initialization Complete",

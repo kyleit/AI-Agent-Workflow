@@ -52,3 +52,4 @@ After the script CLI execution succeeds:
 - DO NOT write any files directly from the LLM.
 - Let the Python script handle all deterministic steps, including updating the session file.
 - Present the returned JSON as a clean summary.
+- **Provider & Connection Rules**: The script must delegate all credentials and connection settings resolving to `knowledge-runtime` and `provider_manager`. It must not manage or read provider credentials directly.
