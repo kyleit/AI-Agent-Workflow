@@ -53,6 +53,12 @@
                     Trình Giả Lập SDLC
                 </button>
             </li>
+            <li class="menu-item">
+                <button data-tab="obsidian">
+                    <svg viewBox="0 0 24 24"><path d="M12 2L2 22h20L12 2zm0 3.99L18.8 19H5.2L12 5.99z"/></svg>
+                    Đồng bộ Obsidian
+                </button>
+            </li>
         </ul>
 
         <div class="sidebar-footer">
@@ -518,6 +524,63 @@
                     </div>
                     <div id="terminalBody" class="terminal-body">
                         <!-- Sẽ được cập nhật động bằng app.js -->
+                    </div>
+                </div>
+            </div>
+        </section>
+
+        <!-- TAB 6: ĐỒNG BỘ OBSIDIAN -->
+        <section id="obsidian" class="tab-content">
+            <div class="runtime-section">
+                <h2>1. Thiết lập Vault &amp; Plugin trên Obsidian</h2>
+                <div class="runtime-card-grid">
+                    <div class="runtime-card">
+                        <h3>Bước 1: Tạo Obsidian Vault</h3>
+                        <p>Mở Obsidian, chọn <strong>Create new vault</strong>, đặt tên (ví dụ <code>AIWF-Knowledge</code>) và lưu vào thư mục mong muốn (ví dụ <code>/Volumes/Kyle/Knowledge</code>).</p>
+                    </div>
+                    <div class="runtime-card">
+                        <h3>Bước 2: Cài đặt Local REST API (Chỉ khi dùng REST mode)</h3>
+                        <p>Vào Cài đặt ➔ Community Plugins ➔ Browse ➔ Cài đặt &amp; Kích hoạt plugin <strong>Local REST API</strong>. Sao chép chuỗi <strong>API Key</strong> được hiển thị.</p>
+                    </div>
+                </div>
+            </div>
+
+            <div class="runtime-section">
+                <h2>2. Khởi tạo &amp; Cấu hình Dự án mới</h2>
+                <div class="runtime-card-grid">
+                    <div class="runtime-card">
+                        <h3>Cấu hình tự động (Giao diện CLI)</h3>
+                        <p>Chạy lệnh tương tác để cấu hình nhanh tệp <code>memory.config.json</code>:</p>
+                        <div class="code-wrapper">
+                            <div class="code-header-bar"><span class="code-lang">CLI command</span><button class="copy-btn" onclick="copyToClipboard('aiwf provider add obsidian --project', this)">Copy</button></div>
+                            <pre>aiwf provider add obsidian --project</pre>
+                        </div>
+                    </div>
+                    <div class="runtime-card">
+                        <h3>Cấu hình thủ công (Tệp JSON)</h3>
+                        <p>Tạo tệp <code>.agents/memory.config.json</code> và khai báo cấu hình <code>obsidian</code> với đường dẫn <code>vault_root</code> cùng <code>folder_mapping</code> tương ứng.</p>
+                    </div>
+                </div>
+            </div>
+
+            <div class="runtime-section">
+                <h2>3. Kích hoạt Đồng bộ hóa</h2>
+                <div class="runtime-card-grid">
+                    <div class="runtime-card">
+                        <h3>Đồng bộ thủ công</h3>
+                        <p>Chạy trực tiếp lệnh đồng bộ hóa để chuyển các tệp từ <code>docs/</code> sang Obsidian:</p>
+                        <div class="code-wrapper">
+                            <div class="code-header-bar"><span class="code-lang">CLI command</span><button class="copy-btn" onclick="copyToClipboard('aiwf sync obsidian', this)">Copy</button></div>
+                            <pre>aiwf sync obsidian</pre>
+                        </div>
+                    </div>
+                    <div class="runtime-card">
+                        <h3>Đồng bộ qua Memory Update</h3>
+                        <p>Chạy đồng bộ bộ nhớ toàn cục, tiến trình sẽ kích hoạt Obsidian sync tự động ở cuối:</p>
+                        <div class="code-wrapper">
+                            <div class="code-header-bar"><span class="code-lang">CLI command</span><button class="copy-btn" onclick="copyToClipboard('aiwf memory sync', this)">Copy</button></div>
+                            <pre>aiwf memory sync</pre>
+                        </div>
                     </div>
                 </div>
             </div>

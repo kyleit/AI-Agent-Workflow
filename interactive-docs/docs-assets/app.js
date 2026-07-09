@@ -36,7 +36,8 @@ function initRouter() {
         "workflows": "Hướng dẫn Quy trình phát triển (SDLC Flows)",
         "skills": "Thư mục Skills chi tiết (Skills Directory)",
         "runtime": "Hướng dẫn vận hành CLI Runtime",
-        "simulator": "Trình giả lập SDLC tương tác (SDLC Simulator)"
+        "simulator": "Trình giả lập SDLC tương tác (SDLC Simulator)",
+        "obsidian": "Hướng dẫn tích hợp Obsidian (Obsidian Vault Setup)"
       };
       headerTitle.textContent = tabTitleMap[targetTab] || "Tài liệu AI Skill Framework";
       
