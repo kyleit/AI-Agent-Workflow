@@ -132,8 +132,8 @@ def update_context_health(session: dict) -> None:
             "critical": { "color": "#ef4444", "bg": "rgba(239, 68, 68, 0.1)", "border": "rgba(239, 68, 68, 0.3)", "icon": "🔴", "label": "Critical" }
         },
         "cost_thresholds": {
-            "warning_usd": 10.0,
-            "critical_usd": 50.0
+            "warning_usd": 50.0,
+            "critical_usd": 100.0
         }
     })
     
