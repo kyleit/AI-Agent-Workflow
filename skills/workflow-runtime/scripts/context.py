@@ -12,16 +12,6 @@ from session import load_session
 LIMIT_TOKENS = 2000000
 BRAIN_ROOT = os.path.expanduser("~/.gemini/antigravity-ide/brain")
 
-def _connect_sqlite(db_path: str):
-    import sqlite3
-    conn = sqlite3.connect(db_path, timeout=30.0)
-    try:
-        conn.execute("PRAGMA journal_mode=WAL")
-        conn.execute("PRAGMA busy_timeout=30000")
-    except Exception:
-        pass
-    return conn
-
 def parse_transcript(log_file: str) -> dict:
     if not os.path.exists(log_file):
         return {}
@@ -186,132 +176,6 @@ def sync_conversation_id(session: dict) -> bool:
         return True
     return False
 
-def _local_get_project_summary(project_id: str) -> dict:
-    fallback = {
-        "input_tokens": 0,
-        "output_tokens": 0,
-        "cache_tokens": 0,
-        "thinking_tokens": 0,
-        "total_tokens": 0,
-        "estimated_cost_usd": 0.0,
-        "updated_at": datetime.now().astimezone().isoformat()
-    }
-    db_path = os.path.join(".agents", "state", f"{project_id}.db")
-    if not os.path.exists(db_path):
-        db_path = os.path.join(".agents", "project_runtime.db")
-    if not os.path.exists(db_path):
-        return fallback
-
-    import sqlite3
-    conn = None
-    try:
-        conn = _connect_sqlite(db_path)
-        cursor = conn.cursor()
-        
-        has_requests = False
-        cursor.execute("SELECT name FROM sqlite_master WHERE type='table' AND name='provider_requests'")
-        if cursor.fetchone():
-            cursor.execute("SELECT COUNT(*) FROM provider_requests WHERE project_id = ?", (project_id,))
-            if cursor.fetchone()[0] > 0:
-                has_requests = True
-                
-        if not has_requests:
-            cursor.execute("SELECT name FROM sqlite_master WHERE type='table' AND name='usage_records'")
-            if cursor.fetchone():
-                cursor.execute("""
-                    SELECT SUM(input_tokens), SUM(output_tokens), SUM(cache_tokens),
-                           SUM(thinking_tokens), SUM(total_tokens), SUM(estimated_cost_usd)
-                    FROM usage_records
-                    WHERE project_id = ?
-                """, (project_id,))
-                row = cursor.fetchone()
-                if row and row[4] is not None:
-                    return {
-                        "input_tokens": row[0] or 0,
-                        "output_tokens": row[1] or 0,
-                        "cache_tokens": row[2] or 0,
-                        "thinking_tokens": row[3] or 0,
-                        "total_tokens": row[4] or 0,
-                        "estimated_cost_usd": round(row[5] or 0.0, 4),
-                        "updated_at": datetime.now().astimezone().isoformat()
-                    }
-            return fallback
-
-        cursor.execute("""
-            SELECT SUM(input_tokens), SUM(output_tokens), SUM(cache_tokens),
-                   SUM(thinking_tokens), SUM(total_tokens), SUM(cost_usd)
-            FROM provider_requests
-            WHERE project_id = ?
-        """, (project_id,))
-        row = cursor.fetchone()
-        if row and row[4] is not None:
-            return {
-                "input_tokens": row[0] or 0,
-                "output_tokens": row[1] or 0,
-                "cache_tokens": row[2] or 0,
-                "thinking_tokens": row[3] or 0,
-                "total_tokens": row[4] or 0,
-                "estimated_cost_usd": round(row[5] or 0.0, 4),
-                "updated_at": datetime.now().astimezone().isoformat()
-            }
-    except Exception:
-        pass
-    finally:
-        if conn:
-            conn.close()
-    return fallback
-
-def _local_get_global_summary() -> dict:
-    fallback = {
-        "input_tokens": 0,
-        "output_tokens": 0,
-        "cache_tokens": 0,
-        "thinking_tokens": 0,
-        "total_tokens": 0,
-        "estimated_cost_usd": 0.0,
-        "updated_at": datetime.now().astimezone().isoformat()
-    }
-    if sys.platform.startswith("win"):
-        base = os.getenv("APPDATA") or os.path.expanduser("~/AppData/Roaming")
-        folder = os.path.join(base, "AI Workflow")
-    elif sys.platform.startswith("darwin"):
-        folder = os.path.expanduser("~/Library/Application Support/AI Workflow")
-    else:
-        folder = os.path.expanduser("~/.config/AI Workflow")
-    db_path = os.path.join(folder, "global.db")
-    if not os.path.exists(db_path):
-        return fallback
-
-    import sqlite3
-    conn = None
-    try:
-        conn = _connect_sqlite(db_path)
-        cursor = conn.cursor()
-        cursor.execute("SELECT name FROM sqlite_master WHERE type='table' AND name='global_usage'")
-        if cursor.fetchone():
-            cursor.execute("""
-                SELECT SUM(input_tokens), SUM(output_tokens), SUM(cache_tokens),
-                       SUM(thinking_tokens), SUM(total_tokens), SUM(estimated_cost_usd)
-                FROM global_usage
-            """)
-            row = cursor.fetchone()
-            if row and row[4] is not None:
-                return {
-                    "input_tokens": row[0] or 0,
-                    "output_tokens": row[1] or 0,
-                    "cache_tokens": row[2] or 0,
-                    "thinking_tokens": row[3] or 0,
-                    "total_tokens": row[4] or 0,
-                    "estimated_cost_usd": round(row[5] or 0.0, 4),
-                    "updated_at": datetime.now().astimezone().isoformat()
-                }
-    except Exception:
-        pass
-    finally:
-        if conn:
-            conn.close()
-    return fallback
-
 def refresh_context_usage_for_active_conversation(session: dict) -> dict:
     sync_conversation_id(session)
     conv_id = session.get("conversation_id")
@@ -329,21 +193,6 @@ def refresh_context_usage_for_active_conversation(session: dict) -> dict:
         "limit_tokens": usage.get("limit_tokens", 2000000),
         "percentage": usage.get("percentage", 0.0)
     }
-    
-    # Cập nhật project và global usage summaries từ DB local
-    try:
-        project_id = "ai-skill-framework"
-        config_path = os.path.join(".agents", "memory.config.json")
-        if os.path.exists(config_path):
-            with open(config_path, "r", encoding="utf-8") as f:
-                config_data = json.load(f)
-                project_id = config_data.get("project_id", "ai-skill-framework")
-        
-        session["project_usage_summary"] = _local_get_project_summary(project_id)
-        session["global_usage_summary"] = _local_get_global_summary()
-    except Exception:
-        pass
-        
     return usage
 
 def estimate_context_usage(conversation_id: str = None) -> dict:
@@ -395,19 +244,6 @@ def sync_request_history(conversation_id: str, project_id: str, workspace_root: 
     session = load_session()
     checkpoint = session.get("checkpoint", 1) if session else 1
     skill = session.get("current_skill", "unknown") if session else "unknown"
-    saved_request_ids = set()
-    from db import PROJECT_DB
-    import sqlite3
-    if os.path.exists(PROJECT_DB):
-        try:
-            conn = _connect_sqlite(PROJECT_DB)
-            cursor = conn.cursor()
-            cursor.execute("SELECT request_id FROM provider_requests WHERE conversation_id = ?", (conversation_id,))
-            saved_request_ids = {row[0] for row in cursor.fetchall() if row[0]}
-            conn.close()
-        except Exception:
-            pass
-
     current_history_chars = 0
     
     prev_breakdown = None
@@ -467,6 +303,7 @@ def sync_request_history(conversation_id: str, project_id: str, workspace_root: 
                         
                 if source == "MODEL" and type_ in ["PLANNER_RESPONSE", "ASK_QUESTION"]:
                     request_id = f"{conversation_id}_{step_idx}"
+                    input_tokens = int(current_history_chars / 3)
                     
                     thinking = line.get("thinking", "")
                     output_len = len(content) + len(thinking)
@@ -474,32 +311,7 @@ def sync_request_history(conversation_id: str, project_id: str, workspace_root: 
                     if tool_calls:
                         output_len += len(json.dumps(tool_calls))
                         tool_call_count += len(tool_calls)
-
-                    if request_id in saved_request_ids:
-                        input_tokens = int(current_history_chars / 3)
-                        cb_data = {
-                            "request_id": request_id,
-                            "conversation_id": conversation_id,
-                            "total_tokens": input_tokens,
-                            "breakdown": [
-                                { "category": "Conversation History", "tokens": int(input_tokens * 0.6), "percentage": 60.0, "details": [] },
-                                { "category": "AI_RULES", "tokens": int(input_tokens * 0.25), "percentage": 25.0, "details": [] },
-                                { "category": "AGENTS", "tokens": int(input_tokens * 0.1), "percentage": 10.0, "details": [] },
-                                { "category": "Other runtime context", "tokens": int(input_tokens * 0.05), "percentage": 5.0, "details": [] }
-                            ]
-                        }
-                        prev_breakdown = cb_data
-                        prev_request_id = request_id
-                        tool_call_count = 0
-                        workspace_read_count = 0
-                        memory_hit_count = 0
-                        rag_hit_count = 0
-                        status = "success"
-                        error_summary = None
-                        current_history_chars += output_len
-                        continue
-
-                    input_tokens = int(current_history_chars / 3)
+                        
                     output_tokens = int(output_len / 3)
                     thinking_tokens = int(len(thinking) / 3)
                     cache_tokens = int(input_tokens * 0.15)
@@ -649,48 +461,3 @@ def sync_request_history(conversation_id: str, project_id: str, workspace_root: 
                     
     except Exception as e:
         print(f"Error parsing request history: {e}", file=sys.stderr)
-
-
-# ------------------------------------------------------------------ #
-# FEAT-048: WorkflowMetadataAdapter
-# Optional AIWF integration — returns None gracefully when .agents/ absent
-# ------------------------------------------------------------------ #
-
-def get_workflow_metadata(state_dir: str = ".agents/state") -> dict:
-    """
-    Read workflow metadata from .agents/state/ if present.
-
-    Returns:
-        dict with keys: checkpoint, current_skill, work_item, status,
-        memory, rag — or None if state_dir does not exist or is unreadable.
-
-    This function MUST NOT raise. All failures return None silently.
-    """
-    try:
-        if not os.path.isdir(state_dir):
-            return None
-
-        session_path = os.path.join(os.path.dirname(state_dir), ".session.json")
-        if not os.path.isfile(session_path):
-            # Try reading directly from state_dir
-            session_path = os.path.join(state_dir, "session.json")
-            if not os.path.isfile(session_path):
-                return None
-
-        with open(session_path, "r", encoding="utf-8") as f:
-            session = json.load(f)
-
-        if not isinstance(session, dict):
-            return None
-
-        return {
-            "checkpoint": session.get("checkpoint", 0),
-            "current_skill": session.get("current_skill", ""),
-            "work_item": session.get("work_item", ""),
-            "status": session.get("status", "unknown"),
-            "memory": session.get("memory", {}),
-            "rag": session.get("rag", {}),
-        }
-    except Exception:
-        return None
-

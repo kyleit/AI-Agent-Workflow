@@ -34,9 +34,11 @@ def get_rag_info() -> dict:
 def is_stdin_ready() -> bool:
     import sys
     import os
+    if os.environ.get("TESTING") == "1":
+        return False
     if type(sys.stdin).__name__ in ['Mock', 'MagicMock', 'StringIO', 'BytesIO']:
         return True
-    if os.environ.get("TESTING") == "1":
+    if not sys.stdin.isatty():
         return False
     ret = False
     if sys.platform == 'win32':

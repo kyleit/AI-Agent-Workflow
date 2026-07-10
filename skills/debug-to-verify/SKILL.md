@@ -19,6 +19,18 @@ repository: https://gitlab.com/hngan.it/ai-workflow-skills
 created_at: 2026-07-04
 updated_at: 2026-07-04
 description: Validate that the feature is production-ready. Enforce standards before release.
+runtime_requirements:
+  rules: required
+  state: required
+  approvals: required
+  git: cached
+  memory: cached
+  rag: lazy
+  workspace_scan: none
+  environment: cached
+  version: cached
+  provider: optional
+  usage: cached
 ---
 
 # Skill: debug-to-verify

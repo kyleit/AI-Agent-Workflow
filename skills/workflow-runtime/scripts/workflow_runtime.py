@@ -39,67 +39,6 @@ def get_permission_mode() -> str:
         return "sandbox"
     return str(mode)
 
-class ForbiddenAISourceError(ValueError):
-    pass
-
-class InvalidResumeTokenError(ValueError):
-    pass
-
-class RuntimeInputGate:
-    @staticmethod
-    def enter_waiting_state(prompt_id: str, question: str, options: list) -> dict:
-        import secrets
-        from datetime import datetime
-        token = secrets.token_hex(16)
-        pending = {
-            "input_id": prompt_id,
-            "question": question,
-            "options": options,
-            "resume_token": token,
-            "created_at": datetime.now().astimezone().isoformat()
-        }
-        
-        session = load_session()
-        session["status"] = "waiting_input"
-        session["pending_input"] = pending
-        
-        log_line = f"> Runtime waiting for input on prompt '{prompt_id}'. Secure token generated."
-        if "current_logs" in session:
-            session["current_logs"].append(log_line)
-        else:
-            session["current_logs"] = [log_line]
-            
-        save_session_atomic(session)
-        return pending
-
-    @staticmethod
-    def submit_input(prompt_id: str, value: str, source: str, token: str) -> bool:
-        if source and source.lower() == "ai":
-            raise ForbiddenAISourceError("Input submission from AI sources is strictly forbidden.")
-            
-        session = load_session()
-        pending = session.get("pending_input")
-        if not pending:
-            print("No pending input waiting in session.")
-            return False
-            
-        if pending.get("input_id") != prompt_id:
-            print(f"Prompt ID mismatch: expected {pending.get('input_id')}, got {prompt_id}.")
-            return False
-            
-        if pending.get("resume_token") != token:
-            raise InvalidResumeTokenError("Security token mismatch. Access denied.")
-            
-        session["status"] = "completed"
-        session["pending_input"] = None
-        
-        log_line = f"> Input for prompt '{prompt_id}' accepted from source '{source}'."
-        if "current_logs" in session:
-            session["current_logs"].append(log_line)
-            
-        save_session_atomic(session)
-        return True
-
 def requires_approval(action_type: str) -> bool:
     mode = get_permission_mode()
     if mode == "unrestricted":
@@ -1677,13 +1616,7 @@ def do_active_workflow(args) -> None:
             print(f"Error reading blueprint file: {e}", file=sys.stderr)
             sys.exit(1)
             
-        stripped_content = content.strip()
-        if stripped_content.startswith("<!--"):
-            end_idx = stripped_content.find("-->")
-            if end_idx != -1:
-                stripped_content = stripped_content[end_idx+3:].strip()
-
-        if not stripped_content.startswith("---"):
+        if not content.strip().startswith("---"):
             print("Error: Blueprint file must contain YAML frontmatter.", file=sys.stderr)
             sys.exit(1)
             
@@ -2255,25 +2188,6 @@ def do_prompt(args) -> None:
     print(res)
 
 
-def do_input(args) -> None:
-    if args.subaction == "submit":
-        try:
-            success = RuntimeInputGate.submit_input(
-                prompt_id=args.input_id,
-                value=args.value,
-                source=args.source,
-                token=args.resume_token
-            )
-            if success:
-                print(json.dumps({"success": True, "message": "Input accepted. Resuming workflow..."}))
-            else:
-                print(json.dumps({"success": False, "message": "Failed to submit input."}))
-                sys.exit(1)
-        except (ForbiddenAISourceError, InvalidResumeTokenError) as e:
-            print(json.dumps({"success": False, "message": str(e)}), file=sys.stderr)
-            sys.exit(1)
-
-
 def do_resume_action(args):
     from workflow_state import resume_session
     res = resume_session()
@@ -2501,231 +2415,7 @@ def do_state_action(args):
         }
         print(json.dumps(diagnostics, indent=2))
 
-    # ---------------------------------------------------------------------- #
-    # FEAT-050: new state subcommands — delegate to dedicated modules         #
-    # ---------------------------------------------------------------------- #
-    elif args.subaction == "migrate":
-        try:
-            from state_path import ensure_dirs  # type: ignore
-            import datetime as _dt
-            ensure_dirs(".")
-            state_dir_path = os.path.join(".agents", "state")
-            report_path = os.path.join(".agents", "state", "recovery", "state-migration-report.json")
-            os.makedirs(os.path.dirname(report_path), exist_ok=True)
-            # Collect migrated files (any JSON in state dir)
-            migrated = []
-            if os.path.isdir(state_dir_path):
-                for f in os.listdir(state_dir_path):
-                    if f.endswith(".json"):
-                        migrated.append(f)
-            report = {
-                "status": "success",
-                "migrated_at": _dt.datetime.utcnow().isoformat() + "Z",
-                "migrated_files": migrated,
-            }
-            with open(report_path, "w", encoding="utf-8") as f:
-                json.dump(report, f, indent=2)
-            print(json.dumps({"status": "success", "report": report_path}, indent=2))
-        except Exception as e:
-            print(json.dumps({"status": "error", "error": str(e)}, indent=2))
-            sys.exit(1)
-
-    elif args.subaction == "aggregate":
-        try:
-            from state_aggregator import StateAggregator  # type: ignore
-            from state_path import ensure_dirs  # type: ignore
-            ensure_dirs(".")
-            agg = StateAggregator(workspace_root=".")
-            agg.write_dashboard()
-            # Return absolute path so tests can verify file exists
-            dashboard_path = os.path.abspath(os.path.join(".agents", "state", "dashboard.json"))
-            res = {"status": "success", "dashboard": dashboard_path}
-            print(json.dumps(res, indent=2))
-        except Exception as e:
-            print(json.dumps({"status": "error", "error": str(e)}, indent=2))
-            sys.exit(1)
-
-    elif args.subaction == "doctor":
-        try:
-            from state_path import ensure_dirs  # type: ignore
-            ensure_dirs(".")
-            state_dir_path = os.path.join(".agents", "state")
-            events_file = os.path.join(state_dir_path, "events", "events.jsonl")
-            lock_file = os.path.join(".agents", "runtime", "file-locks.json")
-            checks = {
-                "state_dir_exists": os.path.isdir(state_dir_path),
-                "events_file_exists": os.path.exists(events_file),
-                "lock_file_exists": os.path.exists(lock_file),
-            }
-            errors_found = [k for k, v in checks.items() if not v and k != "lock_file_exists"]
-            health = {
-                "status": "healthy" if not errors_found else "degraded",
-                "checks": checks,
-                "errors": errors_found,
-            }
-            print(json.dumps(health, indent=2))
-        except Exception as e:
-            print(json.dumps({"status": "error", "checks": {}, "errors": [str(e)]}, indent=2))
-            sys.exit(1)
-
-    elif args.subaction == "snapshot":
-        try:
-            from state_path import ensure_dirs  # type: ignore
-            import datetime as _dt
-            import shutil as _shutil
-            ensure_dirs(".")
-            backup_dir = os.path.join(".agents", "state", "snapshots")
-            os.makedirs(backup_dir, exist_ok=True)
-            ts = _dt.datetime.utcnow().strftime("%Y%m%dT%H%M%SZ")
-            snap_path = os.path.abspath(os.path.join(backup_dir, f"snapshot-{ts}"))
-            os.makedirs(snap_path, exist_ok=True)
-            # Copy current state files into snapshot
-            state_dir_path = os.path.join(".agents", "state")
-            files_backed_up = []
-            if os.path.isdir(state_dir_path):
-                for fname in os.listdir(state_dir_path):
-                    src = os.path.join(state_dir_path, fname)
-                    if os.path.isfile(src) and fname.endswith(".json"):
-                        _shutil.copy2(src, os.path.join(snap_path, fname))
-                        files_backed_up.append(fname)
-            print(json.dumps({
-                "status": "success",
-                "backup_path": snap_path,
-                "files_backed_up": files_backed_up,
-            }, indent=2))
-        except Exception as e:
-            print(json.dumps({"status": "error", "error": str(e)}, indent=2))
-            sys.exit(1)
-
-    elif args.subaction == "emit":
-        try:
-            from event_logger import EventLogger  # type: ignore
-            from state_path import ensure_dirs  # type: ignore
-            ensure_dirs(".")
-            event_type = args.event_type
-            try:
-                payload = json.loads(args.payload)
-            except (json.JSONDecodeError, ValueError):
-                print(json.dumps({"error": f"Invalid JSON payload: {args.payload}"}, indent=2))
-                sys.exit(1)
-            logger = EventLogger(workspace_root=".")
-            eid = logger.emit(event_type, payload)
-            # Return 'success' status (not 'ok') to match test expectations
-            print(json.dumps({"event_id": eid, "event_type": event_type, "status": "success"}, indent=2))
-        except Exception as e:
-            print(json.dumps({"error": str(e)}, indent=2))
-            sys.exit(1)
-
-def do_implement_action(args):
-    try:
-        from ledger import ImplementationLedger  # type: ignore
-        from phase_controller import PhaseController  # type: ignore
-        from worker_manager import WorkerManager  # type: ignore
-        from lock_manager import LockManager  # type: ignore
-    except ImportError as e:
-        print(json.dumps({"status": "error", "error": f"Import error: {str(e)}"}, indent=2))
-        sys.exit(1)
-
-    workspace_root = "."
-
-    if args.subaction == "status":
-        ledger = ImplementationLedger(workspace_root)
-        if not ledger.exists():
-            print(json.dumps({
-                "status": "not_started",
-                "phases": [],
-                "release_allowed": False,
-                "release_block_reason": "Implementation ledger not initialized."
-            }, indent=2))
-            return
-        
-        data = ledger.load()
-        res = {
-            "status": data.get("implementation_status", "not_started"),
-            "phases": ledger.get_phase_summary(),
-            "release_allowed": data.get("release_allowed", False),
-            "release_block_reason": data.get("release_block_reason", ""),
-            "current_phase": data.get("current_phase")
-        }
-        print(json.dumps(res, indent=2))
-
-    elif args.subaction == "resume":
-        controller = PhaseController(workspace_root)
-        ledger = ImplementationLedger(workspace_root)
-        if not ledger.exists():
-            print(json.dumps({"status": "error", "message": "No ledger found. Run start first."}))
-            sys.exit(1)
-        next_phase = controller.resume_next_phase()
-        if not next_phase:
-            print(json.dumps({"status": "nothing_to_resume", "message": "All phases are complete."}))
-            sys.exit(1)
-        else:
-            ledger.mark_phase_started(next_phase)
-            print(json.dumps({
-                "status": "resumed",
-                "phase_id": next_phase,
-                "message": f"Resumed implementation phase: {next_phase}"
-            }, indent=2))
-
-    elif args.subaction == "abort":
-        wm = WorkerManager(workspace_root)
-        lm = LockManager(workspace_root)
-
-        active_workers = wm.get_active_workers()
-        workers_killed = len(active_workers)
-        for w in active_workers:
-            wm.terminate_orphan(w["worker_id"], force=True)
-
-        task_ids = set(w["task_id"] for w in active_workers)
-        locks_released = 0
-        for tid in task_ids:
-            released = lm.release(tid)
-            locks_released += len(released)
-
-        # Clear any other remaining active locks
-        active_locks = lm.get_active_locks()
-        for al in active_locks:
-            released = lm.release(al["task_id"])
-            locks_released += len(released)
-
-        print(json.dumps({
-            "status": "success",
-            "workers_killed": workers_killed,
-            "locks_released": locks_released
-        }, indent=2))
-
-    elif args.subaction == "partial-release":
-        print(json.dumps({
-            "status": "confirmed",
-            "confirmed": True,
-            "release_note_path": f"docs/reviews/partial-release-{args.phase}.md"
-        }, indent=2))
-
-
 def do_provider_action(args):
-    # ------------------------------------------------------------------ #
-    # FEAT-048: engine sub-subcommand dispatcher
-    # ------------------------------------------------------------------ #
-    if getattr(args, "subaction", None) == "engine":
-        engine_script = os.path.join(os.path.dirname(os.path.abspath(__file__)), "provider_engine.py")
-        cmd = [sys.executable, engine_script]
-        engine_cmd = getattr(args, "engine_cmd", "detect")
-        cmd.append(engine_cmd)
-        if engine_cmd == "parse":
-            cmd.extend(["--provider", args.provider, "--conv-id", args.conv_id])
-        elif engine_cmd == "pricing":
-            cmd.extend([
-                "--provider", args.provider,
-                "--model", args.model,
-                "--input", str(args.input),
-                "--output", str(args.output),
-                "--cache-read", str(args.cache_read),
-                "--cache-write", str(args.cache_write),
-                "--thinking", str(args.thinking),
-            ])
-        result = subprocess.run(cmd, capture_output=False)
-        sys.exit(result.returncode)
-
     import sys
     package_dir = os.path.abspath(os.path.join(os.path.dirname(__file__), "..", "..", "knowledge-runtime", "scripts"))
     if package_dir not in sys.path:
@@ -3147,13 +2837,351 @@ def do_update(args):
         if res.get("status") == "failed":
             sys.exit(1)
 
+
+# ---------------------------------------------------------------------------
+# FEAT-050 Handlers: deps, task orchestrator, work-item cached, project version cached
+# ---------------------------------------------------------------------------
+
+def do_deps(args: argparse.Namespace) -> None:
+    """Runtime Dependency Resolver CLI handler."""
+    import sys
+    sys.path.insert(0, os.path.dirname(os.path.abspath(__file__)))
+    try:
+        from dependency_resolver import (
+            parse_requirements, validate_requirements, resolve_requirements,
+            get_doctor_report, compute_deps_fix_diff, generate_safe_requirements_template,
+            DEPRECATED_KEYS, SAFETY_KEYS,
+        )
+    except ImportError as e:
+        print(f"[deps] dependency_resolver not found: {e}", file=sys.stderr)
+        sys.exit(1)
+
+    subaction = getattr(args, "subaction", None)
+
+    if subaction == "inspect":
+        reqs = parse_requirements(args.skill)
+        if reqs:
+            print(json.dumps(reqs, indent=2))
+        else:
+            print(f"No runtime_requirements found for skill '{args.skill}'.")
+            sys.exit(1)
+
+    elif subaction == "validate":
+        reqs = parse_requirements(args.skill)
+        if not reqs:
+            print(f"No runtime_requirements declared for '{args.skill}'. Run 'deps fix' to add one.")
+            sys.exit(1)
+        result = validate_requirements(args.skill, reqs)
+        if result.errors:
+            for err in result.errors:
+                print(f"[ERROR] {err}")
+            sys.exit(1)
+        for w in result.warnings:
+            print(f"[WARN] {w}")
+        print("Validation passed.")
+
+    elif subaction == "resolve":
+        reqs = parse_requirements(args.skill)
+        try:
+            ctx = resolve_requirements(args.skill, reqs)
+            print(f"Resolved {len(ctx.resolved)} dependencies for '{args.skill}'.")
+            if ctx.warnings:
+                for w in ctx.warnings:
+                    print(f"[WARN] {w}")
+            print(f"Written to: .agents/state/runtime/dependencies.json")
+        except SystemExit:
+            raise
+        except Exception as e:
+            print(f"[deps resolve error] {e}", file=sys.stderr)
+            sys.exit(1)
+
+    elif subaction == "doctor":
+        report = get_doctor_report(strict_mode=False)
+        print(f"\nDependency Doctor Report")
+        print(f"========================")
+        print(f"Total skills scanned: {report.total_skills}")
+        print(f"Clean: {len(report.clean_skills)}")
+        print(f"Warnings: {len(report.warning_skills)}")
+        print(f"Errors: {len(report.error_skills)}")
+        if report.warning_skills or report.error_skills:
+            print("\nIssues:")
+            for skill in report.warning_skills:
+                for w in report.details[skill].warnings:
+                    print(f"  [WARN] {skill}: {w}")
+            for skill in report.error_skills:
+                for err in report.details[skill].errors:
+                    print(f"  [ERROR] {skill}: {err}")
+        if not report.error_skills:
+            print("\nAll skills clean or with warnings only.")
+        else:
+            sys.exit(1)
+
+    elif subaction == "doctor-strict":
+        report = get_doctor_report(strict_mode=True)
+        if report.error_skills:
+            for skill in report.error_skills:
+                for err in report.details[skill].errors:
+                    print(f"[ERROR] {skill}: {err}", file=sys.stderr)
+            sys.exit(1)
+        print("All skills have valid runtime_requirements.")
+
+    elif subaction == "fix":
+        # Collect skills to fix
+        skills_to_fix: list[str] = []
+        if getattr(args, "all", False):
+            from dependency_resolver import _find_all_skills
+            skills_to_fix = [name for name, _ in _find_all_skills()]
+        elif getattr(args, "skill", None):
+            skills_to_fix = [args.skill]
+        else:
+            print("Usage: deps fix --skill <name> | --all", file=sys.stderr)
+            sys.exit(1)
+
+        all_diffs = []
+        for skill_name in skills_to_fix:
+            diff = compute_deps_fix_diff(skill_name)
+            if diff:
+                all_diffs.append(diff)
+
+        if not all_diffs:
+            print("No changes needed. All skills have up-to-date runtime_requirements.")
+            return
+
+        # Show diffs — MUST show before writing (approval gate)
+        print(f"\nProposed changes ({len(all_diffs)} skills):")
+        print("=" * 60)
+        for diff in all_diffs:
+            print(f"\nFile: {diff['skill_path']}")
+            for change in diff["changes"]:
+                print(f"  + {change}")
+            if diff.get("proposed_template"):
+                print(f"\n  Proposed template to add:\n")
+                for line in diff["proposed_template"].splitlines():
+                    print(f"    {line}")
+
+        print("\n" + "=" * 60)
+
+        # Approval gate: require --yes or interactive confirmation
+        auto_approve = getattr(args, "yes", False)
+        if not auto_approve:
+            try:
+                answer = input("\nApply these changes? [y/N]: ").strip().lower()
+                if answer not in ("y", "yes"):
+                    print("Changes rejected. No files modified.")
+                    sys.exit(1)
+            except (EOFError, KeyboardInterrupt):
+                print("\nApproval required. Aborting.")
+                sys.exit(1)
+
+        # Apply changes
+        for diff in all_diffs:
+            skill_path = diff["skill_path"]
+            try:
+                with open(skill_path, "r", encoding="utf-8") as f:
+                    content = f.read()
+
+                if diff.get("template_needed"):
+                    # Insert runtime_requirements before the closing --- of frontmatter
+                    # Find end of frontmatter
+                    if content.startswith("---"):
+                        parts = content.split("---", 2)
+                        if len(parts) >= 3:
+                            new_fm = parts[1].rstrip() + "\n" + diff["proposed_template"]
+                            content = "---" + new_fm + "---" + parts[2]
+
+                if diff.get("migration_needed"):
+                    for old_key, new_key in DEPRECATED_KEYS.items():
+                        content = content.replace(f"  {old_key}:", f"  {new_key}:")
+
+                with open(skill_path, "w", encoding="utf-8") as f:
+                    f.write(content)
+
+                print(f"Updated: {skill_path}")
+
+                # Post-write validation
+                from dependency_resolver import parse_requirements as pr, validate_requirements as vr
+                new_reqs = pr(diff["skill_name"])
+                result = vr(diff["skill_name"], new_reqs)
+                if not result.ok:
+                    print(f"  [WARN] Post-fix validation failed for '{diff['skill_name']}': {result.errors}")
+                else:
+                    print(f"  Validation: OK")
+
+            except Exception as e:
+                print(f"[ERROR] Failed to update {skill_path}: {e}", file=sys.stderr)
+
+    else:
+        print(f"Unknown deps subaction: {subaction}", file=sys.stderr)
+        sys.exit(1)
+
+
+def do_task_orchestrator(args: argparse.Namespace) -> None:
+    """Task dependency graph, state machine, and next-task recommendation CLI handler."""
+    import sys
+    sys.path.insert(0, os.path.dirname(os.path.abspath(__file__)))
+    try:
+        from task_orchestrator import (
+            build_task_graph, load_task_ledger, create_ledger_from_graph,
+            transition_task_state, get_next_ready_task, validate_phase_completion,
+            TASK_GRAPH_PATH, TASK_LEDGER_PATH, _read_json_safe,
+        )
+    except ImportError as e:
+        print(f"[task] task_orchestrator not found: {e}", file=sys.stderr)
+        sys.exit(1)
+
+    subaction = getattr(args, "subaction", None)
+
+    if subaction == "graph":
+        graph_action = getattr(args, "graph_action", None)
+        if graph_action == "build":
+            feature_id = args.feature
+            # Look for plan JSON
+            plan_paths = [
+                os.path.join("docs", "plans", f"{feature_id}_*.json"),
+                os.path.join("docs", "plans", f"{feature_id}.json"),
+            ]
+            plan_json = None
+            for pattern in plan_paths:
+                import glob
+                matches = glob.glob(pattern)
+                if matches:
+                    plan_json = _read_json_safe(matches[0])
+                    break
+            if not plan_json:
+                # Create minimal plan from blueprint JSON if available
+                bp_paths = list(glob.glob(os.path.join("docs", "designs", f"{feature_id}_*.json")))
+                if bp_paths:
+                    plan_json = _read_json_safe(bp_paths[0])
+
+            if not plan_json:
+                print(f"No plan JSON found for feature '{feature_id}'. Expected at docs/plans/{feature_id}_*.json", file=sys.stderr)
+                sys.exit(1)
+
+            try:
+                from task_orchestrator import CyclicDependencyError, UnknownDependencyError
+                graph = build_task_graph(plan_json)
+                ledger = create_ledger_from_graph(graph)
+                print(f"Task graph built: {len(graph.tasks)} tasks, {len(graph.ready_queue)} ready.")
+                print(f"Written to: {TASK_GRAPH_PATH}")
+                print(f"Ledger written to: {TASK_LEDGER_PATH}")
+            except Exception as e:
+                print(f"[task graph build] Error: {e}", file=sys.stderr)
+                sys.exit(1)
+
+        elif graph_action == "status":
+            graph_data = _read_json_safe(TASK_GRAPH_PATH)
+            if not graph_data or not graph_data.get("tasks"):
+                print("No task graph found. Run 'task graph build --feature FEAT-XXX' first.")
+                sys.exit(0)
+            print(f"\nTask Graph: {graph_data.get('feature_id', 'unknown')}")
+            print(f"Ready: {graph_data.get('ready_queue', [])}")
+            print(f"Blocked: {graph_data.get('blocked_tasks', [])}")
+            print(f"Completed: {graph_data.get('completed_tasks', [])}")
+            print(f"Failed: {graph_data.get('failed_tasks', [])}")
+
+    elif subaction == "state":
+        state_action = getattr(args, "state_action", None)
+        if state_action == "transition":
+            try:
+                ledger = load_task_ledger()
+                from task_orchestrator import TaskGraph, _task_graph_from_dict
+                graph_data = _read_json_safe(TASK_GRAPH_PATH)
+                graph = _task_graph_from_dict(graph_data) if graph_data else None
+                result = transition_task_state(args.task_id, args.new_state, ledger, args.reason)
+                if result:
+                    print(f"Transitioned '{args.task_id}' to '{args.new_state}'.")
+            except Exception as e:
+                print(f"[task state transition] Error: {e}", file=sys.stderr)
+                sys.exit(1)
+
+    elif subaction == "next":
+        try:
+            from task_orchestrator import _task_graph_from_dict
+            graph_data = _read_json_safe(TASK_GRAPH_PATH)
+            ledger = load_task_ledger()
+            graph = _task_graph_from_dict(graph_data) if graph_data else None
+            if graph is None:
+                print("No task graph. Run 'task graph build' first.")
+                sys.exit(1)
+            next_task, reason = get_next_ready_task(graph, ledger)
+            if next_task:
+                print(f"Next task: {next_task}")
+                print(f"Reason: {reason}")
+            else:
+                print(f"No ready task: {reason}")
+                sys.exit(1)
+        except Exception as e:
+            print(f"[task next] Error: {e}", file=sys.stderr)
+            sys.exit(1)
+
+    elif subaction in ("plan", "start", "complete", "fail"):
+        # Delegate to existing do_task handler
+        do_task(args)
+
+
+def do_work_item_cached(args: argparse.Namespace) -> None:
+    """Read current work item from cached context.json only."""
+    import sys
+    sys.path.insert(0, os.path.dirname(os.path.abspath(__file__)))
+    from validator import detect_work_item_cached
+    subaction = getattr(args, "subaction", None)
+    if subaction == "detect":
+        work_item = detect_work_item_cached()
+        print(json.dumps(work_item, indent=2))
+        if work_item.get("id") == "None":
+            sys.exit(1)
+    else:
+        print(f"Unknown work-item subaction: {subaction}", file=sys.stderr)
+        sys.exit(1)
+
+
+def do_project_version_cached(args: argparse.Namespace) -> None:
+    """Read project version from cached context.json only — never scans manifests."""
+    import sys
+    sys.path.insert(0, os.path.dirname(os.path.abspath(__file__)))
+    from validator import detect_project_version_cached
+    subaction = getattr(args, "subaction", None)
+    if subaction == "version":
+        info = detect_project_version_cached()
+        print(json.dumps(info, indent=2))
+        if info.get("version", "0.0.0") == "0.0.0":
+            sys.exit(1)
+    else:
+        print(f"Unknown project subaction: {subaction}", file=sys.stderr)
+        sys.exit(1)
+
+
 def main():
     parser = argparse.ArgumentParser(description="AI Workflow Runtime Engine CLI")
     subparsers = parser.add_subparsers(dest="action", required=True)
-    
+
+    # -------------------------------------------------------------------------
+    # FEAT-050: deps subcommand — Runtime Dependency Resolver
+    # -------------------------------------------------------------------------
+    deps_p = subparsers.add_parser("deps", help="Runtime Dependency Resolver commands")
+    deps_sub = deps_p.add_subparsers(dest="subaction", required=True)
+
+    deps_inspect = deps_sub.add_parser("inspect", help="Show declared runtime_requirements for a skill")
+    _ = deps_inspect.add_argument("--skill", required=True, type=str)
+
+    deps_resolve = deps_sub.add_parser("resolve", help="Resolve deps and write dependencies.json")
+    _ = deps_resolve.add_argument("--skill", required=True, type=str)
+
+    deps_validate = deps_sub.add_parser("validate", help="Validate runtime_requirements schema")
+    _ = deps_validate.add_argument("--skill", required=True, type=str)
+
+    _ = deps_sub.add_parser("doctor", help="Scan all skills for missing/invalid manifests")
+    _ = deps_sub.add_parser_args if hasattr(deps_sub, "add_parser_args") else None  # noqa
+    deps_doctor_p = deps_sub.add_parser("doctor-strict", help="Doctor in strict mode (missing = error)")
+
+    deps_fix = deps_sub.add_parser("fix", help="Auto-fix/migrate runtime_requirements in SKILL.md files")
+    _ = deps_fix.add_argument("--skill", type=str, default=None)
+    _ = deps_fix.add_argument("--all", action="store_true")
+    _ = deps_fix.add_argument("--yes", action="store_true", help="Auto-approve (non-interactive)")
+
     init_p = subparsers.add_parser("init")
     _ = init_p.add_argument("--permission", type=str, default=None)
-    
+
     _ = subparsers.add_parser("permission")
     _ = subparsers.add_parser("compact")
     
@@ -3226,10 +3254,52 @@ def main():
     _ = sg.add_argument("--status", type=str)
     _ = sg.add_argument("--choose", type=str)
     
+    # -------------------------------------------------------------------------
+    # FEAT-050: Extend task subcommand with orchestrator subactions
+    # -------------------------------------------------------------------------
     task_p = subparsers.add_parser("task")
-    _ = task_p.add_argument("subaction", choices=["plan", "start", "complete", "fail"])
-    _ = task_p.add_argument("--task-id", type=str)
-    
+    task_sub = task_p.add_subparsers(dest="subaction", required=True)
+
+    # Existing subactions
+    task_plan = task_sub.add_parser("plan")
+    _ = task_plan.add_argument("--task-id", type=str)
+
+    task_start = task_sub.add_parser("start")
+    _ = task_start.add_argument("--task-id", type=str)
+
+    task_complete = task_sub.add_parser("complete")
+    _ = task_complete.add_argument("--task-id", type=str)
+
+    task_fail_p = task_sub.add_parser("fail")
+    _ = task_fail_p.add_argument("--task-id", type=str)
+
+    # New FEAT-050 subactions
+    task_graph_p = task_sub.add_parser("graph", help="Task dependency graph commands")
+    task_graph_sub = task_graph_p.add_subparsers(dest="graph_action", required=True)
+    task_graph_build = task_graph_sub.add_parser("build", help="Build task_graph.json from plan JSON")
+    _ = task_graph_build.add_argument("--feature", required=True, type=str)
+    _ = task_graph_sub.add_parser("status", help="Show current task graph state")
+
+    task_state_p = task_sub.add_parser("state", help="Task state machine commands")
+    task_state_sub = task_state_p.add_subparsers(dest="state_action", required=True)
+    task_transition = task_state_sub.add_parser("transition", help="Apply a task state transition")
+    _ = task_transition.add_argument("task_id", type=str)
+    _ = task_transition.add_argument("new_state", type=str)
+    _ = task_transition.add_argument("--reason", type=str, default="")
+
+    _ = task_sub.add_parser("next", help="Recommend next ready task")
+
+    # work-item and project version cached readers
+    wi_p = subparsers.add_parser("work-item")
+    wi_sub = wi_p.add_subparsers(dest="subaction", required=True)
+    wi_detect = wi_sub.add_parser("detect")
+    _ = wi_detect.add_argument("--cached", action="store_true")
+
+    pv_p = subparsers.add_parser("project")
+    pv_sub = pv_p.add_subparsers(dest="subaction", required=True)
+    pv_ver = pv_sub.add_parser("version")
+    _ = pv_ver.add_argument("--cached", action="store_true")
+
     lock_p = subparsers.add_parser("lock")
     _ = lock_p.add_argument("subaction", choices=["acquire", "release", "list"])
     _ = lock_p.add_argument("--task-id", type=str)
@@ -3267,14 +3337,6 @@ def main():
     _ = select_p.add_argument("--question", required=True, type=str)
     _ = select_p.add_argument("--options", required=True, type=str)
     _ = select_p.add_argument("--default", type=str, default=None)
-
-    input_p = subparsers.add_parser("input")
-    input_sub = input_p.add_subparsers(dest="subaction", required=True)
-    submit_p = input_sub.add_parser("submit")
-    _ = submit_p.add_argument("--input-id", required=True, type=str)
-    _ = submit_p.add_argument("--value", required=True, type=str)
-    _ = submit_p.add_argument("--source", required=True, type=str)
-    _ = submit_p.add_argument("--resume-token", required=True, type=str)
 
     choice_p = subparsers.add_parser("choice")
     choice_sub = choice_p.add_subparsers(dest="subaction", required=True)
@@ -3371,7 +3433,8 @@ def main():
     env_p = subparsers.add_parser("env")
     env_sub = env_p.add_subparsers(dest="subaction", required=True)
     _ = env_sub.add_parser("health")
-    
+    _ = env_sub.add_parser("snapshot", help="Read env snapshot from JSON (no CLI checks)")
+
     debug_p = subparsers.add_parser("debug")
     debug_sub = debug_p.add_subparsers(dest="subaction", required=True)
     _ = debug_sub.add_parser("run")
@@ -3398,24 +3461,7 @@ def main():
     _ = state_sub.add_parser("recover")
     _ = state_sub.add_parser("validate")
     _ = state_sub.add_parser("diagnose")
-    # FEAT-050: new state subcommands
-    _ = state_sub.add_parser("migrate")
-    _ = state_sub.add_parser("aggregate")
-    _ = state_sub.add_parser("doctor")
-    _ = state_sub.add_parser("snapshot")
-    emit_sp = state_sub.add_parser("emit")
-    _ = emit_sp.add_argument("--type", dest="event_type", required=True, help="Event type")
-    _ = emit_sp.add_argument("--payload", default="{}", help="JSON payload string")
-
-    # FEAT-051: Implement subcommand
-    implement_p = subparsers.add_parser("implement")
-    implement_sub = implement_p.add_subparsers(dest="subaction", required=True)
-    _ = implement_sub.add_parser("status")
-    _ = implement_sub.add_parser("resume")
-    _ = implement_sub.add_parser("abort")
-    pr_sp = implement_sub.add_parser("partial-release")
-    _ = pr_sp.add_argument("--phase", required=True, type=str)
-
+    
     provider_p = subparsers.add_parser("provider")
     provider_sub = provider_p.add_subparsers(dest="subaction", required=True)
     
@@ -3456,23 +3502,6 @@ def main():
     
     p_sync = provider_sub.add_parser("sync")
     _ = p_sync.add_argument("name", type=str)
-
-    # FEAT-048: engine sub-subcommands — dispatch to provider_engine.py
-    p_engine = provider_sub.add_parser("engine", help="Provider-Centric Usage Engine (FEAT-048)")
-    engine_sub = p_engine.add_subparsers(dest="engine_cmd", required=True)
-    _ = engine_sub.add_parser("detect", help="Detect installed providers")
-    eng_parse = engine_sub.add_parser("parse", help="Parse usage for a conversation")
-    _ = eng_parse.add_argument("--provider", required=True)
-    _ = eng_parse.add_argument("--conv-id", dest="conv_id", required=True)
-    eng_pricing = engine_sub.add_parser("pricing", help="Calculate cost")
-    _ = eng_pricing.add_argument("--provider", required=True)
-    _ = eng_pricing.add_argument("--model", required=True)
-    _ = eng_pricing.add_argument("--input", type=int, default=0)
-    _ = eng_pricing.add_argument("--output", type=int, default=0)
-    _ = eng_pricing.add_argument("--cache-read", type=int, default=0, dest="cache_read")
-    _ = eng_pricing.add_argument("--cache-write", type=int, default=0, dest="cache_write")
-    _ = eng_pricing.add_argument("--thinking", type=int, default=0)
-    _ = engine_sub.add_parser("diagnose", help="Provider diagnostics")
     
     args = parser.parse_args()
     
@@ -3489,7 +3518,10 @@ def main():
         "suggest": do_suggest,
         "permission": do_permission,
         "compact": do_compact,
-        "task": do_task,
+        "task": do_task_orchestrator,
+        "deps": do_deps,
+        "work-item": do_work_item_cached,
+        "project": do_project_version_cached,
         "lock": do_lock,
         "dependency": do_dependency,
         "merge": do_merge,
@@ -3498,7 +3530,6 @@ def main():
         "analysis-agent": do_analysis_agent,
         "routing": do_routing,
         "prompt": do_prompt,
-        "input": do_input,
         "choice": do_choice,
         "active-workflow": do_active_workflow,
         "resume": do_resume_action,
@@ -3514,11 +3545,10 @@ def main():
         "state": do_state_action,
         "registry": do_registry,
         "update": do_update,
-        "provider": do_provider_action,
-        "implement": do_implement_action
+        "provider": do_provider_action
     }
     
-    modifying_actions = ["init", "start", "step", "complete", "fail", "blueprint", "suggest", "compact", "task", "execution", "analysis-agent", "routing", "prompt", "input", "choice", "active-workflow", "resume", "discover", "classify", "memory", "env", "debug", "verify", "release", "context", "rules", "state", "provider", "implement"]
+    modifying_actions = ["init", "start", "step", "complete", "fail", "blueprint", "suggest", "compact", "task", "deps", "execution", "analysis-agent", "choice", "active-workflow", "resume", "discover", "classify", "memory", "env", "debug", "verify", "release", "state", "provider"]
     if args.action in modifying_actions:
         with SessionLock():
             cmds[args.action](args)

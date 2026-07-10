@@ -19,6 +19,18 @@ repository: https://gitlab.com/hngan.it/ai-workflow-skills
 created_at: 2026-07-03
 updated_at: 2026-07-06
 description: Enforces explicit user-driven releases and requires blueprint validation before any release activities.
+runtime_requirements:
+  rules: required
+  state: required
+  approvals: required
+  git: cached
+  memory: cached
+  rag: none
+  workspace_scan: none
+  environment: cached
+  version: cached
+  provider: optional
+  usage: cached
 ---
 
 # Skill: Implementation to Release (Explicit & Blueprint-Validated)

@@ -13,7 +13,7 @@ class TestAgentsMerge(unittest.TestCase):
             
         # Create a temporary sandbox directory
         self.test_dir = tempfile.mkdtemp()
-        self.script_dir = os.path.abspath(os.path.join(os.path.dirname(__file__), "..", "..", ".."))
+        self.script_dir = os.path.abspath(os.path.join(os.path.dirname(__file__), "..", "..", "..", ".."))
         
         # Prepare mock source files that the installer expects
         self.src_agents = os.path.join(self.script_dir, "AGENTS.md")

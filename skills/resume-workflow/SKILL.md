@@ -18,6 +18,18 @@ repository: https://gitlab.com/hngan.it/ai-workflow-skills
 created_at: 2026-07-03
 updated_at: 2026-07-03
 description: Resume the AI Engineering Workflow from the last recorded checkpoint by reading .agents/.session.json and validating the workspace environment.
+runtime_requirements:
+  rules: required
+  state: required
+  approvals: optional
+  git: cached
+  memory: cached
+  rag: none
+  workspace_scan: none
+  environment: cached
+  version: cached
+  provider: optional
+  usage: cached
 ---
 
 # Skill: resume-workflow (Workflow Recovery Engine)

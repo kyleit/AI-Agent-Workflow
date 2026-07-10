@@ -1,0 +1,324 @@
+{
+  "phases": [
+    {
+      "phase_name": "Phase 1: Lightweight Initialization Boundary",
+      "tasks": ["Task 1.1", "Task 1.2", "Task 1.3"],
+      "deliverables": [
+        "Lightweight initialize-workflow sequence instructions",
+        "Script-first runtime bootstrap functions",
+        "Cached metadata state readers"
+      ],
+      "milestones": [
+        "Init sequence runs without heavy scans"
+      ]
+    },
+    {
+      "phase_name": "Phase 2: Runtime Dependency Resolver",
+      "tasks": ["Task 2.1", "Task 2.2", "Task 2.3", "Task 2.4", "Task 2.5"],
+      "deliverables": [
+        "Core dependency resolver library",
+        "Requirements schema validator",
+        "deps CLI subcommand group",
+        "Pre-execution resolver hooks",
+        "dependencies.json state output file"
+      ],
+      "milestones": [
+        "Dependency resolver successfully validates prerequisites before execution"
+      ]
+    },
+    {
+      "phase_name": "Phase 3: Lazy/Cached Resource Loaders",
+      "tasks": ["Task 3.1", "Task 3.2", "Task 3.3", "Task 3.4", "Task 3.5"],
+      "deliverables": [
+        "Environment cache loader with warning checks",
+        "Lazy memory metadata/targeted loader",
+        "Lazy RAG query loader",
+        "Cached project version & work-item resolver",
+        "Workspace scan block constraint gate"
+      ],
+      "milestones": [
+        "RAG and Memory loaded lazily only when requested"
+      ]
+    },
+    {
+      "phase_name": "Phase 4: Skill Manifest Migration",
+      "tasks": ["Task 4.1", "Task 4.2", "Task 4.3"],
+      "deliverables": [
+        "Migrated core skills manifests",
+        "Cleaned preloading documentation",
+        "Refactored legacy state assumptions in skills"
+      ],
+      "milestones": [
+        "Core skills successfully declare and resolve pre-requisites"
+      ]
+    },
+    {
+      "phase_name": "Phase 5: Tests, Performance, and Documentation",
+      "tasks": ["Task 5.1", "Task 5.2", "Task 5.3", "Task 5.4"],
+      "deliverables": [
+        "Dependency resolver unit and integration tests",
+        "Lightweight initialize performance validator",
+        "Legacy compatibility tests",
+        "Guides and ADR documentation files"
+      ],
+      "milestones": [
+        "100% tests pass and startup latency verified"
+      ]
+    }
+  ],
+  "tasks": [
+    {
+      "id": "Task 1.1",
+      "description": "Rewrite initialize-workflow/SKILL.md to remove heavy initialization steps and define lightweight guardrail-only initialization.",
+      "effort_hours": 3,
+      "owner": "Architect",
+      "operations": ["MODIFY"],
+      "files": ["skills/initialize-workflow/SKILL.md"]
+    },
+    {
+      "id": "Task 1.2",
+      "description": "Move initialization logic into script-first runtime commands where possible.",
+      "effort_hours": 6,
+      "owner": "Coder",
+      "operations": ["MODIFY"],
+      "files": ["skills/workflow-runtime/scripts/workflow_runtime.py"]
+    },
+    {
+      "id": "Task 1.3",
+      "description": "Add cached state readers for workflow, approvals, dashboard, environment snapshot, project version, and active work item.",
+      "effort_hours": 4,
+      "owner": "Coder",
+      "operations": ["MODIFY"],
+      "files": [
+        "skills/workflow-runtime/scripts/session.py",
+        "skills/workflow-runtime/scripts/state_sync.py"
+      ]
+    },
+    {
+      "id": "Task 2.1",
+      "description": "Create dependency_resolver.py.",
+      "effort_hours": 6,
+      "owner": "Coder",
+      "operations": ["NEW"],
+      "files": ["skills/workflow-runtime/scripts/dependency_resolver.py"]
+    },
+    {
+      "id": "Task 2.2",
+      "description": "Add runtime_requirements schema parser/validator.",
+      "effort_hours": 4,
+      "owner": "Coder",
+      "operations": ["MODIFY"],
+      "files": ["skills/workflow-runtime/scripts/dependency_resolver.py"]
+    },
+    {
+      "id": "Task 2.3",
+      "description": "Add deps inspect, deps resolve, deps validate, deps doctor CLI commands.",
+      "effort_hours": 6,
+      "owner": "Coder",
+      "operations": ["MODIFY"],
+      "files": ["skills/workflow-runtime/scripts/workflow_runtime.py"]
+    },
+    {
+      "id": "Task 2.4",
+      "description": "Hook dependency resolution before skill execution.",
+      "effort_hours": 4,
+      "owner": "Coder",
+      "operations": ["MODIFY"],
+      "files": ["skills/workflow-runtime/scripts/workflow_runtime.py"]
+    },
+    {
+      "id": "Task 2.5",
+      "description": "Write dependency resolution state into .agents/state/runtime/dependencies.json.",
+      "effort_hours": 3,
+      "owner": "Coder",
+      "operations": ["MODIFY"],
+      "files": ["skills/workflow-runtime/scripts/dependency_resolver.py"]
+    },
+    {
+      "id": "Task 3.1",
+      "description": "Implement environment snapshot reader and stale-warning behavior.",
+      "effort_hours": 4,
+      "owner": "Coder",
+      "operations": ["MODIFY"],
+      "files": ["skills/workflow-runtime/scripts/validator.py"]
+    },
+    {
+      "id": "Task 3.2",
+      "description": "Implement lazy memory metadata/targeted memory loader.",
+      "effort_hours": 5,
+      "owner": "Coder",
+      "operations": ["MODIFY"],
+      "files": ["skills/workflow-runtime/scripts/context.py"]
+    },
+    {
+      "id": "Task 3.3",
+      "description": "Implement lazy RAG metadata/query loader.",
+      "effort_hours": 4,
+      "owner": "Coder",
+      "operations": ["MODIFY"],
+      "files": ["skills/workflow-runtime/scripts/context.py"]
+    },
+    {
+      "id": "Task 3.4",
+      "description": "Implement cached project version and active work item resolver.",
+      "effort_hours": 4,
+      "owner": "Coder",
+      "operations": ["MODIFY"],
+      "files": [
+        "skills/workflow-runtime/scripts/validator.py",
+        "skills/workflow-runtime/scripts/session.py"
+      ]
+    },
+    {
+      "id": "Task 3.5",
+      "description": "Ensure workspace scan is blocked unless skill requirement allows it.",
+      "effort_hours": 3,
+      "owner": "Coder",
+      "operations": ["MODIFY"],
+      "files": ["skills/workflow-runtime/scripts/context.py"]
+    },
+    {
+      "id": "Task 4.1",
+      "description": "Add runtime_requirements to all core skills manifests.",
+      "effort_hours": 6,
+      "owner": "Coder",
+      "operations": ["MODIFY"],
+      "files": [
+        "skills/initialize-workflow/SKILL.md",
+        "skills/project-memory-bootstrap/SKILL.md",
+        "skills/project-memory-update/SKILL.md",
+        "skills/project-rag-search/SKILL.md",
+        "skills/environment-health/SKILL.md",
+        "skills/brainstorming/SKILL.md",
+        "skills/brainstorming-to-plan/SKILL.md",
+        "skills/plan-to-blueprint/SKILL.md",
+        "skills/blueprint-to-implementation/SKILL.md",
+        "skills/implementation-to-debug/SKILL.md",
+        "skills/debug-to-verify/SKILL.md",
+        "skills/implementation-to-release/SKILL.md"
+      ]
+    },
+    {
+      "id": "Task 4.2",
+      "description": "Update skills manifests to stop saying initialize-workflow preloads everything.",
+      "effort_hours": 4,
+      "owner": "Coder",
+      "operations": ["MODIFY"],
+      "files": [
+        "skills/project-rag-search/SKILL.md",
+        "skills/project-memory-bootstrap/SKILL.md"
+      ]
+    },
+    {
+      "id": "Task 4.3",
+      "description": "Update quick-fix/quick-feature/resume/debug/release skills if they write or read legacy state assumptions.",
+      "effort_hours": 5,
+      "owner": "Coder",
+      "operations": ["MODIFY"],
+      "files": [
+        "skills/workflow-runtime/scripts/workflow_runtime.py",
+        "skills/workflow-runtime/scripts/context.py"
+      ]
+    },
+    {
+      "id": "Task 5.1",
+      "description": "Add dependency resolver tests.",
+      "effort_hours": 6,
+      "owner": "Reviewer",
+      "operations": ["NEW"],
+      "files": [
+        "skills/workflow-runtime/tests/test_dependency_resolver.py",
+        "skills/workflow-runtime/tests/test_runtime_requirements_schema.py",
+        "skills/workflow-runtime/tests/test_dependency_resolver_cli.py"
+      ]
+    },
+    {
+      "id": "Task 5.2",
+      "description": "Add lightweight initialization performance tests.",
+      "effort_hours": 4,
+      "owner": "Reviewer",
+      "operations": ["NEW"],
+      "files": ["skills/workflow-runtime/tests/test_lightweight_initialize.py"]
+    },
+    {
+      "id": "Task 5.3",
+      "description": "Add compatibility tests for legacy skills fallback path.",
+      "effort_hours": 4,
+      "owner": "Reviewer",
+      "operations": ["NEW"],
+      "files": ["skills/workflow-runtime/tests/test_lightweight_initialize.py"]
+    },
+    {
+      "id": "Task 5.4",
+      "description": "Add resolver guides and architectural ADR.",
+      "effort_hours": 6,
+      "owner": "Reviewer",
+      "operations": ["NEW"],
+      "files": [
+        "docs/guides/runtime-dependency-resolver.md",
+        "docs/adr/ADR-008_runtime_dependency_resolver.md"
+      ]
+    }
+  ],
+  "dependencies": {
+    "Task 1.2": ["Task 1.1"],
+    "Task 1.3": ["Task 1.2"],
+    "Task 2.1": ["Task 1.3"],
+    "Task 2.2": ["Task 2.1"],
+    "Task 2.3": ["Task 2.2"],
+    "Task 2.4": ["Task 2.3"],
+    "Task 2.5": ["Task 2.4"],
+    "Task 3.1": ["Task 2.5"],
+    "Task 3.2": ["Task 3.1"],
+    "Task 3.3": ["Task 3.2"],
+    "Task 3.4": ["Task 3.3"],
+    "Task 3.5": ["Task 3.4"],
+    "Task 4.1": ["Task 3.5"],
+    "Task 4.2": ["Task 4.1"],
+    "Task 4.3": ["Task 4.2"],
+    "Task 5.1": ["Task 4.3"],
+    "Task 5.2": ["Task 5.1"],
+    "Task 5.3": ["Task 5.2"],
+    "Task 5.4": ["Task 5.3"]
+  },
+  "parallel_groups": [
+    ["Task 2.2", "Task 2.3"],
+    ["Task 3.1", "Task 3.2", "Task 3.3", "Task 3.4", "Task 3.5"]
+  ],
+  "exit_criteria": [
+    "initialize-workflow runs under 0.8s",
+    "RAG and project memory are loaded only when requested",
+    "stale environment snapshots output a warning and fallback gracefully",
+    "Dependency resolver successfully validates requirements before execution",
+    "100% tests pass"
+  ],
+  "rollback": {
+    "trigger": "Unexpected workflow failures or bootstrap parsing crashes",
+    "steps": [
+      "git revert to the previous stable commit",
+      "restore legacy full initialization behavior"
+    ]
+  },
+  "tests": [
+    {
+      "test_target": "skills/workflow-runtime/tests/test_dependency_resolver.py",
+      "mapped_tasks": ["Task 5.1"]
+    },
+    {
+      "test_target": "skills/workflow-runtime/tests/test_runtime_requirements_schema.py",
+      "mapped_tasks": ["Task 5.1"]
+    },
+    {
+      "test_target": "skills/workflow-runtime/tests/test_dependency_resolver_cli.py",
+      "mapped_tasks": ["Task 5.1"]
+    },
+    {
+      "test_target": "skills/workflow-runtime/tests/test_lightweight_initialize.py",
+      "mapped_tasks": ["Task 5.2", "Task 5.3"]
+    }
+  ],
+  "artifacts": [
+    "docs/designs/FEAT-050_lightweight_runtime_initialization_blueprint.md",
+    "docs/adr/ADR-008_runtime_dependency_resolver.md"
+  ]
+}

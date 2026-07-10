@@ -275,29 +275,6 @@ mkdir -p "$SRC_INSTALL_TARGET/docs"
 copy_diff_item "$SCRIPT_DIR/docs/release-guide.md" "$SRC_INSTALL_TARGET/docs/release-guide.md"
 copy_diff_item "$SCRIPT_DIR/MANIFEST.json" "$SRC_INSTALL_TARGET/MANIFEST.json"
 
-# Ensure .gitignore exists in target and ignores logs
-ensure_gitignore() {
-    local gitignore_file="$SRC_INSTALL_TARGET/.gitignore"
-    if [ ! -f "$gitignore_file" ]; then
-        log_info "Creating: $gitignore_file"
-        cat << 'EOF' > "$gitignore_file"
-.session.json
-state/
-runtime/*.db
-runtime/*.db-journal
-runtime/*.db-wal
-runtime/env_cache.json
-runtime/logs/
-EOF
-    else
-        if ! grep -Fxq "runtime/logs/" "$gitignore_file" && ! grep -Fxq "runtime/logs" "$gitignore_file"; then
-            log_info "Adding runtime/logs/ to $gitignore_file"
-            echo "runtime/logs/" >> "$gitignore_file"
-        fi
-    fi
-}
-ensure_gitignore
-
 # Initialize a clean .session.json if missing, or upgrade if it is in the old flat format
 SESSION_FILE="$SRC_INSTALL_TARGET/.session.json"
 if [ ! -f "$SESSION_FILE" ] || ! grep -q '"workspace": {' "$SESSION_FILE"; then

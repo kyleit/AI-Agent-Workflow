@@ -11,6 +11,18 @@ tags:
   - retrieval
 version: 2.5.0
 description: Provide fast semantic retrieval of project knowledge for all AI Skills. Script-First Architecture.
+runtime_requirements:
+  rules: required
+  state: required
+  approvals: optional
+  git: none
+  memory: cached
+  rag: required
+  workspace_scan: none
+  environment: none
+  version: none
+  provider: optional
+  usage: none
 ---
 
 # Skill: Project RAG Search (Script-First)

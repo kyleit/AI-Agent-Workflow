@@ -19,6 +19,18 @@ repository: https://gitlab.com/hngan.it/ai-workflow-skills
 created_at: 2026-07-03
 updated_at: 2026-07-09
 description: Skill definition.
+runtime_requirements:
+  rules: required
+  state: required
+  approvals: optional
+  git: cached
+  memory: cached
+  rag: lazy
+  workspace_scan: none
+  environment: none
+  version: none
+  provider: optional
+  usage: cached
 ---
 
 # Skill: brainstorming

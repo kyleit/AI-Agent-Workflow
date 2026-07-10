@@ -19,6 +19,18 @@ repository: https://gitlab.com/hngan.it/ai-workflow-skills
 created_at: 2026-07-03
 updated_at: 2026-07-03
 description: Prepare the local machine for the AI Coding workflow. Installs and configures required tools (Git, Python, Node.js, SQLite, Tree-sitter, QMD), initializes Project Memory configuration, verifies AI Skills, and validates optional infrastructure (Docker, Qdrant, Ollama). Safe components are installed automatically. Unsafe components require explicit user confirmation.
+runtime_requirements:
+  rules: required
+  state: required
+  approvals: optional
+  git: cached
+  memory: none
+  rag: none
+  workspace_scan: none
+  environment: cached
+  version: cached
+  provider: optional
+  usage: none
 ---
 
 # Skill: Environment Bootstrap

@@ -62,9 +62,9 @@ class TestRuntimeEngine(unittest.TestCase):
             self.state_backup = self.state_dir + ".testbackup"
             try:
                 if os.path.exists(self.state_backup):
-                    shutil.rmtree(self.state_backup, ignore_errors=True)
-                shutil.copytree(self.state_dir, self.state_backup, ignore=shutil.ignore_patterns('*.db*', '*.tmp'))
-                shutil.rmtree(self.state_dir, ignore_errors=True)
+                    shutil.rmtree(self.state_backup)
+                shutil.copytree(self.state_dir, self.state_backup)
+                shutil.rmtree(self.state_dir)
             except Exception:
                 pass
 
@@ -112,13 +112,13 @@ class TestRuntimeEngine(unittest.TestCase):
         # Clean state directory
         if os.path.exists(self.state_dir):
             try:
-                shutil.rmtree(self.state_dir, ignore_errors=True)
+                shutil.rmtree(self.state_dir)
             except Exception:
                 pass
         if self.state_backup and os.path.exists(self.state_backup):
             try:
-                shutil.copytree(self.state_backup, self.state_dir, dirs_exist_ok=True)
-                shutil.rmtree(self.state_backup, ignore_errors=True)
+                shutil.copytree(self.state_backup, self.state_dir)
+                shutil.rmtree(self.state_backup)
             except Exception:
                 pass
 
@@ -1066,7 +1066,7 @@ class TestRuntimeEngine(unittest.TestCase):
                  
             self.assertIn("telemetry_config", session)
             self.assertEqual(session["telemetry_config"]["context_thresholds"]["warning"], 60)
-            self.assertEqual(session["telemetry_config"]["cost_thresholds"]["warning_usd"], 50.0)
+            self.assertEqual(session["telemetry_config"]["cost_thresholds"]["warning_usd"], 10.0)
             self.assertIn("context_styles", session["telemetry_config"])
             self.assertEqual(session["telemetry_config"]["context_styles"]["healthy"]["color"], "#10b981")
             

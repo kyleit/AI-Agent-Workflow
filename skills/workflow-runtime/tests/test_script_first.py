@@ -37,11 +37,12 @@ class TestScriptFirstExecution(unittest.TestCase):
             except Exception:
                 pass
         
+        # Clean state directory
         if os.path.exists(self.state_dir):
-            shutil.rmtree(self.state_dir, ignore_errors=True)
+            shutil.rmtree(self.state_dir)
         if self.state_backup and os.path.exists(self.state_backup):
-            shutil.copytree(self.state_backup, self.state_dir, dirs_exist_ok=True)
-            shutil.rmtree(self.state_backup, ignore_errors=True)
+            shutil.copytree(self.state_backup, self.state_dir)
+            shutil.rmtree(self.state_backup)
 
         if self.session_backup and os.path.exists(self.session_backup):
             shutil.move(self.session_backup, self.session_file)
@@ -63,8 +64,8 @@ class TestScriptFirstExecution(unittest.TestCase):
         from workflow_state import init_session
         res = init_session("sandbox")
         self.assertEqual(res["status"], "success")
-        from session import load_session
-        session = load_session()
+        with open(self.session_file, "r") as f:
+            session = json.load(f)
         self.assertEqual(session["checkpoint"], 1)
         self.assertEqual(session["permission_mode"], "sandbox")
 
@@ -137,17 +138,9 @@ class TestScriptFirstExecution(unittest.TestCase):
     def test_verify_runner_blocks_release(self):
         from validation_runner import run_verify
         from session import save_session_atomic
-        save_session_atomic({"checkpoint": 7, "active_workflow": {"blueprint_path": "docs/designs/non_existent_blueprint.md"}})
+        save_session_atomic({"checkpoint": 7, "active_workflow": {"blueprint_path": "docs/designs/FEAT-021_script_first_execution_blueprint.md"}})
         res = run_verify()
-        # When blueprint file is missing, run_verify returns a blocking warning.
-        # Accept both "Release is currently blocked" (verified path) and
-        # "No blueprint found" (pre-check gate) as valid block signals.
-        self.assertIn(res["status"], ["failure", "blocked"])
-        warnings = res.get("warnings", [])
-        self.assertTrue(
-            len(warnings) > 0,
-            "run_verify must always return at least one warning when release is blocked"
-        )
+        self.assertIn("Release is currently blocked", res["warnings"][0])
 
     # Scenario 15: release manager refuses tag/push without approval
     def test_release_refuses_without_approval(self):

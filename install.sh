@@ -240,29 +240,6 @@ mkdir -p "$INSTALL_TARGET/docs"
 copy_item "$SCRIPT_DIR/docs/release-guide.md" "$INSTALL_TARGET/docs/release-guide.md" false
 copy_item "$SCRIPT_DIR/MANIFEST.json" "$INSTALL_TARGET/MANIFEST.json" false
 
-# Ensure .gitignore exists in target and ignores logs
-ensure_gitignore() {
-    local gitignore_file="$INSTALL_TARGET/.gitignore"
-    if [ ! -f "$gitignore_file" ]; then
-        log_info "Creating: $gitignore_file"
-        cat << 'EOF' > "$gitignore_file"
-.session.json
-state/
-runtime/*.db
-runtime/*.db-journal
-runtime/*.db-wal
-runtime/env_cache.json
-runtime/logs/
-EOF
-    else
-        if ! grep -Fxq "runtime/logs/" "$gitignore_file" && ! grep -Fxq "runtime/logs" "$gitignore_file"; then
-            log_info "Adding runtime/logs/ to $gitignore_file"
-            echo "runtime/logs/" >> "$gitignore_file"
-        fi
-    fi
-}
-ensure_gitignore
-
 # Initialize a clean .session.json if it doesn't exist
 if [ ! -f "$INSTALL_TARGET/.session.json" ]; then
     log_info "Initializing default .session.json for visualizer UI..."

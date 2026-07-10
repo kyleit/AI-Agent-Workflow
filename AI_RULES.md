@@ -469,30 +469,4 @@ No AIWF Skill may access knowledge providers (such as Markdown files, SQLite dat
     *   Cấm tuyệt đối lưu trữ hoặc commit mã khóa bảo mật (`api_key`) vào tệp cục bộ của dự án. Cấu hình dự án chỉ chứa các thuộc tính override cục bộ (ví dụ: tắt/bật provider hoặc thay đổi vault_path).
     *   Giao tiếp dòng lệnh CLI của `provider` được tích hợp qua lệnh `aiwf provider` (`list`, `add`, `enable`, `disable`, `test`, `doctor`).
 
----
-
-## 25. Runtime Input Gate Policy
-
-To prevent unauthorized automation, race conditions, and bypass of human decisions by AI subagents:
-1. **Forbidden AI Source**: Under no circumstances should an AI agent attempt to bypass the input gate or forge a response to prompt select actions. Any input submission where `source=ai` must be immediately rejected with a `ForbiddenAISourceError`.
-2. **Secure Token Authorization**: All interactive prompt entries require a secure, cryptographically random `resume_token` generated at runtime and stored in the session state. Submitting inputs without a valid token or with a mismatched token must throw `InvalidResumeTokenError`.
-3. **Log Accountability**: All input transitions and authorizations must be logged under `current_logs` to maintain an auditable track of human overrides.
-
----
-
-## 26. Architecture & Code Organization Policy
-
-To enforce Clean Architecture and Domain-Driven Design (DDD) principles across all generated code:
-1. **DDD Layer Structure**: Code should be organized into the following strict hierarchy:
-   - **Domain Layer**: Contains enterprise-wide business rules, entities, value objects, and domain events. Dependent on nothing.
-   - **Application Layer**: Contains application-specific business rules, use cases, query/command handlers, and port interfaces. Dependent only on Domain.
-   - **Infrastructure Layer**: Contains persistence implementations, adapters, external service clients, and framework configs. Dependent on Domain and Application.
-   - **Transport Layer**: Contains APIs, controllers, CLI command parsers, web sockets, and event listeners. Dependent only on Application and Infrastructure.
-2. **File Size Soft Limits (Standard Python/Go)**:
-   - Domain Entities / Value Objects: Soft limit **150 lines**.
-   - Services / Use Case Handlers: Soft limit **250 lines**.
-   - Infrastructure Adapters: Soft limit **400 lines**.
-   - Transport Controllers / Parsers: Soft limit **300 lines**.
-3. **Risk Assessment**: If any proposed file in the design blueprint exceeds the soft limits by more than 20%, the blueprint must include a "File Size Risk Assessment" section suggesting a code refactoring or modular split.
-
 

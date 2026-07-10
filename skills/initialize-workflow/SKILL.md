@@ -6,9 +6,9 @@ aliases:
 category: runtime
 tags:
   - initialization
-  - bootstrap
   - runtime
-version: 2.6.0
+  - lightweight
+version: 3.0.0
 author:
   name: Kyle Dang
   email: kyleit@klexpress.net
@@ -16,11 +16,23 @@ author:
 license: MIT
 repository: https://gitlab.com/hngan.it/ai-workflow-skills
 created_at: 2026-07-03
-updated_at: 2026-07-03
-description: Mandatory entry point for the AI Engineering Workflow. Performs system initialization, loads project rules/policies, loads project memory/RAG, validates Git state, detects current active work item and project version, verifies environment tools, and builds the unified execution context. Read-only.
+updated_at: 2026-07-11
+description: Lightweight runtime initializer for the AI Engineering Workflow. Loads mandatory guardrails, reads cached git/state/approval/dashboard context only. Does NOT load full memory, RAG, workspace scan, environment CLI checks, or transcript sync.
+runtime_requirements:
+  rules: required
+  state: required
+  approvals: required
+  git: cached
+  memory: cached
+  rag: cached
+  workspace_scan: none
+  environment: cached
+  version: cached
+  provider: optional
+  usage: cached
 ---
 
-# Skill: initialize-workflow (AI Workflow Initialization Layer)
+# Skill: initialize-workflow (Lightweight Runtime Initialization)
 
 ---
 
@@ -28,47 +40,64 @@ description: Mandatory entry point for the AI Engineering Workflow. Performs sys
 
 This Skill MUST strictly adhere to the global policies defined in [AI_RULES.md](../../AI_RULES.md):
 - **Approval Gate Policy** (Section 1) - Seek explicit confirmation before modifying code or creating files.
-- **Git Workflow Policy** (Section 2) - Perform branch checks and commits/tags/pushes only with approval.
-- **Memory First Policy** (Section 3) - Consult project summary/memory before source files or user questions.
-- **RAG Policy** (Section 4) - Follow retrieval sequence levels.
+- **Git Workflow Policy** (Section 2) - Read branch/status only (cached). No push, fetch, tag, or remote operations.
+- **Memory First Policy** (Section 3) - Memory is CACHED mode only — reads metadata JSON, never full project-summary.md.
 - **Artifact Policy** (Section 5) - Strictly follow path boundaries and naming formats.
-- **Testing Policy** (Section 8) - Run compilation, build, and tests, halting on failures.
-- **Workspace Permission Mode Policy** (Section 15) - Sandbox mode is default; ask user to choose sandbox or full_access at init.
+- **Workspace Permission Mode Policy** (Section 15) - Sandbox mode is default.
 
-## Multi-Agent Contract
+---
 
-Runs under the Multi-Agent Workflow. Respect agent ownership and handoff rules defined in [agents/](../../agents/) and [runtime/](../../runtime/).
+## 🔒 LIGHTWEIGHT INITIALIZATION CONTRACT
+
+This skill is the **mandatory entry point** of the AI Engineering Workflow. Its purpose is to compile a minimal runtime context from cached state files only — fast, safe, and repeatable.
+
+### Hard Rules (NEVER VIOLATE)
+
+| Forbidden Operation | Reason |
+|---|---|
+| Load full `project-summary.md` or memory chunks | Use `memory: cached` (metadata JSONs only) |
+| Connect to RAG / query vector DB | Use `rag: cached` (metadata only) |
+| Scan `docs/`, workspace files, or manifests | `workspace_scan: none` |
+| Run `git describe --tags`, `git remote -v`, `git fetch` | Only 3 allowed git commands |
+| Run `python --version`, `node --version`, `docker version`, etc. | `environment: cached` — read snapshot JSON only |
+| Parse transcript files or sync request history | `usage: cached` — read from `dashboard.json` or `context/usage.json` only |
+| Call `sync_request_history()`, `parse_transcript()`, `refresh_context_usage_for_active_conversation()` | All forbidden during init |
+| Write absolute paths to `.session.json` | Workspace `path` must always be `"."` |
+
+### Allowed Git Commands (Exactly 3)
+
+```bash
+git rev-parse --is-inside-work-tree
+git branch --show-current
+git status --short
+```
 
 ---
 
 ## Purpose
 
-The **initialize-workflow** Skill is the mandatory entry point of the entire AI Engineering Workflow. It executes first to compile a single, unified runtime context so that subsequent Skills do not duplicate environment-checking, rule-loading, and Git-verifying checks.
+The `initialize-workflow` Skill compiles a lightweight, unified runtime context so subsequent Skills do not duplicate checks. All expensive operations (memory load, RAG connect, workspace scan, env CLI checks) are deferred to the skills that actually need them via the Runtime Dependency Resolver.
+
+**Latency Goal**: < 0.8 seconds
 
 ---
 
 ## Workflow Sequence
 
 ```
-Step 1:  Validate Workspace
+Step 1:  Run deps resolve (Runtime Dependency Resolver)
          ↓
-Step 2:  Load AGENTS.md & Centralized Policies (AI_RULES.md)
+Step 2:  Load Guardrails Summary (hash-based)
          ↓
-Step 3:  Load Project Memory Configuration
+Step 3:  Read Git State (3 allowed commands only)
          ↓
-Step 4:  Connect and Validate RAG Store
+Step 4:  Read Cached State + Approvals
          ↓
-Step 5:  Validate Git State & Current Branch
+Step 5:  Read Cached Version + Provider + Usage (from state files only)
          ↓
-Step 6:  Detect Active Work Item (FEAT, FIX, or QUICK)
+Step 6:  Write Initialization Summary
          ↓
-Step 7:  Detect Current Project Version
-         ↓
-Step 8:  Validate Documentation Directory Structure
-         ↓
-Step 9:  Validate Environment Tools
-         ↓
-Step 10: Build and Print Execution Summary
+STOP — No memory load, no RAG, no env CLI, no workspace scan, no transcript sync
 ```
 
 ---
@@ -76,93 +105,98 @@ Step 10: Build and Print Execution Summary
 ## Detailed Step Instructions
 
 ### Step 0 — Start Initialization & Progressive Tracking
-- Immediately write `.agents/.session.json` atomically (via `.session.json.tmp` rename) with:
+
+- Immediately update `.agents/state/runtime.json` atomically with:
   - `status`: `"in_progress"`
-  - `checkpoint`: 1
   - `current_skill`: `"initialize-workflow"`
   - `current_command`: `"init"`
-  - `current_step`: `"Starting workflow initialization..."`
-  - `current_logs`: `["> Starting initialize-workflow..."]`
+  - `current_step`: `"Starting lightweight workflow initialization..."`
   - `updated_at`: (current ISO-8601 timestamp)
 
-### Step 1 — Validate Workspace
-- Confirm a project workspace is active and resolved as a relative path (e.g. `.`). If not, stop.
-- Update session state: `current_step`: `"Validating workspace..."`, append `"> Validating workspace path..."` to `current_logs`.
+### Step 1 — Run Runtime Dependency Resolver
 
-### Step 2 — Load AGENTS.md & Centralized Policies
-- Read `.agents/AGENTS.md` and load global rules.
-- Locate and read the centralized policy definitions from `AI_RULES.md`.
-- Update session state: `current_step`: `"Loading centralized policies..."`, append `"> Loading rules and policies..."` to `current_logs`.
+```bash
+python skills/workflow-runtime/scripts/workflow_runtime.py deps resolve --skill initialize-workflow
+```
 
-### Step 3 — Load Project Memory Configuration
-- Check for `.agents/memory.config.json` and load memory state. If unavailable, mark Memory Status as `Missing` and continue.
-- Update session state: `current_step`: `"Loading memory config..."`, append `"> Reading memory.config.json..."` to `current_logs`.
+- If resolution fails for a `required` dependency → **STOP**, print error, exit.
+- If resolver warns about missing `runtime_requirements` in other skills → log warning, continue (safe_minimal fallback applies).
+- Write resolution result to `.agents/state/runtime/dependencies.json`.
 
-### Step 4 — Connect and Validate RAG Store
-- Verify RAG configuration and connect. Fallback to Markdown memory without failing if RAG is unavailable.
-- Update session state: `current_step`: `"Connecting RAG store..."`, append `"> Connecting to vector search database..."` to `current_logs`.
+### Step 2 — Load Guardrails Summary (Hash-Based)
 
-### Step 5 — Validate Git State
-- Check repository status. Detect active branch, working tree status (clean/dirty), remote URLs, default branch, and latest tag. Do NOT modify Git state.
-- Update session state: `current_step`: `"Validating Git repository state..."`, append `"> Fetching current Git branch and status..."` to `current_logs`.
+- Compute SHA-256 hash of `AI_RULES.md`, `.agents/AGENTS.md`, and active `SKILL.md`.
+- Build `policy_flags` dict: `approval_gate`, `git_gate`, `blueprint_gate`, `release_gate`, `testing_gate`, `workspace_permission_gate`.
+- **DO NOT** re-read or re-enforce full rule text — hash confirms integrity only.
+- Source function: `load_guardrails_summary()` in `session.py`.
 
-### Step 6 — Detect Active Work Item
-- Scan `docs/` subdirectories (`brainstorming/`, `plans/`, `designs/`, `issues/`, `quick/`).
-- Find the latest active feature/fix/quick prefix (`FEAT-XXX`, `FIX-XXX`, or `QUICK-XXX`) to identify the current work item.
-- Update session state: `current_step`: `"Detecting active work item..."`, append `"> Scanning docs/ for active feature/fix IDs..."` to `current_logs`.
+### Step 3 — Read Git State (Cached Only)
 
-### Step 7 — Detect Current Project Version
-- Detect version strings from config files: `package.json`, `pyproject.toml`, `go.mod`, `Cargo.toml`, or `MANIFEST.json`.
-- Update session state: `current_step`: `"Detecting project version..."`, append `"> Reading version string from manifest..."` to `current_logs`.
+Run **exactly these 3 commands**, nothing more:
 
-### Step 8 — Validate Documentation Directory Structure
-- Verify that standard folders exist: `docs/brainstorm/`, `docs/plans/`, `docs/designs/`, `docs/issues/`, `docs/quick/`, `docs/adr/`, `docs/releases/`, `docs/debug/`, `docs/verification/`, and `docs/archive/`. Report missing directories.
-- Update session state: `current_step`: `"Validating documentation folders..."`, append `"> Verifying standard documentation layout..."` to `current_logs`.
+```bash
+git rev-parse --is-inside-work-tree
+git branch --show-current
+git status --short
+```
 
-### Step 9 — Validate Environment Tools
-- Test execution of: `git`, `python`, `node`, `go`, `docker`, `tree-sitter`, `qdrant`, `qmd`, `ollama`. Do not auto-install; only report availability.
-- Update session state: `current_step`: `"Checking environment tools..."`, append `"> Checking CLI tool versions (git, node, python...)..."` to `current_logs`.
+- Store result in session `git` field.
+- **FORBIDDEN**: `git describe --tags`, `git remote -v`, `git fetch`, `git tag`, `git --version`.
 
-### Step 10 — Create Session State File & Permission Selection (Finalize)
-- Prompt the user to select the Workspace Permission Mode (Sandbox Mode vs Full Access Mode vs Unrestricted Mode) during initialization:
-  ```bash
-  python3 .agents/skills/workflow-runtime/scripts/workflow_runtime.py prompt select --question "Choose workspace permission mode:" --options "sandbox|full_access|unrestricted" --default "sandbox"
-  ```
-- Based on the user choice:
-  - If choice is `1` (or sandbox): set `permission_mode = "sandbox"`.
-  - If choice is `2` (or full_access): set `permission_mode = "full_access"`.
-  - If choice is `3` (or unrestricted):
-    - Display danger zone warning and ask for `CONFIRM_UNRESTRICTED`.
-    - If user inputs correctly: set `permission_mode = "unrestricted"`.
-    - Else: fallback to `sandbox`.
-  - Otherwise, default/fallback to `sandbox`.
-- Perform final atomic update of `.agents/.session.json` (via `.session.json.tmp` rename):
-  - Set `checkpoint` to `1` (Initialization Complete).
-  - Set `status` to `"completed"`.
-  - Set `current_step` to `"Initialization Complete"`.
-  - Set `permission_mode` to the selected mode.
-  - Set `permission_mode_selected_at` to current ISO-8601 timestamp.
-  - Set `permission_mode_selected_by` to `"user"`.
-  - Append `"> System initialization finished successfully."` to `current_logs`.
-  - Update `suggested_next_skill` to `"software-development-workflow"` and `suggested_next_command` to `"workflow"`.
-  - Ensure all gathered git, version, work_item, memory, and rag fields are written in their nested slots.
-  - **Conversation ID Recording**: Retrieve the active `Conversation ID` from `user_information` in the environment metadata and save it to the `"conversation_id"` string field inside `.session.json`, preserving it if already set.
-  - **Context Usage Token Estimation**: Estimate the current conversation's token count from the active transcript file size (at `<appDataDir>/brain/<conversation_id>/.system_generated/logs/transcript.jsonl` using `fileSize / 3` as an approximation) and write it to the `"context_usage"` object.
-  - **CRITICAL**: The `"path"` field of the `"workspace"` object in `.agents/.session.json` MUST be exactly `"."` (a relative path representation to prevent path leakage). Under no circumstances should an absolute path be written.
+### Step 4 — Read Cached State + Approvals
 
-### Step 11 — Auto-Resume & Git Auto-Stash Recovery (Rollover Mechanism)
-- Prior to finalizing initialization, the AI Agent **MUST** check for the existence of `.agents/runtime/context_snapshot.json`.
-- If the snapshot file exists:
-  1. Read the snapshot data (extract `checkpoint`, `current_skill`, `current_command`, `current_step`, `git_stash_ref`).
-  2. Overwrite the corresponding fields in `.agents/.session.json` with the snapshot data to restore the state from the previous thread.
-  3. If `git_stash_ref` is present and not empty, the Agent **MUST** run (or instruct/ask approval to run):
-     ```bash
-     git stash pop
-     ```
-     to restore any unstaged code changes.
-  4. Delete the `.agents/runtime/context_snapshot.json` file immediately to prevent duplicate recovery loops.
-  5. Print a clear recovery confirmation notice to the user:
-     `✨ [SYSTEM]: Recovered SDLC context from thread rollover. Checkpoint restored to X, Git changes unstashed.`
+- Read `.agents/state/context.json` → work_item, checkpoint, project metadata.
+- Read `.agents/state/approvals.json` → approval state.
+- Read `.agents/state/workflow.json` → workflow progress.
+- Source functions: `load_approval_state()`, `load_dashboard_state()` in `session.py`.
+- **DO NOT** scan `docs/` directories. Work item is read from `context.json` only.
+
+### Step 5 — Read Cached Version + Provider + Usage
+
+- **Version**: Read from `.agents/state/context.json` → `project_version` field. **NEVER** scan `package.json`, `go.mod`, `pyproject.toml`, `Cargo.toml`, or `MANIFEST.json`.
+- **Provider**: Read from `.agents/state/context.json` or `dashboard.json` if available. Skip silently if not found (`optional`).
+- **Usage**: Read from `.agents/state/context/usage.json` or `.agents/state/dashboard.json`. **NEVER** parse transcript files.
+- **Environment**: Read from `.agents/state/environment.json`. If stale (>24h) → warn only, do not block. If missing → warn only.
+
+### Step 6 — Write Initialization Summary
+
+- Call `write_initialization_summary()` from `state_sync.py`.
+- Write lightweight summary to `.agents/state/context.json`:
+  - `guardrail_hashes`: SHA-256 hashes
+  - `git`: branch, working_tree, is_repository
+  - `checkpoint`: current checkpoint number
+  - `resolved_dependencies`: summary from deps resolve
+  - `init_completed_at`: ISO-8601 timestamp
+  - `init_latency_ms`: measured latency
+- Call `validate_no_heavy_init_operations()` — if any heavy op was triggered → log critical warning.
+- Update `runtime.json`: `status: "completed"`, `checkpoint: 1`, `current_step: "Initialization Complete"`.
+
+### Step 7 — Auto-Resume & Git Auto-Stash Recovery (Optional)
+
+- Check for `.agents/runtime/context_snapshot.json`.
+- If exists: restore checkpoint, skill, command, step from snapshot. If `git_stash_ref` present → prompt approval to run `git stash pop`. Delete snapshot after restore.
+- Print: `✨ [SYSTEM]: Recovered SDLC context from thread rollover. Checkpoint restored to X.`
+
+---
+
+## ⛔ Removed Operations (FEAT-050)
+
+The following operations were removed from this skill in v3.0.0 and must NEVER be re-added:
+
+| Removed Step | Reason | Alternative |
+|---|---|---|
+| Full Project Memory load | Too slow (~2-5s), not needed at init | Use `memory: cached` or `memory: lazy` in specific skills |
+| RAG connect + validate | Too slow, network I/O | Use `rag: cached` or `rag: lazy` in specific skills |
+| Workspace scan (`docs/` scan for work item) | Filesystem I/O on every init | Read `work_item` from `context.json` only |
+| `get_version_info()` (scans manifests) | Not needed at init | Read `project_version` from `context.json` |
+| Validate documentation folders | Not needed at init | Handled by `environment-health` skill |
+| Env CLI checks (`python --version`, `node --version`, etc.) | Slow subprocess calls | Use `environment: cached` → `environment.json` |
+| `git describe --tags` | Forbidden at init | Version from `context.json` only |
+| `sync_request_history()` | Expensive, async | Never during init; guarded by `usage: cached` |
+| `parse_transcript()` | File I/O + parsing | Never during init |
+| `refresh_context_usage_for_active_conversation()` | API call | Never during init |
+| Write absolute workspace path | Path leakage | Always write `path: "."` |
+| Permission mode prompt during init | Moved to separate gate | Handled by `permission_mode.py` when needed |
 
 ---
 
@@ -170,60 +204,46 @@ Step 10: Build and Print Execution Summary
 
 ```text
 Current Phase:
-Workflow Initialization
+Workflow Initialization (Lightweight)
 
 Status:
 Completed
 
-Workspace:
-- Path: [relative path (e.g. .)]
-- Valid: Yes
-
-Policies Loaded:
-- Approval Gate Policy: Yes
-- Git Workflow Policy: Yes
-- Memory First Policy: Yes
-- RAG Policy: Yes
-- Artifact Policy: Yes
-- Versioning Policy: Yes
-- Documentation Policy: Yes
-- Testing Policy: Yes
-- Release Policy: Yes
-
-Memory Status:
-- Status: [FRESH | STALE | MISSING]
-- Last Updated: [ISO8601 | N/A]
-
-RAG Connection:
-- Connected: [Yes | No (Fallback to Markdown Memory)]
+Guardrails:
+- AI_RULES.md: [hash]
+- AGENTS.md: [hash]
+- SKILL.md: [hash]
+- Policy Flags: approval_gate=true, git_gate=true, blueprint_gate=true
 
 Git Status:
 - Branch: [branch-name]
 - Working Tree: [clean | dirty]
-- Default Branch: [main | master | etc.]
-- Latest Tag: [vX.Y.Z | none]
+- Repository: [yes | no]
 
-Current Work Item:
-- Type: [FEAT | FIX | QUICK | None]
-- ID: [FEAT-XXX | FIX-XXX | QUICK-XXX | None]
-- Title: [Title of the active item]
+Dependencies Resolved:
+- rules: loaded
+- state: loaded
+- approvals: loaded
+- git: cached
+- memory: deferred (lazy)
+- rag: deferred (lazy)
+- version: cached
+- provider: [cached | skipped]
+- usage: cached
 
-Current Version:
-- Version: [x.y.z]
-- Source: [go.mod | package.json | etc.]
-
-Environment Status:
-- Git: [available | missing]
-- Python: [available | missing]
-- Node: [available | missing]
-- Go: [available | missing]
-- Docker: [available | missing]
-
-Documentation Status:
-- Missing Folders: [None | list of missing folders]
+Init Latency: [XXXms]
 
 Recommended Next Skill:
-[software-development-workflow | user-requested-skill]
+software-development-workflow
 
 Workflow Paused.
 ```
+
+---
+
+## 🔒 WORKFLOW RUNTIME INTERFACE
+
+- **Start**: `python skills/workflow-runtime/scripts/workflow_runtime.py start --skill "initialize-workflow" --command "init" --checkpoint 1 --step "Starting lightweight initialization..."`
+- **Step Updates**: `python skills/workflow-runtime/scripts/workflow_runtime.py step --step "<desc>" --log "<msg>"`
+- **Completion**: `python skills/workflow-runtime/scripts/workflow_runtime.py complete --checkpoint 1 --step "Initialization Complete" --next-skill "software-development-workflow" --next-command "workflow"`
+- **Failure**: `python skills/workflow-runtime/scripts/workflow_runtime.py fail --step "<error_step>" --log "<error_details>"`

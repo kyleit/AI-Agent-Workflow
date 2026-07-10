@@ -21,6 +21,18 @@ repository: https://gitlab.com/hngan.it/ai-workflow-skills
 created_at: 2026-07-05
 updated_at: 2026-07-05
 description: Discover target project's tech stack (languages, frameworks, tools, platforms, databases, infrastructure) and generate project-profile.json to configure dynamic workflow checkpoints.
+runtime_requirements:
+  rules: required
+  state: required
+  approvals: optional
+  git: cached
+  memory: none
+  rag: none
+  workspace_scan: required
+  environment: cached
+  version: cached
+  provider: optional
+  usage: none
 ---
 
 # Skill: Project Discovery

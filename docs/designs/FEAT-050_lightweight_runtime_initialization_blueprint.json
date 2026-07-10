@@ -1,0 +1,1538 @@
+{
+  "modules": [
+    {
+      "name": "dependency_resolver",
+      "file": "skills/workflow-runtime/scripts/dependency_resolver.py",
+      "operation": "NEW",
+      "classes": [
+        {
+          "class_name": "ValidationResult",
+          "responsibilities": [
+            "Hold schema validation outcome — errors and warnings"
+          ],
+          "methods": [],
+          "lifecycle": "dataclass",
+          "state_ownership": "immutable"
+        },
+        {
+          "class_name": "DependencyResult",
+          "responsibilities": [
+            "Hold resolved state for a single dependency key"
+          ],
+          "methods": [],
+          "lifecycle": "dataclass",
+          "state_ownership": "immutable"
+        },
+        {
+          "class_name": "ResolvedRuntimeContext",
+          "responsibilities": [
+            "Hold the full resolution outcome for a skill's requirements"
+          ],
+          "methods": [],
+          "lifecycle": "dataclass",
+          "state_ownership": "immutable"
+        }
+      ],
+      "functions": [
+        {
+          "name": "parse_requirements",
+          "parameters": [
+            {
+              "name": "skill_name",
+              "type": "str"
+            }
+          ],
+          "return_type": "dict"
+        },
+        {
+          "name": "validate_requirements",
+          "parameters": [
+            {
+              "name": "skill_name",
+              "type": "str"
+            },
+            {
+              "name": "requirements",
+              "type": "dict"
+            }
+          ],
+          "return_type": "ValidationResult"
+        },
+        {
+          "name": "resolve_requirements",
+          "parameters": [
+            {
+              "name": "skill_name",
+              "type": "str"
+            },
+            {
+              "name": "requirements",
+              "type": "dict"
+            }
+          ],
+          "return_type": "ResolvedRuntimeContext"
+        },
+        {
+          "name": "load_required_dependency",
+          "parameters": [
+            {
+              "name": "name",
+              "type": "str"
+            },
+            {
+              "name": "mode",
+              "type": "str"
+            }
+          ],
+          "return_type": "DependencyResult"
+        },
+        {
+          "name": "get_doctor_report",
+          "parameters": [
+            {
+              "name": "strict_mode",
+              "type": "bool",
+              "default": false
+            }
+          ],
+          "return_type": "DoctorReport",
+          "notes": "strict_mode=False: missing runtime_requirements -> warning + safe_minimal fallback. strict_mode=True: missing -> error, blocks execution."
+        },
+        {
+          "name": "validate_phase_completion",
+          "parameters": [
+            {
+              "name": "phase_id",
+              "type": "str"
+            },
+            {
+              "name": "task_graph",
+              "type": "TaskGraph"
+            },
+            {
+              "name": "task_ledger",
+              "type": "TaskLedger"
+            }
+          ],
+          "return_type": "PhaseCoverageResult",
+          "notes": "Phase complete ONLY when: all tasks exist in ledger, all state=completed, verification pass, no active workers/locks, all exit criteria pass. Phase Complete != First Blocking Task Complete."
+        },
+        {
+          "name": "get_next_ready_task",
+          "parameters": [
+            {
+              "name": "task_graph",
+              "type": "TaskGraph"
+            },
+            {
+              "name": "task_ledger",
+              "type": "TaskLedger"
+            }
+          ],
+          "return_type": "tuple[str | None, str]",
+          "notes": "Priority: running -> wait; failed -> recover; ready_queue -> return first; current phase incomplete -> stay; all phases done -> /debug; NEVER /release until all phases + debug + verify pass."
+        }
+      ]
+    },
+    {
+      "name": "task_orchestrator",
+      "file": "skills/workflow-runtime/scripts/task_orchestrator.py",
+      "operation": "NEW",
+      "classes": [
+        {
+          "class_name": "TaskNode",
+          "responsibilities": [
+            "Hold task dependency graph node with state machine"
+          ],
+          "methods": [],
+          "lifecycle": "dataclass",
+          "state_ownership": "mutable"
+        },
+        {
+          "class_name": "TaskGraph",
+          "responsibilities": [
+            "Hold full dependency graph with ready_queue, blocked, failed, completed lists"
+          ],
+          "methods": [],
+          "lifecycle": "dataclass",
+          "state_ownership": "mutable"
+        },
+        {
+          "class_name": "TaskLedger",
+          "responsibilities": [
+            "Hold task progress ledger — source of truth for completion state"
+          ],
+          "methods": [],
+          "lifecycle": "dataclass",
+          "state_ownership": "mutable"
+        }
+      ],
+      "functions": [
+        {
+          "name": "build_task_graph",
+          "parameters": [
+            {
+              "name": "plan_json",
+              "type": "dict"
+            }
+          ],
+          "return_type": "TaskGraph",
+          "notes": "DFS cycle check -> CyclicDependencyError. Unknown ref -> UnknownDependencyError. Writes task_graph.json."
+        },
+        {
+          "name": "transition_task_state",
+          "parameters": [
+            {
+              "name": "task_id",
+              "type": "str"
+            },
+            {
+              "name": "new_state",
+              "type": "str"
+            },
+            {
+              "name": "ledger",
+              "type": "TaskLedger"
+            },
+            {
+              "name": "reason",
+              "type": "str",
+              "default": ""
+            }
+          ],
+          "return_type": "bool",
+          "notes": "Raises ForbiddenStateTransitionError for forbidden shortcuts. completed requires: impl done + outputs exist + verification pass + no worker + no lock."
+        },
+        {
+          "name": "load_task_ledger",
+          "parameters": [],
+          "return_type": "TaskLedger",
+          "notes": "Reads tasks.json. Raises LedgerConsistencyError if blueprint task missing."
+        },
+        {
+          "name": "write_task_ledger",
+          "parameters": [
+            {
+              "name": "ledger",
+              "type": "TaskLedger"
+            }
+          ],
+          "return_type": "None",
+          "notes": "Atomic write to .agents/state/workflow/tasks.json."
+        },
+        {
+          "name": "get_next_ready_task",
+          "parameters": [
+            {
+              "name": "task_graph",
+              "type": "TaskGraph"
+            },
+            {
+              "name": "task_ledger",
+              "type": "TaskLedger"
+            }
+          ],
+          "return_type": "tuple[str | None, str]",
+          "notes": "Returns (task_id, reason) or (None, reason). See next-task recommendation rules."
+        }
+      ],
+      "state_machine": {
+        "valid_states": [
+          "queued",
+          "waiting",
+          "ready",
+          "running",
+          "blocked",
+          "completed",
+          "failed",
+          "skipped",
+          "aborted"
+        ],
+        "allowed_transitions": {
+          "queued": [
+            "waiting",
+            "ready"
+          ],
+          "waiting": [
+            "ready"
+          ],
+          "ready": [
+            "running",
+            "skipped"
+          ],
+          "running": [
+            "completed",
+            "failed",
+            "blocked",
+            "aborted"
+          ],
+          "failed": [
+            "queued"
+          ],
+          "blocked": [
+            "ready"
+          ],
+          "completed": [],
+          "skipped": [],
+          "aborted": []
+        },
+        "forbidden_shortcuts": [
+          [
+            "queued",
+            "completed"
+          ],
+          [
+            "waiting",
+            "completed"
+          ],
+          [
+            "running",
+            "queued"
+          ],
+          [
+            "completed",
+            "running"
+          ]
+        ],
+        "completed_conditions": [
+          "implementation changes done",
+          "expected outputs exist",
+          "task verification passes",
+          "no active worker",
+          "no active lock"
+        ]
+      }
+    },
+    {
+      "name": "workflow_runtime",
+      "file": "skills/workflow-runtime/scripts/workflow_runtime.py",
+      "operation": "MODIFY",
+      "classes": [],
+      "functions": [
+        {
+          "name": "do_deps_inspect",
+          "parameters": [
+            {
+              "name": "args",
+              "type": "argparse.Namespace"
+            }
+          ],
+          "return_type": "None"
+        },
+        {
+          "name": "do_deps_resolve",
+          "parameters": [
+            {
+              "name": "args",
+              "type": "argparse.Namespace"
+            }
+          ],
+          "return_type": "None"
+        },
+        {
+          "name": "do_deps_validate",
+          "parameters": [
+            {
+              "name": "args",
+              "type": "argparse.Namespace"
+            }
+          ],
+          "return_type": "None"
+        },
+        {
+          "name": "do_deps_doctor",
+          "parameters": [
+            {
+              "name": "args",
+              "type": "argparse.Namespace"
+            }
+          ],
+          "return_type": "None"
+        },
+        {
+          "name": "do_work_item_detect",
+          "parameters": [
+            {
+              "name": "args",
+              "type": "argparse.Namespace"
+            }
+          ],
+          "return_type": "None"
+        },
+        {
+          "name": "do_project_version",
+          "parameters": [
+            {
+              "name": "args",
+              "type": "argparse.Namespace"
+            }
+          ],
+          "return_type": "None"
+        },
+        {
+          "name": "do_env_snapshot",
+          "parameters": [
+            {
+              "name": "args",
+              "type": "argparse.Namespace"
+            }
+          ],
+          "return_type": "None"
+        }
+      ]
+    },
+    {
+      "name": "validator",
+      "file": "skills/workflow-runtime/scripts/validator.py",
+      "operation": "MODIFY",
+      "classes": [],
+      "functions": [
+        {
+          "name": "read_environment_snapshot",
+          "parameters": [],
+          "return_type": "DependencyResult",
+          "notes": "Reads .agents/state/environment.json; never runs CLI checks"
+        },
+        {
+          "name": "detect_work_item_cached",
+          "parameters": [],
+          "return_type": "dict",
+          "notes": "Reads from .agents/state/context.json; never scans docs/"
+        },
+        {
+          "name": "detect_project_version_cached",
+          "parameters": [],
+          "return_type": "str",
+          "notes": "Reads version.version from .agents/state/context.json"
+        }
+      ]
+    },
+    {
+      "name": "context",
+      "file": "skills/workflow-runtime/scripts/context.py",
+      "operation": "MODIFY",
+      "classes": [],
+      "functions": [
+        {
+          "name": "load_memory_cached",
+          "parameters": [],
+          "return_type": "DependencyResult",
+          "notes": "Reads ONLY memory-state.json + memory.config.json. Never reads project-summary.md or module memory documents."
+        },
+        {
+          "name": "load_memory_lazy",
+          "parameters": [
+            {
+              "name": "query",
+              "type": "str | None",
+              "default": "None"
+            }
+          ],
+          "return_type": "DependencyResult",
+          "notes": "No query: returns deferred handle, nothing loaded. With query: loads only targeted memory chunks. Never full load."
+        },
+        {
+          "name": "load_memory_required",
+          "parameters": [
+            {
+              "name": "targets",
+              "type": "list[str] | None",
+              "default": "None"
+            }
+          ],
+          "return_type": "DependencyResult",
+          "notes": "Allowed ONLY for project-memory-bootstrap and project-memory-update skills."
+        },
+        {
+          "name": "load_rag_cached",
+          "parameters": [],
+          "return_type": "DependencyResult",
+          "notes": "Reads RAG metadata/status only. Never connects or queries vector DB."
+        },
+        {
+          "name": "load_rag_lazy",
+          "parameters": [
+            {
+              "name": "query",
+              "type": "str | None",
+              "default": "None"
+            }
+          ],
+          "return_type": "DependencyResult",
+          "notes": "Returns deferred handle; issues RAG query only when query is provided"
+        },
+        {
+          "name": "check_workspace_scan_allowed",
+          "parameters": [
+            {
+              "name": "skill_name",
+              "type": "str"
+            },
+            {
+              "name": "mode",
+              "type": "str"
+            }
+          ],
+          "return_type": "DependencyResult",
+          "notes": "Blocks if skill is not in WORKSPACE_SCAN_ALLOWED_SKILLS and mode != none"
+        }
+      ]
+    },
+    {
+      "name": "session",
+      "file": "skills/workflow-runtime/scripts/session.py",
+      "operation": "MODIFY",
+      "classes": [],
+      "functions": [
+        {
+          "name": "load_guardrails_summary",
+          "parameters": [],
+          "return_type": "dict",
+          "notes": "Returns rules, skill name, and policy flags without loading heavy context"
+        },
+        {
+          "name": "load_approval_state",
+          "parameters": [],
+          "return_type": "dict",
+          "notes": "Reads .agents/state/approvals.json"
+        },
+        {
+          "name": "load_dashboard_state",
+          "parameters": [],
+          "return_type": "dict",
+          "notes": "Reads .agents/state/dashboard.json"
+        }
+      ]
+    }
+  ],
+  "configuration": {
+    "schema": {
+      "environment_snapshot": {
+        "path": ".agents/state/environment.json",
+        "stale_threshold_seconds": 86400,
+        "fields": [
+          "updated_at",
+          "tools"
+        ]
+      },
+      "dependencies_log": {
+        "path": ".agents/state/runtime/dependencies.json",
+        "fields": [
+          "skill",
+          "resolved_at",
+          "requirements",
+          "resolved",
+          "missing_required",
+          "warnings"
+        ]
+      },
+      "runtime_requirements_frontmatter": {
+        "supported_keys": [
+          "rules",
+          "state",
+          "approvals",
+          "git",
+          "memory",
+          "rag",
+          "workspace_scan",
+          "environment",
+          "version",
+          "provider",
+          "usage"
+        ],
+        "deprecated_keys": [
+          "transcript_sync",
+          "provider_usage"
+        ],
+        "deprecated_key_migration": {
+          "transcript_sync": "usage",
+          "provider_usage": "provider"
+        },
+        "supported_modes": [
+          "required",
+          "cached",
+          "lazy",
+          "optional",
+          "none"
+        ],
+        "safety_keys": [
+          "rules",
+          "state",
+          "approvals"
+        ],
+        "memory_mode_semantics": {
+          "cached": "Reads ONLY memory-state.json + memory.config.json metadata. Never reads project-summary.md.",
+          "lazy": "No load at init. Targeted load only when skill calls load_memory_lazy(query=...).",
+          "required": "Allowed only for memory-specific skills. Loads project-summary.md + named targets."
+        },
+        "rag_mode_semantics": {
+          "cached": "Reads RAG metadata/status only. Never connects or queries vector DB.",
+          "lazy": "No load at init. Actual query only when skill calls load_rag_lazy(query=...).",
+          "required": "Allowed only for project-rag-search. May initialize and query RAG."
+        },
+        "git_allowed_commands": [
+          "git branch --show-current",
+          "git status --short",
+          "git rev-parse --is-inside-work-tree"
+        ],
+        "git_forbidden_commands": [
+          "git --version",
+          "git describe --tags",
+          "git remote -v",
+          "git fetch",
+          "git tag"
+        ],
+        "transcript_hard_block_for": [
+          "initialize-workflow"
+        ],
+        "transcript_blocked_functions": [
+          "sync_request_history",
+          "parse_transcript",
+          "refresh_context_usage_for_active_conversation"
+        ],
+        "version_mode_semantics": {
+          "cached": "Read from .agents/state/context.json version field only. Never scan package.json, go.mod, pyproject.toml, Cargo.toml, MANIFEST.json.",
+          "required": "Allowed for release/version skills only."
+        },
+        "provider_mode_semantics": {
+          "cached": "Read provider metadata from context.json or dashboard.json only.",
+          "lazy": "Load provider metadata only when explicitly needed.",
+          "optional": "Use if available."
+        },
+        "usage_mode_semantics": {
+          "cached": "Read usage summary from context/usage.json or dashboard.json only. Never parse transcripts.",
+          "lazy": "May run incremental usage sync when explicitly requested.",
+          "required": "Allowed only for usage/reporting/diagnostic skills."
+        },
+        "initialize_workflow_hard_rules": [
+          "version: cached — never scan manifests",
+          "provider: optional — read from state if available",
+          "usage: cached — never parse transcripts or sync request history"
+        ]
+      }
+    },
+    "defaults": {
+      "legacy_skill_fallback": "safe_minimal",
+      "safe_minimal_definition": {
+        "loads": [
+          "rules",
+          "state"
+        ],
+        "loads_if_available": [
+          "approvals"
+        ],
+        "reads_git_only": [
+          "git branch --show-current",
+          "git status --short"
+        ],
+        "does_not_load": [
+          "memory",
+          "rag",
+          "workspace_scan",
+          "environment_cli",
+          "transcripts",
+          "request_history"
+        ]
+      },
+      "environment_stale_action": "warn_only",
+      "workspace_scan_allowed_skills": [
+        "project-memory-bootstrap",
+        "project-memory-update",
+        "project-discovery"
+      ],
+      "guardrails_summary": {
+        "returns": [
+          "rules_loaded",
+          "ai_rules_hash",
+          "agents_hash",
+          "active_skill_hash",
+          "policy_flags"
+        ],
+        "policy_flags": [
+          "approval_gate",
+          "git_gate",
+          "blueprint_gate",
+          "release_gate",
+          "testing_gate",
+          "workspace_permission_gate"
+        ],
+        "notes": "Does not weaken rules. Full AI_RULES.md still loaded when skill requires full policy text."
+      },
+      "visualizer_audit": {
+        "files": [
+          "extensions/visualizer/src/extension.ts",
+          "extensions/visualizer/resources/webview.html"
+        ],
+        "requirements": [
+          "Prefer .agents/state/dashboard.json as primary state source",
+          "Fallback to .agents/.session.json only with console warning",
+          "Never display release_allowed=true if dashboard.release_allowed=false"
+        ]
+      }
+    }
+  },
+  "database": {
+    "tables": [],
+    "growth_estimation": "N/A — JSON files only",
+    "maintenance_strategy": "dependencies.json is overwritten per skill run; environment.json is replaced on /environment-health; task_graph.json and tasks.json updated on each state transition",
+    "state_files": [
+      {
+        "path": ".agents/state/runtime/dependencies.json",
+        "owner": "dependency_resolver.py",
+        "update_frequency": "per skill execution"
+      },
+      {
+        "path": ".agents/state/environment.json",
+        "owner": "environment-health skill only",
+        "update_frequency": "manual via /environment-health"
+      },
+      {
+        "path": ".agents/state/workflow/task_graph.json",
+        "owner": "task_orchestrator.py",
+        "update_frequency": "built once before implementation; updated on state transitions"
+      },
+      {
+        "path": ".agents/state/workflow/tasks.json",
+        "owner": "task_orchestrator.py",
+        "update_frequency": "atomic write on each task state transition",
+        "is_source_of_truth": true,
+        "ledger_rules": [
+          "AI messages do NOT count as task completion",
+          "Checkpoint updates do NOT count as task completion",
+          "Blueprint task missing from tasks.json = LedgerConsistencyError",
+          "Phase cannot complete while any task is not completed in ledger"
+        ]
+      }
+    ]
+  },
+  "cache": {
+    "keys": [
+      ".agents/state/environment.json",
+      ".agents/state/context.json",
+      ".agents/state/approvals.json",
+      ".agents/state/runtime/dependencies.json"
+    ],
+    "ttl_seconds": 86400,
+    "invalidation_rules": [
+      "environment.json: invalidated only by /environment-health or env snapshot command",
+      "context.json: invalidated on session restart or checkpoint change",
+      "dependencies.json: overwritten on each deps resolve invocation"
+    ]
+  },
+  "errors": [
+    {
+      "exception_class": "MissingRequiredDependencyError",
+      "trigger": "A required dependency cannot be resolved",
+      "recovery": "Print exact dependency name + suggested fix; sys.exit(1)"
+    },
+    {
+      "exception_class": "InvalidRequirementsKeyError",
+      "trigger": "Unknown key in runtime_requirements",
+      "recovery": "Print key name + list valid keys; sys.exit(1)"
+    },
+    {
+      "exception_class": "InvalidRequirementsModeError",
+      "trigger": "Unknown mode value in runtime_requirements",
+      "recovery": "Print mode name + list valid modes; sys.exit(1)"
+    },
+    {
+      "exception_class": "SafetyKeyViolationError",
+      "trigger": "Safety key set to lazy/optional/none",
+      "recovery": "Print violation message; sys.exit(1)"
+    },
+    {
+      "exception_class": "WorkspaceScanBlockedError",
+      "trigger": "Skill with workspace_scan: none attempts scan",
+      "recovery": "Print skill name + constraint; sys.exit(1)"
+    },
+    {
+      "exception_class": "CyclicDependencyError",
+      "trigger": "Cycle detected in task dependency graph",
+      "recovery": "Print cycle path; block implementation start"
+    },
+    {
+      "exception_class": "UnknownDependencyError",
+      "trigger": "Task dependency references non-existent task ID",
+      "recovery": "Print bad reference; block implementation start"
+    },
+    {
+      "exception_class": "ForbiddenStateTransitionError",
+      "trigger": "Task state transition not in ALLOWED_TRANSITIONS",
+      "recovery": "Print current/target state + allowed transitions; sys.exit(1)"
+    },
+    {
+      "exception_class": "LedgerConsistencyError",
+      "trigger": "Blueprint task missing from tasks.json",
+      "recovery": "Print missing task ID; block phase start"
+    }
+  ],
+  "sequence_flows": [
+    {
+      "flow_name": "Lightweight Init",
+      "steps": [
+        "Call deps resolve --skill initialize-workflow",
+        "Resolver loads rules (AI_RULES.md + AGENTS.md)",
+        "Resolver loads state (context.json)",
+        "Resolver loads approvals (approvals.json)",
+        "Resolver reads git from cache",
+        "Resolver reads environment snapshot (warn if stale)",
+        "Memory and RAG deferred (lazy mode)",
+        "Write dependencies.json",
+        "Init completes < 0.8s"
+      ]
+    },
+    {
+      "flow_name": "Missing Required Dependency",
+      "steps": [
+        "blueprint-to-implementation calls deps resolve",
+        "Resolver checks approvals: required",
+        "blueprint.approved == false",
+        "Raise MissingRequiredDependencyError",
+        "Print: Cannot run. Blueprint not approved.",
+        "sys.exit(1)"
+      ]
+    },
+    {
+      "flow_name": "Stale Environment Snapshot",
+      "steps": [
+        "Resolver loads environment: cached",
+        "Reads .agents/state/environment.json",
+        "updated_at is > 24h old",
+        "Return DependencyResult(status=stale, action=warn_only)",
+        "Print warning: snapshot is old, run /environment-health",
+        "Execution continues"
+      ]
+    }
+  ],
+  "integration_contracts": [
+    {
+      "skill": "initialize-workflow",
+      "before_hooks": [
+        "deps resolve --skill initialize-workflow"
+      ],
+      "after_hooks": [
+        "write_initialization_summary()"
+      ],
+      "data_exchanged": "ResolvedRuntimeContext stored in session.resolved_dependencies"
+    },
+    {
+      "skill": "blueprint-to-implementation",
+      "before_hooks": [
+        "deps resolve --skill blueprint-to-implementation"
+      ],
+      "after_hooks": [],
+      "data_exchanged": "approvals.blueprint.approved must be true"
+    }
+  ],
+  "cli_contracts": [
+    {
+      "command": "python workflow_runtime.py deps inspect --skill <name>",
+      "output": "JSON of declared runtime_requirements",
+      "exit_codes": {
+        "0": "success",
+        "1": "skill not found"
+      }
+    },
+    {
+      "command": "python workflow_runtime.py deps resolve --skill <name>",
+      "output": "Resolution status per key; writes dependencies.json",
+      "exit_codes": {
+        "0": "all required resolved",
+        "1": "missing required dependency"
+      }
+    },
+    {
+      "command": "python workflow_runtime.py deps validate --skill <name>",
+      "output": "Schema validation result; prints errors and warnings",
+      "exit_codes": {
+        "0": "valid",
+        "1": "invalid"
+      }
+    },
+    {
+      "command": "python workflow_runtime.py deps doctor",
+      "output": "Scan report for all skills: missing declarations, invalid keys, safety violations",
+      "exit_codes": {
+        "0": "all clean",
+        "1": "issues found"
+      }
+    },
+    {
+      "command": "python workflow_runtime.py deps fix --skill <name> | --all",
+      "output": "Diff of proposed changes per SKILL.md before writing; requires approval",
+      "rules": [
+        "Must NOT silently edit files",
+        "Must show all affected files and proposed diffs",
+        "Must require user approval before writing",
+        "After approval: write changes + run deps validate",
+        "Migrates transcript_sync -> usage; provider_usage -> provider"
+      ],
+      "exit_codes": {
+        "0": "success or no changes",
+        "1": "approval denied or validation failed"
+      }
+    },
+    {
+      "command": "python workflow_runtime.py task graph build --feature <id>",
+      "output": "Builds .agents/state/workflow/task_graph.json; prints cycle/consistency errors",
+      "notes": "Must run before implementation start",
+      "exit_codes": {
+        "0": "graph valid",
+        "1": "cycle or unknown reference"
+      }
+    },
+    {
+      "command": "python workflow_runtime.py task graph status",
+      "output": "Current graph state: ready_queue, blocked, completed, phase statuses",
+      "exit_codes": {
+        "0": "success"
+      }
+    },
+    {
+      "command": "python workflow_runtime.py task state transition <task_id> <new_state>",
+      "output": "Applies state transition; writes tasks.json",
+      "exit_codes": {
+        "0": "success",
+        "1": "forbidden transition"
+      }
+    },
+    {
+      "command": "python workflow_runtime.py task next",
+      "output": "Next ready task recommendation with reason",
+      "exit_codes": {
+        "0": "recommendation available",
+        "1": "blocked or failed — recovery needed"
+      }
+    },
+    {
+      "command": "python workflow_runtime.py env snapshot",
+      "output": "Runs toolchain checks; writes .agents/state/environment.json",
+      "notes": "ONLY command allowed to run CLI version checks",
+      "exit_codes": {
+        "0": "success",
+        "1": "failure"
+      }
+    },
+    {
+      "command": "python workflow_runtime.py work-item detect --cached",
+      "output": "JSON work item from cached context.json",
+      "exit_codes": {
+        "0": "success",
+        "1": "not found"
+      }
+    },
+    {
+      "command": "python workflow_runtime.py project version --cached",
+      "output": "Version string from cached context.json",
+      "exit_codes": {
+        "0": "success",
+        "1": "not found"
+      }
+    }
+  ],
+  "implementation_contracts": [
+    {
+      "file_path": "skills/workflow-runtime/scripts/dependency_resolver.py",
+      "owner": "Coder",
+      "notes": "Pure stdlib Python; YAML parsed with string split; includes validate_phase_completion, get_next_ready_task, get_doctor_report"
+    },
+    {
+      "file_path": "skills/workflow-runtime/scripts/task_orchestrator.py",
+      "owner": "Coder",
+      "notes": "NEW: build_task_graph (DFS cycle check), transition_task_state (ALLOWED_TRANSITIONS), load/write task ledger, get_next_ready_task"
+    },
+    {
+      "file_path": "skills/workflow-runtime/scripts/workflow_runtime.py",
+      "owner": "Coder",
+      "notes": "Add deps subparser (inspect/resolve/validate/doctor/fix); add task subparser (graph build/status, state transition, next); hook resolve_requirements + build_task_graph in do_start"
+    },
+    {
+      "file_path": "skills/workflow-runtime/scripts/validator.py",
+      "owner": "Coder",
+      "notes": "Replace subprocess toolchain checks with cached JSON readers; add read_environment_snapshot, detect_work_item_cached, detect_project_version_cached"
+    },
+    {
+      "file_path": "skills/workflow-runtime/scripts/context.py",
+      "owner": "Coder",
+      "notes": "Add load_memory_lazy/cached/required, load_rag_lazy/cached/required, load_version_cached, load_provider_cached, load_usage_cached, check_workspace_scan_allowed"
+    },
+    {
+      "file_path": "skills/workflow-runtime/scripts/session.py",
+      "owner": "Coder",
+      "notes": "Add load_guardrails_summary (SHA-256 hash), load_approval_state, load_dashboard_state"
+    },
+    {
+      "file_path": "skills/initialize-workflow/SKILL.md",
+      "owner": "Architect",
+      "notes": "Rewrite: deps resolve -> guardrails summary -> git (3 cmds) -> cached state+approvals -> write summary -> STOP"
+    },
+    {
+      "file_path": "skills/workflow-runtime/tests/test_dependency_resolver.py",
+      "owner": "Reviewer",
+      "notes": "Unit tests for resolver core logic including load_usage_cached, load_version_cached"
+    },
+    {
+      "file_path": "skills/workflow-runtime/tests/test_runtime_requirements_schema.py",
+      "owner": "Reviewer",
+      "notes": "Unit tests for YAML schema parsing and validation including version/provider/usage keys"
+    },
+    {
+      "file_path": "skills/workflow-runtime/tests/test_dependency_resolver_cli.py",
+      "owner": "Reviewer",
+      "notes": "CLI integration tests for deps subcommands including deps fix"
+    },
+    {
+      "file_path": "skills/workflow-runtime/tests/test_lightweight_initialize.py",
+      "owner": "Reviewer",
+      "notes": "Performance < 0.8s; 8 no-heavy-init mock assertions; safe_minimal compatibility"
+    },
+    {
+      "file_path": "skills/workflow-runtime/tests/test_task_dependency_graph.py",
+      "owner": "Reviewer",
+      "notes": "5 graph test cases: cycle, unknown ref, dependency ordering, phase blocked, graph JSON"
+    },
+    {
+      "file_path": "skills/workflow-runtime/tests/test_task_state_machine.py",
+      "owner": "Reviewer",
+      "notes": "4 forbidden transition tests + allowed transition tests"
+    },
+    {
+      "file_path": "skills/workflow-runtime/tests/test_next_ready_task.py",
+      "owner": "Reviewer",
+      "notes": "4 next-task recommendation scenarios"
+    },
+    {
+      "file_path": "skills/workflow-runtime/tests/test_deps_fix.py",
+      "owner": "Reviewer",
+      "notes": "4 deps fix scenarios including transcript_sync -> usage, provider_usage -> provider migration"
+    }
+  ],
+  "implementation_packages": [
+    {
+      "task_id": "Task 1.1",
+      "phase_id": "phase-1",
+      "module": "initialize-workflow",
+      "read_set": [
+        "skills/initialize-workflow/SKILL.md"
+      ],
+      "write_set": [
+        "skills/initialize-workflow/SKILL.md"
+      ],
+      "dependencies": [],
+      "task_state_inputs": "queued -> ready (no dependencies)",
+      "task_state_outputs": "running -> completed after manual review",
+      "expected_outputs": [
+        "skills/initialize-workflow/SKILL.md"
+      ],
+      "implementation_notes": "Rewrite SKILL.md: deps resolve -> guardrails summary -> git (3 allowed cmds) -> cached state+approvals -> write summary. STOP.",
+      "verification": "Manual review — no forbidden operations remain",
+      "rollback": "git revert SKILL.md"
+    },
+    {
+      "task_id": "Task 2.1",
+      "phase_id": "phase-2",
+      "module": "task_orchestrator",
+      "read_set": [
+        "docs/plans/FEAT-050_lightweight_runtime_initialization_plan.json"
+      ],
+      "write_set": [
+        ".agents/state/workflow/task_graph.json",
+        ".agents/state/workflow/tasks.json"
+      ],
+      "dependencies": [
+        "Task 1.3"
+      ],
+      "task_state_inputs": "queued -> ready after Task 1.3 complete",
+      "task_state_outputs": "running -> completed after graph validated and tests pass",
+      "expected_outputs": [
+        "skills/workflow-runtime/scripts/task_orchestrator.py",
+        ".agents/state/workflow/task_graph.json"
+      ],
+      "implementation_notes": "Create task_orchestrator.py with build_task_graph (DFS cycle check), transition_task_state (ALLOWED_TRANSITIONS), load/write task ledger, get_next_ready_task",
+      "verification": "pytest test_task_dependency_graph.py test_task_state_machine.py test_next_ready_task.py",
+      "rollback": "git rm task_orchestrator.py; delete .agents/state/workflow/"
+    },
+    {
+      "task_id": "Task 2.2",
+      "phase_id": "phase-2",
+      "module": "dependency_resolver",
+      "read_set": [
+        "skills/*/SKILL.md",
+        ".agents/state/*.json"
+      ],
+      "write_set": [
+        "skills/workflow-runtime/scripts/dependency_resolver.py",
+        ".agents/state/runtime/dependencies.json"
+      ],
+      "dependencies": [
+        "Task 1.3"
+      ],
+      "task_state_inputs": "queued -> ready parallel to Task 2.1",
+      "task_state_outputs": "running -> completed after tests pass",
+      "expected_outputs": [
+        "skills/workflow-runtime/scripts/dependency_resolver.py"
+      ],
+      "implementation_notes": "Create dependency_resolver.py with all resolver functions, dataclasses, SUPPORTED_KEYS (includes version/provider/usage), SUPPORTED_MODES, SAFETY_KEYS, WORKSPACE_SCAN_ALLOWED_SKILLS. Deprecated keys: transcript_sync, provider_usage.",
+      "verification": "pytest test_dependency_resolver.py test_runtime_requirements_schema.py",
+      "rollback": "git rm dependency_resolver.py"
+    },
+    {
+      "task_id": "Task 2.3",
+      "phase_id": "phase-2",
+      "module": "workflow_runtime",
+      "read_set": [
+        "skills/workflow-runtime/scripts/workflow_runtime.py"
+      ],
+      "write_set": [
+        "skills/workflow-runtime/scripts/workflow_runtime.py"
+      ],
+      "dependencies": [
+        "Task 2.1",
+        "Task 2.2"
+      ],
+      "task_state_inputs": "waiting -> ready after Task 2.1 + 2.2 complete",
+      "task_state_outputs": "running -> completed after CLI tests pass",
+      "expected_outputs": [
+        "skills/workflow-runtime/scripts/workflow_runtime.py"
+      ],
+      "implementation_notes": "Add deps subparser (inspect/resolve/validate/doctor/fix); add task subparser (graph build/status, state transition, next); hook resolve_requirements + build_task_graph in do_start; add do_deps_fix handler with approval gate",
+      "verification": "pytest test_dependency_resolver_cli.py test_deps_fix.py",
+      "rollback": "git revert workflow_runtime.py"
+    },
+    {
+      "task_id": "Task 5.2",
+      "phase_id": "phase-5",
+      "module": "test_lightweight_initialize",
+      "read_set": [
+        "skills/workflow-runtime/scripts/workflow_runtime.py",
+        "skills/workflow-runtime/scripts/context.py"
+      ],
+      "write_set": [
+        "skills/workflow-runtime/tests/test_lightweight_initialize.py"
+      ],
+      "dependencies": [
+        "Task 4.3"
+      ],
+      "task_state_inputs": "waiting -> ready after Task 4.3 complete",
+      "task_state_outputs": "running -> completed after all 8 no-heavy-init assertions pass",
+      "expected_outputs": [
+        "skills/workflow-runtime/tests/test_lightweight_initialize.py"
+      ],
+      "implementation_notes": "Mock sync_request_history, parse_transcript, refresh_context_usage_for_active_conversation, subprocess.run (git describe/python --version/docker/node), load_memory_required. Assert NOT called. Use time.perf_counter < 0.8s. Legacy skill test: assert safe_minimal applied.",
+      "verification": "pytest test_lightweight_initialize.py -v",
+      "rollback": "delete test file"
+    }
+  ],
+  "tests": [
+    {
+      "requirement_id": "FR-01",
+      "test_type": "Unit",
+      "target_file": "skills/workflow-runtime/tests/test_dependency_resolver.py",
+      "assertion": "load_guardrails_summary returns hash dict"
+    },
+    {
+      "requirement_id": "FR-01",
+      "test_type": "Unit",
+      "target_file": "skills/workflow-runtime/tests/test_dependency_resolver.py",
+      "assertion": "Rules loaded successfully"
+    },
+    {
+      "requirement_id": "FR-03",
+      "test_type": "Unit",
+      "target_file": "skills/workflow-runtime/tests/test_runtime_requirements_schema.py",
+      "assertion": "YAML parsed correctly"
+    },
+    {
+      "requirement_id": "FR-03",
+      "test_type": "Unit",
+      "target_file": "skills/workflow-runtime/tests/test_runtime_requirements_schema.py",
+      "assertion": "Invalid key raises error"
+    },
+    {
+      "requirement_id": "FR-03",
+      "test_type": "Unit",
+      "target_file": "skills/workflow-runtime/tests/test_runtime_requirements_schema.py",
+      "assertion": "rules: lazy raises SafetyKeyViolationError"
+    },
+    {
+      "requirement_id": "FR-04",
+      "test_type": "Unit",
+      "target_file": "skills/workflow-runtime/tests/test_dependency_resolver.py",
+      "assertion": "Required missing -> blocks"
+    },
+    {
+      "requirement_id": "FR-06",
+      "test_type": "Unit",
+      "target_file": "skills/workflow-runtime/tests/test_dependency_resolver.py",
+      "assertion": "load_memory_cached reads only metadata JSONs"
+    },
+    {
+      "requirement_id": "FR-06",
+      "test_type": "Unit",
+      "target_file": "skills/workflow-runtime/tests/test_dependency_resolver.py",
+      "assertion": "load_memory_cached does NOT read project-summary.md"
+    },
+    {
+      "requirement_id": "FR-06",
+      "test_type": "Unit",
+      "target_file": "skills/workflow-runtime/tests/test_dependency_resolver.py",
+      "assertion": "load_memory_lazy: no load with no query"
+    },
+    {
+      "requirement_id": "FR-06",
+      "test_type": "Unit",
+      "target_file": "skills/workflow-runtime/tests/test_dependency_resolver.py",
+      "assertion": "load_memory_lazy: targeted load with query"
+    },
+    {
+      "requirement_id": "FR-06",
+      "test_type": "Unit",
+      "target_file": "skills/workflow-runtime/tests/test_dependency_resolver.py",
+      "assertion": "load_rag_cached reads RAG metadata only"
+    },
+    {
+      "requirement_id": "FR-06",
+      "test_type": "Unit",
+      "target_file": "skills/workflow-runtime/tests/test_dependency_resolver.py",
+      "assertion": "load_rag_lazy: no load with no query"
+    },
+    {
+      "requirement_id": "FR-06",
+      "test_type": "Unit",
+      "target_file": "skills/workflow-runtime/tests/test_dependency_resolver.py",
+      "assertion": "load_usage_cached does NOT parse transcript"
+    },
+    {
+      "requirement_id": "FR-06",
+      "test_type": "Unit",
+      "target_file": "skills/workflow-runtime/tests/test_dependency_resolver.py",
+      "assertion": "load_version_cached does NOT scan manifest files"
+    },
+    {
+      "requirement_id": "FR-05",
+      "test_type": "Unit",
+      "target_file": "skills/workflow-runtime/tests/test_dependency_resolver.py",
+      "assertion": "read_environment_snapshot reads .json not CLI"
+    },
+    {
+      "requirement_id": "FR-05",
+      "test_type": "Unit",
+      "target_file": "skills/workflow-runtime/tests/test_dependency_resolver.py",
+      "assertion": "Stale -> warn, not block"
+    },
+    {
+      "requirement_id": "FR-05",
+      "test_type": "Unit",
+      "target_file": "skills/workflow-runtime/tests/test_dependency_resolver.py",
+      "assertion": "Missing -> warn, not crash"
+    },
+    {
+      "requirement_id": "FR-07",
+      "test_type": "Integration",
+      "target_file": "skills/workflow-runtime/tests/test_dependency_resolver_cli.py",
+      "assertion": "deps doctor: all skills have manifest"
+    },
+    {
+      "requirement_id": "FR-07",
+      "test_type": "Integration",
+      "target_file": "skills/workflow-runtime/tests/test_dependency_resolver_cli.py",
+      "assertion": "deps doctor: legacy skills report warning, not error in non-strict mode"
+    },
+    {
+      "requirement_id": "FR-07",
+      "test_type": "Integration",
+      "target_file": "skills/workflow-runtime/tests/test_dependency_resolver_cli.py",
+      "assertion": "deps resolve writes dependencies.json"
+    },
+    {
+      "requirement_id": "Phase",
+      "test_type": "Unit",
+      "target_file": "skills/workflow-runtime/tests/test_phase_completion_gate.py",
+      "assertion": "Phase 1 incomplete with only Task 1.1 done"
+    },
+    {
+      "requirement_id": "Phase",
+      "test_type": "Unit",
+      "target_file": "skills/workflow-runtime/tests/test_phase_completion_gate.py",
+      "assertion": "Phase 1 complete only when all phase tasks done"
+    },
+    {
+      "requirement_id": "Phase",
+      "test_type": "Unit",
+      "target_file": "skills/workflow-runtime/tests/test_phase_completion_gate.py",
+      "assertion": "No skipped task passes without approved_skip_reason"
+    },
+    {
+      "requirement_id": "Graph",
+      "test_type": "Unit",
+      "target_file": "skills/workflow-runtime/tests/test_task_dependency_graph.py",
+      "assertion": "Task 1.1 complete but 1.2/1.3 incomplete -> phase blocked"
+    },
+    {
+      "requirement_id": "Graph",
+      "test_type": "Unit",
+      "target_file": "skills/workflow-runtime/tests/test_task_dependency_graph.py",
+      "assertion": "Dependency cycle blocks graph creation"
+    },
+    {
+      "requirement_id": "Graph",
+      "test_type": "Unit",
+      "target_file": "skills/workflow-runtime/tests/test_task_dependency_graph.py",
+      "assertion": "Unknown dependency reference blocks graph creation"
+    },
+    {
+      "requirement_id": "Graph",
+      "test_type": "Unit",
+      "target_file": "skills/workflow-runtime/tests/test_task_dependency_graph.py",
+      "assertion": "Task cannot run before dependencies complete"
+    },
+    {
+      "requirement_id": "StateMachine",
+      "test_type": "Unit",
+      "target_file": "skills/workflow-runtime/tests/test_task_state_machine.py",
+      "assertion": "queued -> completed is forbidden"
+    },
+    {
+      "requirement_id": "StateMachine",
+      "test_type": "Unit",
+      "target_file": "skills/workflow-runtime/tests/test_task_state_machine.py",
+      "assertion": "waiting -> completed is forbidden"
+    },
+    {
+      "requirement_id": "StateMachine",
+      "test_type": "Unit",
+      "target_file": "skills/workflow-runtime/tests/test_task_state_machine.py",
+      "assertion": "running -> queued is forbidden"
+    },
+    {
+      "requirement_id": "StateMachine",
+      "test_type": "Unit",
+      "target_file": "skills/workflow-runtime/tests/test_task_state_machine.py",
+      "assertion": "completed -> running without rerun approval is forbidden"
+    },
+    {
+      "requirement_id": "NextTask",
+      "test_type": "Unit",
+      "target_file": "skills/workflow-runtime/tests/test_next_ready_task.py",
+      "assertion": "After Task 1.1 complete, next is Task 1.2"
+    },
+    {
+      "requirement_id": "NextTask",
+      "test_type": "Unit",
+      "target_file": "skills/workflow-runtime/tests/test_next_ready_task.py",
+      "assertion": "Does NOT recommend next phase while current phase incomplete"
+    },
+    {
+      "requirement_id": "NextTask",
+      "test_type": "Unit",
+      "target_file": "skills/workflow-runtime/tests/test_next_ready_task.py",
+      "assertion": "Does NOT recommend debug while current phase incomplete"
+    },
+    {
+      "requirement_id": "NextTask",
+      "test_type": "Unit",
+      "target_file": "skills/workflow-runtime/tests/test_next_ready_task.py",
+      "assertion": "Does NOT recommend release before all phases + debug + verify"
+    },
+    {
+      "requirement_id": "DepsFix",
+      "test_type": "Unit",
+      "target_file": "skills/workflow-runtime/tests/test_deps_fix.py",
+      "assertion": "Proposes safe runtime_requirements template"
+    },
+    {
+      "requirement_id": "DepsFix",
+      "test_type": "Unit",
+      "target_file": "skills/workflow-runtime/tests/test_deps_fix.py",
+      "assertion": "Reports all affected SKILL.md files before writing"
+    },
+    {
+      "requirement_id": "DepsFix",
+      "test_type": "Unit",
+      "target_file": "skills/workflow-runtime/tests/test_deps_fix.py",
+      "assertion": "Migrates transcript_sync -> usage"
+    },
+    {
+      "requirement_id": "DepsFix",
+      "test_type": "Unit",
+      "target_file": "skills/workflow-runtime/tests/test_deps_fix.py",
+      "assertion": "Migrates provider_usage -> provider"
+    },
+    {
+      "requirement_id": "FR-01",
+      "test_type": "Performance",
+      "target_file": "skills/workflow-runtime/tests/test_lightweight_initialize.py",
+      "assertion": "do_init completes in < 0.8s"
+    },
+    {
+      "requirement_id": "FR-01",
+      "test_type": "No-Heavy",
+      "target_file": "skills/workflow-runtime/tests/test_lightweight_initialize.py",
+      "assertion": "sync_request_history NOT called during do_init"
+    },
+    {
+      "requirement_id": "FR-01",
+      "test_type": "No-Heavy",
+      "target_file": "skills/workflow-runtime/tests/test_lightweight_initialize.py",
+      "assertion": "parse_transcript NOT called during do_init"
+    },
+    {
+      "requirement_id": "FR-01",
+      "test_type": "No-Heavy",
+      "target_file": "skills/workflow-runtime/tests/test_lightweight_initialize.py",
+      "assertion": "refresh_context_usage_for_active_conversation NOT called"
+    },
+    {
+      "requirement_id": "FR-01",
+      "test_type": "No-Heavy",
+      "target_file": "skills/workflow-runtime/tests/test_lightweight_initialize.py",
+      "assertion": "No memory full load triggered"
+    },
+    {
+      "requirement_id": "FR-01",
+      "test_type": "No-Heavy",
+      "target_file": "skills/workflow-runtime/tests/test_lightweight_initialize.py",
+      "assertion": "No RAG connect triggered"
+    },
+    {
+      "requirement_id": "FR-01",
+      "test_type": "No-Heavy",
+      "target_file": "skills/workflow-runtime/tests/test_lightweight_initialize.py",
+      "assertion": "No workspace scan triggered"
+    },
+    {
+      "requirement_id": "FR-01",
+      "test_type": "No-Heavy",
+      "target_file": "skills/workflow-runtime/tests/test_lightweight_initialize.py",
+      "assertion": "git describe --tags NOT called"
+    },
+    {
+      "requirement_id": "FR-01",
+      "test_type": "Compatibility",
+      "target_file": "skills/workflow-runtime/tests/test_lightweight_initialize.py",
+      "assertion": "Legacy skill uses safe_minimal fallback, NOT full_preload"
+    },
+    {
+      "requirement_id": "Safety",
+      "test_type": "Unit",
+      "target_file": "skills/workflow-runtime/tests/test_dependency_resolver.py",
+      "assertion": "rules: none raises SafetyKeyViolationError"
+    },
+    {
+      "requirement_id": "Safety",
+      "test_type": "Unit",
+      "target_file": "skills/workflow-runtime/tests/test_dependency_resolver.py",
+      "assertion": "brainstorming workspace_scan blocked"
+    },
+    {
+      "requirement_id": "Safety",
+      "test_type": "Unit",
+      "target_file": "skills/workflow-runtime/tests/test_dependency_resolver.py",
+      "assertion": "get_doctor_report(strict=True): missing manifest -> error"
+    }
+  ],
+  "traceability": [
+    {
+      "req_id": "FR-01",
+      "task": "Task 1.1",
+      "module": "initialize-workflow",
+      "file": "SKILL.md",
+      "test": "test_lightweight_initialize.py"
+    },
+    {
+      "req_id": "FR-01",
+      "task": "Task 1.2",
+      "module": "workflow_runtime",
+      "file": "workflow_runtime.py",
+      "test": "test_lightweight_initialize.py"
+    },
+    {
+      "req_id": "FR-02",
+      "task": "Task 1.3",
+      "module": "validator",
+      "file": "validator.py",
+      "test": "test_dependency_resolver.py"
+    },
+    {
+      "req_id": "FR-03",
+      "task": "Task 2.2",
+      "module": "dependency_resolver",
+      "file": "dependency_resolver.py",
+      "test": "test_runtime_requirements_schema.py"
+    },
+    {
+      "req_id": "FR-04",
+      "task": "Task 2.4",
+      "module": "dependency_resolver",
+      "file": "dependency_resolver.py",
+      "test": "test_dependency_resolver.py"
+    },
+    {
+      "req_id": "FR-05",
+      "task": "Task 3.1",
+      "module": "validator",
+      "file": "validator.py",
+      "test": "test_dependency_resolver.py"
+    },
+    {
+      "req_id": "FR-06",
+      "task": "Task 3.2",
+      "module": "context",
+      "file": "context.py",
+      "test": "test_dependency_resolver.py"
+    },
+    {
+      "req_id": "FR-07",
+      "task": "Task 4.1",
+      "module": "all core skills",
+      "file": "*/SKILL.md",
+      "test": "test_dependency_resolver_cli.py"
+    },
+    {
+      "req_id": "Graph",
+      "task": "Task 2.1",
+      "module": "task_orchestrator",
+      "file": "task_orchestrator.py",
+      "test": "test_task_dependency_graph.py"
+    },
+    {
+      "req_id": "StateMachine",
+      "task": "Task 2.1",
+      "module": "task_orchestrator",
+      "file": "task_orchestrator.py",
+      "test": "test_task_state_machine.py"
+    },
+    {
+      "req_id": "NextTask",
+      "task": "Task 2.1",
+      "module": "task_orchestrator",
+      "file": "task_orchestrator.py",
+      "test": "test_next_ready_task.py"
+    },
+    {
+      "req_id": "DepsFix",
+      "task": "Task 2.3",
+      "module": "workflow_runtime",
+      "file": "workflow_runtime.py",
+      "test": "test_deps_fix.py"
+    }
+  ],
+  "artifacts": [
+    "docs/designs/FEAT-050_lightweight_runtime_initialization_blueprint.md",
+    "docs/designs/FEAT-050_lightweight_runtime_initialization_blueprint.json",
+    "docs/adr/ADR-005_runtime_dependency_resolver.md"
+  ],
+  "acceptance_criteria": [
+    "Task dependency graph (task_graph.json) exists and is cycle-validated before implementation",
+    "Task state machine blocks all invalid transitions (9 forbidden shortcuts enforced)",
+    "Phase completion requires ALL phase tasks to be completed with verification pass",
+    "get_next_ready_task() recommends next task, not next phase, while current phase is incomplete",
+    "No phase can complete after only the first blocking task in that phase",
+    "runtime_requirements supports version, provider, usage keys (replacing transcript_sync, provider_usage)",
+    "deps fix is defined with approval gate and diff output before writing",
+    "initialize-workflow declares version: cached, provider: optional, usage: cached and does NOT perform transcript sync",
+    "legacy_skill_fallback is safe_minimal — NOT full_preload",
+    "Tests cover: task graph (5), state machine (4 forbidden + allowed), next task (4), deps fix (4), no-heavy-init (8), phase gate (3)",
+    "Every task in the blueprint has a complete implementation contract with phase_id, read_set, write_set, expected_outputs, task_state_inputs, task_state_outputs, verification, rollback"
+  ]
+}

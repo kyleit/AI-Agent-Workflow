@@ -19,6 +19,18 @@ repository: https://gitlab.com/hngan.it/ai-workflow-skills
 created_at: 2026-07-03
 updated_at: 2026-07-09
 description: Convert a structured master brainstorming document into a formal Execution Plan (Markdown & JSON) using a Memory-First strategy and the FEAT-XXX Feature ID format.
+runtime_requirements:
+  rules: required
+  state: required
+  approvals: required
+  git: cached
+  memory: cached
+  rag: lazy
+  workspace_scan: none
+  environment: none
+  version: cached
+  provider: optional
+  usage: cached
 ---
 
 # Skill: Planning Prompt → Implementation Plan (FEAT-XXX format)

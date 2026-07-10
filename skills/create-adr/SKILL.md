@@ -18,6 +18,18 @@ repository: https://gitlab.com/hngan.it/ai-workflow-skills
 created_at: 2026-07-03
 updated_at: 2026-07-03
 description: Create Architecture Decision Records (ADRs) only when explicitly invoked.
+runtime_requirements:
+  rules: required
+  state: required
+  approvals: optional
+  git: cached
+  memory: cached
+  rag: lazy
+  workspace_scan: none
+  environment: none
+  version: cached
+  provider: optional
+  usage: none
 ---
 
 # Skill: Create Architecture Decision Record (ADR)

@@ -18,6 +18,18 @@ repository: https://gitlab.com/hngan.it/ai-workflow-skills
 created_at: 2026-07-03
 updated_at: 2026-07-06
 description: Runtime controller for the AI Engineering Workflow. Manages execution session state (.session.json), validates context health, detects context drift, updates checkpoints, supports recovery via resume-workflow, and outputs runtime heartbeats. Read-only.
+runtime_requirements:
+  rules: required
+  state: required
+  approvals: optional
+  git: cached
+  memory: none
+  rag: none
+  workspace_scan: none
+  environment: cached
+  version: cached
+  provider: optional
+  usage: cached
 ---
 
 # Skill: workflow-runtime (AI Workflow Runtime Controller)

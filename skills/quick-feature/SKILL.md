@@ -19,6 +19,18 @@ repository: https://gitlab.com/hngan.it/ai-workflow-skills
 created_at: 2026-07-03
 updated_at: 2026-07-09
 description: Enforces a three-stage workflow (Specification, Blueprint, and Implementation) for quick features, upgraded with v3.2 Mini Spec quality standards and rich planning sections.
+runtime_requirements:
+  rules: required
+  state: required
+  approvals: required
+  git: cached
+  memory: cached
+  rag: lazy
+  workspace_scan: none
+  environment: none
+  version: cached
+  provider: optional
+  usage: cached
 ---
 
 # Skill: quick-feature (Three-Phase Workflow with Blueprint-Driven Execution)
@@ -116,30 +128,38 @@ Step 4:  Targeted Source Inspection
 Step 5:  Generate Feature Specification (docs/quick/QUICK-XXX_feature_name.md)
          ↓
 Step 6:  User Approval Gate (Phase 1: Spec Approval)
-          - **CRITICAL**: The AGENT MUST STOP CALLING TOOLS IMMEDIATELY AND END TURN.
-          - Present the Specification (docs/quick/QUICK-XXX_feature_name.md) to the user in chat.
-          - [STOP] Wait for the user's explicit chat response to proceed. DO NOT run any more tools.
+          - Run:
+            ```bash
+            python3 .agents/skills/workflow-runtime/scripts/workflow_runtime.py prompt select --question "Approve QUICK specification?" --options "Yes|No" --default "No"
+            ```
+          - [STOP] Wait for user confirmation.
          ↓
 Step 7:  Generate Technical Design Blueprint (docs/designs/QUICK-XXX_feature_name_blueprint.md)
          ↓
 Step 8:  User Approval Gate (Phase 2: Blueprint Approval)
           - Run python CLI to register blueprint.
-          - **CRITICAL**: The AGENT MUST STOP CALLING TOOLS IMMEDIATELY AND END TURN.
-          - Present the Technical Design Blueprint (docs/designs/QUICK-XXX_feature_name_blueprint.md) to the user in chat.
-          - [STOP] Wait for the user's explicit chat response to proceed. DO NOT run any more tools.
-          - Once approved, run python CLI to mark blueprint approved.
+          - Run:
+            ```bash
+            python3 .agents/skills/workflow-runtime/scripts/workflow_runtime.py prompt select --question "Approve Blueprint?" --options "Yes|No" --default "No"
+            ```
+          - [STOP] Wait for user confirmation.
+          - Run python CLI to mark blueprint approved.
          ↓
 Step 9:  Pre-Implementation Git Gate (Phase 3)
           - Run git branch & git status.
-          - **CRITICAL**: The AGENT MUST STOP CALLING TOOLS IMMEDIATELY AND END TURN.
-          - Present git details and ask the user to confirm branch strategy.
-          - [STOP] Wait for the user's explicit chat response to proceed. DO NOT run any more tools.
+          - Run:
+            ```bash
+            python3 .agents/skills/workflow-runtime/scripts/workflow_runtime.py prompt select --question "Choose Git branch action:" --options "Continue on current branch|Create new branch|Stop" --default "Stop"
+            ```
+          - [STOP] Wait for user confirmation.
          ↓
 Step 10: Global Approval Gate (Phase 3)
           - Explain modifications, list affected files and branch.
-          - **CRITICAL**: The AGENT MUST STOP CALLING TOOLS IMMEDIATELY AND END TURN.
-          - Present the implementation summary to the user and request permission to apply.
-          - [STOP] Wait for the user's explicit chat response to proceed. DO NOT run any more tools.
+          - Run:
+            ```bash
+            python3 .agents/skills/workflow-runtime/scripts/workflow_runtime.py prompt select --question "Proceed with implementation?" --options "Yes|No" --default "No"
+            ```
+          - [STOP] Wait for user confirmation.
          ↓
 Step 11: Code Implementation (Direct minimal code changes)
          ↓
@@ -331,7 +351,7 @@ Bản thiết kế kỹ thuật (Technical Design Blueprint) ở Phase 2 bắt b
 
 ### Step 6: User Approval Gate
 
-**CRITICAL GATING RULE**: The AGENT MUST STOP CALLING TOOLS IMMEDIATELY AND END TURN. Present the Specification (docs/quick/QUICK-XXX_feature_name.md) to the user in chat and wait. DO NOT create a Blueprint or modify source code until the user responds "Y", "yes", "proceed", or "approve" in the chat.
+Ask `Approve QUICK specification? [Y/N]`. Do NOT create a Blueprint or modify source code until the user responds Y (or "yes").
 
 ---
 
@@ -390,8 +410,8 @@ Complete directory layout after modifications:
 
 1. Register the blueprint via CLI:
    `python skills/workflow-runtime/scripts/workflow_runtime.py blueprint --path docs/designs/QUICK-XXX_feature_name_blueprint.md`
-2. **CRITICAL GATING RULE**: The AGENT MUST STOP CALLING TOOLS IMMEDIATELY AND END TURN. Present the Design Blueprint to the user in chat and wait. DO NOT proceed autonomously.
-3. Once the user responds with approval in the chat, run:
+2. Ask: `Approve Blueprint? [Y/N]` and STOP.
+3. If approved, run:
    `python skills/workflow-runtime/scripts/workflow_runtime.py blueprint --path docs/designs/QUICK-XXX_feature_name_blueprint.md --approve`
 
 ---

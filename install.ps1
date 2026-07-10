@@ -244,101 +244,68 @@ if (-not (Test-Path $DocsTargetDir)) {
 Copy-ItemWithCheck -Src (Join-Path (Join-Path $ScriptDir "docs") "release-guide.md") -Dest (Join-Path $DocsTargetDir "release-guide.md") -IsDir $false
 Copy-ItemWithCheck -Src $ManifestPath -Dest (Join-Path $InstallTarget "MANIFEST.json") -IsDir $false
 
-# Ensure .gitignore exists in target and ignores logs
-function Ensure-GitIgnore ($targetDir) {
-    $GitIgnorePath = Join-Path $targetDir ".gitignore"
-    $DefaultContent = @(
-        ".session.json",
-        "state/",
-        "runtime/*.db",
-        "runtime/*.db-journal",
-        "runtime/*.db-wal",
-        "runtime/env_cache.json",
-        "runtime/logs/"
-    )
-
-    if (-not (Test-Path $GitIgnorePath)) {
-        Log-Info "Creating: $GitIgnorePath"
-        $DefaultContent | Out-File -FilePath $GitIgnorePath -Encoding utf8 -Force
-    } else {
-        $Lines = Get-Content -Path $GitIgnorePath
-        $HasLogsPattern = $false
-        foreach ($Line in $Lines) {
-            $t = $Line.Trim()
-            if ($t -eq "runtime/logs/" -or $t -eq "runtime/logs") {
-                $HasLogsPattern = $true
-                break
-            }
-        }
-        if (-not $HasLogsPattern) {
-            Log-Info "Adding runtime/logs/ to $GitIgnorePath"
-            Add-Content -Path $GitIgnorePath -Value "`r`nruntime/logs/" -Force
-        }
-    }
-}
-Ensure-GitIgnore -targetDir $InstallTarget
-
 # Initialize a clean .session.json if it doesn't exist
 $SessionPath = Join-Path $InstallTarget ".session.json"
 if (-not (Test-Path $SessionPath)) {
     Log-Info "Initializing default .session.json for visualizer UI..."
-    $DefaultSessionObj = [PSCustomObject]@{
-        workspace = [PSCustomObject]@{
-            path = "."
-            valid = $true
-        }
-        git = [PSCustomObject]@{
-            is_git_repository = $true
-            branch = "main"
-            working_tree = "clean"
-            default_branch = "main"
-            latest_tag = "none"
-        }
-        work_item = [PSCustomObject]@{
-            type = "FEAT"
-            id = "FEAT-001"
-            title = "Initial Scaffolding"
-        }
-        version = [PSCustomObject]@{
-            version = "1.0.0"
-            source = "MANIFEST.json"
-        }
-        memory = [PSCustomObject]@{
-            status = "MISSING"
-            last_updated = ""
-        }
-        rag = [PSCustomObject]@{
-            connected = $false
-            provider = "none"
-        }
-        blueprint = [PSCustomObject]@{
-            path = ""
-            exists = $false
-            approved = $false
-            approved_at = ""
-            approved_by = ""
-        }
-        suggestion_gate = [PSCustomObject]@{
-            active = $false
-            raw_request = ""
-            classification = ""
-            recommended_skill = ""
-            options = @()
-            status = "idle"
-        }
-        checkpoint = 1
-        status = "completed"
-        current_skill = "initialize-workflow"
-        current_command = "init"
-        current_step = "Initialization Complete"
-        current_logs = @(
-            "> Initialization completed successfully."
-        )
-        suggested_next_skill = "project-discovery"
-        suggested_next_command = "discover"
-        context_health = "healthy"
-    }
-    $DefaultSession = $DefaultSessionObj | ConvertTo-Json -Depth 5
+    $DefaultSession = @'
+{
+  "workspace": {
+    "path": ".",
+    "valid": true
+  },
+  "git": {
+    "is_git_repository": true,
+    "branch": "main",
+    "working_tree": "clean",
+    "default_branch": "main",
+    "latest_tag": "none"
+  },
+  "work_item": {
+    "type": "FEAT",
+    "id": "FEAT-001",
+    "title": "Initial Scaffolding"
+  },
+  "version": {
+    "version": "1.0.0",
+    "source": "MANIFEST.json"
+  },
+  "memory": {
+    "status": "MISSING",
+    "last_updated": ""
+  },
+  "rag": {
+    "connected": false,
+    "provider": "none"
+  },
+  "blueprint": {
+    "path": "",
+    "exists": false,
+    "approved": false,
+    "approved_at": "",
+    "approved_by": ""
+  },
+  "suggestion_gate": {
+    "active": false,
+    "raw_request": "",
+    "classification": "",
+    "recommended_skill": "",
+    "options": [],
+    "status": "idle"
+  },
+  "checkpoint": 1,
+  "status": "completed",
+  "current_skill": "initialize-workflow",
+  "current_command": "init",
+  "current_step": "Initialization Complete",
+  "current_logs": [
+    "> Initialization completed successfully."
+  ],
+  "suggested_next_skill": "project-discovery",
+  "suggested_next_command": "discover",
+  "context_health": "healthy"
+}
+'@
     Set-Content -Path $SessionPath -Value $DefaultSession -Encoding UTF8
 }
 
@@ -358,17 +325,8 @@ if ($MissingFiles -gt 0) {
     exit 1
 }
 
-# 6. Initialize workflow runtime (optional — requires Python 3)
-$Python3 = Get-Command python3 -ErrorAction SilentlyContinue
-if ($Python3) {
-    $RuntimeScript = Join-Path (Join-Path $InstallTarget $SkillDir) "workflow-runtime/scripts/workflow_runtime.py"
-    if (Test-Path $RuntimeScript) {
-        Log-Info "Initializing workflow runtime..."
-        & python3 $RuntimeScript $InitArgs
-        & python3 $RuntimeScript registry register --source install --framework-root $ScriptDir
-    }
-} else {
-    Log-Warn "python3 not found. Skipping workflow runtime initialization. Run manually: python3 .agents/skills/workflow-runtime/scripts/workflow_runtime.py init"
+    python3 (Join-Path (Join-Path $InstallTarget $SkillDir) "workflow-runtime/scripts/workflow_runtime.py") $InitArgs
+    python3 (Join-Path (Join-Path $InstallTarget $SkillDir) "workflow-runtime/scripts/workflow_runtime.py") registry register --source install --framework-root $ScriptDir
 }
 
 Log-Success "AI Skill Framework v$VERSION has been successfully installed!"

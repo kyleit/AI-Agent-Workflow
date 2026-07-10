@@ -19,6 +19,18 @@ repository: https://gitlab.com/hngan.it/ai-workflow-skills
 created_at: 2026-07-03
 updated_at: 2026-07-03
 description: Read-only inspection of the local AI Coding environment. Detects OS, Git, Python, Node.js, Docker, SQLite, Tree-sitter, Qdrant, embedding providers, Ollama, QMD, Project Memory, and required AI Skills. Never modifies anything. Returns a detailed Environment Health Report with actionable recommendations.
+runtime_requirements:
+  rules: required
+  state: required
+  approvals: optional
+  git: cached
+  memory: none
+  rag: none
+  workspace_scan: none
+  environment: cached
+  version: cached
+  provider: optional
+  usage: none
 ---
 
 # Skill: Environment Health

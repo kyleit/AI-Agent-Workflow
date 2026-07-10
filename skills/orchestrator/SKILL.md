@@ -12,6 +12,18 @@ tags:
   - runtime
 version: 1.0.0
 description: Top-level autonomous execution orchestrator and single entry point of the framework.
+runtime_requirements:
+  rules: required
+  state: required
+  approvals: required
+  git: cached
+  memory: cached
+  rag: cached
+  workspace_scan: none
+  environment: cached
+  version: cached
+  provider: optional
+  usage: cached
 ---
 
 # Skill: orchestrator

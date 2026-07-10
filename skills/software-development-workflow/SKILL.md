@@ -19,6 +19,18 @@ repository: https://gitlab.com/hngan.it/ai-workflow-skills
 created_at: 2026-07-03
 updated_at: 2026-07-06
 description: Pure Workflow Orchestrator. Evaluates checkpoints and ensures Blueprint execution and manual Release gates.
+runtime_requirements:
+  rules: required
+  state: required
+  approvals: required
+  git: cached
+  memory: cached
+  rag: cached
+  workspace_scan: none
+  environment: cached
+  version: cached
+  provider: optional
+  usage: cached
 ---
 
 # Skill: Software Development Workflow Orchestrator (Blueprint-Driven & Explicit Release)

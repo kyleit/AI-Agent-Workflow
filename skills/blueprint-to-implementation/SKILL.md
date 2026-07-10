@@ -19,6 +19,18 @@ repository: https://gitlab.com/hngan.it/ai-workflow-skills
 created_at: 2026-07-03
 updated_at: 2026-07-09
 description: Enforces Blueprint validation as the sole inputs for implementation, upgraded to support v3.2 JSON blueprints.
+runtime_requirements:
+  rules: required
+  state: required
+  approvals: required
+  git: cached
+  memory: cached
+  rag: lazy
+  workspace_scan: none
+  environment: none
+  version: cached
+  provider: optional
+  usage: cached
 ---
 
 # Skill: Blueprint to Implementation (Blueprint-Driven Guardrails)

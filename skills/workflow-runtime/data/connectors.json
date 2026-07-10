@@ -1,8 +1,0 @@
-{
-  "connectors": [
-    { "name": "antigravity", "module": "connectors.antigravity", "class": "AntigravityConnector", "enabled": true },
-    { "name": "claude_code", "module": "connectors.claude_code", "class": "ClaudeCodeConnector", "enabled": true },
-    { "name": "cursor", "module": "connectors.cursor", "class": "CursorConnector", "enabled": true },
-    { "name": "vscode_agents", "module": "connectors.vscode_agents", "class": "VSCodeAgentsConnector", "enabled": true }
-  ]
-}

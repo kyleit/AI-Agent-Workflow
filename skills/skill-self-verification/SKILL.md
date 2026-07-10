@@ -12,6 +12,18 @@ tags:
   - testing
   - skills
   - runtime
+runtime_requirements:
+  rules: required
+  state: required
+  approvals: optional
+  git: cached
+  memory: none
+  rag: none
+  workspace_scan: none
+  environment: cached
+  version: none
+  provider: optional
+  usage: none
 ---
 
 # Skill: skill-self-verification (Behavioral Acceptance Testing)

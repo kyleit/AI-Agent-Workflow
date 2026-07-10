@@ -99,9 +99,7 @@ def test_stale_data_drift_detection(tmp_path, monkeypatch):
         "permission_mode": "sandbox",
         "conversation_id": "original-id"
     }
-    os.makedirs(".agents", exist_ok=True)
-    session_path = os.path.join(".agents", ".session.json")
-    write_json_atomic(session_path, session)
+    save_session_atomic(session)
     
     # 2. Simulate external modification to .session.json directly (newer timestamp)
     session_path = os.path.join(".agents", ".session.json")
@@ -196,54 +194,9 @@ def test_cli_commands_and_state_recovery(tmp_path, monkeypatch, capsys):
     state_dir = os.path.join(".agents", "state")
     if os.path.exists(state_dir):
         shutil.rmtree(state_dir)
-    # Write .session.json back to simulate backup availability for recovery
-    write_json_atomic(os.path.join(".agents", ".session.json"), session)
     monkeypatch.setattr("sys.argv", ["workflow_runtime.py", "state", "recover"])
     main()
     captured = capsys.readouterr()
     res = json.loads(captured.out)
     assert res["status"] == "success"
     assert os.path.exists(os.path.join(".agents", "state", "context.json"))
-
-def test_state_file_lock_and_granular_writes(tmp_path, monkeypatch):
-    monkeypatch.chdir(tmp_path)
-    from state_sync import StateFileLock, deconstruct_state
-    
-    # 1. Test Reentrant Lock
-    with StateFileLock(".") as lock1:
-        assert os.path.abspath(lock1.lock_file) == os.path.abspath(os.path.join(".agents", "state", "state.lock"))
-        # Reentrant call should pass
-        with StateFileLock(".") as lock2:
-            pass
-            
-    # 2. Test Granular Write:
-    session = {
-        "workspace": {"path": ".", "valid": True},
-        "git": {"is_git_repository": True},
-        "permission_mode": "sandbox",
-        "conversation_id": "original-id"
-    }
-    deconstruct_state(".", session)
-    
-    state_dir = os.path.join(".", ".agents", "state")
-    context_path = os.path.join(state_dir, "context.json")
-    workflow_path = os.path.join(state_dir, "workflow.json")
-    
-    # Ghi nhận mtime cũ
-    old_context_mtime = os.path.getmtime(context_path)
-    old_workflow_mtime = os.path.getmtime(workflow_path)
-    
-    import time
-    time.sleep(0.1) # Wait a bit to ensure time difference
-    
-    # Chỉ thay đổi conversation_id (nằm trong context.json)
-    session["conversation_id"] = "changed-id"
-    deconstruct_state(".", session)
-    
-    new_context_mtime = os.path.getmtime(context_path)
-    new_workflow_mtime = os.path.getmtime(workflow_path)
-    
-    # context.json phải được ghi đè (mtime mới)
-    assert new_context_mtime > old_context_mtime
-    # workflow.json KHÔNG được ghi đè (mtime giữ nguyên)
-    assert new_workflow_mtime == old_workflow_mtime

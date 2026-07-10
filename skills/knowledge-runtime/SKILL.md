@@ -21,6 +21,18 @@ repository: https://gitlab.com/hngan.it/ai-workflow-skills
 created_at: 2026-07-09
 updated_at: 2026-07-09
 description: Unified knowledge layer and provider router for the AI Engineering Workflow framework.
+runtime_requirements:
+  rules: required
+  state: required
+  approvals: optional
+  git: cached
+  memory: lazy
+  rag: lazy
+  workspace_scan: none
+  environment: none
+  version: none
+  provider: optional
+  usage: none
 ---
 
 # Knowledge Runtime Skill

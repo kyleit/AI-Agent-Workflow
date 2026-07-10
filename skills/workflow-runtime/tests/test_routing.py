@@ -11,12 +11,8 @@ from agent_routing import load_agents, load_routing_table, validate_routing
 
 class TestAgentRouting(unittest.TestCase):
     def setUp(self):
-        # Resolve paths relative to the workspace root (4 levels up from tests/)
-        _tests_dir = os.path.dirname(os.path.abspath(__file__))
-        _skill_root = os.path.dirname(_tests_dir)           # skills/workflow-runtime/
-        _workspace_root = os.path.dirname(os.path.dirname(_skill_root))  # project root
-        self.manifest_path = os.path.join(_workspace_root, ".agents", "MANIFEST.json")
-        self.agents_dir = os.path.join(_workspace_root, ".agents", "agents")
+        self.manifest_path = "MANIFEST.json"
+        self.agents_dir = "agents"
         
     def test_routing_resolution(self):
         table = load_routing_table(self.manifest_path)

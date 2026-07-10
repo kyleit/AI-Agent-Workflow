@@ -112,34 +112,32 @@ def load_session() -> dict[str, Any]:  # type: ignore
     return {}
 
 def save_session_atomic(data: dict[str, Any]) -> None:  # type: ignore
-    from state_sync import StateFileLock
-    with StateFileLock("."):
-        existing = load_session()
-        new_data = dict(data)
+    existing = load_session()
+    new_data = dict(data)
+    
+    if "conversation_id" not in new_data or not new_data["conversation_id"]:
+        new_data["conversation_id"] = existing.get("conversation_id", str(uuid.uuid4()))
         
-        if "conversation_id" not in new_data or not new_data["conversation_id"]:
-            new_data["conversation_id"] = existing.get("conversation_id", str(uuid.uuid4()))
-            
-        if "permission_mode" not in new_data:
-            new_data["permission_mode"] = existing.get("permission_mode", "sandbox")
-            new_data["permission_mode_selected_at"] = existing.get("permission_mode_selected_at", datetime.now().astimezone().isoformat())
-            new_data["permission_mode_selected_by"] = existing.get("permission_mode_selected_by", "user")
+    if "permission_mode" not in new_data:
+        new_data["permission_mode"] = existing.get("permission_mode", "sandbox")
+        new_data["permission_mode_selected_at"] = existing.get("permission_mode_selected_at", datetime.now().astimezone().isoformat())
+        new_data["permission_mode_selected_by"] = existing.get("permission_mode_selected_by", "user")
+    
+    new_data["updated_at"] = datetime.now().astimezone().isoformat()
+    
+    # 1. Ghi rã trạng thái vào các file trạng thái con
+    try:
+        deconstruct_state(".", new_data)
+    except Exception:
+        pass
         
-        new_data["updated_at"] = datetime.now().astimezone().isoformat()
-        
-        # 1. Ghi rã trạng thái vào các file trạng thái con
-        try:
-            deconstruct_state(".", new_data)
-        except Exception:
-            pass
-            
-        # 2. Xóa tệp .session.json trên đĩa để chuyển sang chế độ Pure Split State hoàn toàn
-        for path_to_remove in [SESSION_FILE, BAK_SESSION_FILE, TMP_SESSION_FILE]:
-            if os.path.exists(path_to_remove):
-                try:
-                    os.remove(path_to_remove)
-                except Exception:
-                    pass
+    # 2. Xóa tệp .session.json trên đĩa để chuyển sang chế độ Pure Split State hoàn toàn
+    for path_to_remove in [SESSION_FILE, BAK_SESSION_FILE, TMP_SESSION_FILE]:
+        if os.path.exists(path_to_remove):
+            try:
+                os.remove(path_to_remove)
+            except Exception:
+                pass
 
 SESSION_LOCK_FILE = SESSION_FILE + ".lock"
 
@@ -219,4 +217,94 @@ def load_workflow_config() -> dict[str, Any]:  # type: ignore
     except Exception:
         pass
     return default_config
+
+
+# ---------------------------------------------------------------------------
+# FEAT-050: Lightweight Runtime Initialization — Session Helpers
+# ---------------------------------------------------------------------------
+
+def load_guardrails_summary() -> dict:
+    """
+    Compute SHA-256 hashes of AI_RULES.md, .agents/AGENTS.md, and active SKILL.md.
+    Returns policy_flags dict. Does NOT re-load or re-enforce full rule text.
+    Hash confirms integrity only — fast and lightweight.
+    """
+    import hashlib
+
+    def _sha256(path: str) -> str:
+        if not os.path.exists(path):
+            return ""
+        try:
+            with open(path, "rb") as f:
+                return hashlib.sha256(f.read()).hexdigest()
+        except Exception:
+            return ""
+
+    rules_path = "AI_RULES.md"
+    agents_path = os.path.join(".agents", "AGENTS.md")
+
+    # Detect active skill from runtime state
+    runtime_path = os.path.join(".agents", "state", "runtime.json")
+    skill_path = ""
+    try:
+        if os.path.exists(runtime_path):
+            with open(runtime_path, "r", encoding="utf-8") as f:
+                runtime_data = json.load(f)
+            current_skill = runtime_data.get("current_skill", "initialize-workflow")
+            for base in ["skills", os.path.join(".agents", "skills")]:
+                candidate = os.path.join(base, current_skill, "SKILL.md")
+                if os.path.exists(candidate):
+                    skill_path = candidate
+                    break
+    except Exception:
+        pass
+
+    return {
+        "rules_loaded": os.path.exists(rules_path),
+        "ai_rules_hash": _sha256(rules_path),
+        "agents_hash": _sha256(agents_path),
+        "active_skill_hash": _sha256(skill_path),
+        "active_skill_path": skill_path,
+        "policy_flags": {
+            "approval_gate": True,
+            "git_gate": True,
+            "blueprint_gate": True,
+            "release_gate": True,
+            "testing_gate": True,
+            "workspace_permission_gate": True,
+        },
+    }
+
+
+def load_approval_state() -> dict:
+    """
+    Read .agents/state/approvals.json.
+    Returns empty dict if file missing (non-blocking for optional mode).
+    """
+    approvals_path = os.path.join(".agents", "state", "approvals.json")
+    if not os.path.exists(approvals_path):
+        return {}
+    try:
+        with open(approvals_path, "r", encoding="utf-8") as f:
+            data = json.load(f)
+        return data if isinstance(data, dict) else {}
+    except Exception:
+        return {}
+
+
+def load_dashboard_state() -> dict:
+    """
+    Read .agents/state/dashboard.json.
+    Returns empty dict if file missing.
+    Used for: release_allowed flag, provider info, usage summary.
+    """
+    dashboard_path = os.path.join(".agents", "state", "dashboard.json")
+    if not os.path.exists(dashboard_path):
+        return {}
+    try:
+        with open(dashboard_path, "r", encoding="utf-8") as f:
+            data = json.load(f)
+        return data if isinstance(data, dict) else {}
+    except Exception:
+        return {}
 

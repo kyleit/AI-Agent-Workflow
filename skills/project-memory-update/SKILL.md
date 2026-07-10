@@ -11,6 +11,18 @@ tags:
   - update
 version: 2.5.0
 description: Incrementally update Project Memory using Git diff. Script-First Architecture.
+runtime_requirements:
+  rules: required
+  state: required
+  approvals: optional
+  git: cached
+  memory: required
+  rag: optional
+  workspace_scan: required
+  environment: cached
+  version: cached
+  provider: optional
+  usage: none
 ---
 
 # Skill: Project Memory Update (Script-First)

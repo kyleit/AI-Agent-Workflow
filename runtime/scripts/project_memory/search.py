@@ -48,7 +48,6 @@ class RAGSearcher:
         if not keywords:
             return []
             
-        project_id = self.config.get("project_id", "ai-skill-framework")
         filter_conditions = []
         for kw in keywords:
             filter_conditions.append({
@@ -58,15 +57,7 @@ class RAGSearcher:
             
         payload = {
             "filter": {
-                "must": [
-                    {
-                        "key": "project_id",
-                        "match": {"value": project_id}
-                    },
-                    {
-                        "should": filter_conditions
-                    }
-                ]
+                "should": filter_conditions
             },
             "limit": 10,
             "with_payload": True

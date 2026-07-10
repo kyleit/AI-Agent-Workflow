@@ -270,40 +270,6 @@ if (-not (Test-Path $DocsTargetDir)) {
 Update-ItemWithCheck -src (Join-Path (Join-Path $ScriptDir "docs") "release-guide.md") -dest (Join-Path $DocsTargetDir "release-guide.md")
 Update-ItemWithCheck -src $ManifestPath -dest $TargetManifestPath
 
-# Ensure .gitignore exists in target and ignores logs
-function Ensure-GitIgnore ($targetDir) {
-    $GitIgnorePath = Join-Path $targetDir ".gitignore"
-    $DefaultContent = @(
-        ".session.json",
-        "state/",
-        "runtime/*.db",
-        "runtime/*.db-journal",
-        "runtime/*.db-wal",
-        "runtime/env_cache.json",
-        "runtime/logs/"
-    )
-
-    if (-not (Test-Path $GitIgnorePath)) {
-        Log-Info "Creating: $GitIgnorePath"
-        $DefaultContent | Out-File -FilePath $GitIgnorePath -Encoding utf8 -Force
-    } else {
-        $Lines = Get-Content -Path $GitIgnorePath
-        $HasLogsPattern = $false
-        foreach ($Line in $Lines) {
-            $t = $Line.Trim()
-            if ($t -eq "runtime/logs/" -or $t -eq "runtime/logs") {
-                $HasLogsPattern = $true
-                break
-            }
-        }
-        if (-not $HasLogsPattern) {
-            Log-Info "Adding runtime/logs/ to $GitIgnorePath"
-            Add-Content -Path $GitIgnorePath -Value "`r`nruntime/logs/" -Force
-        }
-    }
-}
-Ensure-GitIgnore -targetDir $InstallTarget
-
 # Initialize a clean .session.json if missing, or upgrade if it is in the old flat format
 $SessionPath = Join-Path $InstallTarget ".session.json"
 $SessionExists = Test-Path $SessionPath

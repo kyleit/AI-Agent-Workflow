@@ -23,6 +23,18 @@ repository: https://gitlab.com/hngan.it/ai-workflow-skills
 created_at: 2026-07-05
 updated_at: 2026-07-05
 description: Validate frontend implementation visually. Uses browser tools when available to debug and verify frontend UI against the expected design and requirements.
+runtime_requirements:
+  rules: required
+  state: required
+  approvals: optional
+  git: cached
+  memory: cached
+  rag: lazy
+  workspace_scan: none
+  environment: none
+  version: none
+  provider: optional
+  usage: none
 ---
 
 # Skill: Frontend Visual Debug

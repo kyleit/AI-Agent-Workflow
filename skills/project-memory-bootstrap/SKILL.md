@@ -10,6 +10,18 @@ tags:
   - initialization
 version: 2.5.0
 description: Perform a full first-run analysis of the project and generate complete Project Memory. Script-First Architecture.
+runtime_requirements:
+  rules: required
+  state: required
+  approvals: optional
+  git: cached
+  memory: required
+  rag: optional
+  workspace_scan: required
+  environment: cached
+  version: cached
+  provider: optional
+  usage: none
 ---
 
 # Skill: Project Memory Bootstrap (Script-First)

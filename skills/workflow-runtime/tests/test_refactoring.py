@@ -29,9 +29,9 @@ class TestRefactoringEngine(unittest.TestCase):
         if os.path.exists(self.state_dir):
             self.state_backup = self.state_dir + ".testbackup"
             if os.path.exists(self.state_backup):
-                shutil.rmtree(self.state_backup, ignore_errors=True)
-            shutil.copytree(self.state_dir, self.state_backup, ignore=shutil.ignore_patterns('*.db*', '*.tmp'))
-            shutil.rmtree(self.state_dir, ignore_errors=True)
+                shutil.rmtree(self.state_backup)
+            shutil.copytree(self.state_dir, self.state_backup)
+            shutil.rmtree(self.state_dir)
         
         save_session_atomic({"checkpoint": 1, "permission_mode": "sandbox"})
             
@@ -59,10 +59,10 @@ class TestRefactoringEngine(unittest.TestCase):
         
         # Clean state directory
         if os.path.exists(self.state_dir):
-            shutil.rmtree(self.state_dir, ignore_errors=True)
+            shutil.rmtree(self.state_dir)
         if self.state_backup and os.path.exists(self.state_backup):
-            shutil.copytree(self.state_backup, self.state_dir, dirs_exist_ok=True)
-            shutil.rmtree(self.state_backup, ignore_errors=True)
+            shutil.copytree(self.state_backup, self.state_dir)
+            shutil.rmtree(self.state_backup)
 
         if self.session_backup and os.path.exists(self.session_backup):
             shutil.copy2(self.session_backup, SESSION_FILE)
@@ -71,8 +71,6 @@ class TestRefactoringEngine(unittest.TestCase):
     def run_cli(self, args_list, input_str=None, env=None):
         cmd = [sys.executable, self.cli_path] + args_list
         run_env = os.environ.copy()
-        if "TESTING" in run_env:
-            del run_env["TESTING"]
         if env:
             run_env.update(env)
         res = subprocess.run(cmd, input=input_str, capture_output=True, text=True, encoding="utf-8", env=run_env)

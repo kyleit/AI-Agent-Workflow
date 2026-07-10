@@ -57,8 +57,5 @@ The framework divides agents into **Core Phase Owners** and **Specialist Assista
 - **Review**: Code Reviewer, QA Reviewer, Security Reviewer, Performance Reviewer, Accessibility Reviewer, Architecture Reviewer.
 - **Release**: Version Manager, Release Validator, Package Builder, ChangeLog Manager, Publisher.
 
-## Product-Oriented Public Export Changelog Rule
-- **Quy tắc viết Changelog cho Public Export**: Sau khi hoàn thành xuất bản mã nguồn bằng lệnh `make export` (hoặc các lệnh tương tự sang thư mục `public_export`), Agent **BẮT BUỘC** phải tạo/cập nhật tệp `CHANGELOG.md` riêng cho kho xuất bản công khai nằm trong thư mục `public_export/CHANGELOG.md`. Nội dung của tệp Changelog này phải được viết lại hoàn toàn dựa trên Changelog của dự án chính, định hướng theo góc nhìn sản phẩm (Product-oriented) thay vì góc nhìn kỹ thuật chi tiết, dễ hiểu đối với người dùng cuối, và **chỉ** ghi nhận các thay đổi thực sự có mặt trong mã nguồn xuất bản công khai.
-
 GitHub Repository: https://github.com/kyleit/AI-Agent-Workflow
 <!-- AIWF:RULES:END -->
