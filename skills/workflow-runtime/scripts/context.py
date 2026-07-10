@@ -12,6 +12,16 @@ from session import load_session
 LIMIT_TOKENS = 2000000
 BRAIN_ROOT = os.path.expanduser("~/.gemini/antigravity-ide/brain")
 
+def _connect_sqlite(db_path: str):
+    import sqlite3
+    conn = sqlite3.connect(db_path, timeout=30.0)
+    try:
+        conn.execute("PRAGMA journal_mode=WAL")
+        conn.execute("PRAGMA busy_timeout=30000")
+    except Exception:
+        pass
+    return conn
+
 def parse_transcript(log_file: str) -> dict:
     if not os.path.exists(log_file):
         return {}
@@ -195,7 +205,7 @@ def _local_get_project_summary(project_id: str) -> dict:
     import sqlite3
     conn = None
     try:
-        conn = sqlite3.connect(db_path)
+        conn = _connect_sqlite(db_path)
         cursor = conn.cursor()
         
         has_requests = False
@@ -275,7 +285,7 @@ def _local_get_global_summary() -> dict:
     import sqlite3
     conn = None
     try:
-        conn = sqlite3.connect(db_path)
+        conn = _connect_sqlite(db_path)
         cursor = conn.cursor()
         cursor.execute("SELECT name FROM sqlite_master WHERE type='table' AND name='global_usage'")
         if cursor.fetchone():
@@ -390,7 +400,7 @@ def sync_request_history(conversation_id: str, project_id: str, workspace_root: 
     import sqlite3
     if os.path.exists(PROJECT_DB):
         try:
-            conn = sqlite3.connect(PROJECT_DB)
+            conn = _connect_sqlite(PROJECT_DB)
             cursor = conn.cursor()
             cursor.execute("SELECT request_id FROM provider_requests WHERE conversation_id = ?", (conversation_id,))
             saved_request_ids = {row[0] for row in cursor.fetchall() if row[0]}

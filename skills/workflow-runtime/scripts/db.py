@@ -38,6 +38,15 @@ def get_project_db_path() -> str:
 
 PROJECT_DB = get_project_db_path()
 
+def connect_db(db_path: str) -> sqlite3.Connection:
+    conn = sqlite3.connect(db_path, timeout=30.0)
+    try:
+        conn.execute("PRAGMA journal_mode=WAL")
+        conn.execute("PRAGMA busy_timeout=30000")
+    except Exception:
+        pass
+    return conn
+
 def get_global_db_path() -> str:
     # Determine OS AppData path
     if sys.platform.startswith("win"):
@@ -476,7 +485,7 @@ def _save_record(db_path: str, record: tuple) -> None:
     # Ensure parent dir exists
     os.makedirs(os.path.dirname(os.path.abspath(db_path)), exist_ok=True)
     
-    conn = sqlite3.connect(db_path)
+    conn = connect_db(db_path)
     try:
         init_db_schema(conn)
         cursor = conn.cursor()
@@ -495,7 +504,7 @@ def save_provider_request(request_data: dict) -> None:
     # Ensure parent dir exists
     for db_path in [PROJECT_DB, get_global_db_path()]:
         os.makedirs(os.path.dirname(os.path.abspath(db_path)), exist_ok=True)
-        conn = sqlite3.connect(db_path)
+        conn = connect_db(db_path)
         try:
             init_db_schema(conn)
             cursor = conn.cursor()
@@ -558,7 +567,7 @@ def batch_insert_provider_requests(records: list[dict], batch_size: int = 1000) 
     inserted_count = 0
     for db_path in [PROJECT_DB, get_global_db_path()]:
         os.makedirs(os.path.dirname(os.path.abspath(db_path)), exist_ok=True)
-        conn = sqlite3.connect(db_path)
+        conn = connect_db(db_path)
         try:
             # Enable WAL mode for performance
             conn.execute("PRAGMA journal_mode=WAL")
@@ -625,7 +634,7 @@ def get_provider_requests(filters: dict, sort_by: str = "timestamp", desc: bool 
     if not os.path.exists(PROJECT_DB):
         return []
     
-    conn = sqlite3.connect(PROJECT_DB)
+    conn = connect_db(PROJECT_DB)
     try:
         init_db_schema(conn)
         cursor = conn.cursor()
@@ -723,7 +732,7 @@ def get_provider_request_detail(request_id: str) -> dict:
 def save_token_diff(diff_data: dict) -> None:
     for db_path in [PROJECT_DB, get_global_db_path()]:
         os.makedirs(os.path.dirname(os.path.abspath(db_path)), exist_ok=True)
-        conn = sqlite3.connect(db_path)
+        conn = connect_db(db_path)
         try:
             init_db_schema(conn)
             cursor = conn.cursor()
@@ -758,7 +767,7 @@ def get_token_diff(request_id: str) -> dict:
     if not os.path.exists(PROJECT_DB):
         return None
         
-    conn = sqlite3.connect(PROJECT_DB)
+    conn = connect_db(PROJECT_DB)
     try:
         init_db_schema(conn)
         cursor = conn.cursor()
@@ -792,7 +801,7 @@ def get_token_diff(request_id: str) -> dict:
 def save_insight_snapshot(snapshot: dict) -> None:
     for db_path in [PROJECT_DB, get_global_db_path()]:
         os.makedirs(os.path.dirname(os.path.abspath(db_path)), exist_ok=True)
-        conn = sqlite3.connect(db_path)
+        conn = connect_db(db_path)
         try:
             init_db_schema(conn)
             cursor = conn.cursor()
@@ -824,7 +833,7 @@ def save_insight_snapshot(snapshot: dict) -> None:
 def get_insight_snapshots(conversation_id: str) -> list[dict]:
     if not os.path.exists(PROJECT_DB):
         return []
-    conn = sqlite3.connect(PROJECT_DB)
+    conn = connect_db(PROJECT_DB)
     try:
         init_db_schema(conn)
         cursor = conn.cursor()
@@ -858,7 +867,7 @@ def get_insight_snapshots(conversation_id: str) -> list[dict]:
 def save_recommendations(recs: list[dict]) -> None:
     for db_path in [PROJECT_DB, get_global_db_path()]:
         os.makedirs(os.path.dirname(os.path.abspath(db_path)), exist_ok=True)
-        conn = sqlite3.connect(db_path)
+        conn = connect_db(db_path)
         try:
             init_db_schema(conn)
             cursor = conn.cursor()
@@ -888,7 +897,7 @@ def save_recommendations(recs: list[dict]) -> None:
 def get_recommendations(conversation_id: str) -> list[dict]:
     if not os.path.exists(PROJECT_DB):
         return []
-    conn = sqlite3.connect(PROJECT_DB)
+    conn = connect_db(PROJECT_DB)
     try:
         init_db_schema(conn)
         cursor = conn.cursor()
@@ -923,7 +932,7 @@ def update_recommendation_status(rec_id: str, status: str) -> bool:
     for db_path in [PROJECT_DB, get_global_db_path()]:
         if not os.path.exists(db_path):
             continue
-        conn = sqlite3.connect(db_path)
+        conn = connect_db(db_path)
         try:
             init_db_schema(conn)
             cursor = conn.cursor()
@@ -942,7 +951,7 @@ def update_recommendation_status(rec_id: str, status: str) -> bool:
 def save_timeline_event(event: dict) -> None:
     for db_path in [PROJECT_DB, get_global_db_path()]:
         os.makedirs(os.path.dirname(os.path.abspath(db_path)), exist_ok=True)
-        conn = sqlite3.connect(db_path)
+        conn = connect_db(db_path)
         try:
             init_db_schema(conn)
             cursor = conn.cursor()
@@ -990,7 +999,7 @@ def save_timeline_event(event: dict) -> None:
 def get_timeline_events(conversation_id: str) -> list[dict]:
     if not os.path.exists(PROJECT_DB):
         return []
-    conn = sqlite3.connect(PROJECT_DB)
+    conn = connect_db(PROJECT_DB)
     try:
         init_db_schema(conn)
         cursor = conn.cursor()
@@ -1058,7 +1067,7 @@ def save_usage_to_dbs(conversation_id: str, project_id: str, skill: str, command
     # Read existing total_tokens from Project DB if it exists
     existing_total = 0
     if os.path.exists(PROJECT_DB):
-        conn = sqlite3.connect(PROJECT_DB)
+        conn = connect_db(PROJECT_DB)
         try:
             cursor = conn.cursor()
             cursor.execute("SELECT name FROM sqlite_master WHERE type='table' AND name='usage_records'")
@@ -1141,7 +1150,7 @@ def get_workflow_summary(conversation_id: str, provider: str, model: str) -> dic
 
     conn = None
     try:
-        conn = sqlite3.connect(PROJECT_DB)
+        conn = connect_db(PROJECT_DB)
         cursor = conn.cursor()
         
         has_requests = False
@@ -1291,7 +1300,7 @@ def get_project_summary(project_id: str) -> dict:
 
     conn = None
     try:
-        conn = sqlite3.connect(PROJECT_DB)
+        conn = connect_db(PROJECT_DB)
         cursor = conn.cursor()
         
         has_requests = False
@@ -1363,7 +1372,7 @@ def get_global_summary() -> dict:
 
     conn = None
     try:
-        conn = sqlite3.connect(global_db)
+        conn = connect_db(global_db)
         cursor = conn.cursor()
         
         has_requests = False
@@ -1421,7 +1430,7 @@ def normalize_database_records(db_path: str) -> None:
     if not os.path.exists(db_path):
         return
     from context import parse_transcript
-    conn = sqlite3.connect(db_path)
+    conn = connect_db(db_path)
     try:
         cursor = conn.cursor()
         cursor.execute("SELECT name FROM sqlite_master WHERE type='table' AND name='usage_records'")
