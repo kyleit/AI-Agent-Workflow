@@ -1,0 +1,12 @@
+{
+  "last_git_hash": "dcebacc568dc5dab68147767841a5cd0c4f9be32",
+  "memory_version": "1.0.0",
+  "last_run_mode": "incremental",
+  "files_changed": 33,
+  "memory_docs_updated": 0,
+  "layers_generated": [
+    "lessons",
+    "rag"
+  ],
+  "last_updated_at": "2026-07-10T12:06:58.281201+07:00"
+}

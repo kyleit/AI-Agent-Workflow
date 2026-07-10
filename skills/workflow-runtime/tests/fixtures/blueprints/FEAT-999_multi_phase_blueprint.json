@@ -1,0 +1,142 @@
+{
+  "feature_id": "FEAT-999",
+  "feature_name": "Multi-Phase Test Blueprint",
+  "_blueprint_path": "docs/designs/FEAT-999_multi_phase_blueprint.json",
+  "implementation_packages": [
+    {
+      "task_id": "Task 1.1",
+      "module": "Phase 1",
+      "write_set": ["src/phase1/module_a.py", "src/phase1/__init__.py"],
+      "dependencies": [],
+      "implementation_notes": "Implement module A",
+      "verification": "python -m pytest tests/test_phase1_a.py",
+      "expected_outputs": ["src/phase1/module_a.py"]
+    },
+    {
+      "task_id": "Task 1.2",
+      "module": "Phase 1",
+      "write_set": ["src/phase1/module_b.py"],
+      "dependencies": ["Task 1.1"],
+      "implementation_notes": "Implement module B, depends on A",
+      "verification": "python -m pytest tests/test_phase1_b.py",
+      "expected_outputs": ["src/phase1/module_b.py"]
+    },
+    {
+      "task_id": "Task 1.3",
+      "module": "Phase 1",
+      "write_set": ["src/phase1/module_c.py"],
+      "dependencies": [],
+      "implementation_notes": "Implement module C (parallel candidate with Task 1.1)",
+      "verification": "python -m pytest tests/test_phase1_c.py",
+      "expected_outputs": ["src/phase1/module_c.py"]
+    },
+    {
+      "task_id": "Task 2.1",
+      "module": "Phase 2",
+      "write_set": ["src/phase2/module_d.py", "src/phase2/__init__.py"],
+      "dependencies": ["Task 1.1", "Task 1.2"],
+      "implementation_notes": "Implement module D, depends on Phase 1",
+      "verification": "python -m pytest tests/test_phase2_d.py",
+      "expected_outputs": ["src/phase2/module_d.py"]
+    },
+    {
+      "task_id": "Task 2.2",
+      "module": "Phase 2",
+      "write_set": ["src/phase2/module_e.py"],
+      "dependencies": ["Task 2.1"],
+      "implementation_notes": "Implement module E",
+      "verification": "python -m pytest tests/test_phase2_e.py",
+      "expected_outputs": ["src/phase2/module_e.py"]
+    },
+    {
+      "task_id": "Task 2.3",
+      "module": "Phase 2",
+      "write_set": ["src/phase2/module_f.py"],
+      "dependencies": ["Task 1.3"],
+      "implementation_notes": "Implement module F, depends only on Task 1.3",
+      "verification": "python -m pytest tests/test_phase2_f.py",
+      "expected_outputs": ["src/phase2/module_f.py"]
+    },
+    {
+      "task_id": "Task 3.1",
+      "module": "Phase 3",
+      "write_set": ["src/phase3/module_g.py", "src/phase3/__init__.py"],
+      "dependencies": ["Task 2.1", "Task 2.2", "Task 2.3"],
+      "implementation_notes": "Implement module G, integrates Phase 2",
+      "verification": "python -m pytest tests/test_phase3_g.py",
+      "expected_outputs": ["src/phase3/module_g.py"]
+    },
+    {
+      "task_id": "Task 3.2",
+      "module": "Phase 3",
+      "write_set": ["src/phase3/module_h.py"],
+      "dependencies": ["Task 3.1"],
+      "implementation_notes": "Implement module H",
+      "verification": "python -m pytest tests/test_phase3_h.py",
+      "expected_outputs": ["src/phase3/module_h.py"]
+    },
+    {
+      "task_id": "Task 4.1",
+      "module": "Phase 4",
+      "write_set": ["src/phase4/integrator.py", "src/phase4/__init__.py"],
+      "dependencies": ["Task 3.1", "Task 3.2"],
+      "implementation_notes": "Integration layer",
+      "verification": "python -m pytest tests/test_integration.py",
+      "expected_outputs": ["src/phase4/integrator.py"]
+    },
+    {
+      "task_id": "Task 4.2",
+      "module": "Phase 4",
+      "write_set": ["docs/api.md"],
+      "dependencies": ["Task 4.1"],
+      "implementation_notes": "Write API docs",
+      "verification": "",
+      "expected_outputs": ["docs/api.md"]
+    },
+    {
+      "task_id": "Task 5.1",
+      "module": "Phase 5",
+      "write_set": ["tests/test_e2e.py"],
+      "dependencies": ["Task 4.1"],
+      "implementation_notes": "End-to-end tests",
+      "verification": "python -m pytest tests/test_e2e.py",
+      "expected_outputs": ["tests/test_e2e.py"]
+    },
+    {
+      "task_id": "Task 5.2",
+      "module": "Phase 5",
+      "write_set": ["tests/test_stress.py"],
+      "dependencies": ["Task 5.1"],
+      "implementation_notes": "Stress tests",
+      "verification": "python -m pytest tests/test_stress.py",
+      "expected_outputs": ["tests/test_stress.py"]
+    },
+    {
+      "task_id": "Task 5.3",
+      "module": "Phase 5",
+      "write_set": ["CHANGELOG.md"],
+      "dependencies": ["Task 5.1"],
+      "implementation_notes": "Update changelog (parallel candidate with Task 5.2 - no overlap)",
+      "verification": "",
+      "expected_outputs": ["CHANGELOG.md"]
+    },
+    {
+      "task_id": "Task 5.4",
+      "module": "Phase 5",
+      "write_set": ["README.md"],
+      "dependencies": ["Task 5.3"],
+      "implementation_notes": "Update README",
+      "verification": "",
+      "expected_outputs": ["README.md"]
+    },
+    {
+      "task_id": "Task 5.5",
+      "module": "Phase 5",
+      "write_set": ["src/phase2/module_e.py"],
+      "dependencies": ["Task 2.2"],
+      "implementation_notes": "OVERLAPPING write_set with Task 2.2 — must be SEQUENTIAL",
+      "verification": "",
+      "expected_outputs": []
+    }
+  ]
+}

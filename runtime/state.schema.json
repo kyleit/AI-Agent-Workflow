@@ -1,0 +1,40 @@
+{
+  "$schema": "http://json-schema.org/draft-07/schema#",
+  "title": "RuntimeState",
+  "type": "object",
+  "properties": {
+    "session_id": { "type": "string" },
+    "current_agent": { "type": "string" },
+    "current_skill": { "type": "string" },
+    "current_work_item": { "type": "string" },
+    "current_step": { "type": "string" },
+    "context_health": {
+      "type": "string",
+      "enum": ["healthy", "warning", "broken"]
+    },
+    "policies_loaded": { "type": "boolean" },
+    "memory_status": {
+      "type": "string",
+      "enum": ["missing", "loaded", "stale"]
+    },
+    "rag_status": {
+      "type": "string",
+      "enum": ["missing", "available", "stale"]
+    },
+    "git_branch": { "type": "string" },
+    "updated_at": { "type": "string" }
+  },
+  "required": [
+    "session_id",
+    "current_agent",
+    "current_skill",
+    "current_work_item",
+    "current_step",
+    "context_health",
+    "policies_loaded",
+    "memory_status",
+    "rag_status",
+    "git_branch",
+    "updated_at"
+  ]
+}

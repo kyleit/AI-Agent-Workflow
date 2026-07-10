@@ -1,0 +1,27 @@
+{
+  "project_name": "example-project",
+  "git_flow": {
+    "development_branch": "main",
+    "release_branch": "main",
+    "sync_method": "merge",
+    "extra_push_branches": []
+  },
+  "release_pipeline": {
+    "steps": [
+      "bump_version",
+      "update_changelog",
+      "git_commit",
+      "git_tag",
+      "custom_commands",
+      "git_push"
+    ],
+    "custom_commands": {
+      "core": [
+        "echo 'Chạy lệnh build/test cho module core ở đây!'"
+      ],
+      "global": [
+        "echo 'Chạy lệnh release global ở đây!'"
+      ]
+    }
+  }
+}

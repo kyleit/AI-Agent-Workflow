@@ -1,0 +1,934 @@
+<!-- File path: docs/index.html -->
+<!DOCTYPE html>
+<html lang="vi">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>AI Skill Framework - Hướng dẫn & Trình Giả Lập Quy Trình SDLC</title>
+    <!-- Phông chữ Google Fonts Outfit & Inter -->
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&family=Outfit:wght@500;700;800&display=swap" rel="stylesheet">
+    <link rel="stylesheet" href="docs-assets/style.css">
+</head>
+<body>
+
+    <!-- SIDEBAR ĐIỀU HƯỚNG BÊN TRÁI -->
+    <aside class="sidebar">
+        <div class="logo-section">
+            <!-- Icon logo AI Workflow -->
+            <img src="docs-assets/icon.png" class="logo-icon" alt="Logo" />
+            <span class="logo-text">AI WORKFLOW</span>
+            <button id="menuToggle" class="menu-toggle" aria-label="Toggle Menu">☰</button>
+        </div>
+        
+        <ul class="menu-list">
+            <li class="menu-item active">
+                <button data-tab="overview">
+                    <svg viewBox="0 0 24 24"><path d="M10 20v-6h4v6h5v-8h3L12 3 2 12h3v8z"/></svg>
+                    Tổng quan SDLC
+                </button>
+            </li>
+            <li class="menu-item">
+                <button data-tab="workflows">
+                    <svg viewBox="0 0 24 24"><path d="M2 17h2v.5H3v1h1v.5H2v1h3v-4H2v1zm1-9h1V4H2v1h1v3zm-1 3h1.8L2 13.1v.9h3v-1H3.2L5 10.9v-.9H2v1zm5-6v2h14V6H7zm0 7h14v-2H7v2zm0 5h14v-2H7v2z"/></svg>
+                    Các luồng Workflow
+                </button>
+            </li>
+            <li class="menu-item">
+                <button data-tab="skills">
+                    <svg viewBox="0 0 24 24"><path d="M4 6H2v14c0 1.1.9 2 2 2h14v-2H4V6zm16-4H8c-1.1 0-2 .9-2 2v12c0 1.1.9 2 2 2h12c1.1 0 2-.9 2-2V4c0-1.1-.9-2-2-2zm0 14H8V4h12v12z"/></svg>
+                    Thư mục Skills
+                </button>
+            </li>
+            <li class="menu-item">
+                <button data-tab="runtime">
+                    <svg viewBox="0 0 24 24"><path d="M9.4 16.6L4.8 12l4.6-4.6L8 6l-6 6 6 6 1.4-1.4zm5.2 0l4.6-4.6-4.6-4.6L16 6l6 6-6 6-1.4-1.4z"/></svg>
+                    Vận hành Runtime
+                </button>
+            </li>
+            <li class="menu-item">
+                <button data-tab="simulator">
+                    <svg viewBox="0 0 24 24"><path d="M21 2H3c-1.1 0-2 .9-2 2v12c0 1.1.9 2 2 2h7l-2 3v1h8v-1l-2-3h7c1.1 0 2-.9 2-2V4c0-1.1-.9-2-2-2zm0 14H3V4h18v12z"/></svg>
+                    Trình Giả Lập SDLC
+                </button>
+            </li>
+            <li class="menu-item">
+                <button data-tab="obsidian">
+                    <svg viewBox="0 0 24 24"><path d="M12 2L2 22h20L12 2zm0 3.99L18.8 19H5.2L12 5.99z"/></svg>
+                    Đồng bộ Obsidian
+                </button>
+            </li>
+        </ul>
+
+        <div class="sidebar-footer">
+            <a href="https://github.com/kyleit/AI-Agent-Workflow" target="_blank" class="github-link">
+                <!-- Icon GitHub -->
+                <svg style="width: 14px; height: 14px; fill: currentColor;" viewBox="0 0 24 24">
+                    <path d="M12 2C6.477 2 2 6.477 2 12c0 4.42 2.865 8.166 6.839 9.489.5.092.682-.217.682-.482 0-.237-.008-.866-.013-1.7-2.782.603-3.369-1.34-3.369-1.34-.454-1.156-1.11-1.464-1.11-1.464-.908-.62.069-.608.069-.608 1.003.07 1.531 1.03 1.531 1.03.892 1.529 2.341 1.087 2.91.832.092-.647.35-1.088.636-1.338-2.22-.253-4.555-1.11-4.555-4.943 0-1.091.39-1.984 1.029-2.683-.103-.253-.446-1.27.098-2.647 0 0 .84-.269 2.75 1.025A9.564 9.564 0 0112 6.844c.85.004 1.705.115 2.504.337 1.909-1.294 2.747-1.025 2.747-1.025.546 1.377.203 2.394.1 2.647.64.699 1.028 1.592 1.028 2.683 0 3.842-2.339 4.687-4.566 4.935.359.309.678.919.678 1.852 0 1.336-.012 2.415-.012 2.743 0 .267.18.579.688.481C19.137 20.162 22 16.418 22 12c0-5.523-4.477-10-10-10z"/>
+                </svg>
+                GitHub Repository
+            </a>
+            <a href="https://marketplace.visualstudio.com/items?itemName=kyleit.ai-skill-workflow-visualizer" target="_blank" class="github-link">
+                <!-- Icon VS Code Ribbon -->
+                <svg style="width: 14px; height: 14px; fill: currentColor;" viewBox="0 0 24 24">
+                    <path d="M23.98 6.74a.5.5 0 0 0-.16-.38L18.42.38a.5.5 0 0 0-.7 0L10.3 7.82 4.4 1.9a.5.5 0 0 0-.7 0L.19 5.5a.5.5 0 0 0 0 .7L5.5 12 .19 17.8a.5.5 0 0 0 0 .7L3.7 22.1a.5.5 0 0 0 .7 0l5.9-5.9 7.42 7.42a.5.5 0 0 0 .7 0l5.4-5.98a.5.5 0 0 0 .16-.38V6.74zM18 15.9l-5.4-5.4 5.4-5.4v10.8z"/>
+                </svg>
+                Visualizer (VS Code)
+            </a>
+            <a href="https://open-vsx.org/extension/kyleit/ai-workflow-visualizer" target="_blank" class="github-link">
+                <!-- Icon Puzzle for Extensions -->
+                <svg style="width: 14px; height: 14px; fill: currentColor;" viewBox="0 0 24 24">
+                    <path d="M20.5 11H19V7c0-1.1-.9-2-2-2h-4V3.5a2.5 2.5 0 0 0-5 0V5H4c-1.1 0-1.99.9-1.99 2v3.8H3.5a2.5 2.5 0 0 1 0 5H2V17c0 1.1.9 2 2 2h3.8v-1.5a2.5 2.5 0 0 1 5 0V19H17c1.1 0 2-.9 2-2v-4h1.5a2.5 2.5 0 0 0 0-5z"/>
+                </svg>
+                Visualizer (Open VSX)
+            </a>
+        </div>
+    </aside>
+
+    <!-- CONTENT VÙNG NỘI DUNG CHÍNH BÊN PHẢI -->
+    <div class="content-container">
+        <!-- HEADER TRÊN CÙNG -->
+        <header class="app-header">
+            <div class="header-title">
+                <h1>Tổng quan AI Workflow</h1>
+            </div>
+            <div class="header-widgets">
+                <div class="search-bar">
+                    <svg viewBox="0 0 24 24"><path d="M15.5 14h-.79l-.28-.27C15.41 12.59 16 11.11 16 9.5 16 5.91 13.09 3 9.5 3S3 5.91 3 9.5 5.91 16 9.5 16c1.61 0 3.09-.59 4.23-1.57l.27.28v.79l5 4.99L20.49 19l-4.99-5zm-6 0C7.01 14 5 11.99 5 9.5S7.01 5 9.5 5 14 7.01 14 9.5 11.99 14 9.5 14z"/></svg>
+                    <input type="text" id="skillSearch" placeholder="Tìm nhanh skill (ví dụ: sync, /init)...">
+                </div>
+            </div>
+        </header>
+
+        <!-- TAB 1: TỔNG QUAN (OVERVIEW) -->
+        <section id="overview" class="tab-content active">
+            <div class="welcome-card">
+                <h2>Chào mừng bạn đến với AI Skill Framework Docs!</h2>
+                <p>Đây là website tài liệu tương tác và giả lập quy trình kỹ thuật phần mềm dành cho AI Coding Agent. Hệ thống quản lý toàn bộ chu trình phát triển (SDLC) một cách tự động, bảo mật và an toàn bằng cách gác các chốt duyệt (Approval Gates) và kiểm soát chất lượng qua từng Checkpoint từ 1 đến 10.</p>
+            </div>
+
+            <div style="margin-bottom: 20px;">
+                <h3 style="color: #fff; margin-bottom: 12px; font-size: 16px;">🗺️ Sơ đồ Quy trình SDLC Tiêu chuẩn (Standard Flow Diagram)</h3>
+            </div>
+
+            <div class="diagram-container" style="display: flex; justify-content: center; align-items: center; padding: 10px; background: none; border: none;">
+                <img src="docs-assets/infographic.jpg" alt="AI Workflow Infographic" style="max-width: 100%; height: auto; border-radius: 8px; border: 1px solid var(--line); box-shadow: 0 8px 32px rgba(0, 229, 255, 0.15);" />
+            </div>
+
+            <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 24px;">
+                <div class="welcome-card" style="margin-bottom: 0;">
+                    <h3 style="color: #fff; margin-bottom: 12px; font-size: 14px;">🔑 Nguyên tắc Vàng của Framework</h3>
+                    <ul style="list-style: inside circle; color: var(--muted); display: flex; flex-direction: column; gap: 8px; font-size: 12px;">
+                        <li><strong>Không Thiết kế, Không Lập trình (No Blueprint, No Code)</strong>: CLI sẽ khóa cứng tính năng viết code nếu không tìm thấy Blueprint đã duyệt.</li>
+                        <li><strong>Bảo mật Phân quyền</strong>: Hỗ trợ 3 mức phân quyền giúp lập trình viên kiểm soát tuyệt đối hành vi của Agent.</li>
+                        <li><strong>Tự động Đồng bộ</strong>: Hệ thống tự động sửa đổi metadata và RAG sau mỗi tác vụ hoàn thành để tránh trôi lệch ngữ cảnh.</li>
+                    </ul>
+                </div>
+                <div class="welcome-card" style="margin-bottom: 0;">
+                    <h3 style="color: #fff; margin-bottom: 12px; font-size: 14px;">⚙️ GitHub Pages Deploy</h3>
+                    <p style="color: var(--muted); font-size: 12px; line-height: 1.6; margin-bottom: 10px;">Bộ tài liệu này được cấu hình tự động đóng gói và phát hành từ thư mục <code>interactive-docs/</code> thông qua GitHub Actions trên repository <code>kyleit/AI-Agent-Workflow</code>.</p>
+                    <p style="color: var(--cyan); font-weight: 600; font-size: 12px;">Địa chỉ website: <a href="https://kyleit.github.io/AI-Agent-Workflow/" target="_blank" style="color: var(--cyan); text-decoration: underline;">https://kyleit.github.io/AI-Agent-Workflow/</a></p>
+                </div>
+            </div>
+        </section>
+
+        <!-- TAB 2: CÁC LUỒNG WORKFLOW -->
+        <section id="workflows" class="tab-content">
+            <div class="flow-tabs-nav">
+                <button class="flow-tab-btn active" data-flow="flowStandard">1. Quy trình Đầy đủ (Standard)</button>
+                <button class="flow-tab-btn" data-flow="flowFeature">2. Quy trình Tính năng nhanh (Quick Feature)</button>
+                <button class="flow-tab-btn" data-flow="flowFix">3. Quy trình Sửa lỗi nhanh (Quick Fix)</button>
+                <button class="flow-tab-btn" data-flow="flowOrchestrate">4. Quy trình Điều phối (Orchestrator)</button>
+            </div>
+
+            <!-- 2.1 Quy trình Đầy Đủ -->
+            <div id="flowStandard" class="flow-panel">
+                <p style="color: var(--muted); margin-bottom: 20px;">Dành cho các tính năng có độ phức tạp cao, ảnh hưởng lớn đến cấu trúc và kiến trúc mã nguồn. Quy trình đi qua đầy đủ 10 bước nghiêm ngặt.</p>
+                
+                <div class="flow-steps-timeline">
+                    <div class="timeline-step active">
+                        <div class="step-number">1</div>
+                        <div class="step-card-detail">
+                            <h3>Khởi tạo phiên làm việc <span style="font-family: monospace; font-size: 11px; color: var(--cyan);">/init</span></h3>
+                            <p>Thiết lập trạng thái dự án, tạo file <code>.session.json</code> và chọn mức độ phân quyền.</p>
+                            <div class="code-wrapper">
+                                <div class="code-header-bar"><span class="code-lang">CLI command</span><button class="copy-btn" onclick="copyToClipboard('python skills/workflow-runtime/scripts/workflow_runtime.py init --permission 1', this)">Copy</button></div>
+                                <pre>python skills/workflow-runtime/scripts/workflow_runtime.py init --permission 1</pre>
+                            </div>
+                        </div>
+                    </div>
+
+                    <div class="timeline-step">
+                        <div class="step-number">2</div>
+                        <div class="step-card-detail">
+                            <h3>Đồng bộ bộ nhớ RAG <span style="font-family: monospace; font-size: 11px; color: var(--cyan);">/memory-sync</span></h3>
+                            <p>Quét git diff và đồng bộ cơ sở dữ liệu vector để đảm bảo Agent nắm được toàn bộ thay đổi gần nhất.</p>
+                            <div class="code-wrapper">
+                                <div class="code-header-bar"><span class="code-lang">CLI command</span><button class="copy-btn" onclick="copyToClipboard('python skills/workflow-runtime/scripts/workflow_runtime.py usage sync', this)">Copy</button></div>
+                                <pre>python skills/workflow-runtime/scripts/workflow_runtime.py usage sync</pre>
+                            </div>
+                        </div>
+                    </div>
+
+                    <div class="timeline-step">
+                        <div class="step-number">3</div>
+                        <div class="step-card-detail">
+                            <h3>Brainstorm giải pháp <span style="font-family: monospace; font-size: 11px; color: var(--cyan);">/brainstorm</span></h3>
+                            <p>Agent phân tích yêu cầu của người dùng và phác thảo ý tưởng thiết kế sơ bộ vào thư mục <code>docs/brainstorming/</code>.</p>
+                            <div class="code-wrapper">
+                                <div class="code-header-bar"><span class="code-lang">CLI command</span><button class="copy-btn" onclick="copyToClipboard('python skills/workflow-runtime/scripts/workflow_runtime.py start --skill &quot;brainstorming&quot; --command &quot;brainstorm&quot; --checkpoint 3 --step &quot;Brainstorming FEAT-015&quot;', this)">Copy</button></div>
+                                <pre>python skills/workflow-runtime/scripts/workflow_runtime.py start --skill "brainstorming" --command "brainstorm" --checkpoint 3 --step "Brainstorming FEAT-015"</pre>
+                            </div>
+                        </div>
+                    </div>
+
+                    <div class="timeline-step">
+                        <div class="step-number">4</div>
+                        <div class="step-card-detail">
+                            <h3>Lập kế hoạch thực thi <span style="font-family: monospace; font-size: 11px; color: var(--cyan);">/plan</span></h3>
+                            <p>Xây dựng Kế hoạch thực thi (Implementation Plan) và danh sách công việc <code>task.md</code>.</p>
+                        </div>
+                    </div>
+
+                    <div class="timeline-step">
+                        <div class="step-number">5</div>
+                        <div class="step-card-detail">
+                            <h3>Thiết kế kỹ thuật và Đăng ký Blueprint <span style="font-family: monospace; font-size: 11px; color: var(--cyan);">/blueprint</span></h3>
+                            <p>Tạo bản thiết kế Blueprint tại thư mục <code>docs/designs/</code> chi tiết từng class, hàm, API sẽ thay đổi và đăng ký lên CLI để khóa cứng phạm vi sửa đổi.</p>
+                        </div>
+                    </div>
+
+                    <div class="timeline-step">
+                        <div class="step-number">6</div>
+                        <div class="step-card-detail">
+                            <h3>Triển khai viết code <span style="font-family: monospace; font-size: 11px; color: var(--cyan);">/implement</span></h3>
+                            <p>Thực hiện viết code dựa theo đúng mô tả của Blueprint. CLI sẽ chặn đứng mọi hành vi sửa code nằm ngoài Blueprint.</p>
+                        </div>
+                    </div>
+
+                    <div class="timeline-step">
+                        <div class="step-number">7</div>
+                        <div class="step-card-detail">
+                            <h3>Chạy thử &amp; Debug <span style="font-family: monospace; font-size: 11px; color: var(--cyan);">/debug</span></h3>
+                            <p>Biên dịch dự án, chạy unit tests, sửa đổi các lỗi phát sinh cho đến khi đạt trạng thái PASS.</p>
+                        </div>
+                    </div>
+
+                    <div class="timeline-step">
+                        <div class="step-number">8</div>
+                        <div class="step-card-detail">
+                            <h3>Visual Debug giao diện <span style="font-family: monospace; font-size: 11px; color: var(--cyan);">/visual-debug</span></h3>
+                            <p>Chạy kiểm thử giao diện trực quan cho các thành phần UI (nếu dự án có thành phần UI).</p>
+                        </div>
+                    </div>
+
+                    <div class="timeline-step">
+                        <div class="step-number">9</div>
+                        <div class="step-card-detail">
+                            <h3>Ký duyệt nghiệm thu <span style="font-family: monospace; font-size: 11px; color: var(--cyan);">/verify</span></h3>
+                            <p>Đối chiếu toàn diện sản phẩm với Đặc tả ban đầu để phê duyệt chất lượng release.</p>
+                        </div>
+                    </div>
+
+                    <div class="timeline-step">
+                        <div class="step-number">10</div>
+                        <div class="step-card-detail">
+                            <h3>Đóng gói &amp; Release <span style="font-family: monospace; font-size: 11px; color: var(--cyan);">/release</span></h3>
+                            <p>Bump version, kết xuất changelog và đẩy code lên kho GitLab/GitHub.</p>
+                        </div>
+                    </div>
+                </div>
+            </div>
+
+            <!-- 2.2 Quy trình Tính Năng Nhanh -->
+            <div id="flowFeature" class="flow-panel" style="display: none;">
+                <p style="color: var(--muted); margin-bottom: 20px;">Áp dụng cho các tính năng nhỏ, độc lập, có mức độ ảnh hưởng kiến trúc thấp. Quy trình 3 pha rút gọn giúp tối ưu thời gian phát triển.</p>
+                
+                <div class="flow-steps-timeline">
+                    <div class="timeline-step">
+                        <div class="step-number">1</div>
+                        <div class="step-card-detail">
+                            <h3>Khởi tạo và chọn Full Access <span style="font-family: monospace; font-size: 11px; color: var(--cyan);">/init</span></h3>
+                            <p>Khởi tạo môi trường. Nên chọn permission 2 (Full Access) để tự động sửa file và chạy test mà không cần duyệt liên tục.</p>
+                        </div>
+                    </div>
+
+                    <div class="timeline-step">
+                        <div class="step-number">2</div>
+                        <div class="step-card-detail">
+                            <h3>Pha 1: Đặc tả tính năng <span style="font-family: monospace; font-size: 11px; color: var(--cyan);">/feature</span></h3>
+                            <p>Agent tạo file đặc tả rút gọn tại <code>docs/quick/QUICK-XXX_feature_name.md</code>. Lập trình viên cần gõ duyệt <strong>Y</strong> để phê duyệt.</p>
+                            <div class="code-wrapper">
+                                <div class="code-header-bar"><span class="code-lang">CLI command</span><button class="copy-btn" onclick="copyToClipboard('python skills/workflow-runtime/scripts/workflow_runtime.py start --skill &quot;quick-feature&quot; --command &quot;feature&quot; --checkpoint 5 --step &quot;Specification Phase&quot;', this)">Copy</button></div>
+                                <pre>python skills/workflow-runtime/scripts/workflow_runtime.py start --skill "quick-feature" --command "feature" --checkpoint 5 --step "Specification Phase"</pre>
+                            </div>
+                        </div>
+                    </div>
+
+                    <div class="timeline-step">
+                        <div class="step-number">3</div>
+                        <div class="step-card-detail">
+                            <h3>Pha 2: Thiết kế Blueprint <span style="font-family: monospace; font-size: 11px; color: var(--cyan);">/blueprint</span></h3>
+                            <p>Tạo file thiết kế code tại <code>docs/designs/QUICK-XXX_feature_name_blueprint.md</code>, đăng ký lên CLI. Lập trình viên cần gõ duyệt <strong>Y</strong> để thông qua.</p>
+                        </div>
+                    </div>
+
+                    <div class="timeline-step">
+                        <div class="step-number">4</div>
+                        <div class="step-card-detail">
+                            <h3>Pha 3: Lập trình &amp; Kiểm thử (Implement)</h3>
+                            <p>Agent tự động viết code giao diện/logic, chạy biên dịch và kiểm thử lỗi.</p>
+                        </div>
+                    </div>
+
+                    <div class="timeline-step">
+                        <div class="step-number">5</div>
+                        <div class="step-card-detail">
+                            <h3>Phát hành <span style="font-family: monospace; font-size: 11px; color: var(--cyan);">/release</span></h3>
+                            <p>Đóng gói và đẩy phiên bản lên GitLab/GitHub Pages.</p>
+                        </div>
+                    </div>
+                </div>
+            </div>
+
+            <!-- 2.3 Quy trình Sửa Lỗi Nhanh -->
+            <div id="flowFix" class="flow-panel" style="display: none;">
+                <p style="color: var(--muted); margin-bottom: 20px;">Áp dụng để sửa các lỗi (bug) phát sinh cục bộ của dự án. Tương tự Quick Feature nhưng lưu vết tài liệu sửa lỗi riêng biệt.</p>
+                
+                <div class="flow-steps-timeline">
+                    <div class="timeline-step">
+                        <div class="step-number">1</div>
+                        <div class="step-card-detail">
+                            <h3>Khởi tạo và chọn Full Access <span style="font-family: monospace; font-size: 11px; color: var(--cyan);">/init</span></h3>
+                            <p>Khởi tạo môi trường ở chế độ Full Access.</p>
+                        </div>
+                    </div>
+
+                    <div class="timeline-step">
+                        <div class="step-number">2</div>
+                        <div class="step-card-detail">
+                            <h3>Pha 1: Đặc tả lỗi <span style="font-family: monospace; font-size: 11px; color: var(--cyan);">/fix</span></h3>
+                            <p>Agent tạo file đặc tả lỗi tại <code>docs/issues/FIX-XXX_slug.md</code>. Lập trình viên cần gõ duyệt <strong>Y</strong> để thông qua.</p>
+                            <div class="code-wrapper">
+                                <div class="code-header-bar"><span class="code-lang">CLI command</span><button class="copy-btn" onclick="copyToClipboard('python skills/workflow-runtime/scripts/workflow_runtime.py start --skill &quot;quick-fix&quot; --command &quot;fix&quot; --checkpoint 5 --step &quot;Specification Phase&quot;', this)">Copy</button></div>
+                                <pre>python skills/workflow-runtime/scripts/workflow_runtime.py start --skill "quick-fix" --command "fix" --checkpoint 5 --step "Specification Phase"</pre>
+                            </div>
+                        </div>
+                    </div>
+
+                    <div class="timeline-step">
+                        <div class="step-number">3</div>
+                        <div class="step-card-detail">
+                            <h3>Pha 2: Thiết kế sửa lỗi <span style="font-family: monospace; font-size: 11px; color: var(--cyan);">/blueprint</span></h3>
+                            <p>Tạo file thiết kế sửa lỗi tại <code>docs/designs/FIX-XXX_slug_blueprint.md</code>, đăng ký lên CLI. Lập trình viên cần gõ duyệt <strong>Y</strong> để thông qua.</p>
+                        </div>
+                    </div>
+
+                    <div class="timeline-step">
+                        <div class="step-number">4</div>
+                        <div class="step-card-detail">
+                            <h3>Pha 3: Sửa code &amp; Chạy test (Implement)</h3>
+                            <p>Agent sửa logic lỗi trong các file mã nguồn, chạy unit tests kiểm tra lỗi.</p>
+                        </div>
+                    </div>
+
+                    <div class="timeline-step">
+                        <div class="step-number">5</div>
+                        <div class="step-card-detail">
+                            <h3>Phát hành <span style="font-family: monospace; font-size: 11px; color: var(--cyan);">/release</span></h3>
+                            <p>Đóng gói và đẩy phiên bản sửa lỗi lên GitLab/GitHub Pages.</p>
+                        </div>
+                    </div>
+                </div>
+            </div>
+
+            <!-- 2.4 Quy trình Điều phối tự động (Orchestrated Workflow) -->
+            <div id="flowOrchestrate" class="flow-panel" style="display: none;">
+                <p style="color: var(--muted); margin-bottom: 20px;">Quy trình điều phối tự động hóa thông qua điểm vào duy nhất <code>/orchestrate</code>. Phân tách và lập lịch thông minh, đảm bảo chỉ chạy song song ở pha Triển khai (Implementation) sau khi đã được duyệt Blueprint.</p>
+                
+                <div class="flow-steps-timeline">
+                    <div class="timeline-step">
+                        <div class="step-number">1</div>
+                        <div class="step-card-detail">
+                            <h3>Khởi chạy điều phối <span style="font-family: monospace; font-size: 11px; color: var(--cyan);">/orchestrate</span></h3>
+                            <p>Nhận yêu cầu ngôn ngữ tự nhiên từ người dùng, phân tích intent và tự động xây dựng sơ đồ tác vụ DAG.</p>
+                        </div>
+                    </div>
+
+                    <div class="timeline-step">
+                        <div class="step-number">2</div>
+                        <div class="step-card-detail">
+                            <h3>Khảo sát &amp; Lập kế hoạch (Tuần tự)</h3>
+                            <p>Tự động chạy các pha Brainstorming, Planning và Blueprint Generation một cách tuần tự. Không chạy song song ở các pha này.</p>
+                        </div>
+                    </div>
+
+                    <div class="timeline-step">
+                        <div class="step-number">3</div>
+                        <div class="step-card-detail">
+                            <h3>Chọn chế độ thực thi (Implementation Gate)</h3>
+                            <p>Khi bắt đầu pha triển khai (Implementation), hiển thị menu cho phép người dùng chọn chạy song song (Parallel) hoặc tuần tự (Sequential).</p>
+                        </div>
+                    </div>
+
+                    <div class="timeline-step">
+                        <div class="step-number">4</div>
+                        <div class="step-card-detail">
+                            <h3>Triển khai lập trình</h3>
+                            <p>Thực thi viết mã nguồn thông qua các worker song song (sử dụng cơ chế khóa file lock) hoặc tuần tự tùy thuộc vào quyết định của người dùng.</p>
+                        </div>
+                    </div>
+
+                    <div class="timeline-step">
+                        <div class="step-number">5</div>
+                        <div class="step-card-detail">
+                            <h3>Nghiệm thu &amp; Release</h3>
+                            <p>Chạy kiểm thử tự động, ký nghiệm thu chất lượng verify và tiến hành release.</p>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </section>
+
+        <!-- TAB 3: THƯ MỤC SKILLS -->
+        <section id="skills" class="tab-content">
+            <div class="filter-tabs">
+                <button class="filter-btn active" data-category="all">Tất cả Skills</button>
+                <button class="filter-btn" data-category="workflow">Workflow &amp; SDLC</button>
+                <button class="filter-btn" data-category="runtime">CLI Runtime</button>
+                <button class="filter-btn" data-category="memory">RAG &amp; Memory</button>
+                <button class="filter-btn" data-category="environment">Môi trường (Env)</button>
+                <button class="filter-btn" data-category="architecture">Kiến trúc (ADR)</button>
+            </div>
+
+            <div class="skills-grid">
+                <!-- Sẽ được render tự động bằng app.js dựa trên dữ liệu skills-data.js -->
+            </div>
+        </section>
+
+        <!-- TAB 4: VẬN HÀNH RUNTIME -->
+        <section id="runtime" class="tab-content">
+            <div class="runtime-section">
+                <h2>1. Khởi tạo &amp; Đồng bộ Phiên làm việc</h2>
+                <div class="runtime-card-grid">
+                    <div class="runtime-card">
+                        <h3>Khởi tạo (/init)</h3>
+                        <p>Khai báo và thiết lập phiên làm việc mới, chọn mức độ phân quyền.</p>
+                        <div class="code-wrapper">
+                            <div class="code-header-bar"><span class="code-lang">CLI command</span><button class="copy-btn" onclick="copyToClipboard('python skills/workflow-runtime/scripts/workflow_runtime.py init --permission 1', this)">Copy</button></div>
+                            <pre>python skills/workflow-runtime/scripts/workflow_runtime.py init --permission 1</pre>
+                        </div>
+                    </div>
+                    <div class="runtime-card">
+                        <h3>Phục hồi (/resume)</h3>
+                        <p>Khôi phục nhanh checkpoint làm dở khi đổi hội thoại.</p>
+                        <div class="code-wrapper">
+                            <div class="code-header-bar"><span class="code-lang">CLI command</span><button class="copy-btn" onclick="copyToClipboard('python skills/workflow-runtime/scripts/workflow_runtime.py init', this)">Copy</button></div>
+                            <pre>python skills/workflow-runtime/scripts/workflow_runtime.py init</pre>
+                        </div>
+                    </div>
+                </div>
+            </div>
+
+            <div class="runtime-section">
+                <h2>2. Bảo trì &amp; Dọn dẹp bộ nhớ</h2>
+                <div class="runtime-card-grid">
+                    <div class="runtime-card">
+                        <h3>Nén ngữ cảnh (Compact/Snapshot)</h3>
+                        <p>Tạo điểm khôi phục nhanh (snapshot) và lưu các thay đổi code tạm thời trước khi rollover.</p>
+                        <div class="code-wrapper">
+                            <div class="code-header-bar"><span class="code-lang">CLI command</span><button class="copy-btn" onclick="copyToClipboard('python skills/workflow-runtime/scripts/workflow_runtime.py compact', this)">Copy</button></div>
+                            <pre>python skills/workflow-runtime/scripts/workflow_runtime.py compact</pre>
+                        </div>
+                    </div>
+                    <div class="runtime-card">
+                        <h3>Đồng bộ Usage (sync)</h3>
+                        <p>Tính toán lại lượng token thực tế tiêu thụ dựa trên tệp log transcript mới nhất.</p>
+                        <div class="code-wrapper">
+                            <div class="code-header-bar"><span class="code-lang">CLI command</span><button class="copy-btn" onclick="copyToClipboard('python skills/workflow-runtime/scripts/workflow_runtime.py usage sync', this)">Copy</button></div>
+                            <pre>python skills/workflow-runtime/scripts/workflow_runtime.py usage sync</pre>
+                        </div>
+                    </div>
+                </div>
+            </div>
+
+            <div class="runtime-section">
+                <h2>3. Giám sát hệ thống</h2>
+                <div class="runtime-card-grid">
+                    <div class="runtime-card">
+                        <h3>Nhịp tim hệ thống (Heartbeat)</h3>
+                        <p>Xem thông tin chi tiết về phiên làm việc hiện tại, checkpoint và dung lượng token context usage.</p>
+                        <div class="code-wrapper">
+                            <div class="code-header-bar"><span class="code-lang">CLI command</span><button class="copy-btn" onclick="copyToClipboard('python skills/workflow-runtime/scripts/workflow_runtime.py heartbeat', this)">Copy</button></div>
+                            <pre>python skills/workflow-runtime/scripts/workflow_runtime.py heartbeat</pre>
+                        </div>
+                    </div>
+                    <div class="runtime-card">
+                        <h3>Kiểm tra phân quyền (Permission)</h3>
+                        <p>Hiển thị bảng liệt kê trạng thái của từng hành động nhạy cảm (Được phép / Cần phê duyệt).</p>
+                        <div class="code-wrapper">
+                            <div class="code-header-bar"><span class="code-lang">CLI command</span><button class="copy-btn" onclick="copyToClipboard('python skills/workflow-runtime/scripts/workflow_runtime.py permission', this)">Copy</button></div>
+                            <pre>python skills/workflow-runtime/scripts/workflow_runtime.py permission</pre>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </section>
+
+        <!-- TAB 5: GIẢ LẬP SIMULATOR -->
+        <section id="simulator" class="tab-content">
+            <div class="simulator-layout">
+                <!-- Sidebar điều khiển bên trái -->
+                <div class="simulator-controls">
+                    <h2>Bộ Điều Khiển Giả Lập</h2>
+                    
+                    <div class="sim-select-group">
+                        <label for="workflowSelect">Chọn Quy trình:</label>
+                        <select id="workflowSelect">
+                            <option value="standard">Standard Workflow (Quy trình Đầy đủ)</option>
+                            <option value="feature">Quick Feature (Tính năng nhanh)</option>
+                            <option value="fix">Quick Fix (Sửa lỗi nhanh)</option>
+                            <option value="orchestrated">Orchestrated Workflow (Quy trình Điều phối)</option>
+                        </select>
+                    </div>
+
+                    <div style="border-top: 1px solid rgba(255,255,255,0.05); padding-top: 16px;">
+                        <h4 id="simStepTitle" style="color: var(--cyan); margin-bottom: 8px;">Bước 1: Khởi tạo</h4>
+                        <p id="simAgentAction" style="color: var(--muted); font-size: 11px; line-height: 1.5; min-height: 80px;">Hành động của Agent...</p>
+                    </div>
+
+                    <div style="background: rgba(0,0,0,0.2); padding: 10px; border-radius: 6px; border: 1px solid rgba(255,255,255,0.03);">
+                        <span style="font-size: 10px; color: var(--dim); display: block; margin-bottom: 4px;">Lệnh CLI Agent sẽ chạy:</span>
+                        <code id="simCliCommand" style="font-family: monospace; font-size: 11px; color: #a5d6ff; word-break: break-all;">Lệnh CLI...</code>
+                    </div>
+
+                    <div class="sim-btn-container">
+                        <button id="btnRunCli" class="sim-btn sim-btn-primary">Chạy CLI</button>
+                        <button id="btnApprove" class="sim-btn" style="display: none;">Phê duyệt [Y]</button>
+                        <button id="btnReset" class="sim-btn sim-btn-secondary">Reset</button>
+                    </div>
+
+                    <div style="text-align: center; font-size: 11px; color: var(--dim); margin-top: auto;">
+                        Tiến độ: <span id="simProgress">Bước 1 / 10</span>
+                    </div>
+                </div>
+
+                <!-- Khung terminal giả lập bên phải -->
+                <div class="simulator-terminal">
+                    <div class="terminal-header">
+                        <span class="term-dot term-dot-red"></span>
+                        <span class="term-dot term-dot-yellow"></span>
+                        <span class="term-dot term-dot-green"></span>
+                        <span class="term-title">interactive_bash_session.sh</span>
+                    </div>
+                    <div id="terminalBody" class="terminal-body">
+                        <!-- Sẽ được cập nhật động bằng app.js -->
+                    </div>
+                </div>
+            </div>
+        </section>
+
+        <!-- TAB 6: ĐỒNG BỘ OBSIDIAN -->
+        <section id="obsidian" class="tab-content">
+            <style>
+                .obsidian-guide-container {
+                    display: flex;
+                    flex-direction: column;
+                    gap: 32px;
+                    padding: 8px 0;
+                }
+                .obsidian-step-card {
+                    background: rgba(255, 255, 255, 0.02);
+                    border: 1px solid rgba(255, 255, 255, 0.05);
+                    border-radius: 12px;
+                    padding: 24px;
+                    display: grid;
+                    grid-template-columns: 1.2fr 1fr;
+                    gap: 24px;
+                }
+                @media (max-width: 900px) {
+                    .obsidian-step-card {
+                        grid-template-columns: 1fr;
+                    }
+                }
+                .obsidian-step-info h3 {
+                    color: var(--cyan);
+                    font-size: 1.2rem;
+                    margin-bottom: 12px;
+                    display: flex;
+                    align-items: center;
+                    gap: 8px;
+                }
+                .obsidian-step-info .step-num {
+                    background: var(--cyan-glow);
+                    color: var(--cyan);
+                    width: 28px;
+                    height: 28px;
+                    border-radius: 50%;
+                    display: flex;
+                    align-items: center;
+                    justify-content: center;
+                    font-size: 0.9rem;
+                    font-weight: 700;
+                    border: 1px solid rgba(0, 242, 254, 0.3);
+                }
+                .obsidian-step-info p {
+                    color: var(--muted);
+                    font-size: 0.95rem;
+                    line-height: 1.6;
+                    margin-bottom: 16px;
+                }
+                .obsidian-step-info ul {
+                    padding-left: 20px;
+                    color: var(--muted);
+                    font-size: 0.9rem;
+                    line-height: 1.6;
+                }
+                .obsidian-step-info ul li {
+                    margin-bottom: 8px;
+                }
+                /* Mockups Styling */
+                .ui-mockup-wrapper {
+                    background: #18181c;
+                    border: 1px solid #2a2a30;
+                    border-radius: 8px;
+                    overflow: hidden;
+                    box-shadow: 0 8px 24px rgba(0,0,0,0.5);
+                    display: flex;
+                    flex-direction: column;
+                    height: 240px;
+                }
+                .ui-mockup-header {
+                    background: #202024;
+                    padding: 8px 12px;
+                    border-bottom: 1px solid #2a2a30;
+                    display: flex;
+                    align-items: center;
+                    gap: 8px;
+                    font-size: 0.75rem;
+                    color: #a0a0a5;
+                }
+                .ui-mockup-dots {
+                    display: flex;
+                    gap: 5px;
+                }
+                .ui-mockup-dot {
+                    width: 8px;
+                    height: 8px;
+                    border-radius: 50%;
+                }
+                .dot-red { background: #ff5f56; }
+                .dot-yellow { background: #ffbd2e; }
+                .dot-green { background: #27c93f; }
+                
+                /* Mockup 1: Create Vault */
+                .mockup-vault-body {
+                    display: flex;
+                    flex-direction: column;
+                    justify-content: center;
+                    align-items: center;
+                    flex: 1;
+                    padding: 20px;
+                }
+                .mockup-vault-modal {
+                    background: #202024;
+                    border: 1px solid #2a2a30;
+                    border-radius: 6px;
+                    padding: 16px;
+                    width: 90%;
+                    max-width: 280px;
+                }
+                .mockup-vault-modal h4 {
+                    font-size: 0.85rem;
+                    margin-bottom: 12px;
+                    color: #fff;
+                    text-align: center;
+                }
+                .mockup-field {
+                    margin-bottom: 8px;
+                }
+                .mockup-field label {
+                    display: block;
+                    font-size: 0.65rem;
+                    color: #8a8a93;
+                    margin-bottom: 4px;
+                }
+                .mockup-input {
+                    background: #141416;
+                    border: 1px solid #2a2a30;
+                    border-radius: 4px;
+                    padding: 5px 8px;
+                    font-size: 0.7rem;
+                    color: #e2e2e9;
+                    width: 100%;
+                    box-sizing: border-box;
+                }
+                .mockup-btn {
+                    background: #5b3fd4;
+                    border: none;
+                    border-radius: 4px;
+                    color: #fff;
+                    font-size: 0.7rem;
+                    font-weight: 600;
+                    padding: 6px 12px;
+                    width: 100%;
+                    margin-top: 8px;
+                    cursor: pointer;
+                }
+                
+                /* Mockup 2: Settings REST API */
+                .mockup-settings-body {
+                    display: flex;
+                    flex: 1;
+                }
+                .mockup-settings-sidebar {
+                    width: 30%;
+                    background: #202024;
+                    border-right: 1px solid #2a2a30;
+                    padding: 10px;
+                    display: flex;
+                    flex-direction: column;
+                    gap: 6px;
+                }
+                .mockup-settings-item {
+                    font-size: 0.65rem;
+                    color: #8a8a93;
+                    padding: 4px 6px;
+                    border-radius: 4px;
+                }
+                .mockup-settings-item.active {
+                    background: rgba(91, 63, 212, 0.15);
+                    color: #9b7bf4;
+                    font-weight: 600;
+                }
+                .mockup-settings-content {
+                    flex: 1;
+                    padding: 12px;
+                    display: flex;
+                    flex-direction: column;
+                    gap: 10px;
+                    justify-content: center;
+                }
+                .mockup-settings-content h4 {
+                    font-size: 0.8rem;
+                    color: #fff;
+                }
+                
+                /* Mockup 3: CLI Setup */
+                .mockup-cli-body {
+                    background: #0f0f11;
+                    font-family: monospace;
+                    padding: 12px;
+                    font-size: 0.75rem;
+                    line-height: 1.5;
+                    color: #a5d6ff;
+                    flex: 1;
+                    overflow-y: auto;
+                }
+                .mockup-cli-success {
+                    color: #7ee787;
+                }
+                
+                /* Mockup 4: Graph View */
+                .mockup-graph-body {
+                    position: relative;
+                    flex: 1;
+                    background: #0f0f11;
+                    overflow: hidden;
+                }
+                .graph-node {
+                    position: absolute;
+                    width: 12px;
+                    height: 12px;
+                    background: #5b3fd4;
+                    border-radius: 50%;
+                    box-shadow: 0 0 10px #9b7bf4;
+                }
+                .graph-node.cyan {
+                    background: #00f2fe;
+                    box-shadow: 0 0 10px #00f2fe;
+                }
+                .graph-node-label {
+                    position: absolute;
+                    font-size: 0.55rem;
+                    color: #8a8a93;
+                    white-space: nowrap;
+                    top: 14px;
+                    left: -15px;
+                }
+                .graph-line {
+                    position: absolute;
+                    background: rgba(255, 255, 255, 0.08);
+                    height: 1px;
+                    transform-origin: left center;
+                }
+            </style>
+
+            <div class="obsidian-guide-container">
+                
+                <!-- BƯỚC 1 -->
+                <div class="obsidian-step-card">
+                    <div class="obsidian-step-info">
+                        <h3><span class="step-num">1</span> Bước 1: Tạo Vault trên ứng dụng Obsidian</h3>
+                        <p>Mở ứng dụng Obsidian trên máy tính của Ba để khởi tạo thư viện tri thức trống.</p>
+                        <ul>
+                            <li>Chọn <strong>Create new vault</strong> (Tạo mới vault).</li>
+                            <li>Nhập tên Vault (Ví dụ: <code>AIWF-Knowledge</code>).</li>
+                            <li>Chọn đường dẫn thư mục cha để lưu trữ (Ví dụ thư mục Documents hoặc ổ đĩa gắn ngoài).</li>
+                            <li>Hệ thống AIWF sẽ tự tạo thư mục con mang tên dự án bên trong thư mục cha này.</li>
+                        </ul>
+                    </div>
+                    <div class="ui-mockup-wrapper">
+                        <div class="ui-mockup-header">
+                            <div class="ui-mockup-dots">
+                                <span class="ui-mockup-dot dot-red"></span>
+                                <span class="ui-mockup-dot dot-yellow"></span>
+                                <span class="ui-mockup-dot dot-green"></span>
+                            </div>
+                            <span>Obsidian - Create Vault</span>
+                        </div>
+                        <div class="mockup-vault-body">
+                            <div class="mockup-vault-modal">
+                                <h4>Create New Vault</h4>
+                                <div class="mockup-field">
+                                    <label>Vault name</label>
+                                    <input type="text" class="mockup-input" value="AIWF-Knowledge" disabled>
+                                </div>
+                                <div class="mockup-field">
+                                    <label>Vault location</label>
+                                    <input type="text" class="mockup-input" value="/path/to/your/obsidian/vaults" disabled>
+                                </div>
+                                <button class="mockup-btn">Create Vault</button>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- BƯỚC 2 -->
+                <div class="obsidian-step-card">
+                    <div class="obsidian-step-info">
+                        <h3><span class="step-num">2</span> Bước 2: Thiết lập Plugin Local REST API</h3>
+                        <p>Bật và cấu hình API Key của plugin Local REST API trên Obsidian (Nếu Ba dùng chế độ đồng bộ qua mạng REST).</p>
+                        <ul>
+                            <li>Nhấn biểu tượng bánh răng <strong>Settings</strong> ở góc dưới bên trái Obsidian.</li>
+                            <li>Vào <strong>Community Plugins</strong> ➔ Tìm kiếm và cài đặt <code>Local REST API</code>.</li>
+                            <li>Bật plugin <strong>Enable</strong>.</li>
+                            <li>Trong màn hình cài đặt plugin, sao chép chuỗi mã bảo mật <strong>API Key</strong> để điền cho CLI ở bước sau.</li>
+                        </ul>
+                    </div>
+                    <div class="ui-mockup-wrapper">
+                        <div class="ui-mockup-header">
+                            <div class="ui-mockup-dots">
+                                <span class="ui-mockup-dot dot-red"></span>
+                                <span class="ui-mockup-dot dot-yellow"></span>
+                                <span class="ui-mockup-dot dot-green"></span>
+                            </div>
+                            <span>Obsidian - Settings</span>
+                        </div>
+                        <div class="mockup-settings-body">
+                            <div class="mockup-settings-sidebar">
+                                <div class="mockup-settings-item">Core plugins</div>
+                                <div class="mockup-settings-item">Community plugins</div>
+                                <div class="mockup-settings-item active">Local REST API</div>
+                            </div>
+                            <div class="mockup-settings-content">
+                                <h4>Local REST API Settings</h4>
+                                <div class="mockup-field">
+                                    <label>API Port</label>
+                                    <input type="text" class="mockup-input" value="27124" disabled>
+                                </div>
+                                <div class="mockup-field">
+                                    <label>API Key</label>
+                                    <input type="text" class="mockup-input" value="••••••••••••••••••••••••" disabled>
+                                </div>
+                                <button class="mockup-btn" style="background:#27c93f; width:auto; align-self:flex-start;">Copy API Key</button>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- BƯỚC 3 -->
+                <div class="obsidian-step-card">
+                    <div class="obsidian-step-info">
+                        <h3><span class="step-num">3</span> Bước 3: Cấu hình CLI cho dự án mới</h3>
+                        <p>Sử dụng CLI wrapper <code>aiwf</code> để cấu hình nhanh Obsidian Provider trực tiếp trên terminal của dự án.</p>
+                        <ul>
+                            <li>Chạy lệnh: <code>aiwf provider add obsidian --project</code>.</li>
+                            <li>Hệ thống sẽ hỏi và tự điền các thông số mặc định (Ba chỉ cần ấn Enter).</li>
+                            <li>Cấu hình tự động được lưu vào tệp <code>.agents/memory.config.json</code>.</li>
+                        </ul>
+                    </div>
+                    <div class="ui-mockup-wrapper">
+                        <div class="ui-mockup-header">
+                            <div class="ui-mockup-dots">
+                                <span class="ui-mockup-dot dot-red"></span>
+                                <span class="ui-mockup-dot dot-yellow"></span>
+                                <span class="ui-mockup-dot dot-green"></span>
+                            </div>
+                            <span>Terminal - Configuration</span>
+                        </div>
+                        <div class="mockup-cli-body">
+                            <div>$ aiwf provider add obsidian --project</div>
+                            <div>Enter vault_root [/path/to/obsidian]: <span style="color:#fff;">[Enter]</span></div>
+                            <div>Enter mode [file-sync]: <span style="color:#fff;">[Enter]</span></div>
+                            <div>Create if missing? (y/n) [y]: <span style="color:#fff;">[Enter]</span></div>
+                            <div class="mockup-cli-success">[SUCCESS] Configured obsidian provider successfully.</div>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- BƯỚC 4 -->
+                <div class="obsidian-step-card">
+                    <div class="obsidian-step-info">
+                        <h3><span class="step-num">4</span> Bước 4: Đồng bộ &amp; Kiểm tra đồ thị Graph View</h3>
+                        <p>Kích hoạt đồng bộ hóa lần đầu để sinh cấu trúc tri thức và liên kết chéo trên Obsidian Graph View.</p>
+                        <ul>
+                            <li>Gõ lệnh <code>aiwf sync obsidian</code> để đồng bộ thủ công.</li>
+                            <li>Mở Obsidian lên, Ba sẽ thấy 11 thư mục tri thức mới được phân loại tự động.</li>
+                            <li>Mở biểu đồ <strong>Graph View</strong> trong Obsidian để xem mạng lưới liên kết Wiki-links cực kỳ sinh động của các nốt tri thức.</li>
+                        </ul>
+                    </div>
+                    <div class="ui-mockup-wrapper">
+                        <div class="ui-mockup-header">
+                            <div class="ui-mockup-dots">
+                                <span class="ui-mockup-dot dot-red"></span>
+                                <span class="ui-mockup-dot dot-yellow"></span>
+                                <span class="ui-mockup-dot dot-green"></span>
+                            </div>
+                            <span>Obsidian - Graph View</span>
+                        </div>
+                        <div class="mockup-graph-body">
+                            <!-- SVG lines to simulate nodes connection -->
+                            <svg width="100%" height="100%" style="position:absolute; top:0; left:0;">
+                                <line x1="100" y1="100" x2="180" y2="70" stroke="rgba(255,255,255,0.1)" stroke-width="1.5" />
+                                <line x1="100" y1="100" x2="80" y2="150" stroke="rgba(255,255,255,0.1)" stroke-width="1.5" />
+                                <line x1="180" y1="70" x2="220" y2="140" stroke="rgba(255,255,255,0.1)" stroke-width="1.5" />
+                                <line x1="80" y1="150" x2="220" y2="140" stroke="rgba(255,255,255,0.1)" stroke-width="1.5" />
+                            </svg>
+                            <!-- Glowing Nodes -->
+                            <div class="graph-node" style="top:90px; left:90px;">
+                                <span class="graph-node-label" style="color:#fff;">Project Memory</span>
+                            </div>
+                            <div class="graph-node cyan" style="top:60px; left:170px;">
+                                <span class="graph-node-label">QUICK-028</span>
+                            </div>
+                            <div class="graph-node cyan" style="top:140px; left:70px;">
+                                <span class="graph-node-label">FIX-024</span>
+                            </div>
+                            <div class="graph-node" style="top:130px; left:210px;">
+                                <span class="graph-node-label">Blueprints</span>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+
+            </div>
+        </section>
+    </div>
+
+    <!-- Nạp dữ liệu và tệp logic JS -->
+    <script src="docs-assets/skills-data.js"></script>
+    <script src="docs-assets/app.js"></script>
+</body>
+</html>

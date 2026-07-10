@@ -1,0 +1,147 @@
+{
+  "conversation_id": "c50d4ba0-4cc4-4b4c-abb3-8de5184911bd",
+  "timestamp": "2026-07-10T12:05:41.541451+07:00",
+  "total_tokens": 1542835,
+  "breakdown": [
+    {
+      "category": "Other runtime context",
+      "tokens": 1099262,
+      "percentage": 71.25,
+      "loads": 1,
+      "last_loaded": "2026-07-10T12:05:41.541417+07:00",
+      "details": []
+    },
+    {
+      "category": "Tool results",
+      "tokens": 254546,
+      "percentage": 16.5,
+      "loads": 867,
+      "last_loaded": "2026-07-10T05:05:26Z",
+      "details": []
+    },
+    {
+      "category": "Conversation History",
+      "tokens": 187258,
+      "percentage": 12.14,
+      "loads": 2013,
+      "last_loaded": "2026-07-10T05:05:27Z",
+      "details": []
+    },
+    {
+      "category": "Project Memory",
+      "tokens": 1769,
+      "percentage": 0.11,
+      "loads": 3,
+      "last_loaded": "2026-07-10T12:00:30.286644+07:00",
+      "details": [
+        {
+          "name": "project-profile.json",
+          "tokens": 1156,
+          "last_loaded": "2026-07-10T12:00:30.286644+07:00"
+        },
+        {
+          "name": "project-summary.md",
+          "tokens": 516,
+          "last_loaded": "2026-07-10T12:00:29.886855+07:00"
+        },
+        {
+          "name": "memory-state.json",
+          "tokens": 96,
+          "last_loaded": "2026-07-10T12:00:30.275044+07:00"
+        }
+      ]
+    },
+    {
+      "category": "AI_RULES",
+      "tokens": 0,
+      "percentage": 0.0,
+      "loads": 1,
+      "last_loaded": "N/A",
+      "details": [
+        {
+          "name": "AI_RULES.md",
+          "tokens": 0,
+          "last_loaded": "N/A"
+        }
+      ]
+    },
+    {
+      "category": "AGENTS",
+      "tokens": 0,
+      "percentage": 0.0,
+      "loads": 1,
+      "last_loaded": "N/A",
+      "details": [
+        {
+          "name": "AGENTS.md",
+          "tokens": 0,
+          "last_loaded": "N/A"
+        }
+      ]
+    },
+    {
+      "category": "Loaded SKILL.md files",
+      "tokens": 0,
+      "percentage": 0.0,
+      "loads": 0,
+      "last_loaded": "N/A",
+      "details": []
+    },
+    {
+      "category": "Brainstorming documents",
+      "tokens": 0,
+      "percentage": 0.0,
+      "loads": 0,
+      "last_loaded": "N/A",
+      "details": []
+    },
+    {
+      "category": "Plans",
+      "tokens": 0,
+      "percentage": 0.0,
+      "loads": 0,
+      "last_loaded": "N/A",
+      "details": []
+    },
+    {
+      "category": "Blueprints",
+      "tokens": 0,
+      "percentage": 0.0,
+      "loads": 0,
+      "last_loaded": "N/A",
+      "details": []
+    },
+    {
+      "category": "ADRs",
+      "tokens": 0,
+      "percentage": 0.0,
+      "loads": 0,
+      "last_loaded": "N/A",
+      "details": []
+    },
+    {
+      "category": "RAG results",
+      "tokens": 0,
+      "percentage": 0.0,
+      "loads": 0,
+      "last_loaded": "N/A",
+      "details": []
+    },
+    {
+      "category": "Workspace file reads",
+      "tokens": 0,
+      "percentage": 0.0,
+      "loads": 0,
+      "last_loaded": "N/A",
+      "details": []
+    },
+    {
+      "category": "Build/Test logs",
+      "tokens": 0,
+      "percentage": 0.0,
+      "loads": 0,
+      "last_loaded": "N/A",
+      "details": []
+    }
+  ]
+}

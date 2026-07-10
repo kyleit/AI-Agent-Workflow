@@ -1,0 +1,33 @@
+{
+  "$schema": "http://json-schema.org/draft-07/schema#",
+  "title": "Checkpoint",
+  "type": "object",
+  "properties": {
+    "checkpoint_id": { "type": "string" },
+    "work_item_id": { "type": "string" },
+    "agent": { "type": "string" },
+    "skill": { "type": "string" },
+    "step": { "type": "string" },
+    "status": {
+      "type": "string",
+      "enum": ["created", "completed", "failed", "blocked"]
+    },
+    "artifacts": {
+      "type": "array",
+      "items": { "type": "string" }
+    },
+    "notes": { "type": "string" },
+    "created_at": { "type": "string" }
+  },
+  "required": [
+    "checkpoint_id",
+    "work_item_id",
+    "agent",
+    "skill",
+    "step",
+    "status",
+    "artifacts",
+    "notes",
+    "created_at"
+  ]
+}

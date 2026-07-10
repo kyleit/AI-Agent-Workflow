@@ -1,0 +1,27 @@
+{
+  "project_name": "workflow-runtime",
+  "git_flow": {
+    "development_branch": "feat/FEAT-050-053-aiwf-hardening-campaign",
+    "release_branch": "feat/FEAT-050-053-aiwf-hardening-campaign",
+    "sync_method": "merge",
+    "extra_push_branches": []
+  },
+  "release_pipeline": {
+    "steps": [
+      "bump_version",
+      "update_changelog",
+      "git_commit",
+      "git_tag",
+      "custom_commands",
+      "git_push"
+    ],
+    "custom_commands": {
+      "core": [
+        "echo 'Chạy lệnh build/test cho module core ở đây!'"
+      ],
+      "global": [
+        "echo 'Chạy lệnh release global ở đây!'"
+      ]
+    }
+  }
+}

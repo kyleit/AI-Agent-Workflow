@@ -1,0 +1,636 @@
+{
+  "name": "ai-skill-framework",
+  "description": "A reusable collection of engineering skills for AI coding agents to manage SDLC lifecycle",
+  "version": "6.5.3",
+  "min_ai_platform_version": "1.0.0",
+  "author": {
+    "name": "Kyle Dang",
+    "email": "kyleit@klexpress.net",
+    "website": "https://www.klexpress.net"
+  },
+  "repository": {
+    "type": "git",
+    "url": "https://gitlab.com/hngan.it/ai-workflow-skills.git"
+  },
+  "installation_target": ".agents",
+  "skill_directory": "skills",
+  "template_directory": "templates",
+  "supported_os": [
+    "windows",
+    "linux",
+    "macos"
+  ],
+  "supported_ides": [
+    "Antigravity IDE",
+    "Codex",
+    "Claude Code",
+    "Cursor",
+    "Continue",
+    "OpenHands"
+  ],
+  "skills": [
+    {
+      "name": "environment-bootstrap",
+      "command": "bootstrap",
+      "aliases": [
+        "setup",
+        "install-env"
+      ],
+      "category": "environment",
+      "tags": [
+        "setup",
+        "bootstrap",
+        "environment"
+      ],
+      "owner_agent": "release-manager",
+      "specialist_agents": [
+        "setup-specialist",
+        "infrastructure-developer",
+        "devops-developer"
+      ],
+      "phase": "environment",
+      "execution_mode": "sequential"
+    },
+    {
+      "name": "environment-health",
+      "command": "doctor",
+      "aliases": [
+        "health",
+        "environment"
+      ],
+      "category": "environment",
+      "tags": [
+        "diagnostics",
+        "health",
+        "system"
+      ],
+      "owner_agent": "reviewer",
+      "specialist_agents": [
+        "diagnostics-specialist",
+        "performance-planner"
+      ],
+      "phase": "environment",
+      "execution_mode": "sequential"
+    },
+    {
+      "name": "project-memory-bootstrap",
+      "command": "memory-init",
+      "aliases": [
+        "memory-bootstrap"
+      ],
+      "category": "memory",
+      "tags": [
+        "memory",
+        "bootstrap",
+        "initialization"
+      ],
+      "owner_agent": "planner",
+      "specialist_agents": [
+        "memory-specialist",
+        "memory-analyst"
+      ],
+      "phase": "memory",
+      "execution_mode": "sequential"
+    },
+    {
+      "name": "project-memory-update",
+      "command": "memory-sync",
+      "aliases": [
+        "sync",
+        "index"
+      ],
+      "category": "memory",
+      "tags": [
+        "memory",
+        "synchronization",
+        "update"
+      ],
+      "owner_agent": "planner",
+      "specialist_agents": [
+        "memory-specialist",
+        "memory-analyst"
+      ],
+      "phase": "memory",
+      "execution_mode": "sequential"
+    },
+    {
+      "name": "project-rag-search",
+      "command": "memory-search",
+      "aliases": [
+        "search",
+        "rag"
+      ],
+      "category": "memory",
+      "tags": [
+        "search",
+        "rag",
+        "retrieval"
+      ],
+      "owner_agent": "planner",
+      "specialist_agents": [
+        "search-specialist",
+        "rag-analyst"
+      ],
+      "phase": "memory",
+      "execution_mode": "sequential"
+    },
+    {
+      "name": "brainstorming",
+      "command": "brainstorm",
+      "aliases": [
+        "idea",
+        "discover"
+      ],
+      "category": "workflow",
+      "tags": [
+        "requirements",
+        "discovery",
+        "brainstorming"
+      ],
+      "owner_agent": "planner",
+      "specialist_agents": [
+        "product-analyst",
+        "business-analyst",
+        "requirement-analyst",
+        "research-agent"
+      ],
+      "phase": "brainstorming",
+      "execution_mode": "sequential"
+    },
+    {
+      "name": "brainstorming-to-plan",
+      "command": "plan",
+      "aliases": [
+        "planning",
+        "planning-phase"
+      ],
+      "category": "workflow",
+      "tags": [
+        "planning",
+        "workflow",
+        "scoping"
+      ],
+      "owner_agent": "planner",
+      "specialist_agents": [
+        "dependency-analyst",
+        "risk-analyst",
+        "security-planner",
+        "test-planner"
+      ],
+      "phase": "planning",
+      "execution_mode": "sequential"
+    },
+    {
+      "name": "plan-to-blueprint",
+      "command": "blueprint",
+      "aliases": [
+        "design",
+        "architecture"
+      ],
+      "category": "workflow",
+      "tags": [
+        "blueprint",
+        "design",
+        "architecture"
+      ],
+      "owner_agent": "architect",
+      "specialist_agents": [
+        "backend-architect",
+        "api-architect",
+        "frontend-architect",
+        "database-architect",
+        "infrastructure-architect",
+        "security-architect"
+      ],
+      "phase": "blueprint",
+      "execution_mode": "sequential"
+    },
+    {
+      "name": "create-adr",
+      "command": "adr",
+      "aliases": [
+        "architecture-decision"
+      ],
+      "category": "architecture",
+      "tags": [
+        "adr",
+        "architecture",
+        "decision"
+      ],
+      "owner_agent": "architect",
+      "specialist_agents": [
+        "database-architect",
+        "security-architect"
+      ],
+      "phase": "blueprint",
+      "execution_mode": "sequential"
+    },
+    {
+      "name": "blueprint-to-implementation",
+      "command": "implement",
+      "aliases": [
+        "code",
+        "build"
+      ],
+      "category": "workflow",
+      "tags": [
+        "implementation",
+        "code",
+        "generation"
+      ],
+      "owner_agent": "coder",
+      "specialist_agents": [
+        "backend-developer",
+        "frontend-developer",
+        "database-developer",
+        "test-developer",
+        "migration-developer"
+      ],
+      "phase": "implementation",
+      "execution_mode": "parallel"
+    },
+    {
+      "name": "frontend-design",
+      "command": "ui",
+      "aliases": [
+        "frontend",
+        "design"
+      ],
+      "category": "utility",
+      "tags": [
+        "ui",
+        "design",
+        "ux"
+      ],
+      "owner_agent": "coder",
+      "specialist_agents": [
+        "frontend-architect",
+        "ux-designer"
+      ],
+      "phase": "implementation",
+      "execution_mode": "parallel"
+    },
+    {
+      "name": "implementation-to-debug",
+      "command": "debug",
+      "aliases": [
+        "compile",
+        "lint"
+      ],
+      "category": "workflow",
+      "tags": [
+        "debug",
+        "testing",
+        "verification"
+      ],
+      "owner_agent": "reviewer",
+      "specialist_agents": [
+        "qa-reviewer",
+        "code-reviewer",
+        "security-reviewer",
+        "performance-reviewer",
+        "accessibility-reviewer",
+        "architecture-reviewer"
+      ],
+      "phase": "debug",
+      "execution_mode": "sequential"
+    },
+    {
+      "name": "debug-to-verify",
+      "command": "verify",
+      "aliases": [
+        "check",
+        "audit"
+      ],
+      "category": "workflow",
+      "tags": [
+        "verification",
+        "quality",
+        "compliance"
+      ],
+      "owner_agent": "reviewer",
+      "specialist_agents": [
+        "compliance-auditor"
+      ],
+      "phase": "verification",
+      "execution_mode": "sequential"
+    },
+    {
+      "name": "implementation-to-release",
+      "command": "release",
+      "aliases": [
+        "publish",
+        "ship"
+      ],
+      "category": "workflow",
+      "tags": [
+        "release",
+        "versioning",
+        "publish"
+      ],
+      "owner_agent": "release-manager",
+      "specialist_agents": [
+        "changelog-manager",
+        "version-manager",
+        "release-validator",
+        "package-builder",
+        "publisher"
+      ],
+      "phase": "release",
+      "execution_mode": "sequential"
+    },
+    {
+      "name": "software-development-workflow",
+      "command": "workflow",
+      "aliases": [
+        "flow",
+        "status"
+      ],
+      "category": "workflow",
+      "tags": [
+        "workflow",
+        "status",
+        "orchestrator"
+      ],
+      "owner_agent": "release-manager",
+      "specialist_agents": [
+        "workflow-auditor"
+      ],
+      "phase": "release",
+      "execution_mode": "sequential"
+    },
+    {
+      "name": "quick-fix",
+      "command": "fix",
+      "aliases": [
+        "bugfix"
+      ],
+      "category": "utility",
+      "tags": [
+        "utility",
+        "bugfix",
+        "patch"
+      ],
+      "owner_agent": "coder",
+      "specialist_agents": [
+        "bug-analyst"
+      ],
+      "phase": "debug",
+      "execution_mode": "sequential"
+    },
+    {
+      "name": "quick-feature",
+      "command": "feature",
+      "aliases": [
+        "scaffold"
+      ],
+      "category": "utility",
+      "tags": [
+        "utility",
+        "feature",
+        "scaffolding"
+      ],
+      "owner_agent": "coder",
+      "specialist_agents": [
+        "product-analyst",
+        "documentation-writer"
+      ],
+      "phase": "implementation",
+      "execution_mode": "sequential"
+    },
+    {
+      "name": "initialize-workflow",
+      "command": "init",
+      "aliases": [
+        "initialize"
+      ],
+      "category": "runtime",
+      "tags": [
+        "initialization",
+        "bootstrap",
+        "runtime"
+      ],
+      "owner_agent": "release-manager",
+      "specialist_agents": [
+        "workflow-auditor"
+      ],
+      "phase": "environment",
+      "execution_mode": "sequential"
+    },
+    {
+      "name": "resume-workflow",
+      "command": "resume",
+      "aliases": [
+        "continue"
+      ],
+      "category": "runtime",
+      "tags": [
+        "resume",
+        "recovery",
+        "runtime"
+      ],
+      "owner_agent": "release-manager",
+      "specialist_agents": [
+        "workflow-auditor"
+      ],
+      "phase": "environment",
+      "execution_mode": "sequential"
+    },
+    {
+      "name": "workflow-runtime",
+      "command": "runtime",
+      "aliases": [
+        "engine"
+      ],
+      "category": "runtime",
+      "tags": [
+        "runtime",
+        "controller",
+        "session"
+      ],
+      "owner_agent": "release-manager",
+      "specialist_agents": [
+        "runtime-specialist"
+      ],
+      "phase": "environment",
+      "execution_mode": "sequential"
+    },
+    {
+      "name": "knowledge-runtime",
+      "command": "knowledge",
+      "aliases": [
+        "rag",
+        "memory"
+      ],
+      "category": "runtime",
+      "tags": [
+        "runtime",
+        "knowledge",
+        "rag",
+        "cache",
+        "search"
+      ],
+      "owner_agent": "release-manager",
+      "specialist_agents": [
+        "runtime-specialist"
+      ],
+      "phase": "environment",
+      "execution_mode": "sequential"
+    },
+    {
+      "name": "frontend-visual-debug",
+      "command": "visual-debug",
+      "aliases": [
+        "ui-debug",
+        "browser-debug",
+        "visual-qa"
+      ],
+      "category": "workflow",
+      "tags": [
+        "frontend",
+        "ui",
+        "browser",
+        "visual",
+        "debug",
+        "qa"
+      ],
+      "depends_on": [
+        "implementation-to-debug"
+      ],
+      "next": [
+        "debug-to-verify"
+      ],
+      "owner_agent": "reviewer",
+      "specialist_agents": [
+        "visual-qa"
+      ],
+      "phase": "debug",
+      "execution_mode": "sequential"
+    },
+    {
+      "name": "project-discovery",
+      "command": "discover",
+      "aliases": [
+        "tech-stack",
+        "project-profile"
+      ],
+      "category": "environment",
+      "tags": [
+        "project",
+        "tech-stack",
+        "workflow",
+        "profile",
+        "discovery"
+      ],
+      "owner_agent": "planner",
+      "specialist_agents": [
+        "tech-analyst"
+      ],
+      "phase": "environment",
+      "execution_mode": "sequential"
+    },
+    {
+      "name": "orchestrator",
+      "command": "orchestrate",
+      "aliases": [
+        "orchestrate",
+        "dispatch",
+        "parallel"
+      ],
+      "category": "orchestration",
+      "tags": [
+        "orchestrator",
+        "workflow",
+        "parallel",
+        "multi-agent",
+        "runtime"
+      ],
+      "owner_agent": "release-manager",
+      "specialist_agents": [
+        "workflow-auditor"
+      ],
+      "phase": "orchestration",
+      "execution_mode": "sequential"
+    },
+    {
+      "name": "skill-self-verification",
+      "command": "verify-skill",
+      "aliases": [
+        "verify-skill",
+        "skill-verify",
+        "self-verify"
+      ],
+      "category": "quality",
+      "tags": [
+        "verification",
+        "testing",
+        "skills",
+        "runtime"
+      ],
+      "owner_agent": "reviewer",
+      "specialist_agents": [
+        "qa-reviewer"
+      ],
+      "phase": "verification",
+      "execution_mode": "sequential"
+    }
+  ],
+  "templates": [
+    "templates/release.config.json",
+    "templates/workflow.config.json.template"
+  ],
+  "checksum": "placeholder-sha256-checksum",
+  "last_updated": "2026-07-03T15:56:00Z",
+  "compatibility": {
+    "schema_version": "2.8.2",
+    "future_extensions_allowed": true,
+    "channels": {
+      "stable": "https://gitlab.com/hngan.it/ai-workflow-skills.git#main",
+      "beta": "https://gitlab.com/hngan.it/ai-workflow-skills.git#beta"
+    },
+    "auto_update": {
+      "enabled": false,
+      "check_interval_hours": 24
+    }
+  },
+  "categories": {
+    "orchestration": [
+      "orchestrator"
+    ],
+    "workflow": [
+      "brainstorming",
+      "brainstorming-to-plan",
+      "plan-to-blueprint",
+      "blueprint-to-implementation",
+      "frontend-visual-debug",
+      "implementation-to-release"
+    ],
+    "memory": [
+      "project-memory-bootstrap",
+      "project-memory-update",
+      "project-rag-search",
+      "knowledge-runtime"
+    ],
+    "environment": [
+      "environment-health",
+      "environment-bootstrap",
+      "project-discovery"
+    ],
+    "architecture": [
+      "create-adr"
+    ],
+    "runtime": [
+      "initialize-workflow",
+      "resume-workflow",
+      "workflow-runtime"
+    ],
+    "utility": [
+      "quick-fix",
+      "quick-feature",
+      "frontend-design"
+    ],
+    "quality": [
+      "skill-self-verification"
+    ]
+  }
+}

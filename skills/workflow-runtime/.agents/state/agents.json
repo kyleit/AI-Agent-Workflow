@@ -1,0 +1,11 @@
+{
+  "execution_mode": "sequential",
+  "recommended_mode": "sequential",
+  "approved": true,
+  "parallel_groups": [],
+  "running_agents": [],
+  "queued_agents": [],
+  "blocked_agents": [],
+  "waiting_dependencies": [],
+  "analysis_agents": []
+}
