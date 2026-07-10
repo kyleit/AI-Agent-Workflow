@@ -12,5 +12,6 @@ __pycache__/
 .agents/runtime/*.db-journal
 .agents/runtime/*.db-wal
 .agents/runtime/env_cache.json
+.agents/runtime/logs/
 public_export/
 **/__pycache__/

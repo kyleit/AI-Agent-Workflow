@@ -64,16 +64,6 @@ def get_global_db_path() -> str:
 _INITIALIZED_DBS = set()
 
 def init_db_schema(conn: sqlite3.Connection) -> None:
-    try:
-        cursor = conn.cursor()
-        cursor.execute("SELECT name FROM sqlite_master WHERE type='table' AND name='usage_records'")
-        if cursor.fetchone():
-            cursor.execute("SELECT name FROM sqlite_master WHERE type='table' AND name='provider_requests'")
-            if cursor.fetchone():
-                return
-    except Exception:
-        pass
-
     cursor = conn.cursor()
     cursor.execute("""
         CREATE TABLE IF NOT EXISTS usage_records (
