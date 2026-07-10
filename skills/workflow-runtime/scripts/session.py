@@ -112,32 +112,34 @@ def load_session() -> dict[str, Any]:  # type: ignore
     return {}
 
 def save_session_atomic(data: dict[str, Any]) -> None:  # type: ignore
-    existing = load_session()
-    new_data = dict(data)
-    
-    if "conversation_id" not in new_data or not new_data["conversation_id"]:
-        new_data["conversation_id"] = existing.get("conversation_id", str(uuid.uuid4()))
+    from state_sync import StateFileLock
+    with StateFileLock("."):
+        existing = load_session()
+        new_data = dict(data)
         
-    if "permission_mode" not in new_data:
-        new_data["permission_mode"] = existing.get("permission_mode", "sandbox")
-        new_data["permission_mode_selected_at"] = existing.get("permission_mode_selected_at", datetime.now().astimezone().isoformat())
-        new_data["permission_mode_selected_by"] = existing.get("permission_mode_selected_by", "user")
-    
-    new_data["updated_at"] = datetime.now().astimezone().isoformat()
-    
-    # 1. Ghi rã trạng thái vào các file trạng thái con
-    try:
-        deconstruct_state(".", new_data)
-    except Exception:
-        pass
+        if "conversation_id" not in new_data or not new_data["conversation_id"]:
+            new_data["conversation_id"] = existing.get("conversation_id", str(uuid.uuid4()))
+            
+        if "permission_mode" not in new_data:
+            new_data["permission_mode"] = existing.get("permission_mode", "sandbox")
+            new_data["permission_mode_selected_at"] = existing.get("permission_mode_selected_at", datetime.now().astimezone().isoformat())
+            new_data["permission_mode_selected_by"] = existing.get("permission_mode_selected_by", "user")
         
-    # 2. Xóa tệp .session.json trên đĩa để chuyển sang chế độ Pure Split State hoàn toàn
-    for path_to_remove in [SESSION_FILE, BAK_SESSION_FILE, TMP_SESSION_FILE]:
-        if os.path.exists(path_to_remove):
-            try:
-                os.remove(path_to_remove)
-            except Exception:
-                pass
+        new_data["updated_at"] = datetime.now().astimezone().isoformat()
+        
+        # 1. Ghi rã trạng thái vào các file trạng thái con
+        try:
+            deconstruct_state(".", new_data)
+        except Exception:
+            pass
+            
+        # 2. Xóa tệp .session.json trên đĩa để chuyển sang chế độ Pure Split State hoàn toàn
+        for path_to_remove in [SESSION_FILE, BAK_SESSION_FILE, TMP_SESSION_FILE]:
+            if os.path.exists(path_to_remove):
+                try:
+                    os.remove(path_to_remove)
+                except Exception:
+                    pass
 
 SESSION_LOCK_FILE = SESSION_FILE + ".lock"
 
