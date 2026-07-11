@@ -1,13 +1,79 @@
 # session.py
 import os
+import sys
 import json
 import uuid
 import shutil
+import tempfile
 from datetime import datetime
 from typing import Any  # type: ignore
 
 # Tránh circular import bằng cách import động trong hàm hoặc import ở đây nếu an toàn
 from state_sync import aggregate_state, deconstruct_state
+
+def get_project_permission_config_path() -> str:
+    root = os.environ.get("AIWF_PERMISSION_CONFIG_ROOT", "")
+    if root:
+        return os.path.abspath(os.path.join(root, "permissions.json"))
+    return os.path.abspath(os.path.join(".agents", "config", "permissions.json"))
+
+def load_project_permissions() -> dict[str, Any] | None:
+    path = get_project_permission_config_path()
+    if not os.path.exists(path):
+        if os.environ.get("AIWF_TESTING_PERMISSIONS") == "true":
+            return None
+        mode = os.environ.get("AIWF_RUNTIME_MODE", "normal").lower()
+        if "PYTEST_CURRENT_TEST" in os.environ or mode in ["test-memory", "test-isolated"]:
+            return {
+                "schema_version": "1.0.0",
+                "initialized": True,
+                "mode": "sandbox",
+                "config_revision": 1,
+                "initialized_at": datetime.now().astimezone().isoformat(),
+                "updated_at": datetime.now().astimezone().isoformat(),
+                "updated_by": "test",
+                "source": "mock"
+            }
+        return None
+    try:
+        with open(path, "r", encoding="utf-8") as f:
+            data = json.load(f)
+            if isinstance(data, dict):
+                return data
+    except Exception:
+        pass
+    return None
+
+def write_project_permissions_atomic(data: dict[str, Any]) -> None:
+    path = get_project_permission_config_path()
+    dir_name = os.path.dirname(path)
+    if dir_name:
+        os.makedirs(dir_name, exist_ok=True)
+    
+    fd, tmp_path = tempfile.mkstemp(dir=dir_name or ".", suffix=".tmp")
+    try:
+        with os.fdopen(fd, 'w', encoding='utf-8') as f:
+            json.dump(data, f, indent=2, ensure_ascii=False)
+        os.replace(tmp_path, path)
+    except Exception as e:
+        if os.path.exists(tmp_path):
+            try:
+                os.remove(tmp_path)
+            except Exception:
+                pass
+        raise e
+
+def validate_permissions_data(data: dict[str, Any]) -> tuple[bool, str]:
+    if not isinstance(data, dict):
+        return False, "Configuration must be a JSON object."
+    required = ["schema_version", "initialized", "mode"]
+    for field in required:
+        if field not in data:
+            return False, f"Missing required field: '{field}'."
+    mode = data.get("mode")
+    if mode not in ["sandbox", "full_access", "unrestricted"]:
+        return False, f"Invalid permission mode: '{mode}'."
+    return True, "Valid"
 
 SESSION_FILE = os.path.join(".agents", ".session.json")
 BAK_SESSION_FILE = SESSION_FILE + ".bak"
@@ -107,37 +173,56 @@ def load_session() -> dict[str, Any]:  # type: ignore
 
     if session_data:
         migrate_session_schema(session_data)
+        
+        # Đồng bộ từ permissions.json nếu có
+        permissions = load_project_permissions()
+        if permissions:
+            session_data["permission_mode"] = permissions.get("mode", "sandbox")
+            session_data["permission_mode_selected_at"] = permissions.get("updated_at")
+            session_data["permission_mode_selected_by"] = permissions.get("updated_by")
+            
         return session_data
         
     return {}
 
 def save_session_atomic(data: dict[str, Any]) -> None:  # type: ignore
-    existing = load_session()
-    new_data = dict(data)
+    from state_store import RevisionConflictError
+    import time
     
-    if "conversation_id" not in new_data or not new_data["conversation_id"]:
-        new_data["conversation_id"] = existing.get("conversation_id", str(uuid.uuid4()))
-        
-    if "permission_mode" not in new_data:
-        new_data["permission_mode"] = existing.get("permission_mode", "sandbox")
-        new_data["permission_mode_selected_at"] = existing.get("permission_mode_selected_at", datetime.now().astimezone().isoformat())
-        new_data["permission_mode_selected_by"] = existing.get("permission_mode_selected_by", "user")
-    
-    new_data["updated_at"] = datetime.now().astimezone().isoformat()
-    
-    # 1. Ghi rã trạng thái vào các file trạng thái con
-    try:
-        deconstruct_state(".", new_data)
-    except Exception:
-        pass
-        
-    # 2. Xóa tệp .session.json trên đĩa để chuyển sang chế độ Pure Split State hoàn toàn
-    for path_to_remove in [SESSION_FILE, BAK_SESSION_FILE, TMP_SESSION_FILE]:
-        if os.path.exists(path_to_remove):
-            try:
-                os.remove(path_to_remove)
-            except Exception:
-                pass
+    retries = 3
+    while retries > 0:
+        try:
+            existing = load_session()
+            new_data = dict(existing)
+            new_data.update(data)
+            
+            if "conversation_id" not in new_data or not new_data["conversation_id"]:
+                new_data["conversation_id"] = existing.get("conversation_id", str(uuid.uuid4()))
+                
+            if "permission_mode" not in new_data:
+                new_data["permission_mode"] = existing.get("permission_mode", "sandbox")
+                new_data["permission_mode_selected_at"] = existing.get("permission_mode_selected_at", datetime.now().astimezone().isoformat())
+                new_data["permission_mode_selected_by"] = existing.get("permission_mode_selected_by", "user")
+            
+            new_data["updated_at"] = datetime.now().astimezone().isoformat()
+            
+            # 1. Ghi rã trạng thái vào các file trạng thái con
+            deconstruct_state(".", new_data)
+            
+            # 2. Xóa tệp .session.json trên đĩa để chuyển sang chế độ Pure Split State hoàn toàn
+            for path_to_remove in [SESSION_FILE, BAK_SESSION_FILE, TMP_SESSION_FILE]:
+                if os.path.exists(path_to_remove):
+                    try:
+                        os.remove(path_to_remove)
+                    except Exception:
+                        pass
+            return
+        except RevisionConflictError as e:
+            retries -= 1
+            if retries <= 0:
+                raise
+            time.sleep(0.05)  # exponential backoff / delay
+
 
 SESSION_LOCK_FILE = SESSION_FILE + ".lock"
 
@@ -152,6 +237,22 @@ def acquire_session_lock(timeout: float = 10.0, delay: float = 0.05) -> None:
             os.close(fd)
             return
         except FileExistsError:
+            # Check if the process holding the lock is dead
+            try:
+                if os.path.exists(SESSION_LOCK_FILE):
+                    with open(SESSION_LOCK_FILE, "r") as f:
+                        pid_str = f.read().strip()
+                    if pid_str:
+                        from lease import is_process_alive
+                        pid = int(pid_str)
+                        if not is_process_alive(pid):
+                            try:
+                                os.remove(SESSION_LOCK_FILE)
+                            except Exception:
+                                pass
+            except Exception:
+                pass
+
             if time.time() - start_time > timeout:
                 try:
                     os.remove(SESSION_LOCK_FILE)

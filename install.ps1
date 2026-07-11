@@ -325,6 +325,7 @@ if ($MissingFiles -gt 0) {
     exit 1
 }
 
+if (Get-Command python3 -ErrorAction SilentlyContinue) {
     python3 (Join-Path (Join-Path $InstallTarget $SkillDir) "workflow-runtime/scripts/workflow_runtime.py") $InitArgs
     python3 (Join-Path (Join-Path $InstallTarget $SkillDir) "workflow-runtime/scripts/workflow_runtime.py") registry register --source install --framework-root $ScriptDir
 }

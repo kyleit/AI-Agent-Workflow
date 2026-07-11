@@ -1,0 +1,10 @@
+{
+  "lock_owner": "orchestrator|test-skill",
+  "work_item_id": "FEAT-051",
+  "skill": "test-skill",
+  "pid": 3520,
+  "process_started_at": "1783727305.3339214",
+  "hostname": "KYLE",
+  "started_at": "2026-07-11T06:48:25.688252+07:00",
+  "heartbeat_at": "2026-07-11T06:48:25.688252+07:00"
+}

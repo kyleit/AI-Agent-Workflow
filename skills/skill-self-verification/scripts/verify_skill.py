@@ -130,15 +130,15 @@ class SkillVerifier:
             skill_rel_path = f"skills/{self.skill_name}"
             res = subprocess.run(
                 ["git", "diff", "HEAD~1", "HEAD", "--", skill_rel_path],
-                capture_output=True, text=True, cwd=self.workspace_root
+                capture_output=True, text=True, encoding="utf-8", cwd=self.workspace_root
             )
-            diff_out = res.stdout.strip()
+            diff_out = res.stdout.strip() if res.stdout else ""
             if not diff_out:
                 res_unstaged = subprocess.run(
                     ["git", "diff", "--", skill_rel_path],
-                    capture_output=True, text=True, cwd=self.workspace_root
+                    capture_output=True, text=True, encoding="utf-8", cwd=self.workspace_root
                 )
-                diff_out = res_unstaged.stdout.strip()
+                diff_out = res_unstaged.stdout.strip() if res_unstaged.stdout else ""
             
             if not diff_out:
                 return "No modification detected in active branch. Showing default layout:\n- **Before**: Static text-only code inspection.\n- **After**: Rich user persona simulator with full behavioral pipeline."

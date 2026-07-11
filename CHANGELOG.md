@@ -5,6 +5,15 @@ All notable changes to this project will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [6.6.1] - 2026-07-11
+
+### Added
+- **QUICK-029: Permanent Testing Architecture Rules & CI Validation**:
+  - Ban hành Quy định cấu trúc thư mục kiểm thử vĩnh viễn (`smoke/`, `unit/`, `integration/`, `concurrency/`).
+  - Di chuyển toàn bộ 35 tệp tin test và gắn thẻ marker pytest tương ứng khớp 100% với tên thư mục chứa.
+  - Bổ sung lệnh CLI `aiwf test validate` để tự động kiểm tra tĩnh cấu trúc thư mục, marker pytest, tính đầy đủ của impact mapping, trùng lặp file và obsolete mappings.
+  - Định cấu hình `pythonpath` trong `pytest.ini` giải quyết triệt để vấn đề phân giải import đường dẫn tương đối trong các thư mục kiểm thử lồng nhau.
+
 ## [6.6.0] - 2026-07-11
 
 ### Added

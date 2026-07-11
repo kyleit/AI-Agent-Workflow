@@ -1,0 +1,10 @@
+{
+  "lock_owner": "orchestrator|quick-fix",
+  "work_item_id": "FEAT-051",
+  "skill": "quick-fix",
+  "pid": 36368,
+  "process_started_at": "1783729053.8376713",
+  "hostname": "KYLE",
+  "started_at": "2026-07-11T07:17:34.195721+07:00",
+  "heartbeat_at": "2026-07-11T07:17:34.195721+07:00"
+}

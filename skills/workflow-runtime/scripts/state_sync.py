@@ -6,54 +6,37 @@ from datetime import datetime
 from typing import Any
 
 def write_json_atomic(file_path: str, data: dict[str, Any]) -> None:
-    dir_name = os.path.dirname(file_path)
-    if dir_name and not os.path.exists(dir_name):
-        os.makedirs(dir_name, exist_ok=True)
-    
-    fd, tmp_path = tempfile.mkstemp(dir=dir_name, suffix=".tmp")
-    try:
-        with os.fdopen(fd, 'w', encoding='utf-8') as f:
-            json.dump(data, f, indent=2)
-        os.replace(tmp_path, file_path)
-    except Exception as e:
-        if os.path.exists(tmp_path):
-            os.remove(tmp_path)
-        raise e
+    from state_store import get_state_store
+    key = os.path.splitext(os.path.basename(file_path))[0]
+    get_state_store().set(key, data)
 
 def read_json_safe(file_path: str) -> dict[str, Any]:
-    if not os.path.exists(file_path):
-        return {}
-    try:
-        with open(file_path, 'r', encoding='utf-8') as f:
-            content = f.read().strip()
-            if not content:
-                raise ValueError("Empty file")
-            res = json.loads(content)
-            if not isinstance(res, dict):
-                raise ValueError("Not a dictionary")
-            return res
-    except Exception:
-        return {}
+    from state_store import get_state_store
+    key = os.path.splitext(os.path.basename(file_path))[0]
+    return get_state_store().get(key)
 
 def calculate_checksum(file_path: str) -> str:
-    if not os.path.exists(file_path):
+    from state_store import get_state_store
+    key = os.path.splitext(os.path.basename(file_path))[0]
+    data = get_state_store().get(key)
+    if not data:
         return ""
     try:
-        with open(file_path, 'rb') as f:
-            return hashlib.sha256(f.read()).hexdigest()
+        content = json.dumps(data, sort_keys=True)
+        return hashlib.sha256(content.encode('utf-8')).hexdigest()
     except Exception:
         return ""
 
 def aggregate_state(workspace_root: str) -> dict[str, Any]:
-    state_dir = os.path.join(workspace_root, ".agents", "state")
-    session_path = os.path.join(workspace_root, ".agents", ".session.json")
+    from state_store import get_state_store
+    store = get_state_store()
     
-    context = read_json_safe(os.path.join(state_dir, "context.json"))
-    workflow = read_json_safe(os.path.join(state_dir, "workflow.json"))
-    runtime = read_json_safe(os.path.join(state_dir, "runtime.json"))
-    approvals = read_json_safe(os.path.join(state_dir, "approvals.json"))
-    usage = read_json_safe(os.path.join(state_dir, "usage.json"))
-    agents = read_json_safe(os.path.join(state_dir, "agents.json"))
+    context = store.get("context")
+    workflow = store.get("workflow")
+    runtime = store.get("runtime")
+    approvals = store.get("approvals")
+    usage = store.get("usage")
+    agents = store.get("agents")
     
     session = {
         "workspace": {
@@ -100,9 +83,6 @@ def aggregate_state(workspace_root: str) -> dict[str, Any]:
             "status": runtime.get("suggestion_gate", {}).get("status", "idle") if isinstance(runtime.get("suggestion_gate"), dict) else "idle"
         },
         "checkpoint": workflow.get("checkpoint", 1),
-        "active_workflow": workflow.get("active_workflow"),
-        "active_phase": workflow.get("active_phase"),
-        "waiting_for": workflow.get("waiting_for"),
         "resume_state": workflow.get("resume_state"),
         "status": runtime.get("status", "in_progress"),
         "current_skill": runtime.get("current_skill", "initialize-workflow"),
@@ -133,6 +113,22 @@ def aggregate_state(workspace_root: str) -> dict[str, Any]:
         "waiting_dependencies": agents.get("waiting_dependencies", []),
         "analysis_agents": agents.get("analysis_agents", [])
     }
+    if workflow.get("active_workflow") is not None:
+        session["active_workflow"] = workflow.get("active_workflow")
+    if workflow.get("active_phase") is not None:
+        session["active_phase"] = workflow.get("active_phase")
+    if workflow.get("waiting_for") is not None:
+        session["waiting_for"] = workflow.get("waiting_for")
+        
+    # Store revisions of each file for CAS compare-and-swap checks
+    session["_revisions"] = {
+        "context": context.get("_metadata", {}).get("revision", 0),
+        "workflow": workflow.get("_metadata", {}).get("revision", 0),
+        "runtime": runtime.get("_metadata", {}).get("revision", 0),
+        "approvals": approvals.get("_metadata", {}).get("revision", 0),
+        "usage": usage.get("_metadata", {}).get("revision", 0),
+        "agents": agents.get("_metadata", {}).get("revision", 0)
+    }
     
     # Clean None values for compatibility with test assertions
     for k in ["active_workflow", "active_phase", "waiting_for", "suggested_next_skill", "suggested_next_command"]:
@@ -144,8 +140,8 @@ def aggregate_state(workspace_root: str) -> dict[str, Any]:
     return session
 
 def deconstruct_state(workspace_root: str, session: dict[str, Any]) -> None:
-    state_dir = os.path.join(workspace_root, ".agents", "state")
-    os.makedirs(state_dir, exist_ok=True)
+    from state_store import get_state_store
+    store = get_state_store()
     
     context = {
         "project_id": session.get("workspace", {}).get("project_id", "ai-skill-framework"),
@@ -215,12 +211,14 @@ def deconstruct_state(workspace_root: str, session: dict[str, Any]) -> None:
         "analysis_agents": session.get("analysis_agents", [])
     }
     
-    write_json_atomic(os.path.join(state_dir, "context.json"), context)
-    write_json_atomic(os.path.join(state_dir, "workflow.json"), workflow)
-    write_json_atomic(os.path.join(state_dir, "runtime.json"), runtime)
-    write_json_atomic(os.path.join(state_dir, "approvals.json"), approvals)
-    write_json_atomic(os.path.join(state_dir, "usage.json"), usage)
-    write_json_atomic(os.path.join(state_dir, "agents.json"), agents)
+    revisions = session.get("_revisions", {})
+    
+    store.set("context", context, expected_revision=revisions.get("context"))
+    store.set("workflow", workflow, expected_revision=revisions.get("workflow"))
+    store.set("runtime", runtime, expected_revision=revisions.get("runtime"))
+    store.set("approvals", approvals, expected_revision=revisions.get("approvals"))
+    store.set("usage", usage, expected_revision=revisions.get("usage"))
+    store.set("agents", agents, expected_revision=revisions.get("agents"))
     
     update_recovery_file(workspace_root)
 

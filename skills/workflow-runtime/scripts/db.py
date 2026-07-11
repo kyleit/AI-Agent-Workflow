@@ -2,6 +2,28 @@
 import os
 import sqlite3
 import sys
+
+_orig_sqlite3_connect = sqlite3.connect
+
+def _custom_sqlite3_connect(database, *args, **kwargs):
+    mode = os.environ.get("AIWF_RUNTIME_MODE", "normal").lower()
+    disable_writes = os.environ.get("AIWF_DISABLE_STATE_WRITES", "false").lower() == "true"
+    if disable_writes or mode in ["test-memory", "test-isolated"]:
+        return _orig_sqlite3_connect(":memory:", *args, **kwargs)
+    
+    # Inject default timeout if not provided to prevent hangs on locked databases
+    if "timeout" not in kwargs:
+        kwargs["timeout"] = 5.0
+    conn = _orig_sqlite3_connect(database, *args, **kwargs)
+    if database != ":memory:":
+        try:
+            conn.execute("PRAGMA journal_mode=WAL;")
+        except Exception:
+            pass
+    return conn
+
+sqlite3.connect = _custom_sqlite3_connect
+
 from datetime import datetime
 
 PROJECT_DB = os.path.join(".agents", "project_runtime.db")
@@ -22,7 +44,26 @@ def get_global_db_path() -> str:
 
 import json
 
+_schemas_initialized = set()
+
 def init_db_schema(conn: sqlite3.Connection) -> None:
+    db_name = getattr(conn, "_db_name_cache", None)
+    if not db_name:
+        try:
+            cursor = conn.cursor()
+            cursor.execute("PRAGMA database_list")
+            row = cursor.fetchone()
+            db_name = row[2] if row else "default"
+            conn._db_name_cache = db_name
+        except Exception:
+            db_name = "default"
+            
+    is_mem = not db_name or db_name == "default" or db_name == ":memory:"
+    if not is_mem and db_name in _schemas_initialized:
+        return
+        
+    if not is_mem:
+        _schemas_initialized.add(db_name)
     cursor = conn.cursor()
     cursor.execute("""
         CREATE TABLE IF NOT EXISTS usage_records (
@@ -253,6 +294,21 @@ def init_db_schema(conn: sqlite3.Connection) -> None:
             compression_pct REAL NOT NULL DEFAULT 85.0
         )
     """)
+    
+    # Create qmd_metadata table
+    cursor.execute("""
+        CREATE TABLE IF NOT EXISTS qmd_metadata (
+            point_id TEXT PRIMARY KEY,
+            project_id TEXT NOT NULL,
+            module TEXT,
+            feature_id TEXT,
+            file_path TEXT NOT NULL,
+            section_heading TEXT,
+            updated_at TEXT NOT NULL,
+            content_hash TEXT NOT NULL
+        )
+    """)
+    cursor.execute("CREATE INDEX IF NOT EXISTS idx_qmd_project_module ON qmd_metadata (project_id, module)")
     conn.commit()
 
 def _save_record(db_path: str, record: tuple) -> None:
@@ -1172,3 +1228,75 @@ def normalize_database_records(db_path: str) -> None:
         print(f"Error normalizing database {db_path}: {e}")
     finally:
         conn.close()
+
+
+def save_qmd_metadata(record_data: dict) -> None:
+    for db_path in [PROJECT_DB, get_global_db_path()]:
+        os.makedirs(os.path.dirname(os.path.abspath(db_path)), exist_ok=True)
+        conn = sqlite3.connect(db_path)
+        try:
+            init_db_schema(conn)
+            cursor = conn.cursor()
+            cursor.execute("""
+                INSERT OR REPLACE INTO qmd_metadata (
+                    point_id, project_id, module, feature_id, file_path, section_heading, updated_at, content_hash
+                ) VALUES (?, ?, ?, ?, ?, ?, ?, ?)
+            """, (
+                record_data.get("point_id"),
+                record_data.get("project_id"),
+                record_data.get("module"),
+                record_data.get("feature_id"),
+                record_data.get("file_path"),
+                record_data.get("section_heading"),
+                record_data.get("updated_at") or datetime.now().astimezone().isoformat(),
+                record_data.get("content_hash", "")
+            ))
+            conn.commit()
+        finally:
+            conn.close()
+
+
+def get_qmd_metadata(filters: dict) -> list[dict]:
+    conn = sqlite3.connect(PROJECT_DB)
+    try:
+        init_db_schema(conn)
+        cursor = conn.cursor()
+        query = "SELECT point_id, project_id, module, feature_id, file_path, section_heading, updated_at, content_hash FROM qmd_metadata WHERE 1=1"
+        params = []
+        for k, v in filters.items():
+            query += f" AND {k} = ?"
+            params.append(v)
+        cursor.execute(query, params)
+        rows = cursor.fetchall()
+        results = []
+        for r in rows:
+            results.append({
+                "point_id": r[0],
+                "project_id": r[1],
+                "module": r[2],
+                "feature_id": r[3],
+                "file_path": r[4],
+                "section_heading": r[5],
+                "updated_at": r[6],
+                "content_hash": r[7]
+            })
+        return results
+    finally:
+        conn.close()
+
+
+def clear_qmd_metadata(project_id: str = None) -> None:
+    for db_path in [PROJECT_DB, get_global_db_path()]:
+        if not os.path.exists(db_path):
+            continue
+        conn = sqlite3.connect(db_path)
+        try:
+            init_db_schema(conn)
+            cursor = conn.cursor()
+            if project_id:
+                cursor.execute("DELETE FROM qmd_metadata WHERE project_id = ?", (project_id,))
+            else:
+                cursor.execute("DELETE FROM qmd_metadata")
+            conn.commit()
+        finally:
+            conn.close()

@@ -34,12 +34,8 @@ def get_rag_info() -> dict:
 def is_stdin_ready() -> bool:
     import sys
     import os
-    if os.environ.get("TESTING") == "1":
-        return False
     if type(sys.stdin).__name__ in ['Mock', 'MagicMock', 'StringIO', 'BytesIO']:
         return True
-    if not sys.stdin.isatty():
-        return False
     ret = False
     if sys.platform == 'win32':
         import msvcrt
@@ -172,7 +168,7 @@ def build_branch_selection_options(artifact_id: str, slug: str) -> dict:
     suggested = suggest_branch_name(artifact_id, slug)
     
     if not current:
-        opt1 = "Continue on current branch (detached HEAD — not recommended)"
+        opt1 = "Continue on current branch (detached HEAD - not recommended)"
     else:
         opt1 = f"Continue on current branch ({current})"
         

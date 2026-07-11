@@ -1,0 +1,150 @@
+{
+  "phases": [
+    {
+      "phase_name": "Phase 1: Lease Locking, CAS, and Atomic Writes",
+      "tasks": ["Task 1.1", "Task 1.2", "Task 1.3", "Task 1.4", "Task 1.5", "Task 1.6", "Task 1.7", "Task 1.8"],
+      "deliverables": ["Lease model, StateStore structure, and atomic concurrency controls implemented and verified"],
+      "milestones": ["CAS concurrency and atomic writers validated"]
+    },
+    {
+      "phase_name": "Phase 2: Performance optimizations and Test isolation",
+      "tasks": ["Task 2.1", "Task 2.2"],
+      "deliverables": ["Throttled heartbeats and parallel test suites executing in isolation"],
+      "milestones": ["Pytest execution runs concurrently without state contention"]
+    },
+    {
+      "phase_name": "Phase 3: Telemetry CLI actions",
+      "tasks": ["Task 3.1"],
+      "deliverables": ["Lock query and manual release CLI routes"],
+      "milestones": ["Completed CLI management actions and verified docs"]
+    }
+  ],
+  "tasks": [
+    {
+      "id": "Task 1.1",
+      "description": "Design and implement lease metadata structure",
+      "effort_hours": 3,
+      "owner": "Architect",
+      "operations": ["NEW"],
+      "files": ["skills/workflow-runtime/scripts/lease.py"]
+    },
+    {
+      "id": "Task 1.2",
+      "description": "Implement stale lease detection and auto recovery",
+      "effort_hours": 4,
+      "owner": "Coder",
+      "operations": ["MODIFY"],
+      "files": ["skills/workflow-runtime/scripts/session.py"]
+    },
+    {
+      "id": "Task 1.3",
+      "description": "Implement idempotent start command",
+      "effort_hours": 2,
+      "owner": "Coder",
+      "operations": ["MODIFY"],
+      "files": ["skills/workflow-runtime/scripts/workflow_runtime.py"]
+    },
+    {
+      "id": "Task 1.4",
+      "description": "Implement StateStore registry class structure",
+      "effort_hours": 4,
+      "owner": "Architect",
+      "operations": ["NEW"],
+      "files": ["skills/workflow-runtime/scripts/state_store.py"]
+    },
+    {
+      "id": "Task 1.5",
+      "description": "Integrate runtime modes routing in context modules",
+      "effort_hours": 3,
+      "owner": "Coder",
+      "operations": ["MODIFY"],
+      "files": ["skills/workflow-runtime/scripts/context.py"]
+    },
+    {
+      "id": "Task 1.6",
+      "description": "Register exit signal listeners for release locks",
+      "effort_hours": 2,
+      "owner": "Coder",
+      "operations": ["MODIFY"],
+      "files": ["skills/workflow-runtime/scripts/workflow_runtime.py"]
+    },
+    {
+      "id": "Task 1.7",
+      "description": "Implement CAS generation checking",
+      "effort_hours": 4,
+      "owner": "Coder",
+      "operations": ["MODIFY"],
+      "files": ["skills/workflow-runtime/scripts/state_store.py"]
+    },
+    {
+      "id": "Task 1.8",
+      "description": "Atomic writes implementation utilizing os.replace",
+      "effort_hours": 3,
+      "owner": "Coder",
+      "operations": ["MODIFY"],
+      "files": ["skills/workflow-runtime/scripts/state_store.py"]
+    },
+    {
+      "id": "Task 2.1",
+      "description": "Throttling and event logs debouncer",
+      "effort_hours": 3,
+      "owner": "Coder",
+      "operations": ["MODIFY"],
+      "files": ["skills/workflow-runtime/scripts/state_store.py"]
+    },
+    {
+      "id": "Task 2.2",
+      "description": "Configure Pytest workspace isolators",
+      "effort_hours": 5,
+      "owner": "Reviewer",
+      "operations": ["MODIFY"],
+      "files": ["tests/conftest.py"]
+    },
+    {
+      "id": "Task 3.1",
+      "description": "CLI route handlers",
+      "effort_hours": 4,
+      "owner": "Coder",
+      "operations": ["MODIFY"],
+      "files": ["skills/workflow-runtime/scripts/workflow_runtime.py"]
+    }
+  ],
+  "dependencies": {
+    "Task 1.2": ["Task 1.1"],
+    "Task 1.3": ["Task 1.2"],
+    "Task 1.7": ["Task 1.4"],
+    "Task 1.8": ["Task 1.7"],
+    "Task 2.1": ["Task 1.8"],
+    "Task 2.2": ["Task 1.5"],
+    "Task 3.1": ["Task 1.2"]
+  },
+  "parallel_groups": [
+    ["Task 1.4", "Task 1.5", "Task 1.6"]
+  ],
+  "exit_criteria": [
+    "CAS verification tests pass 100%",
+    "Parallel pytest executions never pollute state directory",
+    "Heartbeat write rate reduced successfully"
+  ],
+  "rollback": {
+    "trigger": "Deadlock occurrence or telemetry display errors",
+    "steps": [
+      "Rollback commits to baseline version",
+      "Restore traditional workflow.lock behaviors"
+    ]
+  },
+  "tests": [
+    {
+      "test_target": "tests/test_state_store.py",
+      "mapped_tasks": ["Task 1.4", "Task 1.7", "Task 1.8"]
+    },
+    {
+      "test_target": "tests/test_locking_recovery.py",
+      "mapped_tasks": ["Task 1.1", "Task 1.2", "Task 1.6"]
+    }
+  ],
+  "artifacts": [
+    "docs/designs/FEAT-051_workflow_runtime_locking_and_isolation_blueprint.md",
+    "docs/adr/ADR-006_lease_locking_and_isolation.md"
+  ]
+}
