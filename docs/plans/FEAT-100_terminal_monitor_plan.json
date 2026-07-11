@@ -1,0 +1,71 @@
+{
+  "phases": [
+    {
+      "phase_name": "Phase 1: Process Output Streaming",
+      "tasks": [
+        "Task 1.1",
+        "Task 1.2"
+      ],
+      "deliverables": [
+        "Interactive Terminal Monitor",
+        "Log buffer stream handler"
+      ],
+      "milestones": [
+        "M1: Terminal Monitor Ready"
+      ]
+    }
+  ],
+  "tasks": [
+    {
+      "id": "Task 1.1",
+      "description": "Xây dựng trình quản lý terminal_monitor bắt log thời gian thực",
+      "effort_hours": 6,
+      "owner": "Coder",
+      "operations": [
+        "NEW"
+      ],
+      "files": [
+        "skills/workflow-runtime/scripts/terminal_monitor.py"
+      ]
+    },
+    {
+      "id": "Task 1.2",
+      "description": "Triển khai giao diện truyền dữ liệu động qua sockets/pipes",
+      "effort_hours": 6,
+      "owner": "Coder",
+      "operations": [
+        "NEW"
+      ],
+      "files": [
+        "skills/workflow-runtime/scripts/terminal_monitor.py"
+      ]
+    }
+  ],
+  "dependencies": {
+    "Task 1.2": [
+      "Task 1.1"
+    ]
+  },
+  "parallel_groups": [],
+  "exit_criteria": [
+    "Bắt log dev server mà không làm đóng băng tiến trình chính",
+    "Truyền dữ liệu đầu vào thành công vào stdin"
+  ],
+  "rollback": {
+    "trigger": "Lỗi rò rỉ bộ nhớ tiến trình nền",
+    "steps": [
+      "Revert terminal_monitor.py"
+    ]
+  },
+  "tests": [
+    {
+      "test_target": "tests/test_terminal_monitor.py",
+      "mapped_tasks": [
+        "Task 1.1"
+      ]
+    }
+  ],
+  "artifacts": [
+    "docs/designs/FEAT-100_terminal_monitor_blueprint.md"
+  ]
+}

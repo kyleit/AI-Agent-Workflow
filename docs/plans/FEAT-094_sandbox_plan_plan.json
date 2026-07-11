@@ -1,0 +1,71 @@
+{
+  "phases": [
+    {
+      "phase_name": "Phase 1: Container Orchestration Layer",
+      "tasks": [
+        "Task 1.1",
+        "Task 1.2"
+      ],
+      "deliverables": [
+        "Docker integration module",
+        "Fallback local sandbox"
+      ],
+      "milestones": [
+        "M1: Sandbox Executions Live"
+      ]
+    }
+  ],
+  "tasks": [
+    {
+      "id": "Task 1.1",
+      "description": "Triển khai SandboxProvider quản lý vòng đời Docker",
+      "effort_hours": 8,
+      "owner": "Coder",
+      "operations": [
+        "NEW"
+      ],
+      "files": [
+        "skills/workflow-runtime/scripts/sandbox_provider.py"
+      ]
+    },
+    {
+      "id": "Task 1.2",
+      "description": "Xây dựng cơ chế fallback local sandbox an toàn",
+      "effort_hours": 4,
+      "owner": "Coder",
+      "operations": [
+        "NEW"
+      ],
+      "files": [
+        "skills/workflow-runtime/scripts/sandbox_provider.py"
+      ]
+    }
+  ],
+  "dependencies": {
+    "Task 1.2": [
+      "Task 1.1"
+    ]
+  },
+  "parallel_groups": [],
+  "exit_criteria": [
+    "Chạy thử thành công script trong Docker container cô lập",
+    "Hủy container an toàn sau khi chạy xong"
+  ],
+  "rollback": {
+    "trigger": "Lỗi kết nối Docker socket",
+    "steps": [
+      "Revert sandbox_provider.py"
+    ]
+  },
+  "tests": [
+    {
+      "test_target": "tests/test_sandbox_provider.py",
+      "mapped_tasks": [
+        "Task 1.1"
+      ]
+    }
+  ],
+  "artifacts": [
+    "docs/designs/FEAT-094_sandbox_blueprint.md"
+  ]
+}

@@ -5,14 +5,24 @@ All notable changes to this project will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [6.9.0] - 2026-07-12
+
+### Added
+- **AIWF OS v2 Core Upgrade**:
+  - Triển khai động cơ thực thi liên tục và 4 chế độ chạy (Step, Sprint, Program, Objective).
+  - Tích hợp hàng đợi thực thi bền vững và phục hồi điểm kiểm soát SQLite.
+  - Tích hợp lớp giám sát tự trị và tự chữa lành (Self-Healing) cho AIWF OS v2.
+  - Thiết kế và phân rã lộ trình đám mây AIWF Cloud (FEAT-201 đến FEAT-210) cùng báo cáo đánh giá chiến lược, khung quản trị và kiến trúc North Star cho 5 chương trình Cloud chính.
+
 ## [6.8.0] - 2026-07-12
 
 ### Added
-- **Visual Intelligence Runtime (VIR) Framework Integration**:
-  - Hỗ trợ đầy đủ bộ kiểm định trực quan Visual Intelligence Runtime (VIR) tích hợp sâu vào quy trình phát triển.
-  - Cung cấp cơ chế phân tích nguyên nhân gốc rễ (Root Cause Analysis) và tự động phát hiện các xung đột giao diện/dữ liệu mạng.
-  - Bổ sung các kỹ năng kiểm tra độc lập: chạy môi trường cô lập (Sandbox), điều phối kịch bản trực quan, và lưu trữ lịch sử học máy (baseline).
-  - Tự động hóa hoàn toàn quy trình đồng bộ hóa mã nguồn và đóng gói xuất bản thư viện.
+- **Visual Intelligence Runtime (VIR) Integration & Relocation**:
+  - Di chuyển mã nguồn và tệp tests của VIR Runtime vào mô hình Skill đóng gói (Publishable Skill Package) tại `skills/vir-runtime/`.
+  - Tạo tệp entry-point chính thức `skills/vir-runtime/scripts/vir.py` hỗ trợ chạy CLI đa nền tảng và phân giải import tương đối an toàn.
+  - Tích hợp điều phối pha VIR Visual QA vào workflow orchestrator trung tâm `skills/software-development-workflow/SKILL.md`.
+  - Đăng ký và đồng bộ các Skill mới (`vir-runtime`, `vir-investigate`, `vir-verify`, `vir-memory-update`) trong manifest và catalogs (`MANIFEST.json`, `SKILLS.md`).
+  - Triển khai quy trình tự động hóa xuất bản thông qua lệnh **`make publish-github`** để đồng bộ hóa mã nguồn sang GitLab/GitHub và cập nhật liên kết submodule **`public_export`** của dự án cha.
 
 ## [6.7.0] - 2026-07-11
 

@@ -1,0 +1,71 @@
+{
+  "phases": [
+    {
+      "phase_name": "Phase 1: Process Table Operations",
+      "tasks": [
+        "Task 1.1",
+        "Task 1.2"
+      ],
+      "deliverables": [
+        "Process table manager",
+        "Signal helper wrapper"
+      ],
+      "milestones": [
+        "M1: Process Scheduler Live"
+      ]
+    }
+  ],
+  "tasks": [
+    {
+      "id": "Task 1.1",
+      "description": "Thiết kế bảng tiến trình và quản lý luồng CPU/RAM ảo",
+      "effort_hours": 6,
+      "owner": "Architect",
+      "operations": [
+        "NEW"
+      ],
+      "files": [
+        "skills/workflow-runtime/scripts/process_manager.py"
+      ]
+    },
+    {
+      "id": "Task 1.2",
+      "description": "Triển khai bộ hỗ trợ gửi nhận tín hiệu Signal",
+      "effort_hours": 4,
+      "owner": "Coder",
+      "operations": [
+        "NEW"
+      ],
+      "files": [
+        "skills/workflow-runtime/scripts/signals.py"
+      ]
+    }
+  ],
+  "dependencies": {
+    "Task 1.2": [
+      "Task 1.1"
+    ]
+  },
+  "parallel_groups": [],
+  "exit_criteria": [
+    "Giới hạn tài nguyên tiến trình con thành công",
+    "Dọn dẹp tiến trình rác an toàn khi kết thúc"
+  ],
+  "rollback": {
+    "trigger": "Lỗi treo tiến trình con trên Windows",
+    "steps": [
+      "Revert process_manager.py"
+    ]
+  },
+  "tests": [
+    {
+      "test_target": "tests/test_process_manager.py",
+      "mapped_tasks": [
+        "Task 1.1"
+      ]
+    }
+  ],
+  "artifacts": [
+    "docs/designs/FEAT-101_process_manager_blueprint.md"
+  ]
+}

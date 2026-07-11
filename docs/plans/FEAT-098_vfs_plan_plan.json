@@ -1,0 +1,71 @@
+{
+  "phases": [
+    {
+      "phase_name": "Phase 1: Memory Overlay File System",
+      "tasks": [
+        "Task 1.1",
+        "Task 1.2"
+      ],
+      "deliverables": [
+        "VFS overlay core",
+        "Stdlib File I/O interfaces replacements"
+      ],
+      "milestones": [
+        "M1: Memory Overlay Enabled"
+      ]
+    }
+  ],
+  "tasks": [
+    {
+      "id": "Task 1.1",
+      "description": "Xây dựng lớp VFS quản lý tệp ảo trên RAM",
+      "effort_hours": 8,
+      "owner": "Architect",
+      "operations": [
+        "NEW"
+      ],
+      "files": [
+        "skills/workflow-runtime/scripts/vfs.py"
+      ]
+    },
+    {
+      "id": "Task 1.2",
+      "description": "Thay thế các hàm I/O chuẩn bằng giao diện VFS ảo",
+      "effort_hours": 6,
+      "owner": "Coder",
+      "operations": [
+        "NEW"
+      ],
+      "files": [
+        "skills/workflow-runtime/scripts/vfs_io.py"
+      ]
+    }
+  ],
+  "dependencies": {
+    "Task 1.2": [
+      "Task 1.1"
+    ]
+  },
+  "parallel_groups": [],
+  "exit_criteria": [
+    "Chạy biên dịch và test hoàn tất trên bộ nhớ ảo",
+    "Commit dữ liệu xuống đĩa vật lý khi có lệnh an toàn"
+  ],
+  "rollback": {
+    "trigger": "Lỗi hỏng dữ liệu overlay tệp",
+    "steps": [
+      "Revert vfs.py"
+    ]
+  },
+  "tests": [
+    {
+      "test_target": "tests/test_vfs.py",
+      "mapped_tasks": [
+        "Task 1.1"
+      ]
+    }
+  ],
+  "artifacts": [
+    "docs/designs/FEAT-098_vfs_blueprint.md"
+  ]
+}

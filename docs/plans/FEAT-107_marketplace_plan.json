@@ -1,0 +1,71 @@
+{
+  "phases": [
+    {
+      "phase_name": "Phase 1: Plugin Registry Client",
+      "tasks": [
+        "Task 1.1",
+        "Task 1.2"
+      ],
+      "deliverables": [
+        "Plugin downloader helper",
+        "Skill package signature checker"
+      ],
+      "milestones": [
+        "M1: Plugin Engine Ready"
+      ]
+    }
+  ],
+  "tasks": [
+    {
+      "id": "Task 1.1",
+      "description": "Triển khai trình tải plugin marketplace",
+      "effort_hours": 6,
+      "owner": "Coder",
+      "operations": [
+        "NEW"
+      ],
+      "files": [
+        "skills/workflow-runtime/scripts/marketplace.py"
+      ]
+    },
+    {
+      "id": "Task 1.2",
+      "description": "Xây dựng trình quét chữ ký số gói Skill",
+      "effort_hours": 4,
+      "owner": "Coder",
+      "operations": [
+        "NEW"
+      ],
+      "files": [
+        "skills/workflow-runtime/scripts/marketplace.py"
+      ]
+    }
+  ],
+  "dependencies": {
+    "Task 1.2": [
+      "Task 1.1"
+    ]
+  },
+  "parallel_groups": [],
+  "exit_criteria": [
+    "Cài đặt và nạp động Skill đã ký số thành công",
+    "Chặn thành công cài đặt các Skill không hợp lệ"
+  ],
+  "rollback": {
+    "trigger": "Lỗi nạp động gây crash runtime",
+    "steps": [
+      "Gỡ bỏ thư mục Skill vừa tải và khởi động lại"
+    ]
+  },
+  "tests": [
+    {
+      "test_target": "tests/test_marketplace.py",
+      "mapped_tasks": [
+        "Task 1.1"
+      ]
+    }
+  ],
+  "artifacts": [
+    "docs/designs/FEAT-107_marketplace_blueprint.md"
+  ]
+}

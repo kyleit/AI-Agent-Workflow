@@ -1,0 +1,46 @@
+{
+  "phases": [
+    {
+      "phase_name": "Phase 1: Cloud Control Plane REST Setup",
+      "tasks": [
+        "Task 1.1",
+        "Task 1.2"
+      ],
+      "deliverables": [
+        "REST Node status endpoint"
+      ],
+      "milestones": [
+        "Endpoint responding successfully"
+      ]
+    }
+  ],
+  "tasks": [
+    {
+      "id": "Task 1.1",
+      "description": "Implement REST API for Node Status",
+      "effort_hours": 8,
+      "owner": "Coder",
+      "operations": [
+        "NEW"
+      ],
+      "files": [
+        "sources/cloud/control_plane/api.py"
+      ]
+    }
+  ],
+  "dependencies": {},
+  "parallel_groups": [],
+  "exit_criteria": [
+    "Endpoint responding successfully"
+  ],
+  "rollback": {
+    "trigger": "REST API returns 500 error",
+    "steps": [
+      "git checkout HEAD -- sources/cloud/control_plane/"
+    ]
+  },
+  "tests": [],
+  "artifacts": [
+    "docs/designs/cloud/FEAT-201_cloud_control_plane_blueprint.md"
+  ]
+}

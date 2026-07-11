@@ -1,0 +1,71 @@
+{
+  "phases": [
+    {
+      "phase_name": "Phase 1: Dynamic Model Routing",
+      "tasks": [
+        "Task 1.1",
+        "Task 1.2"
+      ],
+      "deliverables": [
+        "Task complexity router",
+        "Token usage dynamic tracker"
+      ],
+      "milestones": [
+        "M1: Cost Optimizer Operational"
+      ]
+    }
+  ],
+  "tasks": [
+    {
+      "id": "Task 1.1",
+      "description": "Triển khai trình tính toán định tuyến model_router",
+      "effort_hours": 6,
+      "owner": "Coder",
+      "operations": [
+        "NEW"
+      ],
+      "files": [
+        "skills/workflow-runtime/scripts/cost_optimizer.py"
+      ]
+    },
+    {
+      "id": "Task 1.2",
+      "description": "Cơ chế theo dõi hạn mức chi tiêu cost_optimizer",
+      "effort_hours": 4,
+      "owner": "Coder",
+      "operations": [
+        "NEW"
+      ],
+      "files": [
+        "skills/workflow-runtime/scripts/cost_optimizer.py"
+      ]
+    }
+  ],
+  "dependencies": {
+    "Task 1.2": [
+      "Task 1.1"
+    ]
+  },
+  "parallel_groups": [],
+  "exit_criteria": [
+    "Định tuyến tác vụ đơn giản sang model chi phí thấp thành công",
+    "Ngắt kết nối API khi ngân sách vượt hạn mức"
+  ],
+  "rollback": {
+    "trigger": "Lỗi định tuyến sai dẫn đến crash loop",
+    "steps": [
+      "Revert cost_optimizer.py"
+    ]
+  },
+  "tests": [
+    {
+      "test_target": "tests/test_cost_optimizer.py",
+      "mapped_tasks": [
+        "Task 1.1"
+      ]
+    }
+  ],
+  "artifacts": [
+    "docs/designs/FEAT-108_cost_optimizer_blueprint.md"
+  ]
+}

@@ -1,0 +1,71 @@
+{
+  "phases": [
+    {
+      "phase_name": "Phase 1: Interception & Gatekeeper",
+      "tasks": [
+        "Task 1.1",
+        "Task 1.2"
+      ],
+      "deliverables": [
+        "Command validator",
+        "Approval policy matcher"
+      ],
+      "milestones": [
+        "M1: Safety Policies Operational"
+      ]
+    }
+  ],
+  "tasks": [
+    {
+      "id": "Task 1.1",
+      "description": "Triển khai lớp lọc câu lệnh tĩnh CommandValidator",
+      "effort_hours": 6,
+      "owner": "Architect",
+      "operations": [
+        "NEW"
+      ],
+      "files": [
+        "skills/workflow-runtime/scripts/command_validator.py"
+      ]
+    },
+    {
+      "id": "Task 1.2",
+      "description": "Xây dựng nhân PolicyEnforcementEngine",
+      "effort_hours": 6,
+      "owner": "Coder",
+      "operations": [
+        "NEW"
+      ],
+      "files": [
+        "skills/workflow-runtime/scripts/policy_engine.py"
+      ]
+    }
+  ],
+  "dependencies": {
+    "Task 1.2": [
+      "Task 1.1"
+    ]
+  },
+  "parallel_groups": [],
+  "exit_criteria": [
+    "Chặn thành công các đường dẫn tuyệt đối ngoài workspace",
+    "Bảo vệ thành công các nhánh nhạy cảm Git"
+  ],
+  "rollback": {
+    "trigger": "Lỗi chặn nhầm các lệnh an toàn",
+    "steps": [
+      "Revert policy_engine.py"
+    ]
+  },
+  "tests": [
+    {
+      "test_target": "tests/test_policy_engine.py",
+      "mapped_tasks": [
+        "Task 1.2"
+      ]
+    }
+  ],
+  "artifacts": [
+    "docs/designs/FEAT-091_policy_approval_safety_runtime_blueprint.md"
+  ]
+}

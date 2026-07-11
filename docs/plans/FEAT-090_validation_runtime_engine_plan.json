@@ -1,0 +1,71 @@
+{
+  "phases": [
+    {
+      "phase_name": "Phase 1: AC Verification",
+      "tasks": [
+        "Task 1.1",
+        "Task 1.2"
+      ],
+      "deliverables": [
+        "Validation Engine core",
+        "AC compliance mapper"
+      ],
+      "milestones": [
+        "M1: Quality Gate Verification Ready"
+      ]
+    }
+  ],
+  "tasks": [
+    {
+      "id": "Task 1.1",
+      "description": "Triển khai logic xác minh chất lượng ValidationEngine",
+      "effort_hours": 6,
+      "owner": "Coder",
+      "operations": [
+        "NEW"
+      ],
+      "files": [
+        "skills/workflow-runtime/scripts/validation_engine.py"
+      ]
+    },
+    {
+      "id": "Task 1.2",
+      "description": "Xây dựng trình tổng hợp và ký chứng cứ EvidenceBundler",
+      "effort_hours": 4,
+      "owner": "Coder",
+      "operations": [
+        "NEW"
+      ],
+      "files": [
+        "skills/workflow-runtime/scripts/evidence_bundler.py"
+      ]
+    }
+  ],
+  "dependencies": {
+    "Task 1.2": [
+      "Task 1.1"
+    ]
+  },
+  "parallel_groups": [],
+  "exit_criteria": [
+    "Chốt chặn promote hoạt động chính xác khi có lỗi test",
+    "Báo cáo evidence JSON đúng định dạng"
+  ],
+  "rollback": {
+    "trigger": "Lỗi treo luồng kiểm thử",
+    "steps": [
+      "Revert validation_engine.py"
+    ]
+  },
+  "tests": [
+    {
+      "test_target": "tests/test_validation_engine.py",
+      "mapped_tasks": [
+        "Task 1.1"
+      ]
+    }
+  ],
+  "artifacts": [
+    "docs/designs/FEAT-090_validation_runtime_engine_blueprint.md"
+  ]
+}

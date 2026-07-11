@@ -1,0 +1,71 @@
+{
+  "phases": [
+    {
+      "phase_name": "Phase 1: Event Journal Storage",
+      "tasks": [
+        "Task 1.1",
+        "Task 1.2"
+      ],
+      "deliverables": [
+        "Async SQLite logger",
+        "JSONL file backup log"
+      ],
+      "milestones": [
+        "M1: Journal Logging Ready"
+      ]
+    }
+  ],
+  "tasks": [
+    {
+      "id": "Task 1.1",
+      "description": "Xây dựng Event Journal hỗ trợ ghi bất đối xứng",
+      "effort_hours": 6,
+      "owner": "Coder",
+      "operations": [
+        "NEW"
+      ],
+      "files": [
+        "skills/workflow-runtime/scripts/journal.py"
+      ]
+    },
+    {
+      "id": "Task 1.2",
+      "description": "Cấu hình SQLite WAL mode và thread an toàn",
+      "effort_hours": 4,
+      "owner": "Coder",
+      "operations": [
+        "MODIFY"
+      ],
+      "files": [
+        "skills/workflow-runtime/scripts/db.py"
+      ]
+    }
+  ],
+  "dependencies": {
+    "Task 1.2": [
+      "Task 1.1"
+    ]
+  },
+  "parallel_groups": [],
+  "exit_criteria": [
+    "Tốc độ ghi log sự kiện dưới 5ms",
+    "Khôi phục dữ liệu SQLite từ JSONL thành công"
+  ],
+  "rollback": {
+    "trigger": "Tranh chấp ghi SQLite lock",
+    "steps": [
+      "Revert thay đổi WAL mode ở db.py"
+    ]
+  },
+  "tests": [
+    {
+      "test_target": "tests/test_event_journal.py",
+      "mapped_tasks": [
+        "Task 1.1"
+      ]
+    }
+  ],
+  "artifacts": [
+    "docs/designs/FEAT-089_runtime_infrastructure_observability_blueprint.md"
+  ]
+}

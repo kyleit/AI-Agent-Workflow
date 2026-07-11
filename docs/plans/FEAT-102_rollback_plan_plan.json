@@ -1,0 +1,71 @@
+{
+  "phases": [
+    {
+      "phase_name": "Phase 1: Workspace Undo Transaction",
+      "tasks": [
+        "Task 1.1",
+        "Task 1.2"
+      ],
+      "deliverables": [
+        "Transaction coordinator core",
+        "Git stash recovery controller"
+      ],
+      "milestones": [
+        "M1: Rollback Engine Ready"
+      ]
+    }
+  ],
+  "tasks": [
+    {
+      "id": "Task 1.1",
+      "description": "Xây dựng TransactionManager điều khiển rollback 3 lớp",
+      "effort_hours": 6,
+      "owner": "Coder",
+      "operations": [
+        "NEW"
+      ],
+      "files": [
+        "skills/workflow-runtime/scripts/transaction.py"
+      ]
+    },
+    {
+      "id": "Task 1.2",
+      "description": "Tích hợp logic Git stash và backup SQLite",
+      "effort_hours": 4,
+      "owner": "Coder",
+      "operations": [
+        "NEW"
+      ],
+      "files": [
+        "skills/workflow-runtime/scripts/transaction.py"
+      ]
+    }
+  ],
+  "dependencies": {
+    "Task 1.2": [
+      "Task 1.1"
+    ]
+  },
+  "parallel_groups": [],
+  "exit_criteria": [
+    "Khôi phục Git về trạng thái sạch thành công khi test lỗi",
+    "Không phát hiện dữ liệu file corrupt"
+  ],
+  "rollback": {
+    "trigger": "Lỗi rollback làm bẩn Git tree",
+    "steps": [
+      "Revert transaction.py"
+    ]
+  },
+  "tests": [
+    {
+      "test_target": "tests/test_transaction.py",
+      "mapped_tasks": [
+        "Task 1.1"
+      ]
+    }
+  ],
+  "artifacts": [
+    "docs/designs/FEAT-102_rollback_blueprint.md"
+  ]
+}

@@ -1,0 +1,71 @@
+{
+  "phases": [
+    {
+      "phase_name": "Phase 1: Graph DB Representation",
+      "tasks": [
+        "Task 1.1",
+        "Task 1.2"
+      ],
+      "deliverables": [
+        "Knowledge Graph DB core",
+        "Workspace semantic indexer"
+      ],
+      "milestones": [
+        "M1: Knowledge Graph Queryable"
+      ]
+    }
+  ],
+  "tasks": [
+    {
+      "id": "Task 1.1",
+      "description": "Thiết kế cơ sở dữ liệu đồ thị tri thức KGraph",
+      "effort_hours": 6,
+      "owner": "Coder",
+      "operations": [
+        "NEW"
+      ],
+      "files": [
+        "skills/workflow-runtime/scripts/kgraph.py"
+      ]
+    },
+    {
+      "id": "Task 1.2",
+      "description": "Triển khai trình ánh xạ liên kết chéo mã nguồn",
+      "effort_hours": 6,
+      "owner": "Coder",
+      "operations": [
+        "NEW"
+      ],
+      "files": [
+        "skills/workflow-runtime/scripts/kgraph.py"
+      ]
+    }
+  ],
+  "dependencies": {
+    "Task 1.2": [
+      "Task 1.1"
+    ]
+  },
+  "parallel_groups": [],
+  "exit_criteria": [
+    "Lọc các liên kết hàm phụ thuộc sâu 3 cấp độ dưới 30ms",
+    "Không ghi trùng lặp các cạnh đồ thị cũ"
+  ],
+  "rollback": {
+    "trigger": "Lỗi phình to cơ sở dữ liệu quan hệ",
+    "steps": [
+      "Revert kgraph.py"
+    ]
+  },
+  "tests": [
+    {
+      "test_target": "tests/test_kgraph.py",
+      "mapped_tasks": [
+        "Task 1.1"
+      ]
+    }
+  ],
+  "artifacts": [
+    "docs/designs/FEAT-106_knowledge_graph_blueprint.md"
+  ]
+}

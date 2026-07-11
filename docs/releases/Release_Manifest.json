@@ -1,0 +1,27 @@
+{
+  "version": "1.0.0",
+  "release_date": "2026-07-12",
+  "semantic": true,
+  "features": [
+    "FEAT-086",
+    "FEAT-087",
+    "FEAT-088",
+    "FEAT-089",
+    "FEAT-090",
+    "FEAT-091",
+    "FEAT-092",
+    "FEAT-098",
+    "FEAT-099",
+    "FEAT-100",
+    "FEAT-101",
+    "FEAT-102",
+    "FEAT-103",
+    "FEAT-104",
+    "FEAT-105",
+    "FEAT-106",
+    "FEAT-107",
+    "FEAT-108"
+  ],
+  "dependencies": {},
+  "license": "MIT"
+}
