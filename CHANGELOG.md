@@ -13,6 +13,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   - Tạo tệp entry-point chính thức `skills/vir-runtime/scripts/vir.py` hỗ trợ chạy CLI đa nền tảng và phân giải import tương đối an toàn.
   - Tích hợp điều phối pha VIR Visual QA vào workflow orchestrator trung tâm `skills/software-development-workflow/SKILL.md`.
   - Đăng ký và đồng bộ các Skill mới (`vir-runtime`, `vir-investigate`, `vir-verify`, `vir-memory-update`) trong manifest và catalogs (`MANIFEST.json`, `SKILLS.md`).
+  - Triển khai quy trình tự động hóa xuất bản thông qua lệnh **`make publish-github`** để đồng bộ hóa mã nguồn sang GitLab/GitHub và cập nhật liên kết submodule **`public_export`** của dự án cha.
 
 ## [6.7.0] - 2026-07-11
 
