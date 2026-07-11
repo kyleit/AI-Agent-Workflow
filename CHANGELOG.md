@@ -5,6 +5,14 @@ All notable changes to this project will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [6.6.2] - 2026-07-11
+
+### Fixed
+- **FIX-026: Add bootstrap, init, and test Commands to AIWF CLI Wrapper**:
+  - Bổ sung các lệnh con `bootstrap`, `init`, và `test` vào PowerShell wrapper CLI toàn cục (`bootstrap.ps1`).
+  - Hỗ trợ gọi trực tiếp trình cài đặt môi trường (`aiwf bootstrap`), khởi tạo phiên làm việc mới (`aiwf init`) và chạy bộ kiểm thử/xác thực tĩnh (`aiwf test [args...]`).
+  - Cập nhật tài liệu hướng dẫn nhanh Show-Help trong wrapper CLI.
+
 ## [6.6.1] - 2026-07-11
 
 ### Added

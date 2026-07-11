@@ -51,6 +51,9 @@ function Show-Help {
     Write-Host "  registry     Manage centralized global project registry"
     Write-Host "  provider     Manage external knowledge providers (sync, list, config)"
     Write-Host "  sync         Sync project memory/documentation to external providers (e.g. Obsidian)"
+    Write-Host "  bootstrap    Run framework environment bootstrap installer"
+    Write-Host "  init         Initialize a new clean active workflow session"
+    Write-Host "  test         Execute test validate, smoke, or affected tests"
     Write-Host "  help         Show this help message"
 }
 
@@ -60,6 +63,15 @@ if ([string]::IsNullOrEmpty(`$Command)) {
 }
 
 switch (`$Command) {
+    "bootstrap" {
+        & (Join-Path `$FrameworkRoot "bootstrap.ps1") @args
+    }
+    "init" {
+        python (Join-Path `$FrameworkRoot "skills/workflow-runtime/scripts/workflow_runtime.py") init @args
+    }
+    "test" {
+        python (Join-Path `$FrameworkRoot "skills/workflow-runtime/scripts/workflow_runtime.py") test @args
+    }
     "install" {
         & (Join-Path `$FrameworkRoot "install.ps1") @args
     }
