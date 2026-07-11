@@ -1,0 +1,197 @@
+{
+  "modules": [
+    {
+      "name": "vir_runtime.memory.baselines",
+      "classes": [
+        {
+          "class_name": "BaselineManager",
+          "responsibilities": [
+            "Store and query visual baselines by feature routes and breakpoints",
+            "Classify regression states ratios and enforce verification blocks"
+          ],
+          "methods": [
+            {
+              "name": "get_active_baseline",
+              "parameters": [
+                {
+                  "name": "feature_id",
+                  "type": "str"
+                },
+                {
+                  "name": "route",
+                  "type": "str"
+                },
+                {
+                  "name": "viewport",
+                  "type": "str"
+                }
+              ],
+              "return_type": "Optional[bytes]"
+            },
+            {
+              "name": "check_regression",
+              "parameters": [
+                {
+                  "name": "current_png",
+                  "type": "bytes"
+                },
+                {
+                  "name": "baseline_png",
+                  "type": "bytes"
+                }
+              ],
+              "return_type": "str"
+            },
+            {
+              "name": "promote_new_baseline",
+              "parameters": [
+                {
+                  "name": "feature_id",
+                  "type": "str"
+                },
+                {
+                  "name": "route",
+                  "type": "str"
+                },
+                {
+                  "name": "viewport",
+                  "type": "str"
+                },
+                {
+                  "name": "data",
+                  "type": "bytes"
+                }
+              ],
+              "return_type": "None"
+            }
+          ],
+          "lifecycle": "Persistent during active investigation session",
+          "state_ownership": "None"
+        }
+      ]
+    },
+    {
+      "name": "vir_runtime.memory.learning",
+      "classes": [
+        {
+          "class_name": "LearningEngine",
+          "responsibilities": [
+            "Extract session LearningOutcome dataclass variables structures",
+            "Store vector embeddings mappings inside Qdrant database collections"
+          ],
+          "methods": [
+            {
+              "name": "process_investigation_close",
+              "parameters": [
+                {
+                  "name": "session_details",
+                  "type": "Dict[str, Any]"
+                }
+              ],
+              "return_type": "None"
+            }
+          ],
+          "lifecycle": "Transient end of session processor",
+          "state_ownership": "None"
+        }
+      ]
+    }
+  ],
+  "configuration": {
+    "schema": {
+      "type": "object",
+      "properties": {
+        "max_auto_update_diff_percent": { "type": "number" },
+        "require_human_gate_diff_percent": { "type": "number" }
+      }
+    },
+    "defaults": {
+      "max_auto_update_diff_percent": 5.0,
+      "require_human_gate_diff_percent": 30.0
+    }
+  },
+  "database": {
+    "tables": [
+      {
+        "table_name": "vir_baselines",
+        "columns": [
+          "baseline_id TEXT PRIMARY KEY",
+          "feature_id TEXT",
+          "page_route TEXT",
+          "viewport TEXT",
+          "git_commit TEXT",
+          "file_path TEXT",
+          "updated_at TEXT"
+        ]
+      }
+    ],
+    "growth_estimation": "Under 50MB per 100 screenshots. Medium storage growth.",
+    "maintenance_strategy": "Archive baseline rows matching deleted features."
+  },
+  "cache": {
+    "keys": [
+      {
+        "key_format": "dom_fingerprint:{hash}",
+        "description": "Cache page layout DOM fingerprint status"
+      }
+    ],
+    "ttl_seconds": 600,
+    "invalidation_rules": [
+      "Cache invalidated when viewport layout mutates"
+    ]
+  },
+  "errors": [
+    {
+      "exception_class": "BaselineUpdateBlockedError",
+      "trigger": "New baseline difference exceeds 30% without human confirmation",
+      "recovery": "Halt automatic promotions, warn user and block PASS gate status"
+    }
+  ],
+  "sequence_flows": [
+    {
+      "flow_name": "Continuous Learning Loop",
+      "steps": [
+        "LearningEngine packages resolved session logs",
+        "Outcome embedding generated and stored in Qdrant collection",
+        "Obsidian markdown reports created in database memory paths"
+      ]
+    }
+  ],
+  "integration_contracts": [],
+  "cli_contracts": [],
+  "implementation_contracts": [
+    {
+      "file_path": "vir_runtime/memory/learning.py",
+      "owner": "Coder",
+      "notes": "Verify outcomes embedder triggers warning instead of crashing on timeout errors"
+    }
+  ],
+  "implementation_packages": [
+    {
+      "task_id": "Task 1.11",
+      "module": "vir_runtime.memory.baselines",
+      "read_set": [],
+      "write_set": ["vir_runtime/memory/baselines.py"],
+      "dependencies": [],
+      "implementation_notes": "Implement visual baseline management",
+      "verification": "test_baseline_versions.py unit tests",
+      "rollback": "Revert baseline updates",
+      "expected_outputs": ["vir_runtime/memory/baselines.py"]
+    }
+  ],
+  "tests": [
+    {
+      "requirement_id": "FR-11",
+      "test_type": "Unit Test",
+      "target_file": "tests/unit/test_baseline_versions.py"
+    }
+  ],
+  "traceability": [
+    {
+      "req_id": "FR-11",
+      "task_id": "Task 1.11",
+      "target": "BaselineManager"
+    }
+  ],
+  "artifacts": []
+}

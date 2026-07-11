@@ -1,0 +1,134 @@
+{
+  "modules": [
+    {
+      "name": "vir_runtime.cognitive.pipeline",
+      "classes": [
+        {
+          "class_name": "ThinkingPipeline",
+          "responsibilities": [
+            "Orchestrate execution across the 11 pipeline stages sequentially",
+            "Enforce stage timeouts and maximum rethink loops counters"
+          ],
+          "methods": [
+            {
+              "name": "start_pipeline",
+              "parameters": [],
+              "return_type": "str"
+            },
+            {
+              "name": "transition_to_blocked",
+              "parameters": [
+                {
+                  "name": "reason",
+                  "type": "str"
+                }
+              ],
+              "return_type": "None"
+            }
+          ],
+          "lifecycle": "Persistent during active investigation session",
+          "state_ownership": "Owns active stage index and loops counts states"
+        }
+      ]
+    },
+    {
+      "name": "vir_runtime.cognitive.rca",
+      "classes": [
+        {
+          "class_name": "RCAEngine",
+          "responsibilities": [
+            "Classify layout anomalies and errors into categorized root causes",
+            "Enforce minimum evidence counts rules before confirming verdicts"
+          ],
+          "methods": [],
+          "lifecycle": "Utility processor class",
+          "state_ownership": "None"
+        }
+      ]
+    }
+  ],
+  "configuration": {
+    "schema": {
+      "type": "object",
+      "properties": {
+        "max_rethink_loops": { "type": "integer" },
+        "stage_timeout_seconds": { "type": "integer" }
+      }
+    },
+    "defaults": {
+      "max_rethink_loops": 3,
+      "stage_timeout_seconds": 30
+    }
+  },
+  "database": {
+    "tables": [],
+    "growth_estimation": "No database columns created inside this module.",
+    "maintenance_strategy": "None"
+  },
+  "cache": {
+    "keys": [
+      {
+        "key_format": "stage_timestamp:{stage}",
+        "description": "Cache stage transition timestamps properties"
+      }
+    ],
+    "ttl_seconds": 300,
+    "invalidation_rules": [
+      "Cache cleared when active stage changes"
+    ]
+  },
+  "errors": [
+    {
+      "exception_class": "PipelineTimeoutError",
+      "trigger": "A stage blocks execution beyond stage timeout limit threshold parameters",
+      "recovery": "Execute graceful teardown and transition session status to BLOCKED"
+    }
+  ],
+  "sequence_flows": [
+    {
+      "flow_name": "Cognitive Pipeline Loop",
+      "steps": [
+        "ThinkingPipeline dispatches active stage execution",
+        "SelfDoubtEngine challenges single source findings results",
+        "RCAEngine maps confirmed contradictions to root causes definitions"
+      ]
+    }
+  ],
+  "integration_contracts": [],
+  "cli_contracts": [],
+  "implementation_contracts": [
+    {
+      "file_path": "vir_runtime/cognitive/pipeline.py",
+      "owner": "Coder",
+      "notes": "Verify loop bounds are validated before transition back steps"
+    }
+  ],
+  "implementation_packages": [
+    {
+      "task_id": "Task 1.3",
+      "module": "vir_runtime.cognitive.pipeline",
+      "read_set": [],
+      "write_set": ["vir_runtime/cognitive/pipeline.py"],
+      "dependencies": [],
+      "implementation_notes": "Implement rethink loop checkers",
+      "verification": "test_rethink_limits.py unit tests",
+      "rollback": "Revert pipeline code modifications",
+      "expected_outputs": ["vir_runtime/cognitive/pipeline.py"]
+    }
+  ],
+  "tests": [
+    {
+      "requirement_id": "FR-03",
+      "test_type": "Unit Test",
+      "target_file": "tests/unit/test_rethink_limits.py"
+    }
+  ],
+  "traceability": [
+    {
+      "req_id": "FR-03",
+      "task_id": "Task 1.3",
+      "target": "ThinkingPipeline"
+    }
+  ],
+  "artifacts": []
+}

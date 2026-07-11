@@ -1,0 +1,171 @@
+{
+  "modules": [
+    {
+      "name": "vir_runtime.adapters.base",
+      "classes": [
+        {
+          "class_name": "BrowserAdapter",
+          "responsibilities": [
+            "Define core browser automation interface Protocol signatures"
+          ],
+          "methods": [
+            {
+              "name": "open",
+              "parameters": [
+                {
+                  "name": "url",
+                  "type": "str"
+                }
+              ],
+              "return_type": "None"
+            },
+            {
+              "name": "capture_screenshot",
+              "parameters": [
+                {
+                  "name": "path",
+                  "type": "str"
+                }
+              ],
+              "return_type": "None"
+            },
+            {
+              "name": "get_dom_content",
+              "parameters": [],
+              "return_type": "str"
+            },
+            {
+              "name": "close",
+              "parameters": [],
+              "return_type": "None"
+            }
+          ],
+          "lifecycle": "Interface specifications definition",
+          "state_ownership": "None"
+        }
+      ]
+    },
+    {
+      "name": "vir_runtime.adapters.registry",
+      "classes": [
+        {
+          "class_name": "AdapterRegistry",
+          "responsibilities": [
+            "Dynamically load provider modules",
+            "Cache initialized adapter instances"
+          ],
+          "methods": [
+            {
+              "name": "register_adapter",
+              "parameters": [
+                {
+                  "name": "name",
+                  "type": "str"
+                },
+                {
+                  "name": "adapter_cls",
+                  "type": "Type[BrowserAdapter]"
+                }
+              ],
+              "return_type": "None"
+            },
+            {
+              "name": "get_adapter",
+              "parameters": [
+                {
+                  "name": "name",
+                  "type": "str"
+                }
+              ],
+              "return_type": "BrowserAdapter"
+            },
+            {
+              "name": "load_from_config",
+              "parameters": [],
+              "return_type": "None"
+            }
+          ],
+          "lifecycle": "Persistent during application lifetime",
+          "state_ownership": "Owns loaded instances cache maps"
+        }
+      ]
+    }
+  ],
+  "configuration": {
+    "schema": {
+      "type": "object",
+      "properties": {
+        "provider": { "type": "string" },
+        "headless": { "type": "boolean" }
+      }
+    },
+    "defaults": {
+      "provider": "playwright",
+      "headless": true
+    }
+  },
+  "database": {
+    "tables": [],
+    "growth_estimation": "RAM only. Under 1MB metadata.",
+    "maintenance_strategy": "None"
+  },
+  "cache": {
+    "keys": [],
+    "ttl_seconds": 0,
+    "invalidation_rules": []
+  },
+  "errors": [
+    {
+      "exception_class": "ProviderFallbackTriggered",
+      "trigger": "Playwright fails loading due to headless graphics library errors",
+      "recovery": "Gracefully fallback to DOM-only mock browser verification mode"
+    }
+  ],
+  "sequence_flows": [
+    {
+      "flow_name": "Dynamic Provider Loader",
+      "steps": [
+        "AdapterRegistry parses adapters.yaml configurations",
+        "Target module playwright.py loaded dynamically",
+        "PlaywrightAdapter instance returned to runtime core"
+      ]
+    }
+  ],
+  "integration_contracts": [],
+  "cli_contracts": [],
+  "implementation_contracts": [
+    {
+      "file_path": "vir_runtime/adapters/registry.py",
+      "owner": "Coder",
+      "notes": "Verify absolute paths are rejected by import checks"
+    }
+  ],
+  "implementation_packages": [
+    {
+      "task_id": "Task 1.1",
+      "module": "vir_runtime.adapters.registry",
+      "read_set": [],
+      "write_set": ["vir_runtime/adapters/registry.py"],
+      "dependencies": [],
+      "implementation_notes": "Implement dynamic loader logic",
+      "verification": "test_adapter_registry.py verification tests",
+      "rollback": "Revert registry code mutations",
+      "expected_outputs": ["vir_runtime/adapters/registry.py"]
+    }
+  ],
+  "tests": [
+    {
+      "requirement_id": "FR-01",
+      "test_type": "Unit Test",
+      "target_file": "tests/unit/test_adapter_registry.py"
+    }
+  ],
+  "traceability": [
+    {
+      "req_id": "FR-01",
+      "task_id": "Task 1.1",
+      "target": "BrowserAdapter"
+    }
+  ],
+  "artifacts": []
+}

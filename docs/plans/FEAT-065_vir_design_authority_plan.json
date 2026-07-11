@@ -1,0 +1,188 @@
+{
+  "phases": [
+    {
+      "phase_name": "Phase 1: Design Knowledge Base Schema & Veto Agent",
+      "tasks": ["Task 1.1", "Task 1.2", "Task 1.3", "Task 1.4", "Task 1.5", "Task 1.6", "Task 1.7", "Task 1.8", "Task 1.9", "Task 1.10"],
+      "deliverables": ["YAML design rules schema", "Design token variables mappings", "Python query helper class", "Design findings dataclass", "Veto logic validator"],
+      "milestones": ["Zero hardcoded design values in agents checked", "Design Authority Agent registered domain=design", "Veto triggers successfully on MUST violations", "Advisory WARNs execute on SHOULD violations"]
+    },
+    {
+      "phase_name": "Phase 2: Version Pinning & Custom Overrides",
+      "tasks": ["Task 2.1", "Task 2.2", "Task 2.3", "Task 2.4", "Task 2.5"],
+      "deliverables": ["Pinning version selectors", "Anti-pattern screenshots directory", "Project level YAML rules overrides loader", "Skill rules updates generator"],
+      "milestones": ["Custom local YAML overrides loaded without core modifications", "VLM outputs mapped to design tokens scales"]
+    }
+  ],
+  "tasks": [
+    {
+      "id": "Task 1.1",
+      "description": "Model and define YAML schemas for Design Knowledge Base rules",
+      "effort_hours": 6,
+      "owner": "Architect",
+      "operations": ["NEW"],
+      "files": [".agents/visual-runtime/design-kb/rules.yaml"]
+    },
+    {
+      "id": "Task 1.2",
+      "description": "Implement search query filters by component and design categories",
+      "effort_hours": 6,
+      "owner": "Coder",
+      "operations": ["NEW"],
+      "files": ["vir_runtime/design/kb.py"]
+    },
+    {
+      "id": "Task 1.3",
+      "description": "Map design token variables (spacing, typography, hex colors)",
+      "effort_hours": 4,
+      "owner": "Coder",
+      "operations": ["NEW"],
+      "files": [".agents/visual-runtime/design-kb/tokens.json"]
+    },
+    {
+      "id": "Task 1.4",
+      "description": "Expose REST-like Python helper class for internal DB lookups",
+      "effort_hours": 6,
+      "owner": "Coder",
+      "operations": ["NEW"],
+      "files": ["vir_runtime/design/kb.py"]
+    },
+    {
+      "id": "Task 1.5",
+      "description": "Audit codebase verifying zero hardcoded px or hex values in agents",
+      "effort_hours": 6,
+      "owner": "Verifier",
+      "operations": ["NEW"],
+      "files": ["vir_runtime/design/kb.py"]
+    },
+    {
+      "id": "Task 1.6",
+      "description": "Register Design Authority Agent contract and veto domains",
+      "effort_hours": 6,
+      "owner": "Architect",
+      "operations": ["NEW"],
+      "files": ["vir_runtime/design/agent.py"]
+    },
+    {
+      "id": "Task 1.7",
+      "description": "Bind VLM output reports as inputs for agent evaluations",
+      "effort_hours": 6,
+      "owner": "Coder",
+      "operations": ["NEW"],
+      "files": ["vir_runtime/design/agent.py"]
+    },
+    {
+      "id": "Task 1.8",
+      "description": "Define structural DesignFinding Evidence subtype model fields",
+      "effort_hours": 4,
+      "owner": "Architect",
+      "operations": ["NEW"],
+      "files": ["vir_runtime/domain/design_finding.py"]
+    },
+    {
+      "id": "Task 1.9",
+      "description": "Enforce VETO outputs on MUST token/WCAG rules failure",
+      "effort_hours": 6,
+      "owner": "Verifier",
+      "operations": ["NEW"],
+      "files": ["vir_runtime/design/veto.py"]
+    },
+    {
+      "id": "Task 1.10",
+      "description": "Enforce advisory-only WARN markings on SHOULD violations",
+      "effort_hours": 4,
+      "owner": "Verifier",
+      "operations": ["NEW"],
+      "files": ["vir_runtime/design/veto.py"]
+    },
+    {
+      "id": "Task 2.1",
+      "description": "Implement design system pinning version selectors",
+      "effort_hours": 4,
+      "owner": "Coder",
+      "operations": ["NEW"],
+      "files": ["vir_runtime/design/kb.py"]
+    },
+    {
+      "id": "Task 2.2",
+      "description": "Build Pattern Library positive/negative ref screenshot catalogs",
+      "effort_hours": 8,
+      "owner": "Documentation",
+      "operations": ["NEW"],
+      "files": [".agents/visual-runtime/design-kb/patterns/"]
+    },
+    {
+      "id": "Task 2.3",
+      "description": "Support project-level overrides YAML rule extension loaders",
+      "effort_hours": 6,
+      "owner": "Coder",
+      "operations": ["NEW"],
+      "files": ["vir_runtime/design/overrides.py"]
+    },
+    {
+      "id": "Task 2.4",
+      "description": "Parse Layer 4 semantic observations comparing with Design KB rules",
+      "effort_hours": 8,
+      "owner": "Coder",
+      "operations": ["NEW"],
+      "files": ["vir_runtime/design/agent.py"]
+    },
+    {
+      "id": "Task 2.5",
+      "description": "Implement proposal workflow updates targeting frontend-design",
+      "effort_hours": 6,
+      "owner": "Coder",
+      "operations": ["NEW"],
+      "files": ["vir_runtime/design/agent.py"]
+    }
+  ],
+  "dependencies": {
+    "Task 1.3": ["Task 1.1"],
+    "Task 1.4": ["Task 1.2"],
+    "Task 1.7": ["Task 1.6"],
+    "Task 1.9": ["Task 1.6"],
+    "Task 1.10": ["Task 1.6"],
+    "Task 2.3": ["Task 1.1"],
+    "Task 2.4": ["Task 2.3"]
+  },
+  "parallel_groups": [
+    ["Task 1.3", "Task 1.5"],
+    ["Task 1.7", "Task 1.8", "Task 1.10"],
+    ["Task 2.1", "Task 2.3"],
+    ["Task 2.2", "Task 2.5"]
+  ],
+  "exit_criteria": [
+    "YAML queries from KB return rules schema validation passes",
+    "MUST violations block PASS execution flows",
+    "Custom YAML override overrides loaded at bootstrap successfully",
+    "Codebase scan checks zero hardcoded visual rules violations"
+  ],
+  "rollback": {
+    "trigger": "Veto false-positives block release pipeline builds",
+    "steps": [
+      "Demote custom validation checks severity level down to SHOULD in rules.yaml",
+      "Revert local overrides configurations settings to default values"
+    ]
+  },
+  "tests": [
+    {
+      "test_target": "tests/unit/test_kb_queries.py",
+      "mapped_tasks": ["Task 1.4"]
+    },
+    {
+      "test_target": "tests/unit/test_design_veto.py",
+      "mapped_tasks": ["Task 1.9"]
+    },
+    {
+      "test_target": "tests/unit/test_design_advisory.py",
+      "mapped_tasks": ["Task 1.10"]
+    },
+    {
+      "test_target": "tests/integration/test_token_validation.py",
+      "mapped_tasks": ["Task 2.4"]
+    }
+  ],
+  "artifacts": [
+    "docs/designs/FEAT-065_vir_design_authority_blueprint.md",
+    ".agents/visual-runtime/design-kb/rules.yaml"
+  ]
+}

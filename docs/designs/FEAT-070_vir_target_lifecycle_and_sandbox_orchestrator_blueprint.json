@@ -1,0 +1,137 @@
+{
+  "modules": [
+    {
+      "name": "vir_runtime.sandbox.ports",
+      "classes": [
+        {
+          "class_name": "PortManager",
+          "responsibilities": [
+            "Find free localhost ports using standard socket binds"
+          ],
+          "methods": [
+            {
+              "name": "find_available_port",
+              "parameters": [],
+              "return_type": "int"
+            },
+            {
+              "name": "is_port_in_use",
+              "parameters": [
+                {
+                  "name": "port",
+                  "type": "int"
+                }
+              ],
+              "return_type": "bool"
+            }
+          ],
+          "lifecycle": "Transient socket binder utility",
+          "state_ownership": "None"
+        }
+      ]
+    },
+    {
+      "name": "vir_runtime.sandbox.process",
+      "classes": [
+        {
+          "class_name": "WindowsProcessManager",
+          "responsibilities": [
+            "Traverse child subprocesses recursively",
+            "Force clean parent-child process groups on Windows OS"
+          ],
+          "methods": [
+            {
+              "name": "terminate_process_tree",
+              "parameters": [
+                {
+                  "name": "pid",
+                  "type": "int"
+                }
+              ],
+              "return_type": "None"
+            }
+          ],
+          "lifecycle": "Utility process supervisor class",
+          "state_ownership": "None"
+        }
+      ]
+    }
+  ],
+  "configuration": {
+    "schema": {
+      "type": "object",
+      "properties": {
+        "build_command": { "type": "string" },
+        "startup_timeout_seconds": { "type": "integer" }
+      }
+    },
+    "defaults": {
+      "build_command": "npm run build",
+      "startup_timeout_seconds": 30
+    }
+  },
+  "database": {
+    "tables": [],
+    "growth_estimation": "No disk storage allocated.",
+    "maintenance_strategy": "None"
+  },
+  "cache": {
+    "keys": [],
+    "ttl_seconds": 0,
+    "invalidation_rules": []
+  },
+  "errors": [
+    {
+      "exception_class": "TargetStartupTimeoutError",
+      "trigger": "Application starts successfully but fails HTTP response probes within timeout limit",
+      "recovery": "Execute process tree sweep cleanups and abort the run"
+    }
+  ],
+  "sequence_flows": [
+    {
+      "flow_name": "Sandbox Orchestration Setup",
+      "steps": [
+        "PortManager allocates open socket target",
+        "Subprocess executes build and dev commands",
+        "WindowsProcessManager sweeps process IDs on session end"
+      ]
+    }
+  ],
+  "integration_contracts": [],
+  "cli_contracts": [],
+  "implementation_contracts": [
+    {
+      "file_path": "vir_runtime/sandbox/process.py",
+      "owner": "Coder",
+      "notes": "Verify psutil returns empty lists without exceptions when pids do not exist"
+    }
+  ],
+  "implementation_packages": [
+    {
+      "task_id": "Task 1.4",
+      "module": "vir_runtime.sandbox.process",
+      "read_set": [],
+      "write_set": ["vir_runtime/sandbox/process.py"],
+      "dependencies": [],
+      "implementation_notes": "Implement process traversal cleanups",
+      "verification": "test_process_cleanups.py integration tests",
+      "rollback": "Revert process module mutations",
+      "expected_outputs": ["vir_runtime/sandbox/process.py"]
+    }
+  ],
+  "tests": [
+    {
+      "requirement_id": "FR-04",
+      "test_type": "Integration Test",
+      "target_file": "tests/integration/test_process_cleanups.py"
+    }
+  ],
+  "traceability": [
+    {
+      "req_id": "FR-04",
+      "task_id": "Task 1.4",
+      "target": "WindowsProcessManager"
+    }
+  ],
+  "artifacts": []
+}

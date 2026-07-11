@@ -1,0 +1,148 @@
+{
+  "modules": [
+    {
+      "name": "vir_runtime.mapper.scraper",
+      "classes": [
+        {
+          "class_name": "SourceLinker",
+          "responsibilities": [
+            "Inject framework metadata scraping queries into browser page contexts",
+            "Orchestrate sourcemaps resolution and candidates ranking operations"
+          ],
+          "methods": [
+            {
+              "name": "resolve_source_coordinates",
+              "parameters": [
+                {
+                  "name": "element_id",
+                  "type": "str"
+                }
+              ],
+              "return_type": "List[SourceCoordinate]"
+            }
+          ],
+          "lifecycle": "Transient execution utility",
+          "state_ownership": "None"
+        }
+      ]
+    },
+    {
+      "name": "vir_runtime.mapper.sourcemaps",
+      "classes": [
+        {
+          "class_name": "SourcemapResolver",
+          "responsibilities": [
+            "Load and parse local sourcemap configuration map files",
+            "Translate minified JS coordinate variables back to TS source lines"
+          ],
+          "methods": [
+            {
+              "name": "resolve_coordinates",
+              "parameters": [
+                {
+                  "name": "bundle_js_path",
+                  "type": "str"
+                },
+                {
+                  "name": "line",
+                  "type": "int"
+                },
+                {
+                  "name": "col",
+                  "type": "int"
+                }
+              ],
+              "return_type": "Optional[SourceCoordinate]"
+            }
+          ],
+          "lifecycle": "Persistent during active investigation session",
+          "state_ownership": "Owns loaded sourcemaps memory caches"
+        }
+      ]
+    }
+  ],
+  "configuration": {
+    "schema": {
+      "type": "object",
+      "properties": {
+        "enabled": { "type": "boolean" },
+        "block_node_modules": { "type": "boolean" }
+      }
+    },
+    "defaults": {
+      "enabled": true,
+      "block_node_modules": true
+    }
+  },
+  "database": {
+    "tables": [],
+    "growth_estimation": "No database columns created inside this module.",
+    "maintenance_strategy": "None"
+  },
+  "cache": {
+    "keys": [
+      {
+        "key_format": "parsed_sourcemaps_cache:{file}",
+        "description": "Cache parsed sourcemap payload objects"
+      }
+    ],
+    "ttl_seconds": 600,
+    "invalidation_rules": [
+      "Cache cleared on session termination"
+    ]
+  },
+  "errors": [
+    {
+      "exception_class": "SourceResolutionFailedError",
+      "trigger": "Sourcemap files are missing or corrupted on build folders",
+      "recovery": "Degrade to text grepper fallback resolving coordinate with lower confidence"
+    }
+  ],
+  "sequence_flows": [
+    {
+      "flow_name": "Source Coordinates Resolution",
+      "steps": [
+        "SourceLinker queries React fiber properties using Scraper",
+        "SourcemapResolver translates coordinates back to workspace files",
+        "ScopeGate checks paths bounds and filters out of bounds targets"
+      ]
+    }
+  ],
+  "integration_contracts": [],
+  "cli_contracts": [],
+  "implementation_contracts": [
+    {
+      "file_path": "vir_runtime/mapper/sourcemaps.py",
+      "owner": "Coder",
+      "notes": "Verify sourcemap parser handles column values safely without exceptions"
+    }
+  ],
+  "implementation_packages": [
+    {
+      "task_id": "Task 1.5",
+      "module": "vir_runtime.mapper.sourcemaps",
+      "read_set": [],
+      "write_set": ["vir_runtime/mapper/sourcemaps.py"],
+      "dependencies": [],
+      "implementation_notes": "Implement sourcemaps coordinate translation",
+      "verification": "test_sourcemap_resolver.py unit tests",
+      "rollback": "Revert sourcemap modifications",
+      "expected_outputs": ["vir_runtime/mapper/sourcemaps.py"]
+    }
+  ],
+  "tests": [
+    {
+      "requirement_id": "FR-06",
+      "test_type": "Unit Test",
+      "target_file": "tests/unit/test_sourcemap_resolver.py"
+    }
+  ],
+  "traceability": [
+    {
+      "req_id": "FR-06",
+      "task_id": "Task 1.5",
+      "target": "SourcemapResolver"
+    }
+  ],
+  "artifacts": []
+}

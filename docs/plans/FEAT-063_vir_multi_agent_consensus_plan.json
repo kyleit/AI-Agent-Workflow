@@ -1,0 +1,200 @@
+{
+  "phases": [
+    {
+      "phase_name": "Phase 1: Agent Registration Contracts & Consensus Engine",
+      "tasks": ["Task 1.1", "Task 1.2", "Task 1.3", "Task 1.4", "Task 1.5", "Task 1.6", "Task 1.7", "Task 1.8", "Task 1.9", "Task 1.10", "Task 1.11", "Task 1.12", "Task 1.13", "Task 1.14", "Task 1.15"],
+      "deliverables": ["Agent contract Protocol specifications", "Agent registry with validation checks", "Weighted consensus voter module", "Veto validator logic", "Message envelope mappings", "Timestamp staleness filters"],
+      "milestones": ["Registry checks agent contracts successfully", "Weighted domain voting calculations pass", "VETO triggers correctly when evidence is linked", "Stale messages older than 500ms are discarded"]
+    },
+    {
+      "phase_name": "Phase 2: 5-Layer Agent Memory",
+      "tasks": ["Task 2.1"],
+      "deliverables": ["5-layer agent memory model class"],
+      "milestones": ["Long-term agent memory persists to SQLite successfully"]
+    }
+  ],
+  "tasks": [
+    {
+      "id": "Task 1.1",
+      "description": "Model base Agent Contract requirements attributes",
+      "effort_hours": 6,
+      "owner": "Architect",
+      "operations": ["NEW"],
+      "files": ["vir_runtime/multi_agent/contract.py"]
+    },
+    {
+      "id": "Task 1.2",
+      "description": "Restrict inter-agent message exchanges to Event Bus only",
+      "effort_hours": 4,
+      "owner": "Verifier",
+      "operations": ["NEW"],
+      "files": ["vir_runtime/multi_agent/registry.py"]
+    },
+    {
+      "id": "Task 1.3",
+      "description": "Build runtime validation schema constraints for agent registers",
+      "effort_hours": 6,
+      "owner": "Coder",
+      "operations": ["MODIFY"],
+      "files": ["vir_runtime/multi_agent/registry.py"]
+    },
+    {
+      "id": "Task 1.4",
+      "description": "Define dynamic status transition phases for agent lifecycles",
+      "effort_hours": 4,
+      "owner": "Coder",
+      "operations": ["NEW"],
+      "files": ["vir_runtime/multi_agent/registry.py"]
+    },
+    {
+      "id": "Task 1.5",
+      "description": "Implement weighted authority consensus evaluation math",
+      "effort_hours": 10,
+      "owner": "Architect",
+      "operations": ["NEW"],
+      "files": ["vir_runtime/multi_agent/consensus.py"]
+    },
+    {
+      "id": "Task 1.6",
+      "description": "Map domain-specific authority weights mappings values",
+      "effort_hours": 4,
+      "owner": "Coder",
+      "operations": ["NEW"],
+      "files": ["vir_runtime/multi_agent/config.py"]
+    },
+    {
+      "id": "Task 1.7",
+      "description": "Support veto allocations checks within domain topics",
+      "effort_hours": 6,
+      "owner": "Verifier",
+      "operations": ["NEW"],
+      "files": ["vir_runtime/multi_agent/consensus.py"]
+    },
+    {
+      "id": "Task 1.8",
+      "description": "Enforce validation requiring >= 1 evidence for active VETOs",
+      "effort_hours": 6,
+      "owner": "Verifier",
+      "operations": ["NEW"],
+      "files": ["vir_runtime/multi_agent/consensus.py"]
+    },
+    {
+      "id": "Task 1.9",
+      "description": "Define PASS gate criteria (no vetoes, high confidence)",
+      "effort_hours": 6,
+      "owner": "Architect",
+      "operations": ["NEW"],
+      "files": ["vir_runtime/multi_agent/consensus.py"]
+    },
+    {
+      "id": "Task 1.10",
+      "description": "Model structured ConsensusRecord output dataclass fields",
+      "effort_hours": 4,
+      "owner": "Coder",
+      "operations": ["NEW"],
+      "files": ["vir_runtime/multi_agent/consensus.py"]
+    },
+    {
+      "id": "Task 1.11",
+      "description": "Load consensus confidence thresholds from system parameters",
+      "effort_hours": 4,
+      "owner": "Coder",
+      "operations": ["NEW"],
+      "files": ["vir_runtime/multi_agent/config.py"]
+    },
+    {
+      "id": "Task 1.12",
+      "description": "Publish final verdict outputs to vir.consensus.verdict",
+      "effort_hours": 4,
+      "owner": "Coder",
+      "operations": ["NEW"],
+      "files": ["vir_runtime/multi_agent/consensus.py"]
+    },
+    {
+      "id": "Task 1.13",
+      "description": "Model core message envelope metadata headers",
+      "effort_hours": 6,
+      "owner": "Architect",
+      "operations": ["NEW"],
+      "files": ["vir_runtime/multi_agent/protocol.py"]
+    },
+    {
+      "id": "Task 1.14",
+      "description": "Enforce strict classification rules for event types",
+      "effort_hours": 4,
+      "owner": "Coder",
+      "operations": ["NEW"],
+      "files": ["vir_runtime/multi_agent/protocol.py"]
+    },
+    {
+      "id": "Task 1.15",
+      "description": "Implement timestamps checks filtering out stale messages",
+      "effort_hours": 4,
+      "owner": "Verifier",
+      "operations": ["NEW"],
+      "files": ["vir_runtime/multi_agent/protocol.py"]
+    },
+    {
+      "id": "Task 2.1",
+      "description": "Implement the 5-layer Agent Memory model",
+      "effort_hours": 10,
+      "owner": "Coder",
+      "operations": ["NEW"],
+      "files": ["vir_runtime/multi_agent/memory.py"]
+    }
+  ],
+  "dependencies": {
+    "Task 1.3": ["Task 1.1"],
+    "Task 1.4": ["Task 1.3"],
+    "Task 1.5": ["Task 1.3"],
+    "Task 1.7": ["Task 1.5"],
+    "Task 1.8": ["Task 1.5"],
+    "Task 1.9": ["Task 1.5"],
+    "Task 1.10": ["Task 1.5"],
+    "Task 1.12": ["Task 1.5"],
+    "Task 1.14": ["Task 1.13"],
+    "Task 1.15": ["Task 1.13"],
+    "Task 2.1": ["Task 1.1"]
+  },
+  "parallel_groups": [
+    ["Task 1.2", "Task 1.4"],
+    ["Task 1.6", "Task 1.11", "Task 1.12"],
+    ["Task 1.13", "Task 1.14", "Task 1.15"],
+    ["Task 2.1"]
+  ],
+  "exit_criteria": [
+    "Mypy validation check on Agent Contracts Protocol passes",
+    "Expertise weighted votes execute successfully",
+    "Evidence-backed VETOs fail the PASS gate correctly",
+    "Older messages are discarded by timestamp filters"
+  ],
+  "rollback": {
+    "trigger": "Deadlocks inside Consensus voting loops halt orchestration runtime",
+    "steps": [
+      "Revert Consensus Engine code mutations",
+      "Configure static timeouts parameters to force defaults PASS/FAIL decisions when loops deadlock"
+    ]
+  },
+  "tests": [
+    {
+      "test_target": "tests/unit/test_agent_contracts.py",
+      "mapped_tasks": ["Task 1.3"]
+    },
+    {
+      "test_target": "tests/unit/test_weighted_consensus.py",
+      "mapped_tasks": ["Task 1.5"]
+    },
+    {
+      "test_target": "tests/unit/test_unsupported_veto.py",
+      "mapped_tasks": ["Task 1.8"]
+    },
+    {
+      "test_target": "tests/integration/test_agent_memory.py",
+      "mapped_tasks": ["Task 2.1"]
+    }
+  ],
+  "artifacts": [
+    "docs/designs/FEAT-063_vir_multi_agent_consensus_blueprint.md",
+    "vir_runtime/multi_agent/memory.py"
+  ]
+}

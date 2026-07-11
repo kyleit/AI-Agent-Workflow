@@ -1,0 +1,163 @@
+{
+  "modules": [
+    {
+      "name": "vir_runtime.twin.persistence",
+      "classes": [
+        {
+          "class_name": "DigitalTwinManager",
+          "responsibilities": [
+            "Synchronize application dimensions updates thread safely",
+            "Serialize twin status payloads into local SQLite databases"
+          ],
+          "methods": [
+            {
+              "name": "update_dimension",
+              "parameters": [
+                {
+                  "name": "dimension",
+                  "type": "str"
+                },
+                {
+                  "name": "value",
+                  "type": "Dict[str, Any]"
+                }
+              ],
+              "return_type": "None"
+            },
+            {
+              "name": "get_dimension_value",
+              "parameters": [
+                {
+                  "name": "dimension",
+                  "type": "str"
+                }
+              ],
+              "return_type": "Dict[str, Any]"
+            }
+          ],
+          "lifecycle": "Persistent during active investigation session",
+          "state_ownership": "Owns active dimension payload attributes states"
+        }
+      ]
+    },
+    {
+      "name": "vir_runtime.twin.consistency",
+      "classes": [
+        {
+          "class_name": "ConsistencyValidator",
+          "responsibilities": [
+            "Audit dimensions mappings details dynamically for anomalies",
+            "Generate Contradiction object arrays when inconsistencies occur"
+          ],
+          "methods": [
+            {
+              "name": "validate_consistency",
+              "parameters": [
+                {
+                  "name": "dimensions",
+                  "type": "Dict[str, Dict[str, Any]]"
+                }
+              ],
+              "return_type": "List[Contradiction]"
+            }
+          ],
+          "lifecycle": "Transient validation check orchestrator",
+          "state_ownership": "None"
+        }
+      ]
+    }
+  ],
+  "configuration": {
+    "schema": {
+      "type": "object",
+      "properties": {
+        "history_limit": { "type": "integer" },
+        "staleness_timeout_seconds": { "type": "integer" }
+      }
+    },
+    "defaults": {
+      "history_limit": 50,
+      "staleness_timeout_seconds": 30
+    }
+  },
+  "database": {
+    "tables": [
+      {
+        "table_name": "vir_digital_twin",
+        "columns": [
+          "dimension_name TEXT PRIMARY KEY",
+          "payload TEXT",
+          "updated_at TEXT"
+        ]
+      }
+    ],
+    "growth_estimation": "Under 5MB per test run session history logs.",
+    "maintenance_strategy": "Drop rows matching expired session UUIDs on new run runs."
+  },
+  "cache": {
+    "keys": [
+      {
+        "key_format": "latest_dimension_state:{dimension}",
+        "description": "Expose properties values inside RAM map"
+      }
+    ],
+    "ttl_seconds": 30,
+    "invalidation_rules": [
+      "Cache invalidated when new update event overrides properties values"
+    ]
+  },
+  "errors": [
+    {
+      "exception_class": "ContradictionDetectedError",
+      "trigger": "Consistency check asserts cross dimension conflict (e.g. auth status mismatch)",
+      "recovery": "Create contradiction evidence objects and post alerts on topic logs"
+    }
+  ],
+  "sequence_flows": [
+    {
+      "flow_name": "State Mutation Pipeline",
+      "steps": [
+        "DigitalTwinManager registers sensor event details payload",
+        "ConsistencyValidator tests cross updates conflicts rules",
+        "State serializer updates SQLite tables records"
+      ]
+    }
+  ],
+  "integration_contracts": [],
+  "cli_contracts": [],
+  "implementation_contracts": [
+    {
+      "file_path": "vir_runtime/twin/consistency.py",
+      "owner": "Architect",
+      "notes": "Verify validator handles missing keys safely without Raising KeyError exceptions"
+    }
+  ],
+  "implementation_packages": [
+    {
+      "task_id": "Task 1.3",
+      "module": "vir_runtime.twin.consistency",
+      "read_set": [],
+      "write_set": ["vir_runtime/twin/consistency.py"],
+      "dependencies": [],
+      "implementation_notes": "Implement cross consistency check algorithms",
+      "verification": "test_consistency_rules.py verification unit tests",
+      "rollback": "Revert consistency validation codes",
+      "expected_outputs": ["vir_runtime/twin/consistency.py"]
+    }
+  ],
+  "tests": [
+    {
+      "requirement_id": "FR-03",
+      "test_type": "Unit Test",
+      "target_file": "tests/unit/test_consistency_rules.py"
+    }
+  ],
+  "traceability": [
+    {
+      "req_id": "FR-03",
+      "task_id": "Task 1.3",
+      "target": "ConsistencyValidator"
+    }
+  ],
+  "artifacts": []
+}

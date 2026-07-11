@@ -1,0 +1,35 @@
+{
+  "$schema": "http://json-schema.org/draft-07/schema#",
+  "$id": "vir/schemas/evidence_schema.json",
+  "title": "Evidence Schema",
+  "type": "object",
+  "properties": {
+    "evidence_id": {
+      "type": "string",
+      "pattern": "^[0-9a-fA-F]{8}-[0-9a-fA-F]{4}-[0-9a-fA-F]{4}-[0-9a-fA-F]{4}-[0-9a-fA-F]{12}$"
+    },
+    "source_agent": {
+      "type": "string",
+      "minLength": 1
+    },
+    "classification": {
+      "type": "string",
+      "enum": ["ui_regression", "console_log_error", "design_violation", "a11y_violation", "responsive_violation", "performance_violation"]
+    },
+    "payload": {
+      "type": "object"
+    },
+    "timestamp": {
+      "type": "number",
+      "minimum": 0
+    }
+  },
+  "required": [
+    "evidence_id",
+    "source_agent",
+    "classification",
+    "payload",
+    "timestamp"
+  ],
+  "additionalProperties": false
+}

@@ -68,10 +68,12 @@ Feature-Centric SDLC (Enforcing Blueprint-Driven Development)
                              Skill: blueprint-to-implementation
     6. Debug             ──> docs/debug/FEAT-XXX_debug.md
                              Skill: implementation-to-debug
-    7. Verification      ──> docs/verification/FEAT-XXX_verify.md
-                             Skill: debug-to-verify
-    8. STOP              ──> Pause and recommend Release.
-    9. Manual Release    ──> updates CHANGELOG.md & bumps version
+    7. VIR Visual QA     ──> Run visual check loops (if frontend changes are present)
+                             Skills: frontend-visual-debug ──> vir-investigate ──> vir-runtime ──> vir-verify
+    8. Verification      ──> docs/verification/FEAT-XXX_verify.md
+                             Skill: debug-to-verify (requires vir-verify report PASS if mandatory)
+    9. STOP              ──> Pause and recommend Release.
+    10. Manual Release   ──> updates CHANGELOG.md & bumps version
                              Skill: implementation-to-release (only if explicitly requested)
 
   Option 2: Quick-Fix Workflow (Small Bug Fixes - 3-stage)
@@ -83,9 +85,11 @@ Feature-Centric SDLC (Enforcing Blueprint-Driven Development)
     4. Design Approval   ──> Seek User Y/N Confirmation for Blueprint
     5. Implementation    ──> apply minimal hotfix & verify builds
                              Skill: quick-fix
-    6. Verification      ──> docs/verification/FIX-XXX_verify.md
-    7. STOP              ──> Pause and recommend Release.
-    8. Manual Release    ──> updates CHANGELOG.md & bumps version (only if explicitly requested)
+    6. VIR Visual QA     ──> Targeted visual check (if UI affected)
+                             Skills: frontend-visual-debug ──> vir-verify
+    7. Verification      ──> docs/verification/FIX-XXX_verify.md
+    8. STOP              ──> Pause and recommend Release.
+    9. Manual Release    ──> updates CHANGELOG.md & bumps version (only if explicitly requested)
 
   Option 3: Quick-Feature Workflow (Small Feature Requests - 3-stage)
     1. Feature Spec      ──> docs/quick/QUICK-XXX_<feature_name>.md
@@ -96,9 +100,11 @@ Feature-Centric SDLC (Enforcing Blueprint-Driven Development)
     4. Design Approval   ──> Seek User Y/N Confirmation for Blueprint
     5. Implementation    ──> apply minimal feature code & verify
                              Skill: quick-feature
-    6. Verification      ──> docs/verification/QUICK-XXX_verify.md
-    7. STOP              ──> Pause and recommend Release.
-    8. Manual Release    ──> updates CHANGELOG.md & bumps version (only if explicitly requested)
+    6. VIR Visual QA     ──> Targeted visual check (if UI affected)
+                             Skills: frontend-visual-debug ──> vir-verify
+    7. Verification      ──> docs/verification/QUICK-XXX_verify.md
+    8. STOP              ──> Pause and recommend Release.
+    9. Manual Release    ──> updates CHANGELOG.md & bumps version (only if explicitly requested)
 ```
 
 ---

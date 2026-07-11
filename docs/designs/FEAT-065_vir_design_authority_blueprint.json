@@ -1,0 +1,178 @@
+{
+  "modules": [
+    {
+      "name": "vir_runtime.design.kb",
+      "classes": [
+        {
+          "class_name": "DesignKnowledgeBase",
+          "responsibilities": [
+            "Parse rules and tokens definitions from configuration files",
+            "Expose lookup interfaces query compliance boundaries details"
+          ],
+          "methods": [
+            {
+              "name": "lookup_rule",
+              "parameters": [
+                {
+                  "name": "category",
+                  "type": "str"
+                },
+                {
+                  "name": "rule_name",
+                  "type": "str"
+                }
+              ],
+              "return_type": "Dict[str, Any]"
+            },
+            {
+              "name": "check_token_compliance",
+              "parameters": [
+                {
+                  "name": "token_type",
+                  "type": "str"
+                },
+                {
+                  "name": "value",
+                  "type": "Any"
+                }
+              ],
+              "return_type": "bool"
+            }
+          ],
+          "lifecycle": "Persistent during application lifetime",
+          "state_ownership": "None"
+        }
+      ]
+    },
+    {
+      "name": "vir_runtime.design.agent",
+      "classes": [
+        {
+          "class_name": "DesignAuthorityAgent",
+          "responsibilities": [
+            "Register agent contract details dynamically to active profiles",
+            "Evaluate visual evidence logs details against guidelines specifications"
+          ],
+          "methods": [
+            {
+              "name": "on_evidence_received",
+              "parameters": [
+                {
+                  "name": "event",
+                  "type": "Event"
+                }
+              ],
+              "return_type": "None"
+            },
+            {
+              "name": "issue_veto",
+              "parameters": [
+                {
+                  "name": "reason",
+                  "type": "str"
+                },
+                {
+                  "name": "evidence",
+                  "type": "Evidence"
+                }
+              ],
+              "return_type": "None"
+            }
+          ],
+          "lifecycle": "Persistent during active investigation session",
+          "state_ownership": "None"
+        }
+      ]
+    }
+  ],
+  "configuration": {
+    "schema": {
+      "type": "object",
+      "properties": {
+        "rules_file": { "type": "string" },
+        "tokens_file": { "type": "string" }
+      }
+    },
+    "defaults": {
+      "rules_file": ".agents/visual-runtime/design-kb/rules.yaml",
+      "tokens_file": ".agents/visual-runtime/design-kb/tokens.json"
+    }
+  },
+  "database": {
+    "tables": [],
+    "growth_estimation": "No database columns created inside this module.",
+    "maintenance_strategy": "None"
+  },
+  "cache": {
+    "keys": [
+      {
+        "key_format": "design_rule_cache:{category}:{rule}",
+        "description": "Cache rules lookup responses"
+      }
+    ],
+    "ttl_seconds": 600,
+    "invalidation_rules": [
+      "Cache invalidated when overrides rule files are mutated"
+    ]
+  },
+  "errors": [
+    {
+      "exception_class": "MUSTRuleViolation",
+      "trigger": "Computed styles fail compliance checks matching MUST severities",
+      "recovery": "Generate DesignFinding and publish VETO event onto bus logs"
+    }
+  ],
+  "sequence_flows": [
+    {
+      "flow_name": "Design Audit Flow",
+      "steps": [
+        "DesignAuthorityAgent receives evidence event details",
+        "DesignKnowledgeBase lookup checks parameter validation rules",
+        "VetoHandler registers VETO event to event bus logs on MUST failures"
+      ]
+    }
+  ],
+  "integration_contracts": [
+    {
+      "skill_name": "frontend-design",
+      "hook_type": "After Hook",
+      "description": "Scans design findings report outputs to suggest layout token modifications"
+    }
+  ],
+  "cli_contracts": [],
+  "implementation_contracts": [
+    {
+      "file_path": "vir_runtime/design/agent.py",
+      "owner": "Coder",
+      "notes": "Verify design agent registers under correct UUID scopes"
+    }
+  ],
+  "implementation_packages": [
+    {
+      "task_id": "Task 1.4",
+      "module": "vir_runtime.design.kb",
+      "read_set": [],
+      "write_set": ["vir_runtime/design/kb.py"],
+      "dependencies": [],
+      "implementation_notes": "Implement Design KB reader APIs",
+      "verification": "test_kb_queries.py unit tests",
+      "rollback": "Revert KB code updates",
+      "expected_outputs": ["vir_runtime/design/kb.py"]
+    }
+  ],
+  "tests": [
+    {
+      "requirement_id": "FR-01",
+      "test_type": "Unit Test",
+      "target_file": "tests/unit/test_kb_queries.py"
+    }
+  ],
+  "traceability": [
+    {
+      "req_id": "FR-01",
+      "task_id": "Task 1.1",
+      "target": "DesignKnowledgeBase"
+    }
+  ],
+  "artifacts": []
+}

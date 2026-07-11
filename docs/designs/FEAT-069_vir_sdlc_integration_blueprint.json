@@ -1,0 +1,139 @@
+{
+  "modules": [
+    {
+      "name": "vir_runtime.core.consent",
+      "classes": [
+        {
+          "class_name": "SDLCCheckpointManager",
+          "responsibilities": [
+            "Load active session checkpoint parameters dynamically",
+            "Block manual proceed actions if VIR validation checks fail"
+          ],
+          "methods": [
+            {
+              "name": "verify_gate_block",
+              "parameters": [
+                {
+                  "name": "checkpoint_id",
+                  "type": "str"
+                }
+              ],
+              "return_type": "bool"
+            },
+            {
+              "name": "advance_checkpoint",
+              "parameters": [],
+              "return_type": "None"
+            }
+          ],
+          "lifecycle": "Persistent during active workflow session",
+          "state_ownership": "Owns session file parameters updates state"
+        },
+        {
+          "class_name": "ConsentValidator",
+          "responsibilities": [
+            "Enforce explicit user privacy validation checks",
+            "Inspect cloud providers configurations profiles properties"
+          ],
+          "methods": [
+            {
+              "name": "check_consent_permission",
+              "parameters": [
+                {
+                  "name": "provider",
+                  "type": "str"
+                }
+              ],
+              "return_type": "None"
+            }
+          ],
+          "lifecycle": "Transient startup execution checks orchestrator",
+          "state_ownership": "None"
+        }
+      ]
+    }
+  ],
+  "configuration": {
+    "schema": {
+      "type": "object",
+      "properties": {
+        "consent_required": { "type": "boolean" },
+        "privacy_level": { "type": "string" }
+      }
+    },
+    "defaults": {
+      "consent_required": true,
+      "privacy_level": "cloud"
+    }
+  },
+  "database": {
+    "tables": [],
+    "growth_estimation": "No database columns created inside this module.",
+    "maintenance_strategy": "None"
+  },
+  "cache": {
+    "keys": [],
+    "ttl_seconds": 0,
+    "invalidation_rules": []
+  },
+  "errors": [
+    {
+      "exception_class": "ConsentDeniedError",
+      "trigger": "A cloud VLM provider is queried without human consent flags overrides",
+      "recovery": "Halt execution instantly, log warning alert details to console"
+    }
+  ],
+  "sequence_flows": [
+    {
+      "flow_name": "SDLC Verification Gate",
+      "steps": [
+        "workflow_runtime executes validate command",
+        "ConsentValidator checks cloud provider rules consent settings",
+        "SDLCCheckpointManager advances active session indices on PASS results"
+      ]
+    }
+  ],
+  "integration_contracts": [
+    {
+      "skill_name": "workflow-runtime",
+      "hook_type": "Before Hook",
+      "description": "Runs consent checking sweeps before loading VLM adapters"
+    }
+  ],
+  "cli_contracts": [],
+  "implementation_contracts": [
+    {
+      "file_path": "vir_runtime/adapters/vision/gemini.py",
+      "owner": "Coder",
+      "notes": "Verify gemini client parameters read tokens from env variables safely"
+    }
+  ],
+  "implementation_packages": [
+    {
+      "task_id": "Task 1.2",
+      "module": "vir_runtime.core.consent",
+      "read_set": [],
+      "write_set": [".agents/skills/workflow-runtime/scripts/session.py"],
+      "dependencies": [],
+      "implementation_notes": "Implement gate blocker validations",
+      "verification": "test_approval_gate_block.py integration tests",
+      "rollback": "Revert session gate updates",
+      "expected_outputs": [".agents/skills/workflow-runtime/scripts/session.py"]
+    }
+  ],
+  "tests": [
+    {
+      "requirement_id": "FR-02",
+      "test_type": "Integration Test",
+      "target_file": "tests/integration/test_approval_gate_block.py"
+    }
+  ],
+  "traceability": [
+    {
+      "req_id": "FR-02",
+      "task_id": "Task 1.2",
+      "target": "SDLCCheckpointManager"
+    }
+  ],
+  "artifacts": []
+}

@@ -1,0 +1,126 @@
+{
+  "modules": [
+    {
+      "name": "vir_runtime.observers.accessibility.engine",
+      "classes": [
+        {
+          "class_name": "AccessibilityObserver",
+          "responsibilities": [
+            "Inject Axe-core verification scripts dynamically",
+            "Generate AccessibilityFinding dataclass properties arrays"
+          ],
+          "methods": [
+            {
+              "name": "run_a11y_scan",
+              "parameters": [],
+              "return_type": "List[AccessibilityFinding]"
+            }
+          ],
+          "lifecycle": "Transient observer instantiated per page state",
+          "state_ownership": "None"
+        }
+      ]
+    },
+    {
+      "name": "vir_runtime.observers.responsive.engine",
+      "classes": [
+        {
+          "class_name": "ResponsiveObserver",
+          "responsibilities": [
+            "Trigger browser viewports changes dynamically",
+            "Audit layout coordinates checks verifying overflow leaks"
+          ],
+          "methods": [
+            {
+              "name": "verify_responsive_layouts",
+              "parameters": [],
+              "return_type": "List[ResponsiveFinding]"
+            }
+          ],
+          "lifecycle": "Transient observer instantiated per page state",
+          "state_ownership": "None"
+        }
+      ]
+    }
+  ],
+  "configuration": {
+    "schema": {
+      "type": "object",
+      "properties": {
+        "breakpoints": {
+          "type": "array",
+          "items": { "type": "integer" }
+        },
+        "wcag_level": { "type": "string" }
+      }
+    },
+    "defaults": {
+      "breakpoints": [375, 768, 1440],
+      "wcag_level": "AA"
+    }
+  },
+  "database": {
+    "tables": [],
+    "growth_estimation": "No database columns created inside this module.",
+    "maintenance_strategy": "None"
+  },
+  "cache": {
+    "keys": [],
+    "ttl_seconds": 0,
+    "invalidation_rules": []
+  },
+  "errors": [
+    {
+      "exception_class": "AccessibilityVetoTriggered",
+      "trigger": "Critical WCAG rule violation (e.g. keyboard trap) detected",
+      "recovery": "Dispatch domain veto event details to event bus logs"
+    }
+  ],
+  "sequence_flows": [
+    {
+      "flow_name": "Responsive Breakpoints Scan Flow",
+      "steps": [
+        "ResponsiveObserver resizes active browser viewport dimensions",
+        "DOM element bounding coordinates queried from layouts",
+        "ResponsiveFinding registered when fixed-width overflow spills occur"
+      ]
+    }
+  ],
+  "integration_contracts": [],
+  "cli_contracts": [],
+  "implementation_contracts": [
+    {
+      "file_path": "vir_runtime/observers/responsive/engine.py",
+      "owner": "Coder",
+      "notes": "Verify viewport arrays contain valid positive integers values"
+    }
+  ],
+  "implementation_packages": [
+    {
+      "task_id": "Task 1.7",
+      "module": "vir_runtime.observers.responsive.engine",
+      "read_set": [],
+      "write_set": ["vir_runtime/observers/responsive/engine.py"],
+      "dependencies": [],
+      "implementation_notes": "Implement viewport checking routines",
+      "verification": "test_responsive_viewports.py unit tests",
+      "rollback": "Revert responsive engine updates",
+      "expected_outputs": ["vir_runtime/observers/responsive/engine.py"]
+    }
+  ],
+  "tests": [
+    {
+      "requirement_id": "FR-08",
+      "test_type": "Unit Test",
+      "target_file": "tests/unit/test_responsive_viewports.py"
+    }
+  ],
+  "traceability": [
+    {
+      "req_id": "FR-08",
+      "task_id": "Task 1.8",
+      "target": "ResponsiveObserver"
+    }
+  ],
+  "artifacts": []
+}

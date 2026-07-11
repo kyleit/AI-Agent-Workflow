@@ -1,0 +1,241 @@
+{
+  "phases": [
+    {
+      "phase_name": "Phase 1: Core Event Bus & Lifecycle Infrastructure",
+      "tasks": ["Task 1.1", "Task 1.2", "Task 1.3", "Task 1.4", "Task 1.5", "Task 1.6", "Task 1.7", "Task 1.8", "Task 1.9", "Task 1.10", "Task 1.11", "Task 1.12", "Task 1.13", "Task 1.14", "Task 1.15", "Task 1.16", "Task 1.17"],
+      "deliverables": ["Asynchronous topic event bus", "Priority-based message routing", "Graceful process termination", "Idempotency filter & DLQ routing", "Secret token masking"],
+      "milestones": ["Event bus validates routing rules successfully", "Loop protection halts infinity loops", "Idempotency filter stops duplicate processing"]
+    },
+    {
+      "phase_name": "Phase 2: Live Observability & Performance Timelines",
+      "tasks": ["Task 2.1", "Task 2.2", "Task 2.3"],
+      "deliverables": ["Real-time heartbeat stream", "Telemetry timeline aggregators"],
+      "milestones": ["Heartbeat logs stream successfully as NDJSON", "Observability aggregates timelines correctly"]
+    }
+  ],
+  "tasks": [
+    {
+      "id": "Task 1.1",
+      "description": "Implement central asyncio Event Bus pub/sub topic dispatcher",
+      "effort_hours": 12,
+      "owner": "Coder",
+      "operations": ["NEW"],
+      "files": ["vir_runtime/core/bus.py"]
+    },
+    {
+      "id": "Task 1.2",
+      "description": "Create Orchestrator managing core lifecycle state machines",
+      "effort_hours": 8,
+      "owner": "Architect",
+      "operations": ["MODIFY"],
+      "files": ["vir_runtime/core/orchestrator.py"]
+    },
+    {
+      "id": "Task 1.3",
+      "description": "Build runtime Agent Registry container",
+      "effort_hours": 6,
+      "owner": "Coder",
+      "operations": ["NEW"],
+      "files": ["vir_runtime/core/registry.py"]
+    },
+    {
+      "id": "Task 1.4",
+      "description": "Define validation rules for structural Agent Contracts",
+      "effort_hours": 4,
+      "owner": "Verifier",
+      "operations": ["MODIFY"],
+      "files": ["vir_runtime/domain/agent_contract.py"]
+    },
+    {
+      "id": "Task 1.5",
+      "description": "Implement configuration parser loading profiles parameters",
+      "effort_hours": 6,
+      "owner": "Coder",
+      "operations": ["NEW"],
+      "files": ["vir_runtime/core/config.py"]
+    },
+    {
+      "id": "Task 1.6",
+      "description": "Support dynamic subscription changes during profile switches",
+      "effort_hours": 6,
+      "owner": "Coder",
+      "operations": ["NEW"],
+      "files": ["vir_runtime/core/profiles.py"]
+    },
+    {
+      "id": "Task 1.7",
+      "description": "Support priority routing sorting critical messages first",
+      "effort_hours": 6,
+      "owner": "Architect",
+      "operations": ["NEW"],
+      "files": ["vir_runtime/core/priority_queue.py"]
+    },
+    {
+      "id": "Task 1.8",
+      "description": "Manage investigation context state carry-over structures",
+      "effort_hours": 6,
+      "owner": "Coder",
+      "operations": ["NEW"],
+      "files": ["vir_runtime/domain/session_state.py"]
+    },
+    {
+      "id": "Task 1.9",
+      "description": "Integrate stage timeout handler tasks",
+      "effort_hours": 4,
+      "owner": "Coder",
+      "operations": ["MODIFY"],
+      "files": ["vir_runtime/core/orchestrator.py"]
+    },
+    {
+      "id": "Task 1.10",
+      "description": "Enforce backpressure block limits on bounded queues",
+      "effort_hours": 6,
+      "owner": "Architect",
+      "operations": ["NEW"],
+      "files": ["vir_runtime/core/bus.py"]
+    },
+    {
+      "id": "Task 1.11",
+      "description": "Build loop detector counting retries limits",
+      "effort_hours": 4,
+      "owner": "Verifier",
+      "operations": ["NEW"],
+      "files": ["vir_runtime/core/loop_protector.py"]
+    },
+    {
+      "id": "Task 1.12",
+      "description": "Model structural Event Envelope fields with versions",
+      "effort_hours": 4,
+      "owner": "Architect",
+      "operations": ["NEW"],
+      "files": ["vir_runtime/domain/event.py"]
+    },
+    {
+      "id": "Task 1.13",
+      "description": "Enforce at-least-once delivery, idempotency cache, and DLQ routing",
+      "effort_hours": 8,
+      "owner": "Coder",
+      "operations": ["NEW"],
+      "files": ["vir_runtime/core/idempotency.py"]
+    },
+    {
+      "id": "Task 1.14",
+      "description": "Validate schema structures during event transmission",
+      "effort_hours": 6,
+      "owner": "Verifier",
+      "operations": ["NEW"],
+      "files": ["vir_runtime/domain/event.py"]
+    },
+    {
+      "id": "Task 1.15",
+      "description": "Apply configuration precedence logic layers",
+      "effort_hours": 4,
+      "owner": "Coder",
+      "operations": ["NEW"],
+      "files": ["vir_runtime/core/config.py"]
+    },
+    {
+      "id": "Task 1.16",
+      "description": "Expose local and project configuration parameters validation",
+      "effort_hours": 4,
+      "owner": "Verifier",
+      "operations": ["NEW"],
+      "files": ["vir_runtime/core/config.py"]
+    },
+    {
+      "id": "Task 1.17",
+      "description": "Mask secret token strings in logs",
+      "effort_hours": 4,
+      "owner": "Coder",
+      "operations": ["NEW"],
+      "files": ["vir_runtime/utils/masking.py"]
+    },
+    {
+      "id": "Task 2.1",
+      "description": "Emit heartbeat status messages over stdout channels",
+      "effort_hours": 6,
+      "owner": "Coder",
+      "operations": ["NEW"],
+      "files": ["vir_runtime/core/heartbeat.py"]
+    },
+    {
+      "id": "Task 2.2",
+      "description": "Build structured logging and execution metrics formatters",
+      "effort_hours": 4,
+      "owner": "Documentation",
+      "operations": ["NEW"],
+      "files": ["docs/guides/vir_observability_spec.md"]
+    },
+    {
+      "id": "Task 2.3",
+      "description": "Assemble live traces mapping timeline lists",
+      "effort_hours": 8,
+      "owner": "Coder",
+      "operations": ["NEW"],
+      "files": ["vir_runtime/core/observability.py"]
+    }
+  ],
+  "dependencies": {
+    "Task 1.1": ["Task 1.12"],
+    "Task 1.2": ["Task 1.1"],
+    "Task 1.3": ["Task 1.1"],
+    "Task 1.4": ["Task 1.3"],
+    "Task 1.6": ["Task 1.5"],
+    "Task 1.10": ["Task 1.1"],
+    "Task 1.13": ["Task 1.1"],
+    "Task 1.14": ["Task 1.12"],
+    "Task 1.15": ["Task 1.5"],
+    "Task 1.16": ["Task 1.15"],
+    "Task 2.1": ["Task 1.2"],
+    "Task 2.3": ["Task 1.1"]
+  },
+  "parallel_groups": [
+    ["Task 1.3", "Task 1.4"],
+    ["Task 1.5", "Task 1.15", "Task 1.16", "Task 1.17"],
+    ["Task 1.8", "Task 1.9", "Task 1.11"],
+    ["Task 2.1", "Task 2.2", "Task 2.3"]
+  ],
+  "exit_criteria": [
+    "100% of event routing, backpressure, and idempotency tests pass",
+    "System loads config according to precedence successfully",
+    "Loop protector stops infinite loops",
+    "Secrets are masked in log outputs"
+  ],
+  "rollback": {
+    "trigger": "Deadlocks inside Event Bus loop prevent execution",
+    "steps": [
+      "Revert core runtime and event bus codebase file tree modifications",
+      "Restore last working single-threaded orchestrator backup"
+    ]
+  },
+  "tests": [
+    {
+      "test_target": "tests/unit/test_event_bus.py",
+      "mapped_tasks": ["Task 1.1"]
+    },
+    {
+      "test_target": "tests/unit/test_idempotency.py",
+      "mapped_tasks": ["Task 1.13"]
+    },
+    {
+      "test_target": "tests/unit/test_loop_protector.py",
+      "mapped_tasks": ["Task 1.11"]
+    },
+    {
+      "test_target": "tests/unit/test_masking.py",
+      "mapped_tasks": ["Task 1.17"]
+    },
+    {
+      "test_target": "tests/integration/test_backpressure_isolated.py",
+      "mapped_tasks": ["Task 1.10"]
+    },
+    {
+      "test_target": "tests/integration/test_priority_routing.py",
+      "mapped_tasks": ["Task 1.7"]
+    }
+  ],
+  "artifacts": [
+    "docs/designs/FEAT-056_vir_runtime_core_and_event_bus_blueprint.md",
+    "vir_runtime/core/observability.py"
+  ]
+}

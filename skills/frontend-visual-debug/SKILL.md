@@ -37,18 +37,20 @@ runtime_requirements:
   usage: none
 ---
 
-# Skill: Frontend Visual Debug
+# Skill: Frontend Visual Debug (VIR Entry-Point)
 
 ## Purpose
 
-Validate frontend implementation visually. This Skill is invoked to confirm that the UI:
-- matches the expected design and layout
-- satisfies frontend requirements
-- loads successfully in the browser with no console or network errors
-- has correct responsive behavior and spacing/alignment
-- has no broken key interactions or visual regressions
+Validate frontend implementation visually. This Skill acts as the entry-point coordinator for the Visual Intelligence Runtime (VIR).
 
-This Skill must run after `blueprint-to-implementation` or after `implementation-to-debug` when the feature affects frontend/UI. If the feature does not affect frontend/UI, this Skill may be skipped.
+### 🚀 VIR Canonical Invocation Chain
+Every frontend visual debugging action follows this routing path:
+1. `frontend-visual-debug` loads the active context plan.
+2. Invokes `frontend-design` to act as the Design Authority.
+3. Invokes `vir-investigate` to compile the investigation plan.
+4. Requests observations from `vir-runtime` (referencing the canonical runtime `skills/vir-runtime/scripts/vir.py`).
+5. After resolving any root causes, runs `vir-verify` to apply final quality gates.
+6. Invokes `vir-memory-update` to store baseline/lessons updates.
 
 ---
 

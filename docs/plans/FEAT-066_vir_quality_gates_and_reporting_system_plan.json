@@ -1,0 +1,231 @@
+{
+  "phases": [
+    {
+      "phase_name": "Phase 1: Quality Gate Evaluation & Standard Reports",
+      "tasks": ["Task 1.1", "Task 1.2", "Task 1.3", "Task 1.4", "Task 1.5", "Task 1.6", "Task 1.7", "Task 1.8", "Task 1.9", "Task 1.10", "Task 1.11", "Task 1.12", "Task 1.13", "Task 1.14", "Task 1.15"],
+      "deliverables": ["Quality gate evaluator module", "CI exit codes mapper", "Human overrides panel", "Report template generator (MD & JSON)", "Executive summary builder"],
+      "milestones": ["Quality gate evaluates PASS/FAIL correctly", "CLI exits with code 1 on FAIL scenario", "Reports are successfully written with relative assets links", "Human overrides are recorded in audit logs"]
+    },
+    {
+      "phase_name": "Phase 2: Asynchronous Artifacts Packaging & Telemetry",
+      "tasks": ["Task 2.1", "Task 2.2", "Task 2.3", "Task 2.4", "Task 2.5"],
+      "deliverables": ["Asynchronous report exporter", "Chronological Markdown timeline tables", "psutil RAM/CPU monitor", "HTML/SVG timeline charts", "CI artifacts zip packaging tool"],
+      "milestones": ["Reports are written in the background asynchronously", "Peak CPU and RAM usage recorded in report JSON", "Zip package compiles screenshots and logs successfully"]
+    }
+  ],
+  "tasks": [
+    {
+      "id": "Task 1.1",
+      "description": "Process ConsensusRecord to produce Quality Gate Result",
+      "effort_hours": 6,
+      "owner": "Coder",
+      "operations": ["NEW"],
+      "files": ["vir_runtime/quality/gate.py"]
+    },
+    {
+      "id": "Task 1.2",
+      "description": "Load project gate thresholds (visual, design, performance)",
+      "effort_hours": 4,
+      "owner": "Coder",
+      "operations": ["NEW"],
+      "files": ["vir_runtime/quality/gate.py"]
+    },
+    {
+      "id": "Task 1.3",
+      "description": "Implement PASS condition validation checks logic",
+      "effort_hours": 4,
+      "owner": "Verifier",
+      "operations": ["NEW"],
+      "files": ["vir_runtime/quality/gate.py"]
+    },
+    {
+      "id": "Task 1.4",
+      "description": "Implement PARTIAL validation checks (SHOULD only issues)",
+      "effort_hours": 4,
+      "owner": "Verifier",
+      "operations": ["NEW"],
+      "files": ["vir_runtime/quality/gate.py"]
+    },
+    {
+      "id": "Task 1.5",
+      "description": "Implement FAIL validation checks (veto active, critical errors)",
+      "effort_hours": 4,
+      "owner": "Verifier",
+      "operations": ["NEW"],
+      "files": ["vir_runtime/quality/gate.py"]
+    },
+    {
+      "id": "Task 1.6",
+      "description": "Implement BLOCKED validation checks (pipeline timeout)",
+      "effort_hours": 4,
+      "owner": "Verifier",
+      "operations": ["NEW"],
+      "files": ["vir_runtime/quality/gate.py"]
+    },
+    {
+      "id": "Task 1.7",
+      "description": "Bind CI/CD exit code mapping parameters (0, 1, 2)",
+      "effort_hours": 4,
+      "owner": "Coder",
+      "operations": ["NEW"],
+      "files": ["vir_runtime/quality/exit_codes.py"]
+    },
+    {
+      "id": "Task 1.8",
+      "description": "Audit log all gate evaluation steps to structured log files",
+      "effort_hours": 4,
+      "owner": "Coder",
+      "operations": ["NEW"],
+      "files": ["vir_runtime/quality/gate.py"]
+    },
+    {
+      "id": "Task 1.9",
+      "description": "Integrate human gate overrides input interceptor",
+      "effort_hours": 6,
+      "owner": "Runtime",
+      "operations": ["NEW"],
+      "files": ["vir_runtime/quality/override.py"]
+    },
+    {
+      "id": "Task 1.10",
+      "description": "Export reports in both MD and JSON formatted extensions",
+      "effort_hours": 8,
+      "owner": "Coder",
+      "operations": ["NEW"],
+      "files": ["vir_runtime/reporting/engine.py"]
+    },
+    {
+      "id": "Task 1.11",
+      "description": "Assemble complete diagnostic results arrays in reports",
+      "effort_hours": 4,
+      "owner": "Documentation",
+      "operations": ["NEW"],
+      "files": [".agents/visual-runtime/templates/report.md"]
+    },
+    {
+      "id": "Task 1.12",
+      "description": "Hyperlink findings to stored artifact folders relative paths",
+      "effort_hours": 4,
+      "owner": "Coder",
+      "operations": ["NEW"],
+      "files": ["vir_runtime/reporting/engine.py"]
+    },
+    {
+      "id": "Task 1.13",
+      "description": "Configure output report naming format patterns paths",
+      "effort_hours": 4,
+      "owner": "Architect",
+      "operations": ["NEW"],
+      "files": ["vir_runtime/reporting/engine.py"]
+    },
+    {
+      "id": "Task 1.14",
+      "description": "Extract executive summaries suited for dashboards",
+      "effort_hours": 4,
+      "owner": "Documentation",
+      "operations": ["NEW"],
+      "files": ["vir_runtime/reporting/engine.py"]
+    },
+    {
+      "id": "Task 1.15",
+      "description": "Expose domain-specific confidence breakdowns",
+      "effort_hours": 4,
+      "owner": "Coder",
+      "operations": ["NEW"],
+      "files": ["vir_runtime/reporting/engine.py"]
+    },
+    {
+      "id": "Task 2.1",
+      "description": "Implement non-blocking asynchronous report writing tasks",
+      "effort_hours": 6,
+      "owner": "Coder",
+      "operations": ["NEW"],
+      "files": ["vir_runtime/reporting/engine.py"]
+    },
+    {
+      "id": "Task 2.2",
+      "description": "Build chronological event timeline tables in Markdown",
+      "effort_hours": 4,
+      "owner": "Coder",
+      "operations": ["NEW"],
+      "files": ["vir_runtime/reporting/engine.py"]
+    },
+    {
+      "id": "Task 2.3",
+      "description": "Capture performance footprints (peak RAM, CPU)",
+      "effort_hours": 6,
+      "owner": "Coder",
+      "operations": ["NEW"],
+      "files": ["vir_runtime/reporting/telemetry.py"]
+    },
+    {
+      "id": "Task 2.4",
+      "description": "Generate HTML/SVG timeline charts inside Markdown reports",
+      "effort_hours": 8,
+      "owner": "Architect",
+      "operations": ["NEW"],
+      "files": ["vir_runtime/reporting/engine.py"]
+    },
+    {
+      "id": "Task 2.5",
+      "description": "Compile CI package as a standard zip archive payload",
+      "effort_hours": 6,
+      "owner": "Coder",
+      "operations": ["NEW"],
+      "files": ["vir_runtime/reporting/packager.py"]
+    }
+  ],
+  "dependencies": {
+    "Task 1.3": ["Task 1.1"],
+    "Task 1.4": ["Task 1.1"],
+    "Task 1.5": ["Task 1.1"],
+    "Task 1.6": ["Task 1.1"],
+    "Task 1.7": ["Task 1.1"],
+    "Task 1.10": ["Task 1.11"],
+    "Task 1.12": ["Task 1.10"],
+    "Task 1.14": ["Task 1.10"],
+    "Task 2.1": ["Task 1.10"],
+    "Task 2.2": ["Task 1.10"],
+    "Task 2.5": ["Task 1.10"]
+  },
+  "parallel_groups": [
+    ["Task 1.2", "Task 1.8", "Task 1.9"],
+    ["Task 1.11", "Task 1.12", "Task 1.13", "Task 1.14", "Task 1.15"],
+    ["Task 2.1", "Task 2.2", "Task 2.3", "Task 2.4"]
+  ],
+  "exit_criteria": [
+    "ConsensusRecord translates accurately to exit code mappings",
+    "JSON validation checklist matches standard reports schemas",
+    "Relative assets path references link to screens correctly",
+    "Async packaging builds non empty zip files in CI"
+  ],
+  "rollback": {
+    "trigger": "Async packaging locks thread pools during CI file saves",
+    "steps": [
+      "Revert local packager code changes",
+      "Disable SVG and zip creation, falling back to writing MD/JSON text reports directly"
+    ]
+  },
+  "tests": [
+    {
+      "test_target": "tests/unit/test_gate_evaluation.py",
+      "mapped_tasks": ["Task 1.1"]
+    },
+    {
+      "test_target": "tests/unit/test_ci_exit_codes.py",
+      "mapped_tasks": ["Task 1.7"]
+    },
+    {
+      "test_target": "tests/unit/test_report_schema.py",
+      "mapped_tasks": ["Task 1.10"]
+    },
+    {
+      "test_target": "tests/integration/test_async_packaging.py",
+      "mapped_tasks": ["Task 2.5"]
+    }
+  ],
+  "artifacts": [
+    "docs/designs/FEAT-066_vir_quality_gates_reporting_blueprint.md",
+    "vir_runtime/reporting/packager.py"
+  ]
+}

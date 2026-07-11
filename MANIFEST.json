@@ -508,6 +508,78 @@
       "execution_mode": "sequential"
     },
     {
+      "name": "vir-runtime",
+      "command": "vir-run",
+      "aliases": [
+        "vir-runtime"
+      ],
+      "category": "runtime",
+      "tags": [
+        "vir",
+        "runtime"
+      ],
+      "owner_agent": "release-manager",
+      "specialist_agents": [
+        "infrastructure-developer"
+      ],
+      "phase": "debug",
+      "execution_mode": "sequential"
+    },
+    {
+      "name": "vir-investigate",
+      "command": "vir-audit",
+      "aliases": [
+        "vir-investigate"
+      ],
+      "category": "reasoning",
+      "tags": [
+        "vir",
+        "cognitive"
+      ],
+      "owner_agent": "reviewer",
+      "specialist_agents": [
+        "diagnostics-specialist"
+      ],
+      "phase": "debug",
+      "execution_mode": "sequential"
+    },
+    {
+      "name": "vir-verify",
+      "command": "vir-check",
+      "aliases": [
+        "vir-verify"
+      ],
+      "category": "quality",
+      "tags": [
+        "vir",
+        "verify"
+      ],
+      "owner_agent": "reviewer",
+      "specialist_agents": [
+        "qa-reviewer"
+      ],
+      "phase": "debug",
+      "execution_mode": "sequential"
+    },
+    {
+      "name": "vir-memory-update",
+      "command": "vir-learn",
+      "aliases": [
+        "vir-memory-update"
+      ],
+      "category": "memory",
+      "tags": [
+        "vir",
+        "memory"
+      ],
+      "owner_agent": "planner",
+      "specialist_agents": [
+        "memory-specialist"
+      ],
+      "phase": "debug",
+      "execution_mode": "sequential"
+    },
+    {
       "name": "project-discovery",
       "command": "discover",
       "aliases": [
@@ -603,13 +675,15 @@
       "plan-to-blueprint",
       "blueprint-to-implementation",
       "frontend-visual-debug",
-      "implementation-to-release"
+      "implementation-to-release",
+      "vir-investigate"
     ],
     "memory": [
       "project-memory-bootstrap",
       "project-memory-update",
       "project-rag-search",
-      "knowledge-runtime"
+      "knowledge-runtime",
+      "vir-memory-update"
     ],
     "environment": [
       "environment-health",
@@ -622,7 +696,8 @@
     "runtime": [
       "initialize-workflow",
       "resume-workflow",
-      "workflow-runtime"
+      "workflow-runtime",
+      "vir-runtime"
     ],
     "utility": [
       "quick-fix",
@@ -630,7 +705,8 @@
       "frontend-design"
     ],
     "quality": [
-      "skill-self-verification"
+      "skill-self-verification",
+      "vir-verify"
     ]
   }
 }

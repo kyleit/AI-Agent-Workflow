@@ -1,0 +1,246 @@
+{
+  "phases": [
+    {
+      "phase_name": "Phase 1: Workflow Checkpoints & Approval Gates Blocking",
+      "tasks": ["Task 1.1", "Task 1.2", "Task 1.3", "Task 1.4", "Task 1.5", "Task 1.6", "Task 1.7", "Task 1.8", "Task 1.9", "Task 1.10", "Task 1.11"],
+      "deliverables": ["SDLC checkpoint binders", "Approval gate block filters", "Session checkpoint updater", "Artifact policy enforcer", "Cloud VLM consent validator"],
+      "milestones": ["VIR FAIL blocks approval gate successfully", "Workflow checkpoint advances on VIR PASS", "Cloud VLM raises startup error when consent is false"]
+    },
+    {
+      "phase_name": "Phase 2: AIWF Agent Interactions & Vision Adapters",
+      "tasks": ["Task 2.1", "Task 2.2", "Task 2.3", "Task 2.4", "Task 2.5", "Task 2.6", "Task 2.7", "Task 2.8", "Task 2.9", "Task 2.10", "Task 2.11"],
+      "deliverables": ["Agent command triggers wrappers", "Ollama local vision adapter", "Gemini cloud VLM adapter", "LLM planning agent contracts", "Security veto triggers config"],
+      "milestones": ["Release manager CI checks block releases successfully", "Gemini adapter resolves visual inputs without modifying core orchestrator files"]
+    }
+  ],
+  "tasks": [
+    {
+      "id": "Task 1.1",
+      "description": "Bind VIR checks at the 4 SDLC workflow checkpoints",
+      "effort_hours": 8,
+      "owner": "Coder",
+      "operations": ["MODIFY"],
+      "files": [".agents/skills/workflow-runtime/scripts/workflow_runtime.py"]
+    },
+    {
+      "id": "Task 1.2",
+      "description": "Integrate quality block gates within the AIWF Approval Gate",
+      "effort_hours": 6,
+      "owner": "Verifier",
+      "operations": ["MODIFY"],
+      "files": [".agents/skills/workflow-runtime/scripts/session.py"]
+    },
+    {
+      "id": "Task 1.3",
+      "description": "Update workflow checkpoint states on validation success",
+      "effort_hours": 4,
+      "owner": "Coder",
+      "operations": ["MODIFY"],
+      "files": [".agents/skills/workflow-runtime/scripts/session.py"]
+    },
+    {
+      "id": "Task 1.4",
+      "description": "Direct report paths output to docs/verification/ folder",
+      "effort_hours": 4,
+      "owner": "Coder",
+      "operations": ["MODIFY"],
+      "files": [".agents/skills/workflow-runtime/scripts/workflow_runtime.py"]
+    },
+    {
+      "id": "Task 1.5",
+      "description": "Load execution context values from specifications",
+      "effort_hours": 4,
+      "owner": "Coder",
+      "operations": ["MODIFY"],
+      "files": [".agents/skills/workflow-runtime/scripts/workflow_runtime.py"]
+    },
+    {
+      "id": "Task 1.6",
+      "description": "Block code modifications tasks targeting files outside scope",
+      "effort_hours": 6,
+      "owner": "Verifier",
+      "operations": ["MODIFY"],
+      "files": [".agents/skills/workflow-runtime/scripts/session.py"]
+    },
+    {
+      "id": "Task 1.7",
+      "description": "Enforce AIWF Artifact Policy parameters",
+      "effort_hours": 4,
+      "owner": "Verifier",
+      "operations": ["MODIFY"],
+      "files": [".agents/skills/workflow-runtime/scripts/workflow_runtime.py"]
+    },
+    {
+      "id": "Task 1.8",
+      "description": "Outline extension mechanisms for new adapters and agents",
+      "effort_hours": 6,
+      "owner": "Architect",
+      "operations": ["NEW"],
+      "files": ["vir_runtime/core/consent.py"]
+    },
+    {
+      "id": "Task 1.9",
+      "description": "Protect core from modifications when adding new capabilities",
+      "effort_hours": 6,
+      "owner": "Verifier",
+      "operations": ["NEW"],
+      "files": ["vir_runtime/core/consent.py"]
+    },
+    {
+      "id": "Task 1.10",
+      "description": "Model capability registration descriptors fields",
+      "effort_hours": 4,
+      "owner": "Architect",
+      "operations": ["NEW"],
+      "files": ["vir_runtime/core/consent.py"]
+    },
+    {
+      "id": "Task 1.11",
+      "description": "Enforce explicit user consent verification checks",
+      "effort_hours": 4,
+      "owner": "Verifier",
+      "operations": ["NEW"],
+      "files": ["vir_runtime/core/consent.py"]
+    },
+    {
+      "id": "Task 2.1",
+      "description": "Map Coder Agent interaction commands pipelines",
+      "effort_hours": 6,
+      "owner": "Coder",
+      "operations": ["MODIFY"],
+      "files": [".agents/skills/implementation-to-debug/SKILL.md"]
+    },
+    {
+      "id": "Task 2.2",
+      "description": "Map Reviewer Agent verification evidence feeds",
+      "effort_hours": 6,
+      "owner": "Coder",
+      "operations": ["MODIFY"],
+      "files": [".agents/skills/implementation-to-debug/SKILL.md"]
+    },
+    {
+      "id": "Task 2.3",
+      "description": "Connect Planner Agent risk logs input feeds",
+      "effort_hours": 4,
+      "owner": "Coder",
+      "operations": ["MODIFY"],
+      "files": [".agents/skills/implementation-to-debug/SKILL.md"]
+    },
+    {
+      "id": "Task 2.4",
+      "description": "Connect Architect Agent Digital Twin validation parameters",
+      "effort_hours": 4,
+      "owner": "Architect",
+      "operations": ["MODIFY"],
+      "files": [".agents/skills/implementation-to-debug/SKILL.md"]
+    },
+    {
+      "id": "Task 2.5",
+      "description": "Map Release Manager Agent publish validation gates",
+      "effort_hours": 6,
+      "owner": "Coder",
+      "operations": ["MODIFY"],
+      "files": [".agents/skills/implementation-to-release/SKILL.md"]
+    },
+    {
+      "id": "Task 2.6",
+      "description": "Map Debug Skill initial evidence gather commands",
+      "effort_hours": 6,
+      "owner": "Coder",
+      "operations": ["MODIFY"],
+      "files": [".agents/skills/implementation-to-debug/SKILL.md"]
+    },
+    {
+      "id": "Task 2.7",
+      "description": "Support Local Vision Model (VLM) adapters overlays",
+      "effort_hours": 8,
+      "owner": "Coder",
+      "operations": ["NEW"],
+      "files": ["vir_runtime/adapters/vision/ollama.py"]
+    },
+    {
+      "id": "Task 2.8",
+      "description": "Support Cloud VLM adapter key override configs",
+      "effort_hours": 8,
+      "owner": "Coder",
+      "operations": ["NEW"],
+      "files": ["vir_runtime/adapters/vision/gemini.py"]
+    },
+    {
+      "id": "Task 2.9",
+      "description": "Support LLM based planning agent contracts registrations",
+      "effort_hours": 6,
+      "owner": "Architect",
+      "operations": ["NEW"],
+      "files": ["vir_runtime/core/consent.py"]
+    },
+    {
+      "id": "Task 2.10",
+      "description": "Map specialized performance and QA observers contracts",
+      "effort_hours": 6,
+      "owner": "Coder",
+      "operations": ["NEW"],
+      "files": ["vir_runtime/core/consent.py"]
+    },
+    {
+      "id": "Task 2.11",
+      "description": "Support Security Review veto engine triggers",
+      "effort_hours": 6,
+      "owner": "Verifier",
+      "operations": ["NEW"],
+      "files": ["vir_runtime/core/consent.py"]
+    }
+  ],
+  "dependencies": {
+    "Task 1.2": ["Task 1.1"],
+    "Task 1.3": ["Task 1.2"],
+    "Task 1.4": ["Task 1.1"],
+    "Task 1.6": ["Task 1.2"],
+    "Task 1.7": ["Task 1.1"],
+    "Task 1.9": ["Task 1.8"],
+    "Task 2.1": ["Task 1.1"],
+    "Task 2.5": ["Task 1.2"],
+    "Task 2.8": ["Task 2.7"]
+  },
+  "parallel_groups": [
+    ["Task 1.4", "Task 1.5", "Task 1.7"],
+    ["Task 1.8", "Task 1.10", "Task 1.11"],
+    ["Task 2.1", "Task 2.2", "Task 2.3", "Task 2.4", "Task 2.6"],
+    ["Task 2.7", "Task 2.8", "Task 2.9", "Task 2.10", "Task 2.11"]
+  ],
+  "exit_criteria": [
+    "VIR FAIL blocks approval gate execution",
+    "Workflow checkpoint advances to correct state index",
+    "Cloud VLM without consent crashes at startup",
+    "New Gemini adapter works without modifying core files"
+  ],
+  "rollback": {
+    "trigger": "Checkpoint locks prevent developer execution",
+    "steps": [
+      "Revert local session and workflow runtime files updates",
+      "Configure checkpoint overrides to temporarily bypass gate blocking triggers"
+    ]
+  },
+  "tests": [
+    {
+      "test_target": "tests/unit/test_cloud_consent.py",
+      "mapped_tasks": ["Task 1.11"]
+    },
+    {
+      "test_target": "tests/unit/test_extension_isolation.py",
+      "mapped_tasks": ["Task 1.9"]
+    },
+    {
+      "test_target": "tests/integration/test_approval_gate_block.py",
+      "mapped_tasks": ["Task 1.2"]
+    },
+    {
+      "test_target": "tests/integration/test_checkpoint_advance.py",
+      "mapped_tasks": ["Task 1.3"]
+    }
+  ],
+  "artifacts": [
+    "docs/designs/FEAT-069_vir_sdlc_integration_blueprint.md",
+    "vir_runtime/adapters/vision/gemini.py"
+  ]
+}

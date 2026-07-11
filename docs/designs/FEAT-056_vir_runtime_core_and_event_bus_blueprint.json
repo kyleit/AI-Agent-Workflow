@@ -1,0 +1,164 @@
+{
+  "modules": [
+    {
+      "name": "vir_runtime.core.bus",
+      "classes": [
+        {
+          "class_name": "AsyncEventBus",
+          "responsibilities": [
+            "Maintain asynchronous local event queues",
+            "Route published events asynchronously to matching handler sub-tasks"
+          ],
+          "methods": [
+            {
+              "name": "publish",
+              "parameters": [
+                {
+                  "name": "event",
+                  "type": "Event"
+                }
+              ],
+              "return_type": "None"
+            },
+            {
+              "name": "subscribe",
+              "parameters": [
+                {
+                  "name": "topic",
+                  "type": "str"
+                },
+                {
+                  "name": "handler",
+                  "type": "Callable[[Event], Coroutine]"
+                }
+              ],
+              "return_type": "None"
+            },
+            {
+              "name": "start",
+              "parameters": [],
+              "return_type": "None"
+            },
+            {
+              "name": "stop",
+              "parameters": [],
+              "return_type": "None"
+            }
+          ],
+          "lifecycle": "Persistent during application lifetime",
+          "state_ownership": "Owns local subscription routing tables"
+        }
+      ]
+    },
+    {
+      "name": "vir_runtime.core.loop_protector",
+      "classes": [
+        {
+          "class_name": "LoopProtector",
+          "responsibilities": [
+            "Intercept recursive event loops",
+            "Maintain local collections queue hashes history"
+          ],
+          "methods": [
+            {
+              "name": "inspect_event",
+              "parameters": [
+                {
+                  "name": "event",
+                  "type": "Event"
+                }
+              ],
+              "return_type": "bool"
+            }
+          ],
+          "lifecycle": "Persistent during active investigation session",
+          "state_ownership": "Owns historical event hashes deques"
+        }
+      ]
+    }
+  ],
+  "configuration": {
+    "schema": {
+      "type": "object",
+      "properties": {
+        "queue_max_size": { "type": "integer" },
+        "worker_count": { "type": "integer" }
+      }
+    },
+    "defaults": {
+      "queue_max_size": 1000,
+      "worker_count": 2
+    }
+  },
+  "database": {
+    "tables": [],
+    "growth_estimation": "No disk storage allocated. Runs strictly in RAM.",
+    "maintenance_strategy": "Event cache is flushed on session termination."
+  },
+  "cache": {
+    "keys": [
+      {
+        "key_format": "event_hash_deque",
+        "description": "Store signature hashes for processed events"
+      }
+    ],
+    "ttl_seconds": 60,
+    "invalidation_rules": [
+      "Queue cleared when investigation sessions are restarted"
+    ]
+  },
+  "errors": [
+    {
+      "exception_class": "CyclicEventLoopError",
+      "trigger": "Subscribers trigger a cascading publish loop exceeding loop limits",
+      "recovery": "Halt event propagation for that session and log an audit error alert"
+    }
+  ],
+  "sequence_flows": [
+    {
+      "flow_name": "Event Processing Pipeline",
+      "steps": [
+        "Agent publishes Event to AsyncEventBus",
+        "LoopProtector checks event signature cache",
+        "Queue schedules async calls to registered topic handlers"
+      ]
+    }
+  ],
+  "integration_contracts": [],
+  "cli_contracts": [],
+  "implementation_contracts": [
+    {
+      "file_path": "vir_runtime/core/bus.py",
+      "owner": "Coder",
+      "notes": "Ensure worker loop catches exceptions without crashing the worker threads"
+    }
+  ],
+  "implementation_packages": [
+    {
+      "task_id": "Task 1.2",
+      "module": "vir_runtime.core.bus",
+      "read_set": [],
+      "write_set": ["vir_runtime/core/bus.py"],
+      "dependencies": [],
+      "implementation_notes": "Implement asyncio EventBus router",
+      "verification": "test_bus_pubsub.py unit tests",
+      "rollback": "Revert bus file updates",
+      "expected_outputs": ["vir_runtime/core/bus.py"]
+    }
+  ],
+  "tests": [
+    {
+      "requirement_id": "FR-06",
+      "test_type": "Unit Test",
+      "target_file": "tests/unit/test_bus_pubsub.py"
+    }
+  ],
+  "traceability": [
+    {
+      "req_id": "FR-06",
+      "task_id": "Task 1.2",
+      "target": "AsyncEventBus"
+    }
+  ],
+  "artifacts": []
+}

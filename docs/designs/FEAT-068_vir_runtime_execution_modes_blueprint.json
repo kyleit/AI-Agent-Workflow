@@ -1,0 +1,156 @@
+{
+  "modules": [
+    {
+      "name": "vir_runtime.core.cli",
+      "classes": [
+        {
+          "class_name": "CLIRunner",
+          "responsibilities": [
+            "Parse console command line arguments structures",
+            "Write progress tables logs formatted with color ANSI outputs"
+          ],
+          "methods": [
+            {
+              "name": "main",
+              "parameters": [
+                {
+                  "name": "args",
+                  "type": "List[str]"
+                }
+              ],
+              "return_type": "int"
+            }
+          ],
+          "lifecycle": "Transient execution parser instance",
+          "state_ownership": "None"
+        }
+      ]
+    },
+    {
+      "name": "vir_runtime.core.ipc",
+      "classes": [
+        {
+          "class_name": "IPCEmitter",
+          "responsibilities": [
+            "Format investigation stage details as NDJSON envelopes",
+            "Emit lines outputs to active stdout streams"
+          ],
+          "methods": [
+            {
+              "name": "emit_event",
+              "parameters": [
+                {
+                  "name": "event_type",
+                  "type": "str"
+                },
+                {
+                  "name": "data",
+                  "type": "Dict[str, Any]"
+                }
+              ],
+              "return_type": "None"
+            }
+          ],
+          "lifecycle": "Persistent during active investigation session",
+          "state_ownership": "None"
+        }
+      ]
+    }
+  ],
+  "configuration": {
+    "schema": {
+      "type": "object",
+      "properties": {
+        "default_mode": { "type": "string" }
+      }
+    },
+    "defaults": {
+      "default_mode": "cli"
+    }
+  },
+  "database": {
+    "tables": [],
+    "growth_estimation": "No database columns created inside this module.",
+    "maintenance_strategy": "None"
+  },
+  "cache": {
+    "keys": [],
+    "ttl_seconds": 0,
+    "invalidation_rules": []
+  },
+  "errors": [
+    {
+      "exception_class": "InteractivePromptBlocked",
+      "trigger": "An interactive input request occurs during CI mode runs",
+      "recovery": "Halt execution, set exit code to 2 and transition status to BLOCKED"
+    }
+  ],
+  "sequence_flows": [
+    {
+      "flow_name": "IDE Stream Flow",
+      "steps": [
+        "CLIRunner initiates investigation loop",
+        "IPCEmitter prints NDJSON structures to stdout",
+        "Visualizer extension intercepts stream and updates sidebar panel"
+      ]
+    }
+  ],
+  "integration_contracts": [
+    {
+      "skill_name": "frontend-visual-debug",
+      "hook_type": "Subprocess Call",
+      "description": "Fires CLI commands forwarding URL and feature IDs parameters"
+    }
+  ],
+  "cli_contracts": [
+    {
+      "command": "python -m vir_runtime.core.cli run --url http://localhost:3000 --profile standard",
+      "parameters": [
+        {
+          "option": "--mode",
+          "description": "Select execution wrapper cli | ide | ci | daemon"
+        }
+      ],
+      "exit_codes": [
+        { "code": 0, "meaning": "PASS" },
+        { "code": 1, "meaning": "FAIL" },
+        { "code": 2, "meaning": "BLOCKED" }
+      ]
+    }
+  ],
+  "implementation_contracts": [
+    {
+      "file_path": "extensions/visualizer/resources/webview.html",
+      "owner": "Coder",
+      "notes": "Always compile to webviewHtml.ts by running extensions/visualizer/build.js after changes"
+    }
+  ],
+  "implementation_packages": [
+    {
+      "task_id": "Task 1.1",
+      "module": "vir_runtime.core.cli",
+      "read_set": [],
+      "write_set": ["vir_runtime/core/cli.py"],
+      "dependencies": [],
+      "implementation_notes": "Implement command line arguments parser",
+      "verification": "test_cli_args.py unit tests",
+      "rollback": "Revert CLI core mutations",
+      "expected_outputs": ["vir_runtime/core/cli.py"]
+    }
+  ],
+  "tests": [
+    {
+      "requirement_id": "FR-15",
+      "test_type": "Unit Test",
+      "target_file": "tests/unit/test_cli_args.py"
+    }
+  ],
+  "traceability": [
+    {
+      "req_id": "FR-15",
+      "task_id": "Task 1.10",
+      "target": "CLIRunner"
+    }
+  ],
+  "artifacts": []
+}

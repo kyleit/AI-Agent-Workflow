@@ -1,0 +1,207 @@
+{
+  "phases": [
+    {
+      "phase_name": "Phase 1: Compliance Auditing & Viewport Testing",
+      "tasks": ["Task 1.1", "Task 1.2", "Task 1.3", "Task 1.4", "Task 1.5", "Task 1.6", "Task 1.7", "Task 1.8", "Task 1.9", "Task 1.10", "Task 1.11", "Task 1.12", "Task 1.13", "Task 1.14"],
+      "deliverables": ["WCAG AA checking parser", "Accessibility VETO controller", "Responsive viewports switcher", "Layout overlap analyzer", "Web Vitals logger", "CLS source locator"],
+      "milestones": ["WCAG compliance check outputs accessibility findings", "A11y VETO blocks PASS execution flow", "Responsive breakpoint screenshots generated", "Core Web Vitals metrics retrieved from CDP"]
+    },
+    {
+      "phase_name": "Phase 2: Animation Diagnostics & Consensus Weighing",
+      "tasks": ["Task 2.1", "Task 2.2", "Task 2.3"],
+      "deliverables": ["Responsive design rules connector", "FPS frame rate monitor", "Performance voting weights resolver"],
+      "milestones": ["FPS animation jank is detected", "POOR performance scoring integrated to consensus votes"]
+    }
+  ],
+  "tasks": [
+    {
+      "id": "Task 1.1",
+      "description": "Integrate WCAG 2.1 AA compliance audit validation checks",
+      "effort_hours": 8,
+      "owner": "Coder",
+      "operations": ["NEW"],
+      "files": ["vir_runtime/observers/accessibility/engine.py"]
+    },
+    {
+      "id": "Task 1.2",
+      "description": "Implement check rules (focus, role attributes, alt labels)",
+      "effort_hours": 6,
+      "owner": "Coder",
+      "operations": ["NEW"],
+      "files": ["vir_runtime/observers/accessibility/engine.py"]
+    },
+    {
+      "id": "Task 1.3",
+      "description": "Query computed style DOM maps from Vision Layer 1 and contrast",
+      "effort_hours": 4,
+      "owner": "Coder",
+      "operations": ["NEW"],
+      "files": ["vir_runtime/observers/accessibility/engine.py"]
+    },
+    {
+      "id": "Task 1.4",
+      "description": "Enable VETO gates blocking PASS on key accessibility trap states",
+      "effort_hours": 6,
+      "owner": "Verifier",
+      "operations": ["NEW"],
+      "files": ["vir_runtime/observers/accessibility/veto.py"]
+    },
+    {
+      "id": "Task 1.5",
+      "description": "Model custom project WCAG rules configurations loaders",
+      "effort_hours": 4,
+      "owner": "Coder",
+      "operations": ["NEW"],
+      "files": [".agents/visual-runtime/config/vir_observers.yaml"]
+    },
+    {
+      "id": "Task 1.6",
+      "description": "Output structured AccessibilityFinding objects to Event Bus",
+      "effort_hours": 4,
+      "owner": "Architect",
+      "operations": ["NEW"],
+      "files": ["vir_runtime/observers/accessibility/engine.py"]
+    },
+    {
+      "id": "Task 1.7",
+      "description": "Configure responsive verification breakpoint widths",
+      "effort_hours": 4,
+      "owner": "Coder",
+      "operations": ["NEW"],
+      "files": ["vir_runtime/observers/responsive/engine.py"]
+    },
+    {
+      "id": "Task 1.8",
+      "description": "Audit viewport sizes checking overlap, scrolling, readability",
+      "effort_hours": 6,
+      "owner": "Verifier",
+      "operations": ["NEW"],
+      "files": ["vir_runtime/observers/responsive/engine.py"]
+    },
+    {
+      "id": "Task 1.9",
+      "description": "Detect layout collapses and fixed-width element leaks",
+      "effort_hours": 6,
+      "owner": "Coder",
+      "operations": ["NEW"],
+      "files": ["vir_runtime/observers/responsive/engine.py"]
+    },
+    {
+      "id": "Task 1.10",
+      "description": "Output structured ResponsiveFinding objects to Event Bus",
+      "effort_hours": 4,
+      "owner": "Architect",
+      "operations": ["NEW"],
+      "files": ["vir_runtime/observers/responsive/engine.py"]
+    },
+    {
+      "id": "Task 1.11",
+      "description": "Capture Web Vitals metrics (LCP, CLS, TTFB, INP)",
+      "effort_hours": 8,
+      "owner": "Coder",
+      "operations": ["NEW"],
+      "files": ["vir_runtime/observers/performance/engine.py"]
+    },
+    {
+      "id": "Task 1.12",
+      "description": "Load performance quality boundary thresholds from overrides",
+      "effort_hours": 4,
+      "owner": "Coder",
+      "operations": ["NEW"],
+      "files": [".agents/visual-runtime/config/vir_observers.yaml"]
+    },
+    {
+      "id": "Task 1.13",
+      "description": "Identify specific DOM elements triggering layout shifts (CLS)",
+      "effort_hours": 6,
+      "owner": "Verifier",
+      "operations": ["NEW"],
+      "files": ["vir_runtime/observers/performance/engine.py"]
+    },
+    {
+      "id": "Task 1.14",
+      "description": "Output structured PerformanceFinding objects to Event Bus",
+      "effort_hours": 4,
+      "owner": "Architect",
+      "operations": ["NEW"],
+      "files": ["vir_runtime/observers/performance/engine.py"]
+    },
+    {
+      "id": "Task 2.1",
+      "description": "Integrate responsive design rules checks with Design Authority",
+      "effort_hours": 6,
+      "owner": "Architect",
+      "operations": ["NEW"],
+      "files": ["vir_runtime/observers/responsive/engine.py"]
+    },
+    {
+      "id": "Task 2.2",
+      "description": "Build frame rate (FPS) tracker assessing animation janks",
+      "effort_hours": 8,
+      "owner": "Coder",
+      "operations": ["NEW"],
+      "files": ["vir_runtime/observers/performance/fps.py"]
+    },
+    {
+      "id": "Task 2.3",
+      "description": "Connect performance POOR scoring weights to Consensus votes",
+      "effort_hours": 6,
+      "owner": "Verifier",
+      "operations": ["NEW"],
+      "files": ["vir_runtime/observers/performance/engine.py"]
+    }
+  ],
+  "dependencies": {
+    "Task 1.2": ["Task 1.1"],
+    "Task 1.4": ["Task 1.1"],
+    "Task 1.6": ["Task 1.2"],
+    "Task 1.8": ["Task 1.7"],
+    "Task 1.9": ["Task 1.7"],
+    "Task 1.10": ["Task 1.9"],
+    "Task 1.13": ["Task 1.11"],
+    "Task 1.14": ["Task 1.13"],
+    "Task 2.1": ["Task 1.7"],
+    "Task 2.3": ["Task 1.11"]
+  },
+  "parallel_groups": [
+    ["Task 1.3", "Task 1.5", "Task 1.6"],
+    ["Task 1.7", "Task 1.8", "Task 1.9", "Task 1.10"],
+    ["Task 1.11", "Task 1.12", "Task 1.13", "Task 1.14"],
+    ["Task 2.2", "Task 2.3"]
+  ],
+  "exit_criteria": [
+    "A11y sweeps execute WCAG checklist mapping passes",
+    "Keyboard trap causes VETO events dynamically",
+    "Breakpoint shifts generate individual evidence files",
+    "LCP and TTFB metrics are captured accurately"
+  ],
+  "rollback": {
+    "trigger": "Axe core execution crashes or loops in headless runs",
+    "steps": [
+      "Revert local axe check files configurations",
+      "Disable raw script injection checks, falling back to static computed styles checks"
+    ]
+  },
+  "tests": [
+    {
+      "test_target": "tests/unit/test_a11y_axe.py",
+      "mapped_tasks": ["Task 1.1"]
+    },
+    {
+      "test_target": "tests/unit/test_responsive_overflow.py",
+      "mapped_tasks": ["Task 1.9"]
+    },
+    {
+      "test_target": "tests/unit/test_performance_vitals.py",
+      "mapped_tasks": ["Task 1.11"]
+    },
+    {
+      "test_target": "tests/integration/test_a11y_veto_gate.py",
+      "mapped_tasks": ["Task 1.4"]
+    }
+  ],
+  "artifacts": [
+    "docs/designs/FEAT-067_vir_observers_blueprint.md",
+    ".agents/visual-runtime/config/vir_observers.yaml"
+  ]
+}

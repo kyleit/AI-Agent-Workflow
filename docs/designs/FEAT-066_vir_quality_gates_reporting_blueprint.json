@@ -1,0 +1,137 @@
+{
+  "modules": [
+    {
+      "name": "vir_runtime.quality.gate",
+      "classes": [
+        {
+          "class_name": "QualityGateEvaluator",
+          "responsibilities": [
+            "Evaluate ConsensusRecords against threshold rules constraints",
+            "Assign exit status results parameters matching categories"
+          ],
+          "methods": [
+            {
+              "name": "evaluate_gate",
+              "parameters": [
+                {
+                  "name": "record",
+                  "type": "ConsensusRecord"
+                }
+              ],
+              "return_type": "str"
+            }
+          ],
+          "lifecycle": "Transient execution utility",
+          "state_ownership": "None"
+        }
+      ]
+    },
+    {
+      "name": "vir_runtime.reporting.engine",
+      "classes": [
+        {
+          "class_name": "ReportPublisher",
+          "responsibilities": [
+            "Assemble diagnostic logs and evidence references",
+            "Format SVG/HTML timeline charts dynamically"
+          ],
+          "methods": [
+            {
+              "name": "publish_report",
+              "parameters": [
+                {
+                  "name": "session_details",
+                  "type": "Dict[str, Any]"
+                },
+                {
+                  "name": "path_slug",
+                  "type": "str"
+                }
+              ],
+              "return_type": "Tuple[str, str]"
+            }
+          ],
+          "lifecycle": "Transient execution utility",
+          "state_ownership": "None"
+        }
+      ]
+    }
+  ],
+  "configuration": {
+    "schema": {
+      "type": "object",
+      "properties": {
+        "visual_regression": { "type": "number" },
+        "accessibility": { "type": "number" }
+      }
+    },
+    "defaults": {
+      "visual_regression": 0.90,
+      "accessibility": 1.00
+    }
+  },
+  "database": {
+    "tables": [],
+    "growth_estimation": "No database columns created inside this module.",
+    "maintenance_strategy": "None"
+  },
+  "cache": {
+    "keys": [],
+    "ttl_seconds": 0,
+    "invalidation_rules": []
+  },
+  "errors": [
+    {
+      "exception_class": "QualityGateException",
+      "trigger": "Input consensus payload is empty or corrupted",
+      "recovery": "Force status to BLOCKED and abort execution logs"
+    }
+  ],
+  "sequence_flows": [
+    {
+      "flow_name": "Gate Archiving Loop",
+      "steps": [
+        "QualityGateEvaluator matches consensus score limits",
+        "ReportPublisher writes MD results with SVG timelines",
+        "ZipPackager archives assets inside workspace directories"
+      ]
+    }
+  ],
+  "integration_contracts": [],
+  "cli_contracts": [],
+  "implementation_contracts": [
+    {
+      "file_path": "vir_runtime/reporting/packager.py",
+      "owner": "Coder",
+      "notes": "Verify ZIP files write in binary modes to prevent file corruptions"
+    }
+  ],
+  "implementation_packages": [
+    {
+      "task_id": "Task 1.1",
+      "module": "vir_runtime.quality.gate",
+      "read_set": [],
+      "write_set": ["vir_runtime/quality/gate.py"],
+      "dependencies": [],
+      "implementation_notes": "Implement quality gate logic",
+      "verification": "test_gate_evaluation.py unit tests",
+      "rollback": "Revert gate updates",
+      "expected_outputs": ["vir_runtime/quality/gate.py"]
+    }
+  ],
+  "tests": [
+    {
+      "requirement_id": "FR-01",
+      "test_type": "Unit Test",
+      "target_file": "tests/unit/test_gate_evaluation.py"
+    }
+  ],
+  "traceability": [
+    {
+      "req_id": "FR-01",
+      "task_id": "Task 1.1",
+      "target": "QualityGateEvaluator"
+    }
+  ],
+  "artifacts": []
+}

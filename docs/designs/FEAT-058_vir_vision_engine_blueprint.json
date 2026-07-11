@@ -1,0 +1,148 @@
+{
+  "modules": [
+    {
+      "name": "vir_runtime.sensory.vision.engine",
+      "classes": [
+        {
+          "class_name": "VisionEngine",
+          "responsibilities": [
+            "Dispatch execution across the 5 vision inspection layers dynamically",
+            "Consolidate visual audit findings arrays"
+          ],
+          "methods": [
+            {
+              "name": "run_vision_audit",
+              "parameters": [
+                {
+                  "name": "feature_id",
+                  "type": "str"
+                },
+                {
+                  "name": "url",
+                  "type": "str"
+                }
+              ],
+              "return_type": "List[Evidence]"
+            }
+          ],
+          "lifecycle": "Persistent during active investigation session",
+          "state_ownership": "None"
+        }
+      ]
+    },
+    {
+      "name": "vir_runtime.sensory.vision.pixel_comparer",
+      "classes": [
+        {
+          "class_name": "PixelComparer",
+          "responsibilities": [
+            "Apply structural pixel comparison on page screenshots",
+            "Support ignorable pixel coordinates regions filters"
+          ],
+          "methods": [
+            {
+              "name": "compare",
+              "parameters": [
+                {
+                  "name": "current_png",
+                  "type": "bytes"
+                },
+                {
+                  "name": "baseline_png",
+                  "type": "bytes"
+                },
+                {
+                  "name": "ignore_masks",
+                  "type": "List[Tuple[int,int,int,int]]"
+                }
+              ],
+              "return_type": "Tuple[float, bytes]"
+            }
+          ],
+          "lifecycle": "Utility computation class instantiated dynamically",
+          "state_ownership": "None"
+        }
+      ]
+    }
+  ],
+  "configuration": {
+    "schema": {
+      "type": "object",
+      "properties": {
+        "tolerance": { "type": "number" },
+        "ignore_selectors": {
+          "type": "array",
+          "items": { "type": "string" }
+        }
+      }
+    },
+    "defaults": {
+      "tolerance": 0.05,
+      "ignore_selectors": []
+    }
+  },
+  "database": {
+    "tables": [],
+    "growth_estimation": "No database columns allocated inside this module.",
+    "maintenance_strategy": "None"
+  },
+  "cache": {
+    "keys": [],
+    "ttl_seconds": 0,
+    "invalidation_rules": []
+  },
+  "errors": [
+    {
+      "exception_class": "VisualComparisonError",
+      "trigger": "Input screenshots resolutions sizes mismatch",
+      "recovery": "Skip comparing and log a diagnostic warning message payload"
+    }
+  ],
+  "sequence_flows": [
+    {
+      "flow_name": "Vision Audit Loop",
+      "steps": [
+        "VisionEngine invokes DOMInspector bounding boxes scan",
+        "PixelComparer executes image comparison math",
+        "VisualAnnotator marks coordinates of anomalies on output PNGs"
+      ]
+    }
+  ],
+  "integration_contracts": [],
+  "cli_contracts": [],
+  "implementation_contracts": [
+    {
+      "file_path": "vir_runtime/sensory/vision/pixel_comparer.py",
+      "owner": "Coder",
+      "notes": "Verify tolerance bounds parameters cannot exceed range 0.0 to 1.0"
+    }
+  ],
+  "implementation_packages": [
+    {
+      "task_id": "Task 1.2",
+      "module": "vir_runtime.sensory.vision.pixel_comparer",
+      "read_set": [],
+      "write_set": ["vir_runtime/sensory/vision/pixel_comparer.py"],
+      "dependencies": [],
+      "implementation_notes": "Implement image diff comparison logic",
+      "verification": "test_pixel_match.py verification unit tests",
+      "rollback": "Revert pixel module mutations",
+      "expected_outputs": ["vir_runtime/sensory/vision/pixel_comparer.py"]
+    }
+  ],
+  "tests": [
+    {
+      "requirement_id": "FR-02",
+      "test_type": "Unit Test",
+      "target_file": "tests/unit/test_pixel_match.py"
+    }
+  ],
+  "traceability": [
+    {
+      "req_id": "FR-02",
+      "task_id": "Task 1.2",
+      "target": "PixelComparer"
+    }
+  ],
+  "artifacts": []
+}

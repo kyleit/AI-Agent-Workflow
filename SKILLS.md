@@ -837,6 +837,32 @@ Frontend/Desktop Visual Debug           Skipped (Backend Only)
 * **Current Status**: Production Stable (v1.0.0 — Quality Layer).
 * **Dependencies**: Hoạt động sau bất kỳ pha tạo mới hoặc sửa đổi Skill nào.
 
+## 22. `vir-runtime` (command: `/vir-run`)
+* **Purpose**: Sandbox target lifecycle execution.
+* **Responsibilities**: Locate available TCP port sockets, start target servers, and clean process trees on exit.
+* **Dependencies**: `frontend-visual-debug`.
+
+---
+
+## 23. `vir-investigate` (command: `/vir-audit`)
+* **Purpose**: Cognitive investigation and Root Cause Analysis.
+* **Responsibilities**: Analyze evidence, detect contradictions, and synthesize hypothesis.
+* **Dependencies**: `vir-runtime`.
+
+---
+
+## 24. `vir-verify` (command: `/vir-check`)
+* **Purpose**: Apply weighted consensus quality gates.
+* **Responsibilities**: Evaluate visual regression and access compliance thresholds.
+* **Dependencies**: `vir-investigate`.
+
+---
+
+## 25. `vir-memory-update` (command: `/vir-learn`)
+* **Purpose**: Consolidate baselines and vector learning experience.
+* **Responsibilities**: Promote active route visual baselines and archive RCA findings.
+* **Dependencies**: `vir-verify`.
+
 ---
 
 ## 🛠️ Script-First Skill Architecture

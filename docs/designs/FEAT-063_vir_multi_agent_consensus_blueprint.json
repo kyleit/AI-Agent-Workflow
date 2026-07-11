@@ -1,0 +1,177 @@
+{
+  "modules": [
+    {
+      "name": "vir_runtime.multi_agent.consensus",
+      "classes": [
+        {
+          "class_name": "ConsensusEngine",
+          "responsibilities": [
+            "Aggregate dynamic agent votes parameters",
+            "Calculate weighted authority scores matching domain configs"
+          ],
+          "methods": [
+            {
+              "name": "collect_votes",
+              "parameters": [],
+              "return_type": "ConsensusRecord"
+            },
+            {
+              "name": "register_vote",
+              "parameters": [
+                {
+                  "name": "agent_name",
+                  "type": "str"
+                },
+                {
+                  "name": "vote",
+                  "type": "Dict[str, Any]"
+                }
+              ],
+              "return_type": "None"
+            }
+          ],
+          "lifecycle": "Persistent during active investigation session",
+          "state_ownership": "Owns active session votes registry structures"
+        }
+      ]
+    },
+    {
+      "name": "vir_runtime.multi_agent.memory",
+      "classes": [
+        {
+          "class_name": "AgentMemory",
+          "responsibilities": [
+            "Expose properties access layers to short and long term storage",
+            "Serialize long term memories into SQLite metadata tables"
+          ],
+          "methods": [
+            {
+              "name": "write_short_term",
+              "parameters": [
+                {
+                  "name": "key",
+                  "type": "str"
+                },
+                {
+                  "name": "value",
+                  "type": "Any"
+                }
+              ],
+              "return_type": "None"
+            },
+            {
+              "name": "save_long_term",
+              "parameters": [
+                {
+                  "name": "entity",
+                  "type": "str"
+                },
+                {
+                  "name": "pattern",
+                  "type": "str"
+                }
+              ],
+              "return_type": "None"
+            }
+          ],
+          "lifecycle": "Persistent during agent instance lifetime",
+          "state_ownership": "Owns local memory dictionary caches"
+        }
+      ]
+    }
+  ],
+  "configuration": {
+    "schema": {
+      "type": "object",
+      "properties": {
+        "confidence_threshold": { "type": "number" },
+        "domain_weights": {
+          "type": "object",
+          "properties": {
+            "design": { "type": "number" }
+          }
+        }
+      }
+    },
+    "defaults": {
+      "confidence_threshold": 0.85,
+      "domain_weights": {
+        "design": 1.0
+      }
+    }
+  },
+  "database": {
+    "tables": [
+      {
+        "table_name": "vir_agent_memory",
+        "columns": [
+          "agent_id TEXT",
+          "key TEXT",
+          "value TEXT",
+          "updated_at TEXT"
+        ]
+      }
+    ],
+    "growth_estimation": "Under 10MB per 100 runs. Minimal database updates.",
+    "maintenance_strategy": "Purge memory rows matching expired agent IDs."
+  },
+  "cache": {
+    "keys": [],
+    "ttl_seconds": 0,
+    "invalidation_rules": []
+  },
+  "errors": [
+    {
+      "exception_class": "ConsensusExecutionTimeoutError",
+      "trigger": "Subscribed agents fail returning votes within timeout limit",
+      "recovery": "Force missing votes to ABSTAIN status and evaluate metrics with active ones"
+    }
+  ],
+  "sequence_flows": [
+    {
+      "flow_name": "Consensus Evaluation Flow",
+      "steps": [
+        "ConsensusEngine receives agent votes payloads",
+        "Veto validators check linked evidence requirements",
+        "Weighted score aggregation triggers consensus record publish"
+      ]
+    }
+  ],
+  "integration_contracts": [],
+  "cli_contracts": [],
+  "implementation_contracts": [
+    {
+      "file_path": "vir_runtime/multi_agent/consensus.py",
+      "owner": "Architect",
+      "notes": "Verify veto check handles empty evidence lists correctly by raising advisories"
+    }
+  ],
+  "implementation_packages": [
+    {
+      "task_id": "Task 1.5",
+      "module": "vir_runtime.multi_agent.consensus",
+      "read_set": [],
+      "write_set": ["vir_runtime/multi_agent/consensus.py"],
+      "dependencies": [],
+      "implementation_notes": "Implement weighted consensus algorithm",
+      "verification": "test_weighted_consensus.py unit tests",
+      "rollback": "Revert consensus module updates",
+      "expected_outputs": ["vir_runtime/multi_agent/consensus.py"]
+    }
+  ],
+  "tests": [
+    {
+      "requirement_id": "FR-06",
+      "test_type": "Unit Test",
+      "target_file": "tests/unit/test_weighted_consensus.py"
+    }
+  ],
+  "traceability": [
+    {
+      "req_id": "FR-06",
+      "task_id": "Task 1.5",
+      "target": "ConsensusEngine"
+    }
+  ],
+  "artifacts": []
+}
