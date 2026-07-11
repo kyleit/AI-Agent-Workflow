@@ -198,6 +198,19 @@ def update_context_health(session: dict) -> None:
         pass
 
 def do_init(args):
+    has_project_args = (
+        getattr(args, "name", None) is not None or
+        getattr(args, "path", None) is not None or
+        getattr(args, "non_interactive", False) or
+        getattr(args, "config", None) is not None or
+        getattr(args, "dry_run", False) or
+        getattr(args, "resume", False)
+    )
+    config_exists = os.path.exists(os.path.join(getattr(args, "path", None) or ".", ".agents", "project.config.json"))
+    if (has_project_args or not config_exists) and not getattr(args, "permission", None):
+        import init_wizard
+        sys.exit(init_wizard.handle_init(args))
+
     new_fp = calculate_project_fingerprint(".")
     state_dir = os.path.join(".agents", "state")
     context_path = os.path.join(state_dir, "context.json")
@@ -3145,6 +3158,10 @@ def do_update(args):
         if res.get("status") == "failed":
             sys.exit(1)
 
+def do_update_source(args):
+    import update_source
+    sys.exit(update_source.handle_update_source(args))
+
 
 # ---------------------------------------------------------------------------
 # FEAT-050 Handlers: deps, task orchestrator, work-item cached, project version cached
@@ -3488,7 +3505,13 @@ def main():
     _ = deps_fix.add_argument("--yes", action="store_true", help="Auto-approve (non-interactive)")
 
     init_p = subparsers.add_parser("init")
+    _ = init_p.add_argument("name", nargs="?", type=str, default=None)
     _ = init_p.add_argument("--permission", type=str, default=None)
+    _ = init_p.add_argument("--path", type=str, default=None)
+    _ = init_p.add_argument("--non-interactive", action="store_true")
+    _ = init_p.add_argument("--config", type=str, default=None)
+    _ = init_p.add_argument("--dry-run", action="store_true")
+    _ = init_p.add_argument("--resume", action="store_true")
 
     perm_p = subparsers.add_parser("permissions", aliases=["permission"])
     perm_sub = perm_p.add_subparsers(dest="subaction", required=False)
@@ -3851,6 +3874,17 @@ def main():
     p_sync = provider_sub.add_parser("sync")
     _ = p_sync.add_argument("name", type=str)
     
+    ups_p = subparsers.add_parser("update-source")
+    _ = ups_p.add_argument("source", nargs="?", type=str, default=None)
+    _ = ups_p.add_argument("--source", type=str, dest="source_opt")
+    _ = ups_p.add_argument("--remote", type=str, default="origin")
+    _ = ups_p.add_argument("--branch", type=str, default="main")
+    _ = ups_p.add_argument("--check", action="store_true")
+    _ = ups_p.add_argument("--dry-run", action="store_true")
+    _ = ups_p.add_argument("--json", action="store_true")
+    _ = ups_p.add_argument("--yes", action="store_true")
+    _ = ups_p.add_argument("--allow-dirty", action="store_true")
+    
     args = parser.parse_args()
     
     cmds = {
@@ -3897,7 +3931,8 @@ def main():
         "provider": do_provider_action,
         "status": do_status_action,
         "knowledge": do_knowledge_action,
-        "test": do_test_action
+        "test": do_test_action,
+        "update-source": do_update_source
     }
     
     modifying_actions = ["init", "start", "step", "complete", "fail", "blueprint", "suggest", "compact", "task", "deps", "execution", "analysis-agent", "choice", "active-workflow", "resume", "discover", "classify", "memory", "env", "debug", "verify", "release", "state", "provider", "knowledge"]

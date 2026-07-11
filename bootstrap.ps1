@@ -52,7 +52,8 @@ function Show-Help {
     Write-Host "  provider     Manage external knowledge providers (sync, list, config)"
     Write-Host "  sync         Sync project memory/documentation to external providers (e.g. Obsidian)"
     Write-Host "  bootstrap    Run framework environment bootstrap installer"
-    Write-Host "  init         Initialize a new clean active workflow session"
+    Write-Host "  init         Initialize a new project workspace (collect specification, generate configs)"
+    Write-Host "  update-source Update the centralized framework source repository safely via Git"
     Write-Host "  test         Execute test validate, smoke, or affected tests"
     Write-Host "  help         Show this help message"
 }
@@ -68,6 +69,9 @@ switch (`$Command) {
     }
     "init" {
         python (Join-Path `$FrameworkRoot "skills/workflow-runtime/scripts/workflow_runtime.py") init @args
+    }
+    "update-source" {
+        python (Join-Path `$FrameworkRoot "skills/workflow-runtime/scripts/workflow_runtime.py") update-source @args
     }
     "test" {
         python (Join-Path `$FrameworkRoot "skills/workflow-runtime/scripts/workflow_runtime.py") test @args

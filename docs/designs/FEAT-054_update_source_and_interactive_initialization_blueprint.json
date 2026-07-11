@@ -1,0 +1,200 @@
+{
+  "modules": [
+    {
+      "name": "update_source",
+      "classes": [
+        {
+          "class_name": "SourceRepositoryService",
+          "responsibilities": [
+            "Kiểm tra trạng thái Git cục bộ của repo framework",
+            "Fetch thông tin commit mới nhất từ upstream remote",
+            "Thực hiện pull ff-only an toàn"
+          ],
+          "methods": [
+            {
+              "name": "check_status",
+              "parameters": [],
+              "return_type": "dict"
+            },
+            {
+              "name": "fetch_updates",
+              "parameters": [],
+              "return_type": "bool"
+            },
+            {
+              "name": "pull_ff",
+              "parameters": [],
+              "return_type": "bool"
+            }
+          ],
+          "lifecycle": "transient",
+          "state_ownership": "git"
+        }
+      ]
+    },
+    {
+      "name": "init_wizard",
+      "classes": [
+        {
+          "class_name": "InitQuestionnaire",
+          "responsibilities": [
+            "Quản lý bộ câu hỏi wizard tương tác khởi tạo dự án",
+            "Lưu trữ và tải draft state khi quá trình bị gián đoạn"
+          ],
+          "methods": [
+            {
+              "name": "run_interactive",
+              "parameters": [],
+              "return_type": "dict"
+            },
+            {
+              "name": "save_draft",
+              "parameters": [
+                {
+                  "name": "state",
+                  "type": "dict"
+                }
+              ],
+              "return_type": "None"
+            },
+            {
+              "name": "load_draft",
+              "parameters": [],
+              "return_type": "dict"
+            }
+          ],
+          "lifecycle": "transient",
+          "state_ownership": "filesystem"
+        },
+        {
+          "class_name": "RecommendationEngine",
+          "responsibilities": [
+            "Khuyến nghị stack công nghệ và topology tối ưu dựa trên câu trả lời"
+          ],
+          "methods": [
+            {
+              "name": "get_recommendations",
+              "parameters": [
+                {
+                  "name": "answers",
+                  "type": "dict"
+                }
+              ],
+              "return_type": "dict"
+            }
+          ],
+          "lifecycle": "stateless",
+          "state_ownership": "none"
+        },
+        {
+          "class_name": "ScaffoldPlanner",
+          "responsibilities": [
+            "Tạo cấu trúc thư mục",
+            "Sinh tệp tin cấu hình .agents/project.config.json và PROJECT_PROFILE.md"
+          ],
+          "methods": [
+            {
+              "name": "generate_scaffold",
+              "parameters": [
+                {
+                  "name": "config",
+                  "type": "dict"
+                }
+              ],
+              "return_type": "bool"
+            }
+          ],
+          "lifecycle": "transient",
+          "state_ownership": "filesystem"
+        }
+      ]
+    }
+  ],
+  "configuration": {
+    "schema": {},
+    "defaults": {}
+  },
+  "database": {
+    "tables": [],
+    "growth_estimation": "none",
+    "maintenance_strategy": "none"
+  },
+  "cache": {
+    "keys": [],
+    "ttl_seconds": 0,
+    "invalidation_rules": []
+  },
+  "errors": [
+    {
+      "exception_class": "GitCommandError",
+      "trigger": "Lệnh Git chạy thất bại hoặc có xung đột",
+      "recovery": "Hủy tác vụ và báo lỗi chi tiết"
+    },
+    {
+      "exception_class": "InitInterruptedException",
+      "trigger": "Người dùng hủy wizard khởi tạo giữa chừng",
+      "recovery": "Lưu nháp state và thoát an toàn"
+    }
+  ],
+  "sequence_flows": [
+    {
+      "flow_name": "update_source_flow",
+      "steps": [
+        "Check local git repo status",
+        "Fetch upstream remote",
+        "Display changes preview",
+        "Perform ff-only pull after user approval"
+      ]
+    }
+  ],
+  "integration_contracts": [],
+  "cli_contracts": [
+    {
+      "command": "aiwf update-source",
+      "args": ["--source", "--remote", "--branch", "--check", "--dry-run", "--json", "--yes"]
+    },
+    {
+      "command": "aiwf init",
+      "args": ["--path", "--non-interactive", "--config", "--dry-run", "--resume"]
+    }
+  ],
+  "implementation_contracts": [
+    {
+      "file_path": "skills/workflow-runtime/scripts/update_source.py",
+      "owner": "Architect",
+      "notes": "Đóng gói lớp SourceRepositoryService"
+    },
+    {
+      "file_path": "skills/workflow-runtime/scripts/init_wizard.py",
+      "owner": "Coder",
+      "notes": "Đóng gói các lớp InitQuestionnaire, RecommendationEngine, và ScaffoldPlanner"
+    }
+  ],
+  "implementation_packages": [
+    {
+      "task_id": "Task 1.2",
+      "module": "update_source",
+      "read_set": [],
+      "write_set": ["skills/workflow-runtime/scripts/update_source.py"],
+      "dependencies": ["Task 1.1"],
+      "implementation_notes": "Implement SourceRepositoryService Class",
+      "verification": "test_update_source.py unit tests",
+      "rollback": "git checkout skills/workflow-runtime/scripts/update_source.py",
+      "expected_outputs": ["SourceRepositoryService class"]
+    }
+  ],
+  "tests": [
+    {
+      "requirement_id": "FR-01",
+      "test_type": "Unit Test",
+      "target_file": "skills/workflow-runtime/tests/unit/test_update_source.py"
+    },
+    {
+      "requirement_id": "FR-05",
+      "test_type": "Unit Test",
+      "target_file": "skills/workflow-runtime/tests/unit/test_init_wizard.py"
+    }
+  ],
+  "traceability": [],
+  "artifacts": []
+}

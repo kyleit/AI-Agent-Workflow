@@ -5,6 +5,14 @@ All notable changes to this project will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [6.7.0] - 2026-07-11
+
+### Added
+- **FEAT-054: Build update-source and Interactive Project Initialization**:
+  - Triển khai lệnh CLI `aiwf update-source` hỗ trợ kiểm tra và cập nhật an toàn mã nguồn framework trung tâm qua Git fast-forward-only.
+  - Triển khai lệnh CLI `aiwf init` hỗ trợ bộ câu hỏi tương tác wizard 18 phần, sinh tệp tin cấu hình dự án `.agents/project.config.json` và tệp profile `.agents/PROJECT_PROFILE.md` tự động.
+  - Tích hợp bộ khuyến nghị stack thông minh RecommendationEngine và ScaffoldPlanner thực thi tạo cấu trúc thư mục chuẩn.
+
 ## [6.6.2] - 2026-07-11
 
 ### Fixed
