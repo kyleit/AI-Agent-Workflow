@@ -5,6 +5,15 @@ All notable changes to this project will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [6.8.0] - 2026-07-12
+
+### Added
+- **Visual Intelligence Runtime (VIR) Integration & Relocation**:
+  - Di chuyển mã nguồn và tệp tests của VIR Runtime vào mô hình Skill đóng gói (Publishable Skill Package) tại `skills/vir-runtime/`.
+  - Tạo tệp entry-point chính thức `skills/vir-runtime/scripts/vir.py` hỗ trợ chạy CLI đa nền tảng và phân giải import tương đối an toàn.
+  - Tích hợp điều phối pha VIR Visual QA vào workflow orchestrator trung tâm `skills/software-development-workflow/SKILL.md`.
+  - Đăng ký và đồng bộ các Skill mới (`vir-runtime`, `vir-investigate`, `vir-verify`, `vir-memory-update`) trong manifest và catalogs (`MANIFEST.json`, `SKILLS.md`).
+
 ## [6.7.0] - 2026-07-11
 
 ### Added
