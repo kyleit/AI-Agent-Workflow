@@ -226,9 +226,58 @@ class HierarchicalRuntime:
                 self.task_graph["concurrency_limit"] = limit
                 self.save_state_atomic("tasks.json", self.task_graph)
 
+    def load_commands_from_queue(self):
+        queue_path = os.path.join(self.state_dir, "queue.json")
+        if os.path.exists(queue_path):
+            try:
+                with open(queue_path, "r", encoding="utf-8") as f:
+                    qdata = json.load(f)
+                cmds = qdata.get("command_inbox", [])
+                if cmds:
+                    for c in cmds:
+                        if c not in self.command_inbox:
+                            self.command_inbox.append(c)
+                    # Clear command_inbox in queue.json after reading
+                    self.save_state_atomic("queue.json", {"command_inbox": []})
+            except Exception:
+                pass
+
+    def start_daemon_loop(self):
+        daemon_info = {
+            "pid": os.getpid(),
+            "status": "running",
+            "started_at": datetime.now().astimezone().isoformat(),
+            "heartbeat_at": datetime.now().astimezone().isoformat()
+        }
+        self.save_state_atomic("daemon.json", daemon_info)
+        self.log_event("daemon_started", f"Resident Orchestrator Daemon started with PID {os.getpid()}")
+
+        try:
+            while True:
+                daemon_info["heartbeat_at"] = datetime.now().astimezone().isoformat()
+                self.save_state_atomic("daemon.json", daemon_info)
+                self.load_commands_from_queue()
+                self.process_inbox()
+                self.run_workflow_cycle()
+                time.sleep(1)
+        except KeyboardInterrupt:
+            self.log_event("daemon_stopped", "Resident Orchestrator Daemon stopped manually.")
+        finally:
+            # Clean up daemon.json
+            daemon_path = os.path.join(self.state_dir, "daemon.json")
+            if os.path.exists(daemon_path):
+                try:
+                    os.remove(daemon_path)
+                except Exception:
+                    pass
+
 if __name__ == "__main__":
-    rt = HierarchicalRuntime("FEAT-111")
-    rt.receive_command("set concurrency 6")
-    rt.process_inbox()
-    rt.run_workflow_cycle()
-    print("RUNTIME CYCLE EXECUTED SUCCESSFULLY")
+    if "--daemon" in sys.argv:
+        rt = HierarchicalRuntime("FEAT-112")
+        rt.start_daemon_loop()
+    else:
+        rt = HierarchicalRuntime("FEAT-111")
+        rt.receive_command("set concurrency 6")
+        rt.process_inbox()
+        rt.run_workflow_cycle()
+        print("RUNTIME CYCLE EXECUTED SUCCESSFULLY")

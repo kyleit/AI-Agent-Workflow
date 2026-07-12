@@ -281,6 +281,50 @@ def do_init(args):
     update_context_health(session)
     save_session_atomic(session)
     print(f"Session initialized with permission_mode={mode}.")
+    
+    def check_daemon_running() -> bool:
+        import psutil
+        state_dir = os.path.join(".agents", "state")
+        daemon_path = os.path.join(state_dir, "daemon.json")
+        if os.path.exists(daemon_path):
+            try:
+                with open(daemon_path, "r", encoding="utf-8") as f:
+                    dinfo = json.load(f)
+                pid = dinfo.get("pid")
+                if pid and psutil.pid_exists(pid):
+                    return True
+            except Exception:
+                pass
+        return False
+
+    def ensure_daemon_running():
+        if check_daemon_running():
+            print("Resident Orchestrator is already running. Attaching to existing instance.")
+            return
+        
+        print("Starting Resident Orchestrator Daemon...")
+        script_path = os.path.join("skills", "workflow-runtime", "scripts", "hierarchical_runtime.py")
+        if not os.path.exists(script_path):
+            script_path = os.path.join(".agents", "skills", "workflow-runtime", "scripts", "hierarchical_runtime.py")
+        
+        import subprocess
+        import sys
+        import time
+        try:
+            if os.name == "nt":
+                subprocess.Popen([sys.executable, script_path, "--daemon"], 
+                                 creationflags=subprocess.CREATE_NO_WINDOW,
+                                 close_fds=True)
+            else:
+                subprocess.Popen([sys.executable, script_path, "--daemon"], 
+                                 stdout=subprocess.DEVNULL,
+                                 stderr=subprocess.DEVNULL,
+                                 close_fds=True)
+            time.sleep(0.5)
+        except Exception as e:
+            print(f"Error starting Resident Orchestrator: {e}", file=sys.stderr)
+
+    ensure_daemon_running()
 
 def do_validate(args):
     if getattr(args, "subaction", None):
