@@ -1,0 +1,136 @@
+{
+  "feature_id": "FEAT-CLOUD",
+  "phases": [
+    {
+      "phase_id": "PHASE-1",
+      "name": "Program D: Cloud Interface & Gateway",
+      "tasks": [
+        "FEAT-201",
+        "FEAT-205"
+      ]
+    },
+    {
+      "phase_id": "PHASE-2",
+      "name": "Program C: Security & Governance",
+      "tasks": [
+        "FEAT-204",
+        "FEAT-207"
+      ]
+    },
+    {
+      "phase_id": "PHASE-3",
+      "name": "Program B: Distributed Scheduling",
+      "tasks": [
+        "FEAT-203"
+      ]
+    },
+    {
+      "phase_id": "PHASE-4",
+      "name": "Program A: Cloud Operations",
+      "tasks": [
+        "FEAT-202",
+        "FEAT-206"
+      ]
+    },
+    {
+      "phase_id": "PHASE-5",
+      "name": "Program E: Ecosystem & DR",
+      "tasks": [
+        "FEAT-208",
+        "FEAT-209",
+        "FEAT-210"
+      ]
+    }
+  ],
+  "tasks": [
+    {
+      "task_id": "FEAT-201",
+      "phase_id": "PHASE-1",
+      "dependencies": [],
+      "required": true,
+      "worker_role": "Backend Engineering Agent"
+    },
+    {
+      "task_id": "FEAT-205",
+      "phase_id": "PHASE-1",
+      "dependencies": [],
+      "required": true,
+      "worker_role": "API Contract Agent"
+    },
+    {
+      "task_id": "FEAT-204",
+      "phase_id": "PHASE-2",
+      "dependencies": [
+        "FEAT-201",
+        "FEAT-205"
+      ],
+      "required": true,
+      "worker_role": "Security Agent"
+    },
+    {
+      "task_id": "FEAT-207",
+      "phase_id": "PHASE-2",
+      "dependencies": [
+        "FEAT-201",
+        "FEAT-205"
+      ],
+      "required": true,
+      "worker_role": "Security Agent"
+    },
+    {
+      "task_id": "FEAT-203",
+      "phase_id": "PHASE-3",
+      "dependencies": [
+        "FEAT-204",
+        "FEAT-207"
+      ],
+      "required": true,
+      "worker_role": "Distributed Systems Agent"
+    },
+    {
+      "task_id": "FEAT-202",
+      "phase_id": "PHASE-4",
+      "dependencies": [
+        "FEAT-203"
+      ],
+      "required": true,
+      "worker_role": "DevOps/Kubernetes Agent"
+    },
+    {
+      "task_id": "FEAT-206",
+      "phase_id": "PHASE-4",
+      "dependencies": [
+        "FEAT-203"
+      ],
+      "required": true,
+      "worker_role": "DevOps/Kubernetes Agent"
+    },
+    {
+      "task_id": "FEAT-208",
+      "phase_id": "PHASE-5",
+      "dependencies": [
+        "FEAT-203"
+      ],
+      "required": true,
+      "worker_role": "DevOps/Kubernetes Agent"
+    },
+    {
+      "task_id": "FEAT-209",
+      "phase_id": "PHASE-5",
+      "dependencies": [
+        "FEAT-203"
+      ],
+      "required": true,
+      "worker_role": "DevOps/Kubernetes Agent"
+    },
+    {
+      "task_id": "FEAT-210",
+      "phase_id": "PHASE-5",
+      "dependencies": [
+        "FEAT-203"
+      ],
+      "required": true,
+      "worker_role": "Distributed Systems Agent"
+    }
+  ]
+}

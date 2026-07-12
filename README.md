@@ -133,6 +133,18 @@ Once bootstrapped, open a new terminal in any Git project and execute:
   ```
   *Manages the split state engine files (context, workflow, runtime, approvals, usage, agents) and handles recovery or validation checks.*
 
+* **Hierarchical Orchestrator CLI**:
+  ```bash
+  aiwf orchestrator <run --autonomous | status | agents | tasks | graph | queue | locks | timeline | pause | resume | cancel | replan>
+  ```
+  *Điều phối tự động và giám sát tiến trình chạy đa tác nhân phân cấp nền tảng.*
+
+* **Resident Service CLI**:
+  ```bash
+  aiwf daemon <start | stop | status | restart>
+  ```
+  *Quản trị dịch vụ nền trú đóng Resident Orchestrator Service luôn luôn chạy ngầm.*
+
 * **Safely Remove Skills**:
   ```bash
   aiwf uninstall

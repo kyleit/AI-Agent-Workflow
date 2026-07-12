@@ -5,6 +5,26 @@ All notable changes to this project will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [6.11.0] - 2026-07-12
+
+### Added
+- **FEAT-112: Resident Orchestrator Service & Dynamic Subagent Runtime**:
+  - Triển khai tiến trình ngầm (daemon/service) trú đóng dài hạn luôn luôn hoạt động.
+  - Tích hợp tính năng tự động khởi chạy service qua sự kiện khởi tạo workspace.
+  - Xếp hàng và nhận chỉ thị phi đồng bộ ngoài luồng Command Inbox phản hồi < 100ms.
+  - Phân tích đồ thị DAG tác vụ để sinh động và thu hồi Subagents nhàn rỗi (ephemeral workers).
+  - Tích hợp WebSocket trực tiếp vào Visualizer Dashboard để cập nhật trạng thái động của daemon.
+
+## [6.10.0] - 2026-07-12
+
+### Added
+- **FEAT-111: Hierarchical Multi-Agent Runtime Platform Foundation**:
+  - Triển khai bộ điều phối phân cấp đa tác nhân chạy nền phi block với hàng đợi Command Inbox.
+  - Hỗ trợ lập lịch song song thực sự (Real Parallel Scheduler) tối đa 6 tác vụ chạy đồng thời.
+  - Triển khai cơ chế cách ly tiến trình (Worker Process Isolation) cùng dấu hiệu sống Heartbeats.
+  - Quản lý vòng đời uỷ quyền thời gian thực (`authorization.json` tự động hết hạn).
+  - Tích hợp sâu vào bảng quản trị giao diện Visualizer và loại bỏ hoàn toàn `.session.json` cũ.
+
 ## [6.9.0] - 2026-07-12
 
 ### Added

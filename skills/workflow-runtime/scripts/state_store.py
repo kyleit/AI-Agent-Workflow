@@ -151,7 +151,15 @@ class AtomicFileStateStore(StateStore):
             try:
                 with os.fdopen(fd, 'w', encoding='utf-8') as f:
                     json.dump(new_data, f, indent=2, ensure_ascii=False)
-                os.replace(tmp_path, path)
+                import time
+                for idx in range(10):
+                    try:
+                        os.replace(tmp_path, path)
+                        break
+                    except PermissionError as pe:
+                        if idx == 9:
+                            raise pe
+                        time.sleep(0.05)
                 self._last_write[key] = now
                 try:
                     self._last_write[key + "_mtime"] = os.path.getmtime(path)
@@ -180,7 +188,15 @@ class AtomicFileStateStore(StateStore):
                 try:
                     with os.fdopen(fd, 'w', encoding='utf-8') as f:
                         json.dump(new_data, f, indent=2, ensure_ascii=False)
-                    os.replace(tmp_path, path)
+                    import time
+                    for idx in range(10):
+                        try:
+                            os.replace(tmp_path, path)
+                            break
+                        except PermissionError:
+                            if idx == 9:
+                                raise
+                            time.sleep(0.05)
                     try:
                         self._last_write[key + "_mtime"] = os.path.getmtime(path)
                     except Exception:

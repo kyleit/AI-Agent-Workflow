@@ -2172,12 +2172,11 @@ def do_execution(args: argparse.Namespace) -> None:
         if not args.mode or not args.reason:
             print("Error: --mode and --reason are required.", file=sys.stderr)
             sys.exit(1)
-        # Force recommendations to sequential
-        rec_mode = "sequential"
-        rec_reason = "Parallel execution is completely disabled in this framework. Sequential execution only."
+        rec_mode = "parallel"
+        rec_reason = "Parallel execution is recommended by default for multi-agent efficiency."
         plan["implementation_execution_mode"] = "pending"
         plan["parallel_allowed_phase"] = "implementation"
-        plan["parallel_allowed"] = False
+        plan["parallel_allowed"] = True
         plan["execution_mode"] = "pending"
         plan["recommended_mode"] = rec_mode
         plan["recommended_reason"] = rec_reason
@@ -2191,17 +2190,13 @@ def do_execution(args: argparse.Namespace) -> None:
             print("Error: --mode is required.", file=sys.stderr)
             sys.exit(1)
             
-        if args.mode == "parallel":
-            print("Error: Parallel execution mode is disabled. Only sequential execution is supported.", file=sys.stderr)
-            sys.exit(1)
-            
-        plan["implementation_execution_mode"] = "sequential"
-        plan["execution_mode"] = "sequential"
+        plan["implementation_execution_mode"] = args.mode
+        plan["execution_mode"] = args.mode
         if args.approve:
             plan["approved"] = True
         with open(plan_file, "w", encoding="utf-8") as f:
             json.dump(plan, f, indent=2, ensure_ascii=False)
-        print(f"Execution mode updated to sequential (Approved: {plan.get('approved')}).")
+        print(f"Execution mode updated to {args.mode} (Approved: {plan.get('approved')}).")
         
     elif args.subaction == "summary":
         summary_text = """================================================================================
@@ -2359,6 +2354,224 @@ def do_resume_action(args):
     print(json.dumps(res, indent=2))
     if res["status"] != "success":
         sys.exit(1)
+
+def do_orchestrator(args):
+    import json
+    import os
+    import sys
+    from datetime import datetime
+    
+    state_dir = os.path.join(".agents", "state", "orchestrator")
+    
+    def read_json_safe_local(file_path):
+        if not os.path.exists(file_path):
+            return {}
+        try:
+            with open(file_path, "r", encoding="utf-8") as f:
+                return json.load(f)
+        except Exception:
+            return {}
+            
+    def write_json_atomic_local(file_path, data):
+        temp_path = file_path + ".tmp"
+        try:
+            with open(temp_path, "w", encoding="utf-8") as f:
+                json.dump(data, f, indent=2, ensure_ascii=False)
+            os.replace(temp_path, file_path)
+            return True
+        except Exception:
+            return False
+
+    def log_event_local(event_type, message):
+        events_path = os.path.join(state_dir, "events.jsonl")
+        evt = {
+            "timestamp": datetime.now().astimezone().isoformat(),
+            "event_type": event_type,
+            "message": message
+        }
+        try:
+            with open(events_path, "a", encoding="utf-8") as f:
+                f.write(json.dumps(evt) + "\n")
+        except Exception:
+            pass
+
+    subaction = args.subaction
+    
+    if subaction == "run":
+        from autonomous_orchestrator import run_autonomous_delivery
+        work_item = getattr(args, "work_item_id", None) or getattr(args, "work_item_opt", None) or "FEAT-111"
+        run_autonomous_delivery(work_item)
+        return
+        
+    elif subaction == "status":
+        from autonomous_orchestrator import print_status
+        print_status()
+        return
+        
+    elif subaction == "agents":
+        from autonomous_orchestrator import print_agents
+        print_agents()
+        return
+        
+    elif subaction == "tasks":
+        from autonomous_orchestrator import print_tasks
+        print_tasks()
+        return
+        
+    elif subaction == "graph":
+        from autonomous_orchestrator import print_graph
+        print_graph()
+        return
+        
+    elif subaction == "defects":
+        from autonomous_orchestrator import print_defects
+        print_defects()
+        return
+        
+    elif subaction == "resume":
+        obj_path = os.path.join(state_dir, "objective.json")
+        obj = read_json_safe_local(obj_path)
+        if obj:
+            obj["status"] = "in_progress"
+            write_json_atomic_local(obj_path, obj)
+            log_event_local("run_resumed", "Run resumed via CLI.")
+            print(json.dumps({"status": "success", "summary": "Run resumed successfully."}))
+        else:
+            print(json.dumps({"status": "error", "summary": "Objective file not found."}))
+            sys.exit(1)
+        return
+        
+    elif subaction == "cancel":
+        obj_path = os.path.join(state_dir, "objective.json")
+        obj = read_json_safe_local(obj_path)
+        if obj:
+            obj["status"] = "cancelled"
+            write_json_atomic_local(obj_path, obj)
+            log_event_local("run_cancelled", "Run cancelled via CLI.")
+            print(json.dumps({"status": "success", "summary": "Run cancelled successfully."}))
+        else:
+            print(json.dumps({"status": "error", "summary": "Objective file not found."}))
+            sys.exit(1)
+        return
+        
+    elif subaction == "action":
+        action = args.action
+        task_id = args.task_id
+        lock_id = args.lock_id
+
+    if action == "resume":
+        obj_path = os.path.join(state_dir, "objective.json")
+        obj = read_json_safe_local(obj_path)
+        if obj:
+            obj["status"] = "in_progress"
+            write_json_atomic_local(obj_path, obj)
+            log_event_local("run_resumed", "Run resumed via Recovery Center.")
+            print(json.dumps({"status": "success", "summary": "Run resumed successfully."}))
+        else:
+            print(json.dumps({"status": "error", "summary": "Objective file not found."}))
+            sys.exit(1)
+            
+    elif action == "retry":
+        if not task_id:
+            print(json.dumps({"status": "error", "summary": "Task ID required for retry."}))
+            sys.exit(1)
+            
+        tg_path = os.path.join(state_dir, "task_graph.json")
+        tg = read_json_safe_local(tg_path)
+        if tg and "tasks" in tg and task_id in tg["tasks"]:
+            tg["tasks"][task_id]["status"] = "ready"
+            write_json_atomic_local(tg_path, tg)
+            log_event_local("task_retried", f"Task {task_id} status reset to ready.")
+            print(json.dumps({"status": "success", "summary": f"Task {task_id} reset to ready."}))
+        else:
+            print(json.dumps({"status": "error", "summary": f"Task {task_id} not found."}))
+            sys.exit(1)
+            
+    elif action == "cancel":
+        if not task_id:
+            print(json.dumps({"status": "error", "summary": "Task ID required for cancel."}))
+            sys.exit(1)
+            
+        tg_path = os.path.join(state_dir, "task_graph.json")
+        tg = read_json_safe_local(tg_path)
+        if tg and "tasks" in tg and task_id in tg["tasks"]:
+            tg["tasks"][task_id]["status"] = "cancelled"
+            write_json_atomic_local(tg_path, tg)
+            log_event_local("task_cancelled", f"Task {task_id} status marked as cancelled.")
+            print(json.dumps({"status": "success", "summary": f"Task {task_id} cancelled."}))
+        else:
+            print(json.dumps({"status": "error", "summary": f"Task {task_id} not found."}))
+            sys.exit(1)
+            
+    elif action == "release_lock":
+        if not lock_id:
+            print(json.dumps({"status": "error", "summary": "Lock ID required to release."}))
+            sys.exit(1)
+            
+        locks_path = os.path.join(state_dir, "locks.json")
+        locks = read_json_safe_local(locks_path)
+        if locks and "active" in locks and lock_id in locks["active"]:
+            owner = locks["active"][lock_id].get("owner_agent_id", "unknown")
+            del locks["active"][lock_id]
+            write_json_atomic_local(locks_path, locks)
+            log_event_local("lock_released", f"Lock on resource {lock_id} held by {owner} released.")
+            print(json.dumps({"status": "success", "summary": f"Lock {lock_id} released."}))
+        elif locks and lock_id in locks:
+            del locks[lock_id]
+            write_json_atomic_local(locks_path, locks)
+            log_event_local("lock_released", f"Lock on resource {lock_id} released.")
+            print(json.dumps({"status": "success", "summary": f"Lock {lock_id} released."}))
+        else:
+            print(json.dumps({"status": "error", "summary": f"Lock {lock_id} not active."}))
+            sys.exit(1)
+            
+    elif action == "restore_checkpoint":
+        if not task_id:
+            print(json.dumps({"status": "error", "summary": "Checkpoint ID required to restore."}))
+            sys.exit(1)
+            
+        cp_path = os.path.join(state_dir, "checkpoints", f"checkpoint_{task_id}.json")
+        if not os.path.exists(cp_path):
+            cp_path = os.path.join(state_dir, "checkpoints", f"{task_id}.json")
+            if not os.path.exists(cp_path):
+                cp_found = False
+                cp_dir = os.path.join(state_dir, "checkpoints")
+                if os.path.exists(cp_dir):
+                    for f in os.listdir(cp_dir):
+                        if f.endswith(".json"):
+                            p = os.path.join(cp_dir, f)
+                            data = read_json_safe_local(p)
+                            if data.get("checkpoint_id") == task_id:
+                                cp_path = p
+                                cp_found = True
+                                break
+                if not cp_found:
+                    print(json.dumps({"status": "error", "summary": f"Checkpoint {task_id} not found."}))
+                    sys.exit(1)
+                    
+        cp_data = read_json_safe_local(cp_path)
+        if cp_data:
+            if "objective" in cp_data:
+                write_json_atomic_local(os.path.join(state_dir, "objective.json"), cp_data["objective"])
+            if "queue" in cp_data:
+                write_json_atomic_local(os.path.join(state_dir, "queue.json"), cp_data["queue"])
+            if "task_graph" in cp_data:
+                write_json_atomic_local(os.path.join(state_dir, "task_graph.json"), cp_data["task_graph"])
+            if "agents" in cp_data:
+                write_json_atomic_local(os.path.join(state_dir, "agents.json"), cp_data["agents"])
+            if "locks" in cp_data:
+                write_json_atomic_local(os.path.join(state_dir, "locks.json"), cp_data["locks"])
+                
+            log_event_local("checkpoint_restored", f"State restored to checkpoint {task_id}.")
+            print(json.dumps({"status": "success", "summary": f"Checkpoint {task_id} restored."}))
+        else:
+            print(json.dumps({"status": "error", "summary": "Failed to read checkpoint data."}))
+            sys.exit(1)
+            
+    else:
+        print(json.dumps({"status": "error", "summary": f"Unknown action: {action}"}))
+        sys.exit(1)
+
 
 def do_discover_action(args):
     from project_discovery import run_discovery
@@ -3797,6 +4010,42 @@ def main():
     rel_exec = release_sub.add_parser("execute")
     _ = rel_exec.add_argument("--approve", action="store_true")
     
+    orchestrator_p = subparsers.add_parser("orchestrator")
+    orchestrator_sub = orchestrator_p.add_subparsers(dest="subaction", required=True)
+    
+    # run
+    run_p = orchestrator_sub.add_parser("run")
+    _ = run_p.add_argument("--autonomous", action="store_true")
+    _ = run_p.add_argument("work_item_id", type=str, nargs="?", default=None)
+    _ = run_p.add_argument("--work-item-id", type=str, dest="work_item_opt", default=None)
+    
+    # status
+    _ = orchestrator_sub.add_parser("status")
+    
+    # agents
+    _ = orchestrator_sub.add_parser("agents")
+    
+    # tasks
+    _ = orchestrator_sub.add_parser("tasks")
+    
+    # graph
+    _ = orchestrator_sub.add_parser("graph")
+    
+    # defects
+    _ = orchestrator_sub.add_parser("defects")
+    
+    # resume
+    _ = orchestrator_sub.add_parser("resume")
+    
+    # cancel
+    _ = orchestrator_sub.add_parser("cancel")
+    
+    # action (Visualizer Recovery Center backward-compatibility)
+    orch_act = orchestrator_sub.add_parser("action")
+    _ = orch_act.add_argument("--action", required=True, type=str)
+    _ = orch_act.add_argument("--task-id", type=str, default=None)
+    _ = orch_act.add_argument("--lock-id", type=str, default=None)
+
     _ = subparsers.add_parser("context")
     
     rules_p = subparsers.add_parser("rules")
@@ -3932,10 +4181,11 @@ def main():
         "status": do_status_action,
         "knowledge": do_knowledge_action,
         "test": do_test_action,
-        "update-source": do_update_source
+        "update-source": do_update_source,
+        "orchestrator": do_orchestrator
     }
     
-    modifying_actions = ["init", "start", "step", "complete", "fail", "blueprint", "suggest", "compact", "task", "deps", "execution", "analysis-agent", "choice", "active-workflow", "resume", "discover", "classify", "memory", "env", "debug", "verify", "release", "state", "provider", "knowledge"]
+    modifying_actions = ["init", "start", "step", "complete", "fail", "blueprint", "suggest", "compact", "task", "deps", "execution", "analysis-agent", "choice", "active-workflow", "resume", "discover", "classify", "memory", "env", "debug", "verify", "release", "state", "provider", "knowledge", "orchestrator"]
     if args.action in modifying_actions:
         with SessionLock():
             cmds[args.action](args)
