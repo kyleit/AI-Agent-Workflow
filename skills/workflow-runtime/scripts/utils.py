@@ -73,6 +73,56 @@ def is_stdin_ready() -> bool:
                     ret = False
     return ret
 
+def log_gate_resolution_event(gate_name: str, resolution: str, decision: str) -> None:
+    import json
+    import os
+    from datetime import datetime
+    
+    event = {
+        "timestamp": datetime.now().astimezone().isoformat(),
+        "gate_name": gate_name,
+        "permission_mode": "full_access",
+        "resolution": resolution,
+        "decision": decision
+    }
+    
+    paths = [
+        os.path.join("artifacts", "full-access-autonomous-delivery", "gate_resolution_events.jsonl"),
+        os.path.join("docs", "debug", "gate_resolution_events.jsonl")
+    ]
+    
+    for path in paths:
+        dir_name = os.path.dirname(path)
+        if dir_name:
+            os.makedirs(dir_name, exist_ok=True)
+        try:
+            with open(path, "a", encoding="utf-8") as f:
+                f.write(json.dumps(event, ensure_ascii=False) + "\n")
+        except Exception:
+            pass
+
+def log_phase_transition_event(from_phase: str, to_phase: str, status: str = "success") -> None:
+    import json
+    import os
+    from datetime import datetime
+    
+    event = {
+        "timestamp": datetime.now().astimezone().isoformat(),
+        "from_phase": from_phase,
+        "to_phase": to_phase,
+        "status": status
+    }
+    
+    path = os.path.join("artifacts", "full-access-autonomous-delivery", "phase_transition_events.jsonl")
+    dir_name = os.path.dirname(path)
+    if dir_name:
+        os.makedirs(dir_name, exist_ok=True)
+    try:
+        with open(path, "a", encoding="utf-8") as f:
+            f.write(json.dumps(event, ensure_ascii=False) + "\n")
+    except Exception:
+        pass
+
 def prompt_select(question: str, options: list[str], default: str | None = None) -> str:
     """
     In ra cấu trúc XML/JSON đặc biệt để Agent bắt sự kiện hiển thị UI ask_question.
@@ -80,6 +130,29 @@ def prompt_select(question: str, options: list[str], default: str | None = None)
     Nếu không nhận được hoặc lỗi, trả về giá trị default.
     """
     import sys
+    
+    # Check if permission mode is full_access and active
+    try:
+        from session import load_session
+        session = load_session()
+        mode = session.get("permission_mode", "sandbox")
+    except Exception:
+        mode = "sandbox"
+        
+    if mode == "full_access" and os.environ.get("TEST_PROMPT") != "1":
+        # Check positive options
+        positive_choices = ["yes", "y", "continue", "continue on current branch", "proceed", "agree"]
+        chosen = None
+        for opt in options:
+            if opt.lower().strip() in positive_choices:
+                chosen = opt
+                break
+        if not chosen:
+            chosen = default if default is not None else options[0]
+            
+        log_gate_resolution_event(question, "AUTHORIZED_BY_FULL_ACCESS", chosen)
+        return chosen
+
     # Bỏ qua tương tác nếu đang chạy test tự động
     if (os.environ.get("TESTING") == "1" or any(m in sys.modules for m in ["unittest", "pytest"])) and os.environ.get("TEST_PROMPT") != "1":
         if is_stdin_ready():

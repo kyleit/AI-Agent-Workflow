@@ -1,0 +1,199 @@
+{
+  "modules": [
+    {
+      "name": "Registry",
+      "classes": [
+        {
+          "class_name": "Registry",
+          "responsibilities": [
+            "Maintain list of active user project paths",
+            "Serialize config to projects.json"
+          ],
+          "methods": [
+            {
+              "name": "RegisterProject",
+              "parameters": [
+                "path"
+              ],
+              "return_type": "Project"
+            },
+            {
+              "name": "GetProjects",
+              "parameters": [],
+              "return_type": "[]Project"
+            },
+            {
+              "name": "DeleteProject",
+              "parameters": [
+                "id"
+              ],
+              "return_type": "error"
+            }
+          ],
+          "lifecycle": "Singleton persisted on local config directory",
+          "state_ownership": "Local OS config file path"
+        }
+      ]
+    },
+    {
+      "name": "Supervisor",
+      "classes": [
+        {
+          "class_name": "Supervisor",
+          "responsibilities": [
+            "Manage WebSocket connection pools to local python runtimes",
+            "Dispatch reactive events to Wails Svelte components"
+          ],
+          "methods": [
+            {
+              "name": "ConnectProject",
+              "parameters": [
+                "id",
+                "port"
+              ],
+              "return_type": "error"
+            },
+            {
+              "name": "DisconnectProject",
+              "parameters": [
+                "id"
+              ],
+              "return_type": "error"
+            }
+          ],
+          "lifecycle": "Active during application runtime",
+          "state_ownership": "In-memory maps in Go"
+        }
+      ]
+    }
+  ],
+  "configuration": {
+    "schema": {
+      "projects": [
+        {
+          "id": "string (uuid)",
+          "name": "string",
+          "path": "string",
+          "port": "integer"
+        }
+      ]
+    },
+    "defaults": {
+      "projects": []
+    }
+  },
+  "database": {
+    "tables": [
+      "provider_requests",
+      "workflow_runs"
+    ],
+    "growth_estimation": "Minimal. Client runs in read-only mode over SQLite databases",
+    "maintenance_strategy": "Database connection handles are released instantly after queries"
+  },
+  "cache": {
+    "keys": [
+      "projects_list_cache"
+    ],
+    "ttl_seconds": 0,
+    "invalidation_rules": [
+      "Configuration mutated (RegisterProject, DeleteProject)"
+    ]
+  },
+  "errors": [
+    {
+      "exception_class": "ConnectionError",
+      "trigger": "Local WebSocket connection to python port drops unexpectedly",
+      "recovery": "Activate connection retry loop every 1.5 seconds up to 10 attempts"
+    },
+    {
+      "exception_class": "ErrOrchestratorLocked",
+      "trigger": "Subprocess start request triggers when SQLite locks or lock lease is active",
+      "recovery": "Display notification error banner to user and abort launch"
+    }
+  ],
+  "sequence_flows": [
+    {
+      "flow_name": "Start Orchestrator Sequence Flow",
+      "steps": [
+        "Svelte UI triggers Wails bind executor StartOrchestrator(path)",
+        "Lock checker queries SQLite lease active status & lock files",
+        "If unlocked, executor spawns python runtime CLI command subprocess",
+        "Supervisor starts WebSocket connection handler to telemetry port",
+        "Svelte UI receives event updates and changes node status indicators"
+      ]
+    }
+  ],
+  "integration_contracts": [],
+  "cli_contracts": [
+    {
+      "command": "python skills/workflow-runtime/scripts/workflow_runtime.py start",
+      "inputs": [
+        "--skill",
+        "--command"
+      ],
+      "outputs": [
+        "exit_code",
+        "stdout (JSON)"
+      ]
+    }
+  ],
+  "implementation_contracts": [
+    {
+      "file_path": "desktop/registry.go",
+      "owner": "Coder",
+      "notes": "Handles config registry storage"
+    },
+    {
+      "file_path": "desktop/supervisor.go",
+      "owner": "Architect",
+      "notes": "Maintains WebSocket loops in concurrent Go routines"
+    },
+    {
+      "file_path": "desktop/lock_checker.go",
+      "owner": "Architect",
+      "notes": "Validates SQLite database lease state"
+    }
+  ],
+  "implementation_packages": [
+    {
+      "task_id": "Task 1.1",
+      "module": "Registry",
+      "read_set": [],
+      "write_set": [
+        "desktop/registry.go"
+      ],
+      "dependencies": [],
+      "implementation_notes": "Wails boilerplate with basic project registry serialization",
+      "verification": "Go registry test execution passes",
+      "rollback": "Revert git registry file additions",
+      "expected_outputs": [
+        "desktop/main.go",
+        "desktop/registry.go"
+      ]
+    }
+  ],
+  "tests": [
+    {
+      "requirement_id": "FR-01",
+      "test_type": "Unit Test",
+      "target_file": "desktop/registry_test.go"
+    },
+    {
+      "requirement_id": "FR-02",
+      "test_type": "Integration Test",
+      "target_file": "desktop/executor_test.go"
+    }
+  ],
+  "traceability": [
+    {
+      "requirement_id": "FR-01",
+      "task_id": "Task 1.1",
+      "component": "Registry",
+      "file": "desktop/registry.go",
+      "test": "desktop/registry_test.go"
+    }
+  ],
+  "artifacts": [
+    "docs/designs/FEAT-115_aiwf_desktop_runtime_control_center_blueprint.md"
+  ]
+}

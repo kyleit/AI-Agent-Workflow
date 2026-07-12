@@ -88,6 +88,7 @@ Review the implementation, verify builds, resolve compilation and linting issues
 6.  **Fix Compilation & Runtime Errors**: If any checks fail, analyze stderr, locate the bugs, and apply minimal fixes.
 7.  **Logging & Error Handling**: Improve logging visibility, format, and ensure proper try-catch/error propagation.
 8.  **Code Cleanup**: Remove dead code, unused imports, or debug console logs.
+9.  **Runtime Validation Pipeline**: Execute the complete runtime debug validation pipeline (build target binary, start application, wait for readiness detection, execute smoke tests, verify health status, analyze runtime log classifications, perform graceful shutdown, and handle self-healing loop errors).
 
 ---
 
@@ -96,7 +97,7 @@ Review the implementation, verify builds, resolve compilation and linting issues
 ```
 Step 1: Inspect session state & Git branch
         ↓
-Step 2: Run compiler, build, linter, and tests
+Step 2: Run compiler, build, linter, tests, and runtime validation pipeline
         ↓
 Step 3: Resolve any errors or test failures
         ↓
@@ -128,6 +129,7 @@ status: [PASS | FAIL]
 - **Build Status**: [PASS | FAIL] (Command used: `[cmd]`)
 - **Lint Status**: [PASS | FAIL] (Command used: `[cmd]`)
 - **Unit Tests Status**: [PASS | FAIL] (Command used: `[cmd]`)
+- **Runtime Validation Status**: [PASS | FAIL] (Command used: `python skills/workflow-runtime/scripts/workflow_runtime.py debug`)
 
 ## 3. Issues Found & Resolved
 | Issue Description | Root Cause | Fix Summary | Files Affected |

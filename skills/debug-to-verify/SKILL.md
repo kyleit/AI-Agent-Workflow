@@ -116,11 +116,13 @@ status: [PASS | FAIL]
 | **Security Audits** | [PASS | FAIL] | [Input sanitization, permissions check] |
 | **Performance Check** | [PASS | FAIL] | [No resource leaks, fast DB queries] |
 | **Tests Coverage** | [PASS | FAIL] | [Existing test validation] |
+| **Runtime Validation Pipeline** | [PASS | FAIL] | [Verify build, start, ready, smoke test, and graceful shutdown] |
+| **DDD / Clean Architecture** | [PASS | FAIL] | [Verify Architecture Compliance Score >= 95/100, no Critical Violations. Check docs/verification/FEAT-XXX_architecture_verify.md] |
 | **Documentation & Changelog**| [PASS | FAIL] | [Verify changelog readiness] |
 
 ## 3. Go / No-Go Recommendation
 - **Recommendation**: [GO | NO-GO]
-- **Justification**: [Summary of reasons why this code should or should not proceed to production release]
+- **Justification**: [Summary of reasons why this code should or should not proceed to production release. Must have Architecture Score >= 95/100 to Go]
 
 ## 4. Remaining Risks
 - **Risk**: [Risk] → **Mitigation**: [Mitigation]

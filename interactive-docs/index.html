@@ -360,7 +360,7 @@
                         <div class="step-number">2</div>
                         <div class="step-card-detail">
                             <h3>Khảo sát &amp; Lập kế hoạch (Tuần tự)</h3>
-                            <p>Tự động chạy các pha Brainstorming, Planning và Blueprint Generation một cách tuần tự. Không chạy song song ở các pha này.</p>
+                            <p>Tự động chạy các pha Brainstorming, Planning và Blueprint Generation một cách tuần tự. Trạng thái và checkpoint được ghi nhận độc lập theo từng Work Item.</p>
                         </div>
                     </div>
 
@@ -368,23 +368,23 @@
                         <div class="step-number">3</div>
                         <div class="step-card-detail">
                             <h3>Chọn chế độ thực thi (Implementation Gate)</h3>
-                            <p>Khi bắt đầu pha triển khai (Implementation), hiển thị menu cho phép người dùng chọn chạy song song (Parallel) hoặc tuần tự (Sequential).</p>
+                            <p>Khi bắt đầu pha triển khai (Implementation), hiển thị menu cho phép người dùng chọn chạy song song (Parallel) hoặc tuần tự (Sequential) cho từng Work Item.</p>
                         </div>
                     </div>
 
                     <div class="timeline-step">
                         <div class="step-number">4</div>
                         <div class="step-card-detail">
-                            <h3>Triển khai lập trình</h3>
-                            <p>Thực thi viết mã nguồn thông qua các worker song song (sử dụng cơ chế khóa file lock) hoặc tuần tự tùy thuộc vào quyết định của người dùng.</p>
+                            <h3>Triển khai lập trình phân vùng</h3>
+                            <p>Thực thi viết mã nguồn thông qua các worker song song (sử dụng cơ chế khóa file lock phân vùng) hoặc tuần tự theo phạm vi Work Item cô lập.</p>
                         </div>
                     </div>
 
                     <div class="timeline-step">
                         <div class="step-number">5</div>
                         <div class="step-card-detail">
-                            <h3>Nghiệm thu &amp; Release</h3>
-                            <p>Chạy kiểm thử tự động, ký nghiệm thu chất lượng verify và tiến hành release.</p>
+                            <h3>Nghiệm thu &amp; Release độc lập</h3>
+                            <p>Chạy kiểm thử tự động, ký nghiệm thu chất lượng verify theo từng Work Item và tiến hành release thủ công sau khi đã kiểm định chất lượng.</p>
                         </div>
                     </div>
                 </div>

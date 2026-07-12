@@ -17,9 +17,12 @@ from optimizer import (
     get_optimization_leaderboard
 )
 
+from budget_controller import init_budget_tables
+
 class TestOptimizer(unittest.TestCase):
     def setUp(self):
         init_optimizer_tables()
+        init_budget_tables()
 
     def test_policy_switching(self):
         res = set_active_policy("Aggressive")

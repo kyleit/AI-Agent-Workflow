@@ -55,6 +55,7 @@ function Show-Help {
     Write-Host "  init         Initialize a new project workspace (collect specification, generate configs)"
     Write-Host "  update-source Update the centralized framework source repository safely via Git"
     Write-Host "  test         Execute test validate, smoke, or affected tests"
+    Write-Host "  orchestrator Manage the Resident Orchestrator service"
     Write-Host "  help         Show this help message"
 }
 
@@ -105,6 +106,9 @@ switch (`$Command) {
     }
     "sync" {
         python (Join-Path `$FrameworkRoot "skills/workflow-runtime/scripts/workflow_runtime.py") provider sync @args
+    }
+    "orchestrator" {
+        python (Join-Path `$FrameworkRoot "skills/workflow-runtime/scripts/workflow_runtime.py") orchestrator @args
     }
     "help" {
         Show-Help

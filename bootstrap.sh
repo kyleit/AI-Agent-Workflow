@@ -50,6 +50,7 @@ show_help() {
     echo "  registry     Manage centralized global project registry"
     echo "  provider     Manage external knowledge providers (sync, list, config)"
     echo "  sync         Sync project memory/documentation to external providers (e.g. Obsidian)"
+    echo "  orchestrator Manage the Resident Orchestrator service"
     echo "  help         Show this help message"
 }
 
@@ -91,6 +92,9 @@ case "$COMMAND" in
         ;;
     sync)
         python3 "$FRAMEWORK_ROOT/skills/workflow-runtime/scripts/workflow_runtime.py" provider sync "$@"
+        ;;
+    orchestrator)
+        python3 "$FRAMEWORK_ROOT/skills/workflow-runtime/scripts/workflow_runtime.py" orchestrator "$@"
         ;;
     help|-h|--help)
         show_help

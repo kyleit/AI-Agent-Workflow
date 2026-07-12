@@ -5,6 +5,17 @@ All notable changes to this project will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [6.12.0] - 2026-07-12
+
+### Added
+- **Quality & Quality Governance Upgrade (DDD, Clean Architecture & Code Size Governance)**:
+  - Triển khai **Code Size Policy Governance** phân tích AST Python và bracket-balancing Go, tự động cảnh báo hoặc báo lỗi cứng khi kích thước file/class/function vượt ngưỡng quy định.
+  - Tích hợp đề xuất SRP Refactoring khuyến cáo cách trích xuất hàm và phân rã tệp tin vi phạm.
+  - Triển khai **DDD & Clean Architecture Validator** quét dependency imports tự động cho Go và Python, tính toán điểm số tuân thủ kiến trúc (yêu cầu tối thiểu 95/100).
+  - Tích hợp cổng kiểm soát chất lượng kiến trúc và Code Size vào pha Debug & Verification của `validation_runner.py`.
+  - Nâng cấp Visualizer Dashboard Webview bổ sung tab **Code Size** thể hiện Neon status (PASSED/FAILED), top 5 vi phạm lớn nhất và các đề xuất SRP refactor trực quan.
+  - Tái cấu trúc thành công Golang Wails App tại thư mục `desktop/` chuyển sang kiến trúc DDD chuẩn (`domain`, `application`, `infrastructure`, `delivery`), loại bỏ hoàn toàn các cấu trúc file phẳng cũ.
+
 ## [6.11.0] - 2026-07-12
 
 ### Added

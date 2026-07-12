@@ -76,10 +76,53 @@ class AtomicFileStateStore(StateStore):
         base = os.path.basename(key)
         if not base.endswith(".json"):
             base = base + ".json"
+        
+        scoped_keys = [
+            "workflow", "tasks", "agents", "locks", "handoffs", 
+            "checkpoints", "timeline", "authorization", "approvals", "usage"
+        ]
+        if key in scoped_keys:
+            work_item_id = get_active_work_item_id()
+            if work_item_id:
+                return os.path.join(self.root_dir, "work-items", work_item_id, base)
+                
         return os.path.join(self.root_dir, base)
 
     def get(self, key: str) -> dict:
         path = self._get_path(key)
+        
+        scoped_keys = [
+            "workflow", "tasks", "agents", "locks", "handoffs", 
+            "checkpoints", "timeline", "authorization", "approvals", "usage"
+        ]
+        if key in scoped_keys:
+            work_item_id = get_active_work_item_id()
+            if work_item_id and not os.path.exists(path):
+                legacy_path = os.path.join(self.root_dir, os.path.basename(path))
+                if os.path.exists(legacy_path):
+                    try:
+                        with open(legacy_path, "r", encoding="utf-8") as f:
+                            legacy_data = json.load(f)
+                        
+                        # Only migrate if the legacy state belongs to this work item
+                        legacy_id = None
+                        if isinstance(legacy_data, dict):
+                            legacy_id = legacy_data.get("work_item", {}).get("id") or legacy_data.get("work_item_id")
+                        
+                        if not legacy_id or legacy_id == work_item_id:
+                            # Scope it
+                            os.makedirs(os.path.dirname(path), exist_ok=True)
+                            with open(path, "w", encoding="utf-8") as f:
+                                json.dump(legacy_data, f, indent=2, ensure_ascii=False)
+                            
+                            # Cache immediately
+                            self._cache[key] = legacy_data
+                            self._last_write[key + "_mtime"] = os.path.getmtime(path)
+                            print(f"Migrated legacy state for '{key}' to scoped work item '{work_item_id}'")
+                    except Exception as e:
+                        print(f"Error migrating legacy state for '{key}': {e}")
+                        pass
+
         try:
             mtime = os.path.getmtime(path)
         except Exception:
@@ -223,6 +266,89 @@ class AtomicFileStateStore(StateStore):
             except Exception:
                 pass
         return False
+
+def get_active_work_item_id() -> str | None:
+    env_id = os.environ.get("AIWF_WORK_ITEM_ID") or os.environ.get("AIWF_ACTIVE_WORK_ITEM")
+    if env_id:
+        return env_id
+    
+    root_dir = os.environ.get("AIWF_STATE_ROOT", os.path.join(".agents", "state"))
+    active_path = os.path.join(root_dir, "active-work-items.json")
+    if os.path.exists(active_path):
+        try:
+            with open(active_path, "r", encoding="utf-8") as f:
+                data = json.load(f)
+                return data.get("active_work_item_id")
+        except Exception:
+            pass
+    return None
+
+def set_active_work_item_id(work_item_id: str) -> None:
+    root_dir = os.environ.get("AIWF_STATE_ROOT", os.path.join(".agents", "state"))
+    active_path = os.path.join(root_dir, "active-work-items.json")
+    os.makedirs(root_dir, exist_ok=True)
+    
+    data = {"active_work_item_id": work_item_id, "work_items": {}}
+    if os.path.exists(active_path):
+        try:
+            with open(active_path, "r", encoding="utf-8") as f:
+                data = json.load(f)
+        except Exception:
+            pass
+            
+    data["active_work_item_id"] = work_item_id
+    
+    temp_path = active_path + ".tmp"
+    try:
+        with open(temp_path, "w", encoding="utf-8") as f:
+            json.dump(data, f, indent=2, ensure_ascii=False)
+        os.replace(temp_path, active_path)
+    except Exception:
+        if os.path.exists(temp_path):
+            try:
+                os.remove(temp_path)
+            except Exception:
+                pass
+
+def register_work_item(work_item_id: str, workflow_type: str = None, status: str = "active", checkpoint: int = 1, parent_workflow_id: str = None) -> None:
+    root_dir = os.environ.get("AIWF_STATE_ROOT", os.path.join(".agents", "state"))
+    active_path = os.path.join(root_dir, "active-work-items.json")
+    os.makedirs(root_dir, exist_ok=True)
+    
+    data = {"active_work_item_id": work_item_id, "work_items": {}}
+    if os.path.exists(active_path):
+        try:
+            with open(active_path, "r", encoding="utf-8") as f:
+                data = json.load(f)
+        except Exception:
+            pass
+            
+    if "work_items" not in data:
+        data["work_items"] = {}
+        
+    data["active_work_item_id"] = work_item_id
+    
+    data["work_items"][work_item_id] = {
+        "work_item_id": work_item_id,
+        "workflow_id": f"WF-{work_item_id}",
+        "workflow_type": workflow_type or data["work_items"].get(work_item_id, {}).get("workflow_type", "unknown"),
+        "status": status,
+        "checkpoint": checkpoint,
+        "parent_workflow_id": parent_workflow_id or data["work_items"].get(work_item_id, {}).get("parent_workflow_id"),
+        "updated_at": datetime.now().astimezone().isoformat()
+    }
+    
+    temp_path = active_path + ".tmp"
+    try:
+        with open(temp_path, "w", encoding="utf-8") as f:
+            json.dump(data, f, indent=2, ensure_ascii=False)
+        os.replace(temp_path, active_path)
+    except Exception:
+        if os.path.exists(temp_path):
+            try:
+                os.remove(temp_path)
+            except Exception:
+                pass
 
 # Global state store registry resolved based on env/mode
 _store_instance = None

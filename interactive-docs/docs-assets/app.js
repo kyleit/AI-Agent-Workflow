@@ -32,10 +32,10 @@ function initRouter() {
 
       // Update Header Title
       const tabTitleMap = {
-        "overview": "Tổng quan AI Workflow",
-        "workflows": "Hướng dẫn Quy trình phát triển (SDLC Flows)",
+        "overview": "Tổng quan AIWF Orchestrated SDLC",
+        "workflows": "Workflow, Orchestrator và Multi-Agent Flows",
         "skills": "Thư mục Skills chi tiết (Skills Directory)",
-        "runtime": "Hướng dẫn vận hành CLI Runtime",
+        "runtime": "Runtime, State và Knowledge Operations",
         "simulator": "Trình giả lập SDLC tương tác (SDLC Simulator)",
         "obsidian": "Hướng dẫn tích hợp Obsidian (Obsidian Vault Setup)"
       };
@@ -193,330 +193,337 @@ let simCurrentStepIndex = 0;
 const simStepsData = {
   standard: [
     {
-      title: "Khởi tạo (Initialize)",
-      cli: "python skills/workflow-runtime/scripts/workflow_runtime.py init --permission 1",
-      agentAction: "Phân tích cấu trúc thư mục, phát hiện Git repository và khởi tạo trạng thái chia sẻ split-state store tại thư mục `.agents/state/` ở chế độ Sandbox.",
+      title: "Khởi tạo nhẹ (Initialize)",
+      cli: "python skills/workflow-runtime/scripts/workflow_runtime.py init --permission 1 --non-interactive",
+      agentAction: "Nạp guardrails, đọc split-state cache, kiểm tra Git ở mức tối thiểu và thiết lập phiên sandbox. Init không quét toàn bộ source, không gọi RAG nặng và không tự release.",
       gate: "proceed",
       terminal: [
-        { type: "prompt", text: "$ python skills/workflow-runtime/scripts/workflow_runtime.py init --permission 1" },
+        { type: "prompt", text: "$ python skills/workflow-runtime/scripts/workflow_runtime.py init --permission 1 --non-interactive" },
         { type: "success", text: "Session initialized with permission_mode=sandbox." },
-        { type: "output", text: "Created session database entry. Status: active. Checkpoint: 1." }
+        { type: "output", text: "Split-state ready under .agents/state/." }
       ]
     },
     {
-      title: "Đồng bộ bộ nhớ (Memory Sync)",
-      cli: "python skills/workflow-runtime/scripts/workflow_runtime.py step --step \"Syncing project memory\" && python skills/workflow-runtime/scripts/workflow_runtime.py usage sync",
-      agentAction: "Quét git diff, lập danh sách thay đổi và đồng bộ vào cơ sở dữ liệu vector RAG.",
+      title: "Đồng bộ Project Memory",
+      cli: "python runtime/scripts/project_memory/cli.py update",
+      agentAction: "Cập nhật Project Memory bằng Git diff, sau đó Knowledge Runtime/provider layer chịu trách nhiệm đồng bộ các bề mặt tri thức liên quan.",
       gate: "proceed",
       terminal: [
-        { type: "prompt", text: "$ python skills/workflow-runtime/scripts/workflow_runtime.py step --step \"Syncing project memory\"" },
-        { type: "output", text: "Step updated: Syncing project memory." },
-        { type: "prompt", text: "$ python skills/workflow-runtime/scripts/workflow_runtime.py usage sync" },
-        { type: "success", text: "Usage database synchronized successfully. Context Usage: 2.06%." }
+        { type: "prompt", text: "$ python runtime/scripts/project_memory/cli.py update" },
+        { type: "output", text: "Detection method: git-diff." },
+        { type: "success", text: "Project memory updated successfully." }
       ]
     },
     {
-      title: "Khảo sát ý tưởng (Brainstorm)",
-      cli: "python skills/workflow-runtime/scripts/workflow_runtime.py start --skill \"brainstorming\" --command \"brainstorm\" --checkpoint 3 --step \"Brainstorming feature solution\"",
-      agentAction: "Khảo sát cấu trúc mã nguồn, thiết kế giải pháp sơ bộ và tạo tệp đặc tả ý tưởng `docs/brainstorming/FEAT-015_interactive_docs.md`.",
+      title: "Skill Suggestion Gate",
+      cli: "python skills/workflow-runtime/scripts/workflow_runtime.py classify --request \"user request\"",
+      agentAction: "Yêu cầu tự nhiên được phân loại trước khi làm việc. Hệ thống đề xuất quick-fix, quick-feature, brainstorming, blueprint-to-implementation, debug, verify hoặc release theo ngữ cảnh.",
       gate: "approval",
-      gateText: "Approve brainstorming specification for FEAT-015? [Y/N]",
+      gateText: "Continue with recommended workflow? [Y/N]",
       terminal: [
-        { type: "prompt", text: "$ python skills/workflow-runtime/scripts/workflow_runtime.py start --skill \"brainstorming\" --command \"brainstorm\" --checkpoint 3 --step \"Brainstorming feature solution\"" },
-        { type: "output", text: "Skill brainstorming started. Active Feature: FEAT-015." },
-        { type: "output", text: "Writing brainstorming file: docs/brainstorming/FEAT-015_interactive_docs.md..." },
-        { type: "warn", text: "Approve brainstorming specification for FEAT-015? [Y/N]" }
+        { type: "prompt", text: "$ python skills/workflow-runtime/scripts/workflow_runtime.py classify --request \"update docs\"" },
+        { type: "output", text: "Classification: quick-feature." },
+        { type: "warn", text: "Confirm to continue? [Y/N]" }
       ]
     },
     {
-      title: "Lập kế hoạch (Planning)",
-      cli: "python skills/workflow-runtime/scripts/workflow_runtime.py start --skill \"brainstorming-to-plan\" --command \"plan\" --checkpoint 4 --step \"Creating implementation plan\"",
-      agentAction: "Xây dựng kế hoạch thực thi, lập file `implementation_plan.md` ở tầng IDE và đồng bộ vào dự án tại `docs/plans/FEAT-015_interactive_docs_plan.md` cùng file danh sách công việc `task.md`.",
+      title: "Brainstorming / Discovery",
+      cli: "python skills/workflow-runtime/scripts/workflow_runtime.py start --skill \"brainstorming\" --command \"brainstorm\" --checkpoint 3 --step \"Discover requirements\"",
+      agentAction: "Pha khám phá chỉ tạo tài liệu yêu cầu trong docs/brainstorming/. Không viết code, không đổi kiến trúc đã đóng băng.",
       gate: "approval",
-      gateText: "Approve Implementation Plan for FEAT-015? [Y/N]",
+      gateText: "Approve brainstorming output? [Y/N]",
       terminal: [
-        { type: "prompt", text: "$ python skills/workflow-runtime/scripts/workflow_runtime.py start --skill \"brainstorming-to-plan\" --command \"plan\" --checkpoint 4 --step \"Creating implementation plan\"" },
-        { type: "output", text: "Creating implementation plan..." },
-        { type: "success", text: "Plan synchronized: docs/plans/FEAT-015_interactive_docs_plan.md created." },
-        { type: "warn", text: "Approve Implementation Plan for FEAT-015? [Y/N]" }
+        { type: "prompt", text: "$ python skills/workflow-runtime/scripts/workflow_runtime.py start --skill \"brainstorming\" --command \"brainstorm\" --checkpoint 3 --step \"Discover requirements\"" },
+        { type: "output", text: "Writing docs/brainstorming/FEAT-XXX_slug.md." },
+        { type: "warn", text: "Approve brainstorming output? [Y/N]" }
       ]
     },
     {
-      title: "Thiết kế kỹ thuật (Blueprint)",
-      cli: "python skills/workflow-runtime/scripts/workflow_runtime.py start --skill \"plan-to-blueprint\" --command \"blueprint\" --checkpoint 5 --step \"Drafting blueprint\" && python skills/workflow-runtime/scripts/workflow_runtime.py blueprint --path docs/designs/FEAT-015_interactive_docs_blueprint.md",
-      agentAction: "Thiết kế chi tiết cấu trúc các tệp tin mới, chữ ký hàm, phông nền CSS và định nghĩa Javascript trước khi lập trình. Đăng ký blueprint lên CLI.",
+      title: "Planning",
+      cli: "python skills/workflow-runtime/scripts/workflow_runtime.py start --skill \"brainstorming-to-plan\" --command \"plan\" --checkpoint 4 --step \"Create plan\"",
+      agentAction: "Kế hoạch mô tả scope, deliverables, rủi ro và cách nghiệm thu. Plan không định nghĩa class, API, database schema hoặc pseudo-code.",
       gate: "approval",
-      gateText: "Approve Blueprint docs/designs/FEAT-015_interactive_docs_blueprint.md? [Y/N]",
+      gateText: "Approve implementation plan? [Y/N]",
       terminal: [
-        { type: "prompt", text: "$ python skills/workflow-runtime/scripts/workflow_runtime.py start --skill \"plan-to-blueprint\" --command \"blueprint\" --checkpoint 5 --step \"Drafting blueprint\"" },
-        { type: "prompt", text: "$ python skills/workflow-runtime/scripts/workflow_runtime.py blueprint --path docs/designs/FEAT-015_interactive_docs_blueprint.md" },
-        { type: "success", text: "Blueprint docs/designs/FEAT-015_interactive_docs_blueprint.md registered." },
-        { type: "warn", text: "Approve Blueprint docs/designs/FEAT-015_interactive_docs_blueprint.md? [Y/N]" }
+        { type: "prompt", text: "$ python skills/workflow-runtime/scripts/workflow_runtime.py start --skill \"brainstorming-to-plan\" --command \"plan\" --checkpoint 4 --step \"Create plan\"" },
+        { type: "success", text: "Plan synchronized into docs/plans/." },
+        { type: "warn", text: "Approve implementation plan? [Y/N]" }
       ]
     },
     {
-      title: "Viết code (Implementation)",
-      cli: "python skills/workflow-runtime/scripts/workflow_runtime.py start --skill \"blueprint-to-implementation\" --command \"implement\" --checkpoint 6 --step \"Writing code files\"",
-      agentAction: "Thực thi viết mã nguồn, tạo mới các tệp `index.html`, `style.css`, `app.js` và `skills-data.js` dựa theo đúng thiết kế của Blueprint đã phê duyệt.",
+      title: "Blueprint Contract",
+      cli: "python skills/workflow-runtime/scripts/workflow_runtime.py blueprint --path docs/designs/FEAT-XXX_slug_blueprint.md",
+      agentAction: "Blueprint là hợp đồng kỹ thuật duy nhất cho code change: file-by-file, API contracts, checklist và test strategy. Chưa approve blueprint thì không được implement.",
+      gate: "approval",
+      gateText: "Approve blueprint? [Y/N]",
+      terminal: [
+        { type: "prompt", text: "$ python skills/workflow-runtime/scripts/workflow_runtime.py blueprint --path docs/designs/FEAT-XXX_slug_blueprint.md" },
+        { type: "success", text: "Blueprint registered." },
+        { type: "warn", text: "Approve blueprint? [Y/N]" }
+      ]
+    },
+    {
+      title: "Implementation từ Blueprint",
+      cli: "python skills/workflow-runtime/scripts/workflow_runtime.py start --skill \"blueprint-to-implementation\" --command \"implement\" --checkpoint 6 --step \"Implement approved blueprint\"",
+      agentAction: "Chỉ sửa các file có trong blueprint đã duyệt. Các thay đổi ngoài scope hoặc refactor không liên quan bị chặn.",
       gate: "proceed",
       terminal: [
-        { type: "prompt", text: "$ python skills/workflow-runtime/scripts/workflow_runtime.py start --skill \"blueprint-to-implementation\" --command \"implement\" --checkpoint 6 --step \"Writing code files\"" },
-        { type: "output", text: "Writing /Volumes/Kyle/AgentsProject/docs/index.html..." },
-        { type: "output", text: "Writing /Volumes/Kyle/AgentsProject/docs/docs-assets/style.css..." },
-        { type: "output", text: "Writing /Volumes/Kyle/AgentsProject/docs/docs-assets/app.js..." },
-        { type: "success", text: "Code implementation complete." }
+        { type: "prompt", text: "$ python skills/workflow-runtime/scripts/workflow_runtime.py start --skill \"blueprint-to-implementation\" --command \"implement\" --checkpoint 6 --step \"Implement approved blueprint\"" },
+        { type: "output", text: "Applying scoped file changes from blueprint." },
+        { type: "success", text: "Implementation phase complete." }
       ]
     },
     {
-      title: "Chạy thử & Gỡ lỗi (Debugging)",
-      cli: "python skills/workflow-runtime/scripts/workflow_runtime.py start --skill \"implementation-to-debug\" --command \"debug\" --checkpoint 7 --step \"Compiling and testing UI\"",
-      agentAction: "Biên dịch và chạy thử kiểm thử lỗi CSS/HTML, ghi nhận kết quả tại `docs/debug/FEAT-015_debug.md`.",
+      title: "Debug và Validation",
+      cli: "python skills/workflow-runtime/scripts/workflow_runtime.py start --skill \"implementation-to-debug\" --command \"debug\" --checkpoint 7 --step \"Run validation\"",
+      agentAction: "Chạy build/lint/typecheck/tests theo stack phát hiện được. Chỉ tự sửa lỗi nằm trong file thuộc scope task hiện tại.",
       gate: "proceed",
       terminal: [
-        { type: "prompt", text: "$ python skills/workflow-runtime/scripts/workflow_runtime.py start --skill \"implementation-to-debug\" --command \"debug\" --checkpoint 7 --step \"Compiling and testing UI\"" },
-        { type: "success", text: "Linter check: PASS. All tags valid." },
-        { type: "output", text: "Saved diagnostics: docs/debug/FEAT-015_debug.md (Status: PASS)." }
+        { type: "prompt", text: "$ python skills/workflow-runtime/scripts/workflow_runtime.py start --skill \"implementation-to-debug\" --command \"debug\" --checkpoint 7 --step \"Run validation\"" },
+        { type: "success", text: "Build/Lint/Tests: PASS or Not Configured." }
       ]
     },
     {
-      title: "Nghiệm thu (Verification)",
-      cli: "python skills/workflow-runtime/scripts/workflow_runtime.py start --skill \"debug-to-verify\" --command \"verify\" --checkpoint 9 --step \"Final compliance check\" && python skills/workflow-runtime/scripts/workflow_runtime.py validate --checkpoint \"exactly 9\"",
-      agentAction: "Chạy kiểm soát tuân thủ thiết kế kỹ thuật, chạy thử Simulator đầy đủ, tạo file nghiệm thu chất lượng `docs/verification/FEAT-015_verify.md`.",
+      title: "Verify Quality Gate",
+      cli: "python skills/workflow-runtime/scripts/workflow_runtime.py start --skill \"debug-to-verify\" --command \"verify\" --checkpoint 9 --step \"Final quality gate\"",
+      agentAction: "Đối chiếu implementation với blueprint và acceptance criteria. PASS ở verify mới đủ điều kiện đề xuất release.",
       gate: "proceed",
       terminal: [
-        { type: "prompt", text: "$ python skills/workflow-runtime/scripts/workflow_runtime.py start --skill \"debug-to-verify\" --command \"verify\" --checkpoint 9 --step \"Final compliance check\"" },
-        { type: "success", text: "Compliance check: 100% matched blueprint." },
-        { type: "prompt", text: "$ python skills/workflow-runtime/scripts/workflow_runtime.py validate --checkpoint \"exactly 9\"" },
-        { type: "success", text: "Validation passed. System unlocked for Release." }
+        { type: "prompt", text: "$ python skills/workflow-runtime/scripts/workflow_runtime.py start --skill \"debug-to-verify\" --command \"verify\" --checkpoint 9 --step \"Final quality gate\"" },
+        { type: "success", text: "Verification report: PASS." }
       ]
     },
     {
-      title: "Phát hành (Release)",
-      cli: "python skills/workflow-runtime/scripts/workflow_runtime.py start --skill \"implementation-to-release\" --command \"release\" --checkpoint 10 --step \"Executing release sync\"",
-      agentAction: "Đóng gói, bump version lên 5.1.3, cập nhật changelog, push code lên GitLab và chạy `make publish-github` để đẩy website lên GitHub Pages.",
+      title: "Release rõ ràng",
+      cli: "python skills/workflow-runtime/scripts/workflow_runtime.py start --skill \"implementation-to-release\" --command \"release\" --checkpoint 10 --step \"Release gate\"",
+      agentAction: "Release không bao giờ tự động. Version bump, changelog, commit, tag, merge và push đều cần yêu cầu release và approval riêng.",
       gate: "release",
-      gateText: "Confirm release version 5.1.3 & push to GitLab/GitHub? [Y/N]",
+      gateText: "Confirm release actions? [Y/N]",
       terminal: [
-        { type: "prompt", text: "$ python skills/workflow-runtime/scripts/workflow_runtime.py start --skill \"implementation-to-release\" --command \"release\" --checkpoint 10 --step \"Executing release sync\"" },
-        { type: "output", text: "Bumping version to 5.1.3. Updating CHANGELOG.md." },
-        { type: "warn", text: "Confirm release version 5.1.3 & push to GitLab/GitHub? [Y/N]" }
-      ]
-    },
-    {
-      title: "Hoàn tất Workflow",
-      cli: "python skills/workflow-runtime/scripts/workflow_runtime.py complete --checkpoint 10 --step \"Workflow release successfully completed\"",
-      agentAction: "Hoàn tất chu kỳ phát hành, lưu dấu checkpoint 10 và tạm dừng để nạp chu kỳ tiếp theo.",
-      gate: "none",
-      terminal: [
-        { type: "prompt", text: "$ python skills/workflow-runtime/scripts/workflow_runtime.py complete --checkpoint 10 --step \"Workflow release successfully completed\"" },
-        { type: "success", text: "Step completed. Checkpoint 10 set to status: completed." },
-        { type: "output", text: "==================================================" },
-        { type: "output", text: "   AI Engineering Workflow Cycle Complete!  " },
-        { type: "output", text: "==================================================" }
+        { type: "prompt", text: "$ python skills/workflow-runtime/scripts/workflow_runtime.py start --skill \"implementation-to-release\" --command \"release\" --checkpoint 10 --step \"Release gate\"" },
+        { type: "warn", text: "Confirm version/changelog/git tag/push actions? [Y/N]" }
       ]
     }
   ],
   feature: [
     {
-      title: "Khởi tạo (Initialize)",
-      cli: "python skills/workflow-runtime/scripts/workflow_runtime.py init --permission 2",
-      agentAction: "Khởi tạo trạng thái chia sẻ split-state store tại thư mục `.agents/state/` ở chế độ Full Access. Quyền chỉnh sửa file và chạy test được bypass phê duyệt.",
+      title: "Validate checkpoint 2",
+      cli: "python skills/workflow-runtime/scripts/workflow_runtime.py validate --checkpoint \"exactly 2\"",
+      agentAction: "Quick Feature chỉ bắt đầu sau khi init và memory context sẵn sàng. Nếu checkpoint sai, workflow dừng thay vì viết spec bừa.",
       gate: "proceed",
       terminal: [
-        { type: "prompt", text: "$ python skills/workflow-runtime/scripts/workflow_runtime.py init --permission 2" },
-        { type: "success", text: "Session initialized with permission_mode=full_access." }
+        { type: "prompt", text: "$ python skills/workflow-runtime/scripts/workflow_runtime.py validate --checkpoint \"exactly 2\"" },
+        { type: "success", text: "Validation passed." }
       ]
     },
     {
-      title: "Pha 1: Đặc tả (Specification)",
-      cli: "python skills/workflow-runtime/scripts/workflow_runtime.py start --skill \"quick-feature\" --command \"feature\" --checkpoint 5 --step \"Specification Phase\"",
-      agentAction: "Viết tệp đặc tả tính năng nhỏ tại `docs/quick/QUICK-007_interactive_docs_website.md`.",
+      title: "Pha 1: QUICK Spec",
+      cli: "python skills/workflow-runtime/scripts/workflow_runtime.py start --skill \"quick-feature\" --command \"feature\" --checkpoint 5 --step \"Create QUICK spec\"",
+      agentAction: "Tạo docs/quick/QUICK-XXX_slug.md với goal, scope boundary, dependency contract, error matrix và acceptance criteria.",
       gate: "approval",
-      gateText: "Approve QUICK specification for QUICK-007? [Y/N]",
+      gateText: "Approve QUICK specification? [Y/N]",
       terminal: [
-        { type: "prompt", text: "$ python skills/workflow-runtime/scripts/workflow_runtime.py start --skill \"quick-feature\" --command \"feature\" --checkpoint 5 --step \"Specification Phase\"" },
-        { type: "output", text: "Writing docs/quick/QUICK-007_interactive_docs_website.md..." },
-        { type: "warn", text: "Approve QUICK specification for QUICK-007? [Y/N]" }
+        { type: "prompt", text: "$ python skills/workflow-runtime/scripts/workflow_runtime.py start --skill \"quick-feature\" --command \"feature\" --checkpoint 5 --step \"Create QUICK spec\"" },
+        { type: "output", text: "Writing docs/quick/QUICK-XXX_slug.md." },
+        { type: "warn", text: "Approve QUICK specification? [Y/N]" }
       ]
     },
     {
-      title: "Pha 2: Thiết kế (Blueprint)",
-      cli: "python skills/workflow-runtime/scripts/workflow_runtime.py step --step \"Blueprint Phase\" && python skills/workflow-runtime/scripts/workflow_runtime.py blueprint --path docs/designs/QUICK-007_interactive_docs_website_blueprint.md",
-      agentAction: "Tạo tệp thiết kế kiến trúc/code chữ ký tại `docs/designs/QUICK-007_interactive_docs_website_blueprint.md` và đăng ký blueprint.",
+      title: "Pha 2: Blueprint",
+      cli: "python skills/workflow-runtime/scripts/workflow_runtime.py blueprint --path docs/designs/QUICK-XXX_slug_blueprint.md",
+      agentAction: "Tạo blueprint file-by-file. Blueprint phải nêu rõ các file được sửa, checklist implementation và test plan trước khi code được phép thay đổi.",
       gate: "approval",
-      gateText: "Approve Blueprint docs/designs/QUICK-007_interactive_docs_website_blueprint.md? [Y/N]",
+      gateText: "Approve Blueprint? [Y/N]",
       terminal: [
-        { type: "prompt", text: "$ python skills/workflow-runtime/scripts/workflow_runtime.py step --step \"Blueprint Phase\"" },
-        { type: "prompt", text: "$ python skills/workflow-runtime/scripts/workflow_runtime.py blueprint --path docs/designs/QUICK-007_interactive_docs_website_blueprint.md" },
-        { type: "success", text: "Blueprint docs/designs/QUICK-007_interactive_docs_website_blueprint.md registered." },
-        { type: "warn", text: "Approve Blueprint docs/designs/QUICK-007_interactive_docs_website_blueprint.md? [Y/N]" }
+        { type: "prompt", text: "$ python skills/workflow-runtime/scripts/workflow_runtime.py blueprint --path docs/designs/QUICK-XXX_slug_blueprint.md" },
+        { type: "success", text: "Blueprint registered." },
+        { type: "warn", text: "Approve Blueprint? [Y/N]" }
       ]
     },
     {
-      title: "Pha 3: Viết code & Kiểm thử (Implement)",
+      title: "Pre-implementation Gate",
+      cli: "git branch --show-current && git status --short",
+      agentAction: "Trước khi sửa file, agent báo branch, dirty tree và danh sách file dự kiến chỉnh. Người dùng xác nhận rồi mới implement.",
+      gate: "approval",
+      gateText: "Proceed with implementation? [Y/N]",
+      terminal: [
+        { type: "prompt", text: "$ git branch --show-current" },
+        { type: "output", text: "feature/QUICK-XXX-slug or current approved branch" },
+        { type: "prompt", text: "$ git status --short" },
+        { type: "warn", text: "Proceed with implementation? [Y/N]" }
+      ]
+    },
+    {
+      title: "Pha 3: Implement scoped files",
       cli: "python skills/workflow-runtime/scripts/workflow_runtime.py step --step \"Implementation Phase\"",
-      agentAction: "Triển khai code các file giao diện tĩnh (bypass duyệt do chế độ Full Access), tự động chạy linter và unit test.",
+      agentAction: "Chỉ sửa file đã liệt kê trong blueprint. Ví dụ với docs site: index.html, app.js, skills-data.js và CSS nếu có overflow.",
       gate: "proceed",
       terminal: [
         { type: "prompt", text: "$ python skills/workflow-runtime/scripts/workflow_runtime.py step --step \"Implementation Phase\"" },
-        { type: "output", text: "Bypassing approval gate for file modifications (Full Access Mode)." },
-        { type: "output", text: "Creating HTML/CSS/JS files..." },
-        { type: "success", text: "Running linter and tests: PASS." }
+        { type: "output", text: "Applying approved docs-site changes only." },
+        { type: "success", text: "Scoped implementation complete." }
       ]
     },
     {
-      title: "Phát hành (Release)",
-      cli: "python skills/workflow-runtime/scripts/workflow_runtime.py complete --checkpoint 5 --step \"Feature completed\" --next-skill \"implementation-to-release\" --next-command \"release\"",
-      agentAction: "Đóng gói, bump version lên 5.1.3, cập nhật changelog và push code/tag lên GitLab/GitHub.",
-      gate: "release",
-      gateText: "Confirm release version 5.1.3 & push to GitLab/GitHub? [Y/N]",
+      title: "Static verification",
+      cli: "node --check interactive-docs/docs-assets/app.js",
+      agentAction: "Kiểm tra cú pháp JS, mở trang tĩnh, thử tab/search/simulator và đảm bảo không có absolute local path trong docs site.",
+      gate: "proceed",
       terminal: [
-        { type: "prompt", text: "$ python skills/workflow-runtime/scripts/workflow_runtime.py complete --checkpoint 5 --step \"Feature completed\" --next-skill \"implementation-to-release\" --next-command \"release\"" },
-        { type: "output", text: "Preparing release package... Bumping version..." },
-        { type: "warn", text: "Confirm release version 5.1.3 & push to GitLab/GitHub? [Y/N]" }
+        { type: "prompt", text: "$ node --check interactive-docs/docs-assets/app.js" },
+        { type: "success", text: "JavaScript syntax: PASS." },
+        { type: "success", text: "Tabs/search/simulator: verified." }
       ]
     }
   ],
   fix: [
     {
-      title: "Khởi tạo (Initialize)",
-      cli: "python skills/workflow-runtime/scripts/workflow_runtime.py init --permission 2",
-      agentAction: "Khởi tạo trạng thái chia sẻ split-state store tại thư mục `.agents/state/` ở chế độ Full Access để sửa bug nhanh.",
+      title: "Classify localized bug",
+      cli: "python skills/workflow-runtime/scripts/workflow_runtime.py classify --request \"bug description\"",
+      agentAction: "Bug nhỏ, cục bộ được route vào quick-fix. Bug rộng hoặc ảnh hưởng kiến trúc phải đi brainstorming/standard workflow.",
+      gate: "approval",
+      gateText: "Continue with quick-fix? [Y/N]",
+      terminal: [
+        { type: "prompt", text: "$ python skills/workflow-runtime/scripts/workflow_runtime.py classify --request \"broken validation\"" },
+        { type: "output", text: "Classification: quick-fix." },
+        { type: "warn", text: "Continue with quick-fix? [Y/N]" }
+      ]
+    },
+    {
+      title: "FIX Spec",
+      cli: "python skills/workflow-runtime/scripts/workflow_runtime.py start --skill \"quick-fix\" --command \"fix\" --checkpoint 5 --step \"Create FIX spec\"",
+      agentAction: "Ghi nhận root cause, phạm vi sửa lỗi, failure behavior và acceptance criteria trong docs/issues/FIX-XXX_slug.md.",
+      gate: "approval",
+      gateText: "Approve FIX specification? [Y/N]",
+      terminal: [
+        { type: "prompt", text: "$ python skills/workflow-runtime/scripts/workflow_runtime.py start --skill \"quick-fix\" --command \"fix\" --checkpoint 5 --step \"Create FIX spec\"" },
+        { type: "output", text: "Writing docs/issues/FIX-XXX_slug.md." },
+        { type: "warn", text: "Approve FIX specification? [Y/N]" }
+      ]
+    },
+    {
+      title: "FIX Blueprint",
+      cli: "python skills/workflow-runtime/scripts/workflow_runtime.py blueprint --path docs/designs/FIX-XXX_slug_blueprint.md",
+      agentAction: "Blueprint nêu chính xác file nào sửa, hành vi nào thay đổi và test nào chứng minh lỗi đã hết.",
+      gate: "approval",
+      gateText: "Approve FIX blueprint? [Y/N]",
+      terminal: [
+        { type: "prompt", text: "$ python skills/workflow-runtime/scripts/workflow_runtime.py blueprint --path docs/designs/FIX-XXX_slug_blueprint.md" },
+        { type: "success", text: "FIX blueprint registered." },
+        { type: "warn", text: "Approve FIX blueprint? [Y/N]" }
+      ]
+    },
+    {
+      title: "Scoped fix implementation",
+      cli: "python skills/workflow-runtime/scripts/workflow_runtime.py step --step \"Implement FIX blueprint\"",
+      agentAction: "Chỉ sửa lỗi trong write set đã duyệt. Không refactor lan rộng, không sửa module không liên quan.",
       gate: "proceed",
       terminal: [
-        { type: "prompt", text: "$ python skills/workflow-runtime/scripts/workflow_runtime.py init --permission 2" },
-        { type: "success", text: "Session initialized with permission_mode=full_access." }
+        { type: "prompt", text: "$ python skills/workflow-runtime/scripts/workflow_runtime.py step --step \"Implement FIX blueprint\"" },
+        { type: "output", text: "Applying localized fix." },
+        { type: "success", text: "Fix implementation complete." }
       ]
     },
     {
-      title: "Pha 1: Đặc tả lỗi (Specification)",
-      cli: "python skills/workflow-runtime/scripts/workflow_runtime.py start --skill \"quick-fix\" --command \"fix\" --checkpoint 5 --step \"Specification Phase\"",
-      agentAction: "Tìm hiểu nguyên nhân lỗi và ghi nhận tệp đặc tả sửa lỗi tại `docs/issues/FIX-012_auto_sync_conversation_id.md`.",
-      gate: "approval",
-      gateText: "Approve QUICK specification for FIX-012? [Y/N]",
-      terminal: [
-        { type: "prompt", text: "$ python skills/workflow-runtime/scripts/workflow_runtime.py start --skill \"quick-fix\" --command \"fix\" --checkpoint 5 --step \"Specification Phase\"" },
-        { type: "output", text: "Writing docs/issues/FIX-012_auto_sync_conversation_id.md..." },
-        { type: "warn", text: "Approve QUICK specification for FIX-012? [Y/N]" }
-      ]
-    },
-    {
-      title: "Pha 2: Thiết kế sửa lỗi (Blueprint)",
-      cli: "python skills/workflow-runtime/scripts/workflow_runtime.py step --step \"Blueprint Phase\" && python skills/workflow-runtime/scripts/workflow_runtime.py blueprint --path docs/designs/FIX-012_auto_sync_conversation_id_blueprint.md",
-      agentAction: "Tạo tệp thiết kế/code chữ ký tại `docs/designs/FIX-012_auto_sync_conversation_id_blueprint.md` và đăng ký blueprint.",
-      gate: "approval",
-      gateText: "Approve Blueprint docs/designs/FIX-012_auto_sync_conversation_id_blueprint.md? [Y/N]",
-      terminal: [
-        { type: "prompt", text: "$ python skills/workflow-runtime/scripts/workflow_runtime.py step --step \"Blueprint Phase\"" },
-        { type: "prompt", text: "$ python skills/workflow-runtime/scripts/workflow_runtime.py blueprint --path docs/designs/FIX-012_auto_sync_conversation_id_blueprint.md" },
-        { type: "success", text: "Blueprint docs/designs/FIX-012_auto_sync_conversation_id_blueprint.md registered." },
-        { type: "warn", text: "Approve Blueprint docs/designs/FIX-012_auto_sync_conversation_id_blueprint.md? [Y/N]" }
-      ]
-    },
-    {
-      title: "Pha 3: Sửa code & Kiểm thử (Implement)",
-      cli: "python skills/workflow-runtime/scripts/workflow_runtime.py step --step \"Implementation Phase\"",
-      agentAction: "Sửa đổi hàm `update_context_health` trong `workflow_runtime.py` (bypass duyệt). Chạy thử nghiệm unit test `test_runtime.py`.",
+      title: "Regression validation",
+      cli: "python skills/workflow-runtime/scripts/workflow_runtime.py start --skill \"implementation-to-debug\" --command \"debug\" --checkpoint 7 --step \"Run fix validation\"",
+      agentAction: "Chạy test liên quan và regression checks. Nếu fail ngoài scope, dừng và báo thay vì sửa lan rộng.",
       gate: "proceed",
       terminal: [
-        { type: "prompt", text: "$ python skills/workflow-runtime/scripts/workflow_runtime.py step --step \"Implementation Phase\"" },
-        { type: "output", text: "Bypassing approval gate for file modifications (Full Access Mode)." },
-        { type: "output", text: "Modifying skills/workflow-runtime/scripts/workflow_runtime.py..." },
-        { type: "success", text: "Running pytest: 1 passed. PASS." }
-      ]
-    },
-    {
-      title: "Phát hành (Release)",
-      cli: "python skills/workflow-runtime/scripts/workflow_runtime.py complete --checkpoint 5 --step \"Fix completed\" --next-skill \"implementation-to-release\" --next-command \"release\"",
-      agentAction: "Chuẩn bị gói release, bump version lên 5.1.3, cập nhật changelog, push code lên GitLab/GitHub.",
-      gate: "release",
-      gateText: "Confirm release version 5.1.3 & push to GitLab/GitHub? [Y/N]",
-      terminal: [
-        { type: "prompt", text: "$ python skills/workflow-runtime/scripts/workflow_runtime.py complete --checkpoint 5 --step \"Fix completed\" --next-skill \"implementation-to-release\" --next-command \"release\"" },
-        { type: "output", text: "Preparing release package... Bumping version..." },
-        { type: "warn", text: "Confirm release version 5.1.3 & push to GitLab/GitHub? [Y/N]" }
+        { type: "prompt", text: "$ python skills/workflow-runtime/scripts/workflow_runtime.py start --skill \"implementation-to-debug\" --command \"debug\" --checkpoint 7 --step \"Run fix validation\"" },
+        { type: "success", text: "Targeted tests: PASS." }
       ]
     }
   ],
   orchestrated: [
     {
-      title: "Khởi tạo (Initialize)",
-      cli: "python skills/workflow-runtime/scripts/workflow_runtime.py init --permission 1",
-      agentAction: "Khởi tạo phiên làm việc với phân quyền Sandbox.",
+      title: "Orchestrator entrypoint",
+      cli: "python skills/workflow-runtime/scripts/workflow_runtime.py start --skill \"orchestrator\" --command \"orchestrate\" --step \"Route request\"",
+      agentAction: "Orchestrator là điểm vào điều phối. Worker skills không tự spawn worker khác và không tự sở hữu session state toàn cục.",
       gate: "proceed",
       terminal: [
-        { type: "prompt", text: "$ python skills/workflow-runtime/scripts/workflow_runtime.py init --permission 1" },
-        { type: "success", text: "Session initialized with permission_mode=sandbox." }
+        { type: "prompt", text: "$ python skills/workflow-runtime/scripts/workflow_runtime.py start --skill \"orchestrator\" --command \"orchestrate\" --step \"Route request\"" },
+        { type: "success", text: "Orchestrator owns workflow routing." }
       ]
     },
     {
-      title: "Khảo sát ý tưởng (Brainstorm)",
-      cli: "python skills/workflow-runtime/scripts/workflow_runtime.py start --skill \"brainstorming\" --command \"brainstorm\" --checkpoint 3 --step \"Orchestrating Brainstorming\"",
-      agentAction: "Khởi tạo pha Brainstorming. Điều phối 2 Agent phân tích (UX Analyst và Security Analyst) chạy song song thu thập ý kiến trước khi tổng hợp tài liệu đặc tả.",
+      title: "Memory/RAG first classification",
+      cli: "python skills/workflow-runtime/scripts/workflow_runtime.py knowledge search --query \"request context\"",
+      agentAction: "Orchestrator đọc Project Memory, docs và targeted RAG trước khi đề xuất workflow. Không scan toàn repo như bước đầu.",
       gate: "proceed",
       terminal: [
-        { type: "prompt", text: "$ python skills/workflow-runtime/scripts/workflow_runtime.py start --skill \"brainstorming\" --command \"brainstorm\" --checkpoint 3 --step \"Orchestrating Brainstorming\"" },
-        { type: "output", text: "Spawning Read-Only Analysis Agents: [UX_Analyst, Security_Analyst]" },
-        { type: "success", text: "UX_Analyst completed: UX recommendations added." },
-        { type: "success", text: "Security_Analyst completed: Security recommendations added." },
-        { type: "output", text: "Generating canonical brainstorming specification docs/brainstorming/FEAT-020_multi_agent_analysis.md." }
+        { type: "prompt", text: "$ python skills/workflow-runtime/scripts/workflow_runtime.py knowledge search --query \"request context\"" },
+        { type: "output", text: "Relevant memory and artifacts loaded." }
       ]
     },
     {
-      title: "Lập kế hoạch (Planning)",
-      cli: "python skills/workflow-runtime/scripts/workflow_runtime.py start --skill \"brainstorming-to-plan\" --command \"plan\" --checkpoint 4 --step \"Creating plan with Architect Agent\"",
-      agentAction: "Khởi tạo pha lập kế hoạch. Triển khai Agent Architect phân tích rủi ro và các tệp tin liên quan trước khi ghi nhận Kế hoạch thực hiện.",
+      title: "Read-only analysis subagents",
+      cli: "python skills/workflow-runtime/scripts/workflow_runtime.py analysis-agent create --role RiskAnalyst",
+      agentAction: "Trong discovery, planning, blueprint, verify và release, subagents chỉ phân tích read-only. Họ không sửa source, không commit, không đổi state chính.",
+      gate: "proceed",
+      terminal: [
+        { type: "prompt", text: "$ python skills/workflow-runtime/scripts/workflow_runtime.py analysis-agent create --role RiskAnalyst" },
+        { type: "output", text: "Analysis agent scope: read-only." },
+        { type: "success", text: "Structured recommendation returned." }
+      ]
+    },
+    {
+      title: "Blueprint defines read/write sets",
+      cli: "python skills/workflow-runtime/scripts/workflow_runtime.py blueprint --path docs/designs/FEAT-XXX_slug_blueprint.md",
+      agentAction: "Blueprint phải chỉ rõ file-by-file responsibilities, read set, write set và checklist. Parallel implementation không được bắt đầu trước khi blueprint được duyệt.",
       gate: "approval",
-      gateText: "Approve Implementation Plan for FEAT-020? [Y/N]",
+      gateText: "Approve orchestrated blueprint? [Y/N]",
       terminal: [
-        { type: "prompt", text: "$ python skills/workflow-runtime/scripts/workflow_runtime.py start --skill \"brainstorming-to-plan\" --command \"plan\" --checkpoint 4 --step \"Creating plan with Architect Agent\"" },
-        { type: "output", text: "Spawning Read-Only Analysis Agent: [Architect_Agent]" },
-        { type: "success", text: "Architect_Agent completed: Risk assessment & lock verification done." },
-        { type: "output", text: "Creating docs/plans/FEAT-020_multi_agent_analysis_plan.md." },
-        { type: "warn", text: "Approve Implementation Plan for FEAT-020? [Y/N]" }
+        { type: "prompt", text: "$ python skills/workflow-runtime/scripts/workflow_runtime.py blueprint --path docs/designs/FEAT-XXX_slug_blueprint.md" },
+        { type: "success", text: "Blueprint registered with implementation contract." },
+        { type: "warn", text: "Approve orchestrated blueprint? [Y/N]" }
       ]
     },
     {
-      title: "Thiết kế kỹ thuật (Blueprint)",
-      cli: "python skills/workflow-runtime/scripts/workflow_runtime.py start --skill \"plan-to-blueprint\" --command \"blueprint\" --checkpoint 5 --step \"Drafting blueprint\" && python skills/workflow-runtime/scripts/workflow_runtime.py blueprint --path docs/designs/FEAT-020_multi_agent_analysis_blueprint.md",
-      agentAction: "Tạo Thiết kế kỹ thuật chi tiết. Đăng ký blueprint lên CLI.",
+      title: "Execution mode choice",
+      cli: "python skills/workflow-runtime/scripts/workflow_runtime.py execution mode --mode sequential",
+      agentAction: "Người dùng chỉ chọn Parallel/Sequential khi bước implementation sẵn sàng. Không hỏi mode ở discovery, planning hoặc blueprinting.",
       gate: "approval",
-      gateText: "Approve Blueprint docs/designs/FEAT-020_multi_agent_analysis_blueprint.md? [Y/N]",
+      gateText: "Choose execution mode? [Parallel/Sequential/Re-split/Cancel]",
       terminal: [
-        { type: "prompt", text: "$ python skills/workflow-runtime/scripts/workflow_runtime.py start --skill \"plan-to-blueprint\" --command \"blueprint\" --checkpoint 5 --step \"Drafting blueprint\"" },
-        { type: "prompt", text: "$ python skills/workflow-runtime/scripts/workflow_runtime.py blueprint --path docs/designs/FEAT-020_multi_agent_analysis_blueprint.md" },
-        { type: "success", text: "Blueprint docs/designs/FEAT-020_multi_agent_analysis_blueprint.md registered." },
-        { type: "warn", text: "Approve Blueprint docs/designs/FEAT-020_multi_agent_analysis_blueprint.md? [Y/N]" }
+        { type: "prompt", text: "$ python skills/workflow-runtime/scripts/workflow_runtime.py execution mode --mode sequential" },
+        { type: "warn", text: "Choose execution mode before implementation starts." }
       ]
     },
     {
-      title: "Song song viết code (Parallel Implementation)",
-      cli: "python skills/workflow-runtime/scripts/workflow_runtime.py execution mode --mode parallel",
-      agentAction: "Chọn chế độ thực thi song song (Parallel Mode) cho Pha Viết code. Hệ sinh thái kiểm tra xung đột phân luồng ghi và khóa file lock trước khi thực thi.",
+      title: "Worker agents with file locks",
+      cli: "python skills/workflow-runtime/scripts/workflow_runtime.py lock acquire --path interactive-docs/index.html",
+      agentAction: "Worker agents chỉ chạy ở implementation, mỗi worker có write set không chồng lấn và phải acquire file lock trước khi sửa file.",
       gate: "proceed",
       terminal: [
-        { type: "prompt", text: "$ python skills/workflow-runtime/scripts/workflow_runtime.py execution mode --mode parallel" },
-        { type: "output", text: "Execution Mode set to: PARALLEL." },
-        { type: "output", text: "Topological groups: Group 1: [rules, runtime], Group 2: [webview, docs], Group 3: [tests]." },
-        { type: "output", text: "Spawning worker agents for Group 1..." },
-        { type: "success", text: "Workers for Group 1 completed successfully." }
+        { type: "prompt", text: "$ python skills/workflow-runtime/scripts/workflow_runtime.py lock acquire --path interactive-docs/index.html" },
+        { type: "output", text: "Lock acquired for assigned write set." },
+        { type: "success", text: "Worker completed scoped task." }
       ]
     },
     {
-      title: "Phát hành (Release)",
-      cli: "python skills/workflow-runtime/scripts/workflow_runtime.py complete --checkpoint 5 --step \"Feature completed\" --next-skill \"implementation-to-release\" --next-command \"release\"",
-      agentAction: "Đóng gói release, bump version lên 5.1.3, cập nhật changelog và push code lên GitHub.",
+      title: "Aggregate, debug, verify",
+      cli: "python skills/workflow-runtime/scripts/workflow_runtime.py verify --checkpoint 9",
+      agentAction: "Orchestrator tổng hợp worker output, sau đó debug/verify chạy theo gates tuần tự để đảm bảo compliance với blueprint.",
+      gate: "proceed",
+      terminal: [
+        { type: "prompt", text: "$ python skills/workflow-runtime/scripts/workflow_runtime.py verify --checkpoint 9" },
+        { type: "success", text: "Worker outputs aggregated and verified." }
+      ]
+    },
+    {
+      title: "Explicit release only",
+      cli: "python skills/workflow-runtime/scripts/workflow_runtime.py release --help",
+      agentAction: "Dù orchestrated hay sequential, release vẫn cần yêu cầu rõ ràng. Commit, tag, push, changelog và version bump không tự động xảy ra.",
       gate: "release",
-      gateText: "Confirm release version 5.1.3 & push to GitHub? [Y/N]",
+      gateText: "Confirm release actions? [Y/N]",
       terminal: [
-        { type: "prompt", text: "$ python skills/workflow-runtime/scripts/workflow_runtime.py complete --checkpoint 5 --step \"Feature completed\" --next-skill \"implementation-to-release\" --next-command \"release\"" },
-        { type: "output", text: "Preparing release package... Bumping version..." },
-        { type: "warn", text: "Confirm release version 5.1.3 & push to GitHub? [Y/N]" }
+        { type: "prompt", text: "$ python skills/workflow-runtime/scripts/workflow_runtime.py release --help" },
+        { type: "warn", text: "Release requires explicit user approval." }
       ]
     }
   ]
 };
-
 function initSimulator() {
   const workflowSelect = document.querySelector("#workflowSelect");
   const simStepTitle = document.querySelector("#simStepTitle");

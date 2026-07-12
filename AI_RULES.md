@@ -135,15 +135,25 @@ Documentation must remain clean, professional, and easy to parse.
 
 ## 8. Testing Policy
 
-Reliability is enforced through automated builds and testing.
+Reliability is enforced through automated builds, testing, and runtime validation.
 
 *   **Verification Gates**:
-    *   Before any code change is finalized, you must verify compilation and run the test suite.
-    *   Always execute build commands (e.g., `npm run build`, `go build`) followed by unit/integration tests.
-    *   **Debug & Verify Quality Gates**: All standard feature cycles must pass through `implementation-to-debug` (compilation, linter, tests, and error checks) followed by `debug-to-verify` (blueprint compliance, checklist verification, and Go/No-Go decision).
+    *   Before any code change is finalized, you must verify compilation, run the test suite, execute the Runtime Validation Pipeline, and perform DDD/Clean Architecture Validation.
+    *   **Runtime Validation Requirement**: A feature is considered complete ONLY when all the following runtime validation steps pass successfully:
+        1. **Build/Compile**: PASS (Command used: `go build` / `npm run build` / etc.)
+        2. **Static Analysis & Lint**: PASS (Command used: `go vet` / `ruff` / etc.)
+        3. **Unit Tests**: PASS (Command used: `go test` / `pytest` / etc.)
+        4. **Runtime Startup**: PASS (Process starts without immediate crashes, panic, traceback, or exit errors)
+        5. **Readiness Detection**: PASS (Process binds to TCP ports or passes HTTP /health /ready HTTP status 200 checks within 15 seconds)
+        6. **Runtime Smoke Tests**: PASS (Simulated request/response loop, WebSocket, worker task, or database read/write executes successfully)
+        7. **Health Checks**: PASS (Resources and telemetry data reporting are healthy)
+        8. **Graceful Shutdown**: PASS (Process terminates cleanly via SIGTERM / exit code = 0, releasing all bound ports and resources without leaks)
+        9. **DDD / Clean Architecture Validation**: PASS (Architecture Compliance Score >= 95/100, no Critical Architecture Violations)
+    *   **Strict Rule**: Passing unit tests alone MUST NEVER mark a feature as completed.
+    *   **Debug & Verify Quality Gates**: All standard feature cycles must pass through `implementation-to-debug` (compilation, linter, tests, and runtime pipeline validation) followed by `debug-to-verify` (blueprint compliance, runtime checks, architecture verification, and Go/No-Go decision).
 *   **Failure Behavior**:
-    *   If building or compiling fails, or if any test fails: print stdout/stderr.
-    *   **STOP** immediately. Set status to `Failed verification` and do not proceed with commit, verify, or release activities.
+    *   If building or compiling fails, or if any test fails, or if runtime validation fails: print stdout/stderr/crash logs.
+    *   **STOP** immediately. Set status to `Failed verification` and do not proceed with commit, verify, or release activities. Apply self-healing rules (up to 3 retries) within task scope if applicable.
 
 ---
 
@@ -468,5 +478,39 @@ No AIWF Skill may access knowledge providers (such as Markdown files, SQLite dat
     *   Cấu hình thông số kết nối và mã khóa bí mật (`api_key`) toàn cục được lưu trữ tại `~/.aiwf/providers.json` (macOS/Linux) hoặc `%USERPROFILE%\.aiwf\providers.json` (Windows).
     *   Cấm tuyệt đối lưu trữ hoặc commit mã khóa bảo mật (`api_key`) vào tệp cục bộ của dự án. Cấu hình dự án chỉ chứa các thuộc tính override cục bộ (ví dụ: tắt/bật provider hoặc thay đổi vault_path).
     *   Giao tiếp dòng lệnh CLI của `provider` được tích hợp qua lệnh `aiwf provider` (`list`, `add`, `enable`, `disable`, `test`, `doctor`).
+
+---
+
+## 25. Backend Architectural & Code Quality Policy
+
+Để đảm bảo dự án phát triển bền vững và chất lượng QA/QC được kiểm soát chặt chẽ ở mức sản phẩm thật (production-ready):
+
+1. **Domain-Driven Design (DDD) & Clean Architecture**:
+   * Tất cả mã nguồn backend phải tuân thủ nghiêm ngặt mô hình Clean Architecture và DDD.
+   * **Domain Layer**: Chứa Entities, Value Objects, Domain Events và Interface. Lớp này không được phụ thuộc vào bất kỳ thư viện hay framework bên ngoài nào (như HTTP, Web frameworks, ORMs, Database drivers, Message brokers, Cloud SDKs).
+   * **Application Layer**: Chứa Use Cases và Ports. Logic nghiệp vụ ở đây chỉ phối hợp luồng hoạt động của Domain và chỉ phụ thuộc vào Domain abstractions.
+   * **Infrastructure Layer**: Chứa Database adapters, HTTP/gRPC handlers, Wails bindings, file storage adapters.
+   * Logic nghiệp vụ cốt lõi không được phép viết trực tiếp trong tệp giao tiếp (Wails controller hoặc FastAPI routes).
+   * **Dependency Direction Enforcement**: Chiều phụ thuộc bắt buộc là Delivery -> Application -> Domain, Infrastructure -> Application/Domain Interfaces.
+
+2. **Automated Architecture Fitness Validation**:
+   * Hệ thống tự động quét AST (Abstract Syntax Tree) để phân tích các imports của Go và Python.
+   * **Architecture Compliance Score**: Mỗi Work Item phải có điểm số kiến trúc tối thiểu đạt **95/100**.
+   * **Cấm tuyệt đối Critical Architecture Violations** (bất kể tổng điểm):
+     * Domain phụ thuộc vào Infrastructure hoặc Delivery.
+     * Application phụ thuộc trực tiếp vào concrete Infrastructure adapters.
+     * Lớp Delivery bỏ qua (bypass) Use Cases để thao tác trực tiếp với Database/Repository.
+     * Có liên kết phụ thuộc vòng (circular dependency) giữa các lớp lõi.
+   * Kết quả phân tích chất lượng kiến trúc bắt buộc phải được ghi nhận tại `docs/verification/<WORK_ITEM>_architecture_verify.md`.
+
+3. **Code Lines Limit**:
+   * **Giới hạn số dòng tối đa trên mỗi tệp**: Mỗi tệp tin mã nguồn backend (Go `.go`, Python `.py`) **KHÔNG ĐƯỢC VƯỢT QUÁ 500 dòng code**.
+   * Nếu tệp tin vượt quá 500 dòng, bắt buộc phải thực hiện tái cấu trúc (refactoring), tách nhỏ thành các module hoặc tệp tin con riêng biệt có trách nhiệm đơn nhất (Single Responsibility Principle).
+
+4. **QA/QC Embedded Asset Guard**:
+   * **Cấm tuyệt đối Dummy Assets khi Build**: Cấm sử dụng các tệp tin giả lập (dummy), tệp tin rỗng (như index.html trống) hoặc tài nguyên thiếu (missing JS/CSS) để vượt qua bước biên dịch.
+   * **Xác thực tự động**: Validation pipeline phải thực hiện quét phân tích các thư mục tài nguyên nhúng (như `frontend/dist`). Nếu phát hiện chứa tệp dummy hoặc kích thước quá nhỏ (< 1KB), pipeline phải đánh dấu thất bại ngay lập tức (FAIL) và yêu cầu build đầy đủ frontend.
+   * **Graceful Runtime Check**: Đảm bảo ứng dụng sau khi khởi chạy phải load được tài nguyên giao diện thật thông qua smoke tests kiểm tra nội dung trả về, thay vì chỉ kiểm tra cổng port mở.
+
 
 

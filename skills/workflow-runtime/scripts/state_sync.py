@@ -28,7 +28,7 @@ def calculate_checksum(file_path: str) -> str:
         return ""
 
 def aggregate_state(workspace_root: str) -> dict[str, Any]:
-    from state_store import get_state_store
+    from state_store import get_state_store, get_active_work_item_id
     store = get_state_store()
     
     context = store.get("context")
@@ -37,6 +37,37 @@ def aggregate_state(workspace_root: str) -> dict[str, Any]:
     approvals = store.get("approvals")
     usage = store.get("usage")
     agents = store.get("agents")
+    
+    active_id = get_active_work_item_id()
+    
+    # Initialize checkpoint dynamically
+    checkpoint_val = workflow.get("checkpoint")
+    if checkpoint_val is None:
+        wf_type = workflow.get("workflow_type")
+        if not wf_type and active_id:
+            wf_type = "quick-feature" if active_id.startswith("QUICK") else ("quick-fix" if active_id.startswith("FIX") else "standard-feature")
+        
+        if wf_type in ["quick-feature", "quick-fix"]:
+            checkpoint_val = 2
+        else:
+            checkpoint_val = 1
+            
+    # Resolve work item info
+    work_item_info = workflow.get("work_item")
+    if not work_item_info or work_item_info.get("id") == "None" or work_item_info.get("id") is None:
+        if active_id:
+            wf_prefix = "QUICK" if active_id.startswith("QUICK") else ("FIX" if active_id.startswith("FIX") else "FEAT")
+            work_item_info = {
+                "type": wf_prefix,
+                "id": active_id,
+                "title": f"Work Item {active_id}"
+            }
+        else:
+            work_item_info = {
+                "type": "None",
+                "id": "None",
+                "title": "None"
+            }
     
     session = {
         "workspace": {
@@ -50,11 +81,7 @@ def aggregate_state(workspace_root: str) -> dict[str, Any]:
             "default_branch": "unknown",
             "latest_tag": "none"
         }),
-        "work_item": workflow.get("work_item", {
-            "type": "None",
-            "id": "None",
-            "title": "None"
-        }),
+        "work_item": work_item_info,
         "version": {
             "version": context.get("project_version", "1.0.0"),
             "source": context.get("version_source", "none")
@@ -82,7 +109,8 @@ def aggregate_state(workspace_root: str) -> dict[str, Any]:
             "options": runtime.get("suggestion_gate", {}).get("options", []) if isinstance(runtime.get("suggestion_gate"), dict) else [],
             "status": runtime.get("suggestion_gate", {}).get("status", "idle") if isinstance(runtime.get("suggestion_gate"), dict) else "idle"
         },
-        "checkpoint": workflow.get("checkpoint", 1),
+        "checkpoint": checkpoint_val,
+        "parent_workflow_id": workflow.get("parent_workflow_id"),
         "resume_state": workflow.get("resume_state"),
         "status": runtime.get("status", "in_progress"),
         "current_skill": runtime.get("current_skill", "initialize-workflow"),
@@ -97,6 +125,7 @@ def aggregate_state(workspace_root: str) -> dict[str, Any]:
         "permission_mode_selected_by": context.get("permission_mode_selected_by"),
         "conversation_id": context.get("conversation_id", ""),
         "project_fingerprint": context.get("project_fingerprint", ""),
+        "authorization": context.get("authorization"),
         "workflow_usage_summary": usage.get("workflow_usage_summary", {}),
         "project_usage_summary": usage.get("project_usage_summary", {}),
         "global_usage_summary": usage.get("global_usage_summary", {}),
@@ -159,7 +188,8 @@ def deconstruct_state(workspace_root: str, session: dict[str, Any]) -> None:
         "permission_mode_selected_by": session.get("permission_mode_selected_by"),
         "conversation_id": session.get("conversation_id", ""),
         "project_fingerprint": session.get("project_fingerprint", ""),
-        "initialized_at": session.get("initialized_at") or datetime.now().astimezone().isoformat()
+        "initialized_at": session.get("initialized_at") or datetime.now().astimezone().isoformat(),
+        "authorization": session.get("authorization")
     }
     
     workflow = {
@@ -168,6 +198,8 @@ def deconstruct_state(workspace_root: str, session: dict[str, Any]) -> None:
         "checkpoint": session.get("checkpoint", 1),
         "waiting_for": session.get("waiting_for"),
         "work_item": session.get("work_item", {}),
+        "workflow_type": session.get("active_workflow") or (session.get("work_item", {}).get("type") if isinstance(session.get("work_item"), dict) else None),
+        "parent_workflow_id": session.get("parent_workflow_id"),
         "suggested_next_skill": session.get("suggested_next_skill"),
         "suggested_next_command": session.get("suggested_next_command"),
         "resume_state": session.get("resume_state", {})

@@ -232,7 +232,7 @@ def estimate_context_usage(conversation_id: str = None) -> dict:
         
     session_fallback = load_session() if conversation_id is None else {"conversation_id": conv_id}
     return get_fallback_usage(session_fallback, default_provider)
-def sync_request_history(conversation_id: str, project_id: str, workspace_root: str = ".") -> None:
+def sync_request_history(conversation_id: str, project_id: str, workspace_root: str = ".", session: dict = None) -> None:
     if not conversation_id or os.environ.get("AIWF_RUNTIME_MODE") == "test-isolated" or "PYTEST_CURRENT_TEST" in os.environ:
         return
         

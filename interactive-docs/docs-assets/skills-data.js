@@ -5,208 +5,260 @@ const skillsData = [
     command: "/init",
     category: "runtime",
     checkpoint: "1",
-    purpose: "Khởi tạo môi trường phát triển AI, cấu hình Git, đồng bộ RAG và chọn mức độ phân quyền (permission mode).",
-    input: "workspace_path (auto), permission_mode (1, 2 hoặc 3)",
-    output: "Khởi tạo trạng thái chia sẻ split-state store tại thư mục .agents/state/.",
-    pitfall: "Lệnh chạy không tương tác (non-interactive). Cần chọn chế độ 2 (Full Access) ngay từ đầu để hạn chế xác nhận Proceed liên tiếp khi AI viết code."
+    purpose: "Khởi tạo nhẹ phiên AIWF: nạp guardrails, đọc split-state cache, kiểm tra Git tối thiểu và thiết lập permission mode.",
+    input: "workspace_path, permission_mode, optional --non-interactive",
+    output: "Split-state runtime dưới .agents/state/ được cập nhật; memory/RAG nặng được deferred cho skill cần dùng.",
+    pitfall: "Init không được dùng để scan toàn repo, sync transcript nặng, hoặc tự động release. Nó chỉ chuẩn bị runtime context nhẹ."
   },
   {
     name: "resume-workflow",
     command: "/resume",
     category: "runtime",
     checkpoint: "N/A",
-    purpose: "Khôi phục lại phiên làm việc trước đó sau khi bị đứt quãng hoặc chuyển đổi giữa các cuộc hội thoại.",
+    purpose: "Khôi phục phiên làm việc từ split-state và context snapshot sau khi chuyển thread hoặc gián đoạn.",
     input: "Không có tham số bắt buộc.",
-    output: "Đọc trạng thái chia sẻ từ .agents/state/ và tự động đưa AI về đúng checkpoint đang làm dở.",
-    pitfall: "Sử dụng daemon.json để xác định và đính kèm (attach) an toàn vào Resident Orchestrator."
+    output: "Runtime khôi phục checkpoint, current skill, command, step và suggested next action nếu có.",
+    pitfall: "Resume không thay thế approval gate. Nếu bước tiếp theo là state-changing action, vẫn phải xin duyệt."
   },
   {
     name: "project-memory-update",
     command: "/memory-sync",
     category: "memory",
     checkpoint: "2",
-    purpose: "Quét và phân tích toàn bộ git diff của dự án để cập nhật cơ sở dữ liệu vector RAG và file lessons learned.",
-    input: "Được gọi tự động sau khi bắt đầu hoặc hoàn thành một tác vụ.",
-    output: "Đồng bộ hóa bộ nhớ RAG của Agent với trạng thái thay đổi code thực tế trên đĩa.",
-    pitfall: "Quên chạy lệnh này sau khi tự tay sửa code ngoài luồng có thể khiến Agent bị trôi lệch ngữ cảnh (context drift)."
+    purpose: "Cập nhật Project Memory theo Git diff bằng script-first pipeline và đồng bộ bề mặt tri thức liên quan.",
+    input: "Git diff hiện tại hoặc tùy chọn full rebuild khi được yêu cầu.",
+    output: "Project Memory, memory state và provider sync maps được cập nhật theo Knowledge Runtime/provider delegation.",
+    pitfall: "Không tự viết logic diff trong prompt. Hãy để CLI/script xử lý deterministic steps và chỉ polish phần mô tả nếu skill yêu cầu."
   },
   {
     name: "brainstorming",
     command: "/brainstorm",
     category: "workflow",
     checkpoint: "3",
-    purpose: "Phân tích yêu cầu, khảo sát kiến trúc mã nguồn hiện tại và lập giải pháp kỹ thuật sơ bộ dạng ý tưởng.",
-    input: "Mô tả yêu cầu tính năng từ người dùng.",
-    output: "Tạo file docs/brainstorming/FEAT-XXX_slug.md chứa kết quả khảo sát và ý tưởng giải pháp.",
-    pitfall: "Nghiêm cấm viết code triển khai trong pha này. Chỉ dừng lại ở mức khảo sát ý tưởng."
+    purpose: "Khám phá yêu cầu, ràng buộc và hướng giải pháp ở mức discovery trước khi có kế hoạch hoặc blueprint.",
+    input: "Yêu cầu tính năng hoặc vấn đề từ người dùng.",
+    output: "Tài liệu discovery trong docs/brainstorming/.",
+    pitfall: "Không viết code, không scaffold implementation và không bypass approval chỉ vì yêu cầu có vẻ nhỏ."
   },
   {
     name: "brainstorming-to-plan",
     command: "/plan",
     category: "workflow",
     checkpoint: "4",
-    purpose: "Chuyển đổi tài liệu brainstorm thành một kế hoạch thực thi chính thức gồm danh sách việc cần làm cụ thể.",
-    input: "Tài liệu brainstorm đã duyệt.",
-    output: "Tạo file docs/plans/FEAT-XXX_slug_plan.md và tệp theo dõi công việc task.md.",
-    pitfall: "Bắt buộc phải áp dụng quy tắc Plan Synchronization: Sao chép implementation_plan.md từ IDE vào đúng thư mục docs/plans/ của dự án."
+    purpose: "Chuyển discovery đã duyệt thành implementation plan hướng stakeholder: scope, deliverables, risk và acceptance path.",
+    input: "Brainstorming/spec đã được duyệt.",
+    output: "Plan chính thức trong docs/plans/.",
+    pitfall: "Plan không được mô tả class, hàm, database schema hoặc pseudo-code. Chi tiết kỹ thuật thuộc blueprint."
   },
   {
     name: "plan-to-blueprint",
     command: "/blueprint",
     category: "workflow",
     checkpoint: "5",
-    purpose: "Thiết kế chi tiết cấu trúc hàm, định nghĩa API, cấu trúc bảng dữ liệu và chữ ký của code trước khi lập trình.",
-    input: "Kế hoạch thực thi (Plan) đã được phê duyệt.",
-    output: "Tạo file docs/designs/FEAT-XXX_slug_blueprint.md.",
-    pitfall: "Bản thiết kế kỹ thuật (Blueprint) là bắt buộc. Agent không được tự tiện viết code nếu Blueprint chưa được người dùng gõ duyệt 'Y' (Approved)."
+    purpose: "Tạo Technical Blueprint đầy đủ làm hợp đồng kỹ thuật duy nhất cho implementation.",
+    input: "Plan đã duyệt.",
+    output: "Blueprint trong docs/designs/ với file-by-file analysis, API/data contracts, checklist và test plan.",
+    pitfall: "Blueprint có placeholder, vague instruction hoặc thiếu file mapping thì chưa được approve. No Blueprint, No Code."
   },
   {
     name: "blueprint-to-implementation",
     command: "/implement",
     category: "workflow",
     checkpoint: "6",
-    purpose: "Thực thi viết mã nguồn, sửa đổi logic các file trong dự án dựa theo đúng các chỉ dẫn trong Blueprint.",
-    input: "Bản thiết kế kỹ thuật Blueprint đã được duyệt.",
-    output: "Mã nguồn dự án được cập nhật thực tế.",
-    pitfall: "Không được tự tiện refactor mã nguồn nằm ngoài phạm vi mô tả của Blueprint."
+    purpose: "Triển khai đúng các file và hành vi đã được blueprint approve.",
+    input: "Approved Technical Blueprint.",
+    output: "Source/docs files được cập nhật trong phạm vi blueprint.",
+    pitfall: "Không refactor ngoài scope, không sửa file ngoài write set, không đổi Runtime API v1 nếu blueprint không cho phép."
   },
   {
     name: "implementation-to-debug",
     command: "/debug",
     category: "workflow",
     checkpoint: "7",
-    purpose: "Biên dịch dự án, chạy linter/compiler, phát hiện lỗi cú pháp, chạy tests và tự động sửa các lỗi này.",
-    input: "Mã nguồn vừa chỉnh sửa.",
-    output: "Tạo tệp chẩn đoán lỗi docs/debug/FEAT-XXX_debug.md với trạng thái PASS.",
-    pitfall: "Phải đảm bảo dự án build thành công và không còn lỗi linting nghiêm trọng trước khi chuyển bước."
+    purpose: "Chạy build, lint, typecheck, tests và self-fix loop có giới hạn cho các lỗi trong scope task.",
+    input: "Implementation vừa hoàn thành.",
+    output: "Debug/diagnostic result và trạng thái PASS/FAILED.",
+    pitfall: "Nếu lỗi nằm ngoài file thuộc task scope, dừng và báo thay vì sửa lan rộng."
   },
   {
     name: "frontend-visual-debug",
     command: "/visual-debug",
     category: "workflow",
     checkpoint: "8",
-    purpose: "Chạy kiểm QA giao diện trên WebView hoặc trình duyệt để kiểm tra trực quan các thay đổi UI (nếu có stack UI).",
-    input: "Tệp mã nguồn UI vừa sửa.",
-    output: "Báo cáo kiểm thử giao diện trực quan.",
-    pitfall: "Sẽ tự động bị bỏ qua (skip) nếu cấu hình project-profile.json phát hiện dự án chỉ thuần Backend."
+    purpose: "Kiểm tra trực quan UI bằng browser/screenshot khi workflow có bề mặt frontend.",
+    input: "UI hoặc static site vừa thay đổi.",
+    output: "Visual QA result cho desktop/mobile hoặc target viewport.",
+    pitfall: "Không dùng thay thế test kỹ thuật. Đây là lớp kiểm chứng visual bổ sung."
   },
   {
     name: "debug-to-verify",
     command: "/verify",
     category: "workflow",
     checkpoint: "9",
-    purpose: "Kiểm tra tổng thể toàn bộ tính năng, đối chiếu với spec ban đầu và ký chấp nhận chất lượng sản phẩm để chuẩn bị release.",
-    input: "Tệp chẩn đoán debug đạt trạng thái PASS.",
-    output: "Tạo tệp nghiệm thu docs/verification/FEAT-XXX_verify.md trạng thái PASS.",
-    pitfall: "Đây là cổng kiểm soát chất lượng cuối cùng trước khi code được phép đóng gói phát hành."
+    purpose: "Quality gate cuối: đối chiếu implementation với blueprint, acceptance criteria và checklist nghiệm thu.",
+    input: "Debug/build/test đã PASS hoặc Not Configured.",
+    output: "Verification report PASS/FAIL và Go/No-Go decision.",
+    pitfall: "Không claim hoàn tất nếu verify chưa chạy hoặc còn test gap quan trọng chưa nêu rõ."
   },
   {
     name: "implementation-to-release",
     command: "/release",
     category: "workflow",
     checkpoint: "10",
-    purpose: "Cập nhật số phiên bản (version bump), kết xuất changelog, commit, đánh tag git và push code lên GitLab/GitHub.",
-    input: "Tệp nghiệm thu chất lượng verify đạt trạng thái PASS.",
-    output: "Phát hành phiên bản mới lên Gitlab (code đầy đủ) và Github (bản xuất bản sạch public_export).",
-    pitfall: "Nghiêm cấm tự động release. Tiến trình push và tag bắt buộc phải có lệnh duyệt thủ công từ người dùng."
+    purpose: "Thực hiện release explicit: version, changelog, commit, tag, push sau khi người dùng yêu cầu release.",
+    input: "Verify PASS và yêu cầu release rõ ràng.",
+    output: "Release artifacts/git operations nếu được approve.",
+    pitfall: "Release không bao giờ tự động. Commit, tag, push, version bump và changelog đều là hard-gated actions."
   },
   {
     name: "software-development-workflow",
     command: "/workflow",
     category: "workflow",
     checkpoint: "N/A",
-    purpose: "Điều phối viên trung tâm kiểm tra trạng thái workspace và chỉ dẫn bước đi/skill tiếp theo cho Agent.",
-    input: "Tham số kiểm tra tự động.",
-    output: "Báo cáo nhịp tim hệ thống và đề xuất lệnh chạy tiếp theo.",
-    pitfall: "Luôn chạy lệnh này khi không biết Agent nên làm gì tiếp theo trong quy trình."
+    purpose: "Đọc trạng thái workflow và đề xuất skill/command tiếp theo theo checkpoint hiện tại.",
+    input: "Runtime state hiện tại.",
+    output: "Routing/status summary và suggested next command.",
+    pitfall: "Đây là advisor, không phải giấy phép bypass blueprint hoặc approval gates."
   },
   {
     name: "quick-fix",
     command: "/fix",
     category: "utility",
     checkpoint: "Rút gọn",
-    purpose: "Sửa bug nhanh thông qua quy trình 3 pha rút gọn (Spec -> Blueprint -> Implement) bỏ qua các bước lập kế hoạch rườm rà.",
-    input: "Mô tả bug cần sửa.",
-    output: "Tạo file docs/issues/FIX-XXX_slug.md và hoàn thành sửa lỗi.",
-    pitfall: "Chỉ được dùng cho các lỗi nhỏ, cô lập, có thời gian sửa dưới 4 tiếng."
+    purpose: "Sửa lỗi cục bộ bằng quy trình FIX Spec -> FIX Blueprint -> scoped implementation.",
+    input: "Mô tả bug nhỏ, localized và low-risk.",
+    output: "docs/issues/FIX-XXX_slug.md, docs/designs/FIX-XXX_slug_blueprint.md và code fix sau approval.",
+    pitfall: "Không dùng cho lỗi rộng, thay đổi kiến trúc, database redesign hoặc hành vi chưa rõ root cause."
   },
   {
     name: "quick-feature",
     command: "/feature",
     category: "utility",
     checkpoint: "Rút gọn",
-    purpose: "Triển khai tính năng nhỏ thông qua quy trình 3 pha rút gọn (Spec -> Blueprint -> Implement) để tiết kiệm thời gian.",
-    input: "Mô tả tính năng nhỏ cần thêm.",
-    output: "Tạo file docs/quick/QUICK-XXX_slug.md và hoàn thành viết code.",
-    pitfall: "Chỉ áp dụng cho tính năng đơn lẻ, không thay đổi cấu trúc bảng dữ liệu lớn hoặc kiến trúc lõi."
+    purpose: "Tính năng nhỏ theo quy trình QUICK Spec -> Blueprint -> Implementation, vẫn bắt buộc có approval gates.",
+    input: "Yêu cầu tính năng local, additive, ít rủi ro.",
+    output: "docs/quick/QUICK-XXX_slug.md, blueprint tương ứng và implementation scoped.",
+    pitfall: "Quick không có nghĩa là bỏ blueprint. Chỉ rút ngắn planning, không rút ngắn safety."
   },
   {
     name: "frontend-design",
     command: "/ui",
     category: "utility",
     checkpoint: "N/A",
-    purpose: "Cung cấp các quy tắc tâm lý học hành vi người dùng, phối màu và bố cục typographic cho giao diện.",
-    input: "Bản thiết kế giao diện UI.",
-    output: "Hệ thống giao diện trực quan đạt chuẩn trải nghiệm người dùng.",
-    pitfall: "Bắt buộc phải đọc file ux-psychology.md trước khi bắt đầu thiết kế."
+    purpose: "Hỗ trợ quyết định UI/UX, layout, typography, responsive behavior và visual polish.",
+    input: "Yêu cầu thiết kế giao diện hoặc visual QA.",
+    output: "Design guidance hoặc UI implementation plan phù hợp stack hiện có.",
+    pitfall: "Không tạo landing page hoặc redesign ngoài yêu cầu. Với frontend thay đổi source vẫn cần blueprint."
   },
   {
     name: "project-discovery",
     command: "/discover",
     category: "environment",
     checkpoint: "N/A",
-    purpose: "Quét cấu trúc thư mục dự án để tự động nhận diện ngôn ngữ, framework, database và công nghệ đang sử dụng.",
-    input: "Mã nguồn dự án.",
-    output: "Tạo tệp cấu hình project-profile.json điều hướng luồng SDLC.",
-    pitfall: "Cần chạy khi mới tham gia dự án để Agent nắm được tech stack."
+    purpose: "Nhận diện tech stack, module boundaries và verification commands để cấu hình workflow checkpoints.",
+    input: "Workspace dự án.",
+    output: "Project profile và discovery metadata.",
+    pitfall: "Không dùng broad scan thay Memory/RAG-first khi đã có context mục tiêu."
   },
   {
     name: "environment-bootstrap",
     command: "/bootstrap",
     category: "environment",
     checkpoint: "N/A",
-    purpose: "Tự động tải và cài đặt các phụ trợ cần thiết cho môi trường làm việc của AI Coding.",
-    input: "Lệnh cài đặt tự động.",
-    output: "Môi trường lập trình được thiết lập sẵn sàng.",
-    pitfall: "Một số công cụ chưa rõ nguồn gốc bắt buộc phải hỏi duyệt xác nhận từ người dùng."
+    purpose: "Chuẩn bị môi trường AIWF bằng script-first setup cho toolchain cần thiết.",
+    input: "Bootstrap configuration và user approvals cần thiết.",
+    output: "Môi trường local sẵn sàng cho workflow.",
+    pitfall: "Không tự cài công cụ nhạy cảm hoặc đổi permission mode nếu chưa được approve."
   },
   {
     name: "environment-health",
     command: "/doctor",
     category: "environment",
     checkpoint: "N/A",
-    purpose: "Khảo sát và chẩn đoán tình trạng sức khỏe môi trường của máy cục bộ (Git, Python, Docker, Qdrant, SQLite).",
-    input: "Không có tham số.",
-    output: "Bản báo cáo chẩn đoán chi tiết tình trạng hệ thống.",
-    pitfall: "Là lệnh an toàn, chỉ đọc, không thay đổi bất cứ cấu hình hệ thống nào."
+    purpose: "Kiểm tra sức khỏe môi trường ở chế độ read-only: Git, Python, Node, Docker, SQLite, Qdrant và cache.",
+    input: "Không có tham số bắt buộc.",
+    output: "Báo cáo diagnostics môi trường.",
+    pitfall: "Doctor chỉ quan sát. Không dùng nó để sửa/cài đặt tự động."
   },
   {
     name: "create-adr",
     command: "/adr",
     category: "architecture",
     checkpoint: "N/A",
-    purpose: "Ghi chép và lưu trữ các quyết định thiết kế kiến trúc quan trọng có ảnh hưởng dài hạn đến dự án.",
-    input: "Quyết định kiến trúc kỹ thuật.",
-    output: "Tạo file docs/adr/ADR-XXX_slug.md.",
-    pitfall: "Chỉ nên tạo khi dự án có sự thay đổi lớn về công nghệ hoặc mô hình lưu trữ."
+    purpose: "Ghi lại quyết định kiến trúc dài hạn khi có trade-off đáng kể.",
+    input: "Quyết định kiến trúc đã được cân nhắc.",
+    output: "docs/adr/ADR-XXX_slug.md.",
+    pitfall: "Không tạo ADR cho thay đổi nhỏ hoặc tài liệu vận hành không đổi kiến trúc."
   },
   {
     name: "orchestrator",
     command: "/orchestrate",
     category: "workflow",
     checkpoint: "N/A",
-    output: "Tự động phân tách công việc và lập kế hoạch thực thi không cần gọi skill thủ công.",
-    pitfall: "Tính năng chạy song song (Parallel execution) chỉ được phép chạy ở pha Code Implementation và luôn cần sự xác nhận duyệt từ người dùng."
+    purpose: "Điểm vào trung tâm cho workflow phức tạp: phân loại scope, điều phối phase owner, analysis subagents và implementation workers theo policy.",
+    input: "Yêu cầu workflow hoặc approved blueprint cần execution planning.",
+    output: "Execution plan, read/write sets, worker scheduling và aggregated results.",
+    pitfall: "Parallel chỉ được chọn ở đầu implementation. Analysis agents là read-only; worker agents phải có write set không chồng lấn và file locks."
+  },
+  {
+    name: "workflow-runtime",
+    command: "/runtime",
+    category: "runtime",
+    checkpoint: "N/A",
+    purpose: "CLI/runtime engine quản lý checkpoint, split-state, leases, locks, execution mode, analysis agents và workflow telemetry.",
+    input: "Runtime subcommands như status, validate, start, step, complete, lock, execution, analysis-agent.",
+    output: "Structured state updates và operational status cho dashboard/skills.",
+    pitfall: "Không sửa state JSON thủ công nếu có runtime command tương ứng; dùng CLI để tránh drift."
   },
   {
     name: "knowledge-runtime",
     command: "/knowledge",
     category: "memory",
     checkpoint: "N/A",
-    purpose: "Bộ máy điều phối và định tuyến tri thức hợp nhất hỗ trợ tìm kiếm từ khóa, backlinks, cache đệm và vector RAG.",
-    input: "Truy vấn tìm kiếm tri thức hoặc lưu/đọc file.",
-    output: "API trả về mảng kết quả JSON tri thức và nội dung tài liệu.",
-    pitfall: "Mặc định sử dụng Markdown Provider cục bộ. Qdrant, SQLite và Obsidian là tùy chọn và sẽ tự động fallback nếu không khả dụng."
+    purpose: "Lớp truy cập tri thức hợp nhất cho Markdown, SQLite, Qdrant, Obsidian và provider adapters.",
+    input: "Search/read/write/index request từ workflow skills.",
+    output: "Kết quả tri thức có cấu trúc hoặc provider operation result.",
+    pitfall: "Skills không đọc provider backend trực tiếp. Tất cả knowledge operations phải đi qua Knowledge Runtime trừ adapter compatibility được approve."
+  },
+  {
+    name: "vir-runtime",
+    command: "/vir-runtime",
+    category: "runtime",
+    checkpoint: "N/A",
+    purpose: "Visual Intelligence Runtime cung cấp observation sandbox và event/evidence primitives cho điều tra giao diện.",
+    input: "Target observation request hoặc runtime verification context.",
+    output: "Evidence objects, observations và structured visual runtime events.",
+    pitfall: "VIR runtime quan sát và thu evidence; không tự đưa ra kết luận cognitive nếu skill khác mới là owner."
+  },
+  {
+    name: "vir-investigate",
+    command: "/vir-investigate",
+    category: "workflow",
+    checkpoint: "N/A",
+    purpose: "Điều tra nguyên nhân bằng evidence, contradiction checks và structured RCA cho lỗi phức tạp.",
+    input: "Bug, visual mismatch hoặc failure report cần RCA.",
+    output: "Investigation report và candidate root causes.",
+    pitfall: "Không nhảy thẳng sang fix khi evidence chưa đủ hoặc hypothesis còn mâu thuẫn."
+  },
+  {
+    name: "vir-verify",
+    command: "/vir-verify",
+    category: "workflow",
+    checkpoint: "N/A",
+    purpose: "Quality gate visual sử dụng weighted consensus, visual audits và SDLC compliance checks.",
+    input: "Implementation result, screenshots, target criteria hoặc verification bundle.",
+    output: "PASS/FAIL visual verification report.",
+    pitfall: "Không thay thế debug/build tests; đây là lớp verify trực quan và compliance bổ sung."
+  },
+  {
+    name: "vir-memory-update",
+    command: "/vir-memory-update",
+    category: "memory",
+    checkpoint: "N/A",
+    purpose: "Củng cố bài học từ visual verification và lưu baseline/evidence lessons cho lần sau.",
+    input: "Verified visual evidence hoặc lesson outcome.",
+    output: "Memory update notes, baseline references hoặc learning artifacts.",
+    pitfall: "Chỉ cập nhật memory khi có kết quả đã xác minh; không lưu giả thuyết chưa kiểm chứng như fact."
   }
 ];
 
