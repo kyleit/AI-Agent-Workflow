@@ -1,0 +1,10 @@
+{
+  "lock_owner": "orchestrator|initialize-workflow",
+  "work_item_id": "FEAT-111",
+  "skill": "initialize-workflow",
+  "pid": 24944,
+  "process_started_at": "1783873685.3584423",
+  "hostname": "KYLE",
+  "started_at": "2026-07-12T23:28:05.623924+07:00",
+  "heartbeat_at": "2026-07-12T23:28:05.623924+07:00"
+}

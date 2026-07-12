@@ -154,6 +154,9 @@ Reliability is enforced through automated builds, testing, and runtime validatio
 *   **Failure Behavior**:
     *   If building or compiling fails, or if any test fails, or if runtime validation fails: print stdout/stderr/crash logs.
     *   **STOP** immediately. Set status to `Failed verification` and do not proceed with commit, verify, or release activities. Apply self-healing rules (up to 3 retries) within task scope if applicable.
+*   **Background Test Progress Notification**:
+    *   Các tiến trình test chạy ngầm (background tests) bắt buộc phải theo dõi tiến trình và cứ mỗi 5% tiến độ hoàn thành phải gửi thông báo cập nhật lên giao diện/hệ thống hoặc logs một lần để Ba dễ dàng theo dõi trực quan.
+    *   For any background or asynchronous test execution processes, the agent or test coordinator must track execution progress and output a progress notification or log update exactly every 5% of completed tests.
 
 ---
 

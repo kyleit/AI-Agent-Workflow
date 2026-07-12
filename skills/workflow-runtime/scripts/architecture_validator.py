@@ -70,7 +70,7 @@ def get_file_layer(filepath: str, config: dict) -> Optional[str]:
     for layer_name, layer_cfg in layers.items():
         paths = layer_cfg.get("paths", [])
         for p in paths:
-            if p in rel_path and len(p) > max_len:
+            if (rel_path.startswith(p + "/") or rel_path == p) and len(p) > max_len:
                 matched_layer = layer_name
                 max_len = len(p)
                 

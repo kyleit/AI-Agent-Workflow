@@ -1,0 +1,149 @@
+{
+  "phases": [
+    {
+      "phase_name": "Phase 1: Session & CLI Configuration",
+      "tasks": ["Task 1.1", "Task 1.2", "Task 1.3"],
+      "deliverables": [
+        "Session schema supports autonomous_delivery flag",
+        "CLI parser handles --autonomous option"
+      ],
+      "milestones": ["CLI parsing and session schema changes integrated"]
+    },
+    {
+      "phase_name": "Phase 2: Transition & Orchestration Logic",
+      "tasks": ["Task 2.1", "Task 2.2", "Task 2.3"],
+      "deliverables": [
+        "Orchestrator automatically transitions between phases without manual approvals",
+        "Resource Circuit Breaker halts execution when CPU/Memory usage > 90%",
+        "Local Debug Loop throttles at max 5 retries"
+      ],
+      "milestones": ["Autonomous execution loop functional"]
+    },
+    {
+      "phase_name": "Phase 3: Visualizer Dashboard & Telemetry Integration",
+      "tasks": ["Task 3.1", "Task 3.2"],
+      "deliverables": [
+        "Calculated progress percentage written to context.json",
+        "Visualizer panel displays progress bar of autonomous SDLC lifecycle"
+      ],
+      "milestones": ["Visual progression displayed on desktop controller"]
+    },
+    {
+      "phase_name": "Phase 4: Verification & Shadow Mode",
+      "tasks": ["Task 4.1"],
+      "deliverables": [
+        "Shadow mode configuration for dry-run verification"
+      ],
+      "milestones": ["Validation suite complete and verified"]
+    }
+  ],
+  "tasks": [
+    {
+      "id": "Task 1.1",
+      "description": "Add autonomous_delivery flag to Session schema and parser",
+      "effort_hours": 2,
+      "owner": "Coder",
+      "operations": ["MODIFY"],
+      "files": ["skills/workflow-runtime/scripts/session.py"]
+    },
+    {
+      "id": "Task 1.2",
+      "description": "Implement --autonomous CLI flag in workflow CLI",
+      "effort_hours": 2,
+      "owner": "Coder",
+      "operations": ["MODIFY"],
+      "files": ["skills/workflow-runtime/scripts/workflow_runtime.py"]
+    },
+    {
+      "id": "Task 1.3",
+      "description": "Sync autonomous_delivery status in context.json",
+      "effort_hours": 1,
+      "owner": "Coder",
+      "operations": ["MODIFY"],
+      "files": ["skills/workflow-runtime/scripts/state_sync.py"]
+    },
+    {
+      "id": "Task 2.1",
+      "description": "Implement automatic phase transition logic bypassing approval gates",
+      "effort_hours": 4,
+      "owner": "Coder",
+      "operations": ["MODIFY"],
+      "files": ["skills/workflow-runtime/scripts/workflow_runtime.py"]
+    },
+    {
+      "id": "Task 2.2",
+      "description": "Implement Resource Circuit Breaker in runtime manager",
+      "effort_hours": 3,
+      "owner": "Coder",
+      "operations": ["MODIFY"],
+      "files": ["skills/workflow-runtime/scripts/workflow_runtime.py"]
+    },
+    {
+      "id": "Task 2.3",
+      "description": "Implement Debug Loop Throttle (Max 5 retries per failure)",
+      "effort_hours": 2,
+      "owner": "Coder",
+      "operations": ["MODIFY"],
+      "files": ["skills/workflow-runtime/scripts/workflow_runtime.py"]
+    },
+    {
+      "id": "Task 3.1",
+      "description": "Implement progress percentage computation of the DAG lifecycle",
+      "effort_hours": 2,
+      "owner": "Coder",
+      "operations": ["MODIFY"],
+      "files": ["skills/workflow-runtime/scripts/state_sync.py"]
+    },
+    {
+      "id": "Task 3.2",
+      "description": "Update webview.html to display autonomous progress bar",
+      "effort_hours": 3,
+      "owner": "Coder",
+      "operations": ["MODIFY"],
+      "files": ["extensions/visualizer/resources/webview.html"]
+    },
+    {
+      "id": "Task 4.1",
+      "description": "Implement Shadow Mode verification configuration",
+      "effort_hours": 2,
+      "owner": "Coder",
+      "operations": ["MODIFY"],
+      "files": ["skills/workflow-runtime/scripts/workflow_runtime.py"]
+    }
+  ],
+  "dependencies": {
+    "Task 1.2": ["Task 1.1"],
+    "Task 1.3": ["Task 1.2"],
+    "Task 2.1": ["Task 1.3"],
+    "Task 2.2": ["Task 2.1"],
+    "Task 2.3": ["Task 2.1"],
+    "Task 3.1": ["Task 2.1"],
+    "Task 3.2": ["Task 3.1"]
+  },
+  "parallel_groups": [
+    ["Task 2.2", "Task 2.3"],
+    ["Task 3.1", "Task 3.2"]
+  ],
+  "exit_criteria": [
+    "100% verification tests passed successfully",
+    "No hanging or orphaned background tasks after autonomous execution loop"
+  ],
+  "rollback": {
+    "trigger": "Deadlock or infinite recursion in autonomous transition logic",
+    "steps": [
+      "Kill orchestrator processes",
+      "Revert local commits to skills/workflow-runtime/scripts/session.py and workflow_runtime.py",
+      "Remove temporary runtime locks and state caches"
+    ]
+  },
+  "tests": [
+    {
+      "test_target": "skills/workflow-runtime/tests/integration/test_runtime.py",
+      "mapped_tasks": ["Task 2.1", "Task 2.2"]
+    }
+  ],
+  "artifacts": [
+    "docs/designs/FEAT-116_autonomous_delivery_after_brainstorming_blueprint.md",
+    "docs/designs/FEAT-116_autonomous_delivery_after_brainstorming_blueprint.json"
+  ]
+}

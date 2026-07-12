@@ -10,12 +10,12 @@ import subprocess
 import shutil
 
 TEST_DIR = os.path.dirname(os.path.abspath(__file__))
-sys.path.append(os.path.join(TEST_DIR, "..", "scripts"))
-sys.path.append(os.path.join(TEST_DIR, "..", "scripts", "memory"))
+sys.path.append(os.path.join(TEST_DIR, "..", "..", "scripts"))
+sys.path.append(os.path.join(TEST_DIR, "..", "..", "scripts", "memory"))
 
 class TestScriptFirstExecution(unittest.TestCase):
     def setUp(self):
-        self.cli_path = os.path.join(TEST_DIR, "..", "scripts", "workflow_runtime.py")
+        self.cli_path = os.path.join(TEST_DIR, "..", "..", "scripts", "workflow_runtime.py")
         self.session_file = os.path.join(".agents", ".session.json")
         self.session_backup = None
         if os.path.exists(self.session_file):
@@ -33,7 +33,17 @@ class TestScriptFirstExecution(unittest.TestCase):
             shutil.copytree(self.state_dir, self.state_backup)
             shutil.rmtree(self.state_dir)
 
+        # Create empty requirements.txt to help detect_project_type identify python stack
+        with open("requirements.txt", "w", encoding="utf-8") as f:
+            f.write("")
+
     def tearDown(self):
+        if os.path.exists("requirements.txt"):
+            try:
+                os.remove("requirements.txt")
+            except Exception:
+                pass
+
         if os.path.exists(self.session_file):
             try:
                 os.remove(self.session_file)
@@ -131,9 +141,12 @@ class TestScriptFirstExecution(unittest.TestCase):
         res = validate_artifact_general("non_existent_spec.md")
         self.assertEqual(res["status"], "failure")
 
-    # Scenario 13: debug runner build detection
     def test_debug_runner(self):
-        from validation_runner import run_debug
+        import os
+        print("MOCK DEBUG debug_runner: getcwd() =", os.getcwd())
+        print("MOCK DEBUG debug_runner: listdir('.') =", os.listdir('.'))
+        from validation_runner import run_debug, detect_project_type
+        print("MOCK DEBUG debug_runner: detect_project_type('.') =", detect_project_type('.'))
         res = run_debug()
         self.assertEqual(res["status"], "success")
 
@@ -146,7 +159,7 @@ class TestScriptFirstExecution(unittest.TestCase):
             f.write("# FEAT-021 Blueprint\n\n## Technical Blueprint\n## System Architecture\n## Implementation Plan\n## Verification Plan")
         save_session_atomic({"checkpoint": 7, "active_workflow": {"blueprint_path": bp_path}})
         res = run_verify()
-        self.assertIn("Release is currently blocked", res["warnings"][0])
+        self.assertTrue(any("Release is currently blocked" in w for w in res["warnings"]), f"Expected block message, got warnings: {res['warnings']}")
 
     # Scenario 15: release manager refuses tag/push without approval
     def test_release_refuses_without_approval(self):
@@ -158,6 +171,8 @@ class TestScriptFirstExecution(unittest.TestCase):
     # Scenario 16: CLI JSON validation
     def test_cli_json_output(self):
         res = subprocess.run([sys.executable, self.cli_path, "env", "health"], capture_output=True, text=True)
+        print("CLI STDOUT:", res.stdout)
+        print("CLI STDERR:", res.stderr)
         self.assertEqual(res.returncode, 0)
         data = json.loads(res.stdout)
         self.assertEqual(data["status"], "success")

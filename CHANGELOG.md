@@ -5,6 +5,15 @@ All notable changes to this project will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [6.13.0] - 2026-07-12
+
+### Added
+- **Autonomous Delivery Mode (FEAT-116)**:
+  - Triển khai cờ khởi chạy CLI `--autonomous` cho phép tự động bypass các cổng phê duyệt thủ công trung gian đối với các hành động thông thường (normal writes/compiles/tests).
+  - Tích hợp tính năng tự động ghi nhận thuộc tính `autonomous_delivery` và tính toán động `progress_percentage` trong pha lưu trữ phân tách Pure Split State.
+  - Tích hợp nhãn trạng thái `⚡ AUTONOMOUS DELIVERY` động và thanh tiến độ thực thi trực quan trên Visualizer Sidebar.
+  - Bổ sung quy tắc theo dõi và thông báo tiến độ kiểm thử chạy ngầm (background tests) mỗi 5% tiến trình vào chính sách kiểm thử [AI_RULES.md](file:///e:/AgentsProject/AI_RULES.md).
+
 ## [6.12.0] - 2026-07-12
 
 ### Added

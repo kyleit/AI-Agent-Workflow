@@ -13,7 +13,7 @@ def check_context_drift(session: dict) -> tuple[bool, str]:
     # Check Git branch drift
     git_info = get_git_info()
     saved_git = session.get("git", {})
-    if git_info["is_git_repository"] and saved_git.get("is_git_repository"):
+    if git_info["is_git_repository"] or saved_git.get("is_git_repository"):
         if git_info["branch"] != saved_git.get("branch"):
             return True, f"Branch drifted: active is '{git_info['branch']}', saved is '{saved_git.get('branch')}'"
             

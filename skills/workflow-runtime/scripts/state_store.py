@@ -351,37 +351,54 @@ def register_work_item(work_item_id: str, workflow_type: str = None, status: str
                 pass
 
 # Global state store registry resolved based on env/mode
-_store_instance = None
+_store_instances = {}
 
 def get_state_store() -> StateStore:
-    global _store_instance
-    if _store_instance is not None:
-        return _store_instance
-        
+    global _store_instances
+    
     mode = os.environ.get("AIWF_RUNTIME_MODE", "normal").lower()
     disable_writes = os.environ.get("AIWF_DISABLE_STATE_WRITES", "false").lower() == "true"
     
     if disable_writes or mode == "test-memory":
-        _store_instance = NullStateStore()
+        key = "null"
+        if key not in _store_instances:
+            _store_instances[key] = NullStateStore()
+        return _store_instances[key]
     elif mode == "test-isolated":
-        _store_instance = InMemoryStateStore()
+        key = "in-memory"
+        if key not in _store_instances:
+            _store_instances[key] = InMemoryStateStore()
+        return _store_instances[key]
     else:
         root_dir = os.environ.get("AIWF_STATE_ROOT", os.path.join(".agents", "state"))
-        _store_instance = AtomicFileStateStore(root_dir)
-        
-    return _store_instance
+        abs_root = os.path.abspath(root_dir)
+        if abs_root not in _store_instances:
+            _store_instances[abs_root] = AtomicFileStateStore(abs_root)
+        return _store_instances[abs_root]
 
 def reset_state_store(store: StateStore = None) -> None:
-    global _store_instance
-    _store_instance = store
+    global _store_instances, _active_work_item_id
+    _store_instances.clear()
+    _active_work_item_id = None
+    if store is not None:
+        mode = os.environ.get("AIWF_RUNTIME_MODE", "normal").lower()
+        if mode == "test-isolated":
+            _store_instances["in-memory"] = store
+        elif mode == "test-memory" or os.environ.get("AIWF_DISABLE_STATE_WRITES") == "true":
+            _store_instances["null"] = store
+        else:
+            root_dir = os.environ.get("AIWF_STATE_ROOT", os.path.join(".agents", "state"))
+            abs_root = os.path.abspath(root_dir)
+            _store_instances[abs_root] = store
 
 def flush_stores() -> None:
-    store = get_state_store()
-    if hasattr(store, "flush"):
-        try:
-            store.flush()
-        except Exception:
-            pass
+    global _store_instances
+    for store in list(_store_instances.values()):
+        if hasattr(store, "flush"):
+            try:
+                store.flush()
+            except Exception:
+                pass
 
 # Flush all changes to disk on normal exit
 atexit.register(flush_stores)

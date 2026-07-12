@@ -10,6 +10,10 @@ from typing import cast
 # Add the directory containing this script to sys.path to resolve sibling modules
 sys.path.append(os.path.dirname(os.path.abspath(__file__)))
 
+if sys.version_info < (3, 11):
+    print("Error: Python 3.11 or higher is required.", file=sys.stderr)
+    sys.exit(1)
+
 from session import load_session, save_session_atomic, SessionLock # type: ignore
 from fingerprint import calculate_project_fingerprint # type: ignore
 from state_sync import read_json_safe, write_json_atomic, aggregate_state, deconstruct_state # type: ignore
@@ -65,12 +69,13 @@ def get_permission_mode() -> str:
 
 def requires_approval(action_type: str, path: str = None) -> bool:
     mode = get_permission_mode()
-    if mode == "sandbox":
-        return True
     if mode == "unrestricted":
         return False
         
-    # Hard-gated actions that ALWAYS require approval in full_access mode
+    session = load_session()
+    is_autonomous = session.get("autonomous_delivery", False)
+    
+    # Hard-gated actions that ALWAYS require approval in full_access mode or autonomous mode
     release_actions = [
         "git_commit", "git_merge", "git_rebase", "git_tag", "git_push",
         "release", "publish", "deploy", "production_migration",
@@ -83,7 +88,6 @@ def requires_approval(action_type: str, path: str = None) -> bool:
         return True
         
     # Scope Protection Check
-    session = load_session()
     auth = session.get("authorization", {})
     active_wi = os.environ.get("AIWF_ACTIVE_WORK_ITEM") or os.environ.get("AIWF_WORK_ITEM_ID")
     
@@ -107,6 +111,13 @@ def requires_approval(action_type: str, path: str = None) -> bool:
             log_gate_resolution_event(f"Modify policy file: {path}", "BLOCKED_BY_RELEASE_BOUNDARY", "Blocked")
             return True
             
+    if is_autonomous:
+        # Bypass other approvals in autonomous mode
+        return False
+        
+    if mode == "sandbox":
+        return True
+        
     from utils import log_gate_resolution_event
     log_gate_resolution_event(f"Action: {action_type}", "AUTHORIZED_BY_FULL_ACCESS", "Allowed")
     return False
@@ -246,8 +257,8 @@ def update_context_health(session: dict) -> None:
             "critical": { "color": "#ef4444", "bg": "rgba(239, 68, 68, 0.1)", "border": "rgba(239, 68, 68, 0.3)", "icon": "🔴", "label": "Critical" }
         },
         "cost_thresholds": {
-            "warning_usd": 50.0,
-            "critical_usd": 100.0
+            "warning_usd": 10.0,
+            "critical_usd": 50.0
         }
     })
     
@@ -282,6 +293,46 @@ def do_init(args):
     if (has_project_args or not config_exists) and not getattr(args, "permission", None):
         import init_wizard
         sys.exit(init_wizard.handle_init(args))
+
+    # Handle --permission flag if provided
+    permission_flag = getattr(args, "permission", None)
+    if permission_flag:
+        mode = "sandbox"
+        if permission_flag == "1":
+            mode = "sandbox"
+        elif permission_flag == "2":
+            mode = "full_access"
+        elif permission_flag == "3":
+            try:
+                user_confirm = sys.stdin.readline().strip()
+            except Exception:
+                user_confirm = ""
+            mode = "sandbox"
+            
+        from session import write_project_permissions_atomic
+        config = {
+            "schema_version": "1.0.0",
+            "initialized": True,
+            "mode": mode,
+            "config_revision": 1,
+            "initialized_at": datetime.now().astimezone().isoformat(),
+            "updated_at": datetime.now().astimezone().isoformat(),
+            "updated_by": "user",
+            "source": "cli",
+            "permissions": {
+                "default_mode": mode,
+                "autonomous_delivery": True if mode == "full_access" else False,
+                "auto_continue_internal_phases": True if mode == "full_access" else False,
+                "stop_at_release_approval": True,
+                "require_separate_git_approval": True,
+                "require_separate_release_approval": True,
+                "require_separate_deploy_approval": True,
+                "max_retries_per_task": 3,
+                "max_replans_per_work_item": 2,
+                "max_agent_reassignments_per_task": 2
+            }
+        }
+        write_project_permissions_atomic(config)
 
     new_fp = calculate_project_fingerprint(".")
     state_dir = os.path.join(".agents", "state")
@@ -505,11 +556,20 @@ def do_init(args):
     ensure_daemon_running()
     
     import time
-    time.sleep(0.6)
-    
-    import psutil
+    # Poll for up to 3.0 seconds to wait for daemon startup and file creation
     state_dir = os.path.join(".agents", "state")
     daemon_path = os.path.join(state_dir, "daemon.json")
+    for _ in range(30):
+        if os.path.exists(daemon_path):
+            try:
+                with open(daemon_path, "r", encoding="utf-8") as f:
+                    if json.load(f).get("pid"):
+                        break
+            except Exception:
+                pass
+        time.sleep(0.1)
+    
+    import psutil
     manager_path = os.path.join(state_dir, "manager.json")
     orch_path = os.path.join(state_dir, "orchestrator.json")
     
@@ -642,6 +702,7 @@ def do_start(args):
     session["current_skill"] = args.skill
     session["current_command"] = args.command
     session["current_step"] = args.step
+    session["autonomous_delivery"] = getattr(args, "autonomous", False)
     session["current_logs"] = [f"> Starting {args.skill}..."]
     
     update_context_health(session)
@@ -2486,11 +2547,11 @@ def do_execution(args: argparse.Namespace) -> None:
         if not args.mode or not args.reason:
             print("Error: --mode and --reason are required.", file=sys.stderr)
             sys.exit(1)
-        rec_mode = "parallel"
-        rec_reason = "Parallel execution is recommended by default for multi-agent efficiency."
+        rec_mode = "sequential"
+        rec_reason = "Parallel execution is completely disabled in this framework. Sequential execution only."
         plan["implementation_execution_mode"] = "pending"
         plan["parallel_allowed_phase"] = "implementation"
-        plan["parallel_allowed"] = True
+        plan["parallel_allowed"] = False
         plan["execution_mode"] = "pending"
         plan["recommended_mode"] = rec_mode
         plan["recommended_reason"] = rec_reason
@@ -2502,6 +2563,9 @@ def do_execution(args: argparse.Namespace) -> None:
     elif args.subaction == "mode":
         if not args.mode:
             print("Error: --mode is required.", file=sys.stderr)
+            sys.exit(1)
+        if args.mode == "parallel":
+            print("Error: Parallel execution mode is disabled. Only sequential execution is supported.", file=sys.stderr)
             sys.exit(1)
             
         plan["implementation_execution_mode"] = args.mode
@@ -3256,155 +3320,24 @@ def do_test_action(args):
     import hashlib
     from datetime import datetime
     from tia_engine import TestImpactResolver, validate_test_architecture
-
-    start_time = time.time()
-    test_targets = []
-    pytest_args = []
+    from test_coordinator import TestCoordinator, resolve_module_tests, resolve_integration_tests, run_stability_worker
     
     subaction = getattr(args, "subaction", None)
+    force = getattr(args, "force", False)
     
     # Load runtime policy
     from session import load_runtime_policy, load_session
     try:
         policy = load_runtime_policy(validate=True)
+        te_cfg = policy.get("test_execution", {})
     except Exception as e:
         print(f"Error loading/validating runtime policy: {e}", file=sys.stderr)
         sys.exit(1)
         
     if not subaction:
-        subaction = policy.get("pytest", {}).get("default_mode", "affected")
+        subaction = te_cfg.get("default_mode", "affected")
 
-    class TestCoordinator:
-        def __init__(self, workspace_path: str = "."):
-            self.state_dir = os.path.join(workspace_path, ".agents", "state")
-            self.lock_path = os.path.join(self.state_dir, "pytest_coordinator.lock")
-            self.exec_path = os.path.join(self.state_dir, "test-execution.json")
-
-        def check_rate_limit(self) -> tuple[bool, str]:
-            now = time.time()
-            cb_path = os.path.join(self.state_dir, "circuit-breakers.json")
-            cb_data = {
-                "pytest_circuit": "closed",
-                "updated_at": datetime.now().astimezone().isoformat()
-            }
-            if os.path.exists(cb_path):
-                try:
-                    with open(cb_path, "r", encoding="utf-8") as f:
-                        cb_data.update(json.load(f))
-                except Exception:
-                    pass
-
-            if cb_data.get("pytest_circuit") == "open":
-                return False, "pytest circuit breaker is OPEN"
-
-            history_path = os.path.join(self.state_dir, "pytest_history.json")
-            history = []
-            if os.path.exists(history_path):
-                try:
-                    with open(history_path, "r", encoding="utf-8") as f:
-                        history = json.load(f)
-                except Exception:
-                    pass
-            
-            history = [t for t in history if now - t < 60]
-            
-            from session import load_config_section, DEFAULT_TEST_EXECUTION
-            test_config = load_config_section("test_execution", DEFAULT_TEST_EXECUTION)
-            max_rate = test_config.get("max_requests_per_minute", 3)
-            
-            if len(history) >= max_rate:
-                cb_data["pytest_circuit"] = "open"
-                cb_data["updated_at"] = datetime.now().astimezone().isoformat()
-                try:
-                    with open(cb_path, "w", encoding="utf-8") as f:
-                        json.dump(cb_data, f, indent=2)
-                except Exception:
-                    pass
-                return False, "Rate limit exceeded (tripped circuit breaker)"
-                
-            history.append(now)
-            try:
-                with open(history_path, "w", encoding="utf-8") as f:
-                    json.dump(history, f)
-            except Exception:
-                pass
-                
-            return True, "OK"
-
-        def run_coordinated(self, cmd: list[str]) -> tuple[int, str, str]:
-            cmd_str = " ".join(cmd)
-            cmd_hash = hashlib.sha256(cmd_str.encode("utf-8")).hexdigest()[:16]
-            outcome_path = os.path.join(self.state_dir, f"test_outcome_{cmd_hash}.json")
-            
-            from session import OSFileLock
-            lock = OSFileLock(self.lock_path)
-            
-            dedup = policy.get("pytest", {}).get("deduplicate_requests", True)
-            
-            if dedup and not lock.acquire():
-                print("[INFO] Another pytest suite is running. Waiting for coalesced results...")
-                while not lock.acquire():
-                    time.sleep(0.5)
-                if os.path.exists(outcome_path):
-                    try:
-                        with open(outcome_path, "r", encoding="utf-8") as f:
-                            data = json.load(f)
-                        lock.release()
-                        print("[INFO] Reused coalesced test results from parallel run.")
-                        return data["returncode"], data["stdout"], data["stderr"]
-                    except Exception:
-                        pass
-            elif not dedup:
-                while not lock.acquire():
-                    time.sleep(0.5)
-                
-            exec_data = {
-                "status": "busy",
-                "active_runs": [
-                    {
-                        "pid": os.getpid(),
-                        "cmd": cmd,
-                        "started_at": datetime.now().astimezone().isoformat()
-                    }
-                ]
-            }
-            os.makedirs(self.state_dir, exist_ok=True)
-            with open(self.exec_path, "w", encoding="utf-8") as f:
-                json.dump(exec_data, f, indent=2)
-                
-            if os.path.exists(outcome_path):
-                try:
-                    os.remove(outcome_path)
-                except Exception:
-                    pass
-                    
-            has_n = False
-            for arg in cmd:
-                if arg == "-n" or arg.startswith("-n"):
-                    has_n = True
-                    break
-            if not has_n:
-                workers = policy.get("resource_limits", {}).get("max_pytest_workers", 1)
-                cmd.extend(["-n", str(workers)])
-                
-            try:
-                res = subprocess.run(cmd, capture_output=True, text=True)
-                outcome_data = {
-                    "returncode": res.returncode,
-                    "stdout": res.stdout,
-                    "stderr": res.stderr,
-                    "completed_at": datetime.now().astimezone().isoformat()
-                }
-                with open(outcome_path, "w", encoding="utf-8") as f:
-                    json.dump(outcome_data, f, indent=2)
-                return res.returncode, res.stdout, res.stderr
-            finally:
-                if os.path.exists(self.exec_path):
-                    try:
-                        os.remove(self.exec_path)
-                    except Exception:
-                        pass
-                lock.release()
+    coordinator = TestCoordinator(".")
 
     if subaction == "validate":
         res = validate_test_architecture(".")
@@ -3422,64 +3355,78 @@ def do_test_action(args):
                 "errors": res["errors"]
             }, indent=2), file=sys.stderr)
             sys.exit(1)
-            
-    if subaction == "smoke":
-        pytest_args = ["-m", "smoke"]
-    elif subaction == "unit":
-        pytest_args = ["-m", "unit"]
-    elif subaction == "integration":
-        pytest_args = ["-m", "integration"]
-    elif subaction == "concurrency":
-        pytest_args = ["-m", "concurrency"]
-    elif subaction == "full":
-        # Check phase restriction under policy
-        if policy.get("pytest", {}).get("run_full_suite_only_at_final_review", True):
-            session = load_session()
-            current_skill = session.get("current_skill") if session else None
-            if current_skill not in ["verification", "final-review", "final_review", "debug-to-verify", "vir-verify"]:
-                print(json.dumps({
-                    "status": "failed",
-                    "summary": "Execution of full test suite is restricted to the final review/verification phase under the current Runtime Policy.",
-                    "errors": ["Full test suite execution restricted by Runtime Policy."]
-                }, indent=2), file=sys.stderr)
-                sys.exit(1)
-        pytest_args = []
-    elif subaction == "affected":
-        resolver = TestImpactResolver()
-        changed = resolver.get_git_changed_files()
-        test_targets = resolver.resolve_affected_tests(changed)
-        if not test_targets:
-            print(json.dumps({
-                "status": "success",
-                "message": "No affected tests resolved.",
-                "changed_files": list(changed),
-                "selected_tests": [],
-                "skipped_tests_count": 24,
-                "execution_time_seconds": 0.0,
-                "estimated_time_saved_seconds": 36.0
-            }, indent=2))
-            return
-            
-    total_tests_estimate = 24
-    selected_tests_count = len(test_targets) if test_targets else total_tests_estimate
-    if subaction == "smoke":
-        selected_tests_count = 3
-    elif subaction == "affected":
-        selected_tests_count = len(test_targets)
-        
-    skipped_count = max(0, total_tests_estimate - selected_tests_count)
-    estimated_saved_seconds = round(skipped_count * 1.5, 2)
 
-    cmd = [sys.executable, "-m", "pytest"]
-    if pytest_args:
-        cmd.extend(pytest_args)
-    if test_targets:
-        cmd.extend(test_targets)
-        
-    cmd.append("-v")
-    
-    # 1. Circuit Breaker and Rate limit check
-    coordinator = TestCoordinator(".")
+    if subaction == "limits":
+        metrics = coordinator.get_resource_metrics()
+        rl = policy.get("resource_limits", {})
+        print(json.dumps({
+            "status": "success",
+            "current_usage": metrics,
+            "limits": {
+                "cpu_throttle_percent": rl.get("cpu_throttle_percent", 80),
+                "memory_throttle_percent": rl.get("memory_throttle_percent", 80),
+                "max_parallel_pytest_processes": te_cfg.get("max_parallel_pytest_processes", 1),
+                "max_pytest_workers": te_cfg.get("max_pytest_workers", 2)
+            }
+        }, indent=2))
+        return
+
+    if subaction in ["status", "queue"]:
+        state = coordinator._load_coordinator_state()
+        print(json.dumps(state, indent=2))
+        return
+
+    if subaction == "cancel":
+        run_id = getattr(args, "run_id", None)
+        if not run_id:
+            print("Error: Please specify run_id to cancel.", file=sys.stderr)
+            sys.exit(1)
+            
+        from session import OSFileLock
+        lock = OSFileLock(coordinator.lock_path)
+        while not lock.acquire():
+            time.sleep(0.1)
+        try:
+            state = coordinator._load_coordinator_state()
+            found = False
+            for run in state["active_runs"]:
+                if run["run_id"] == run_id:
+                    # Terminate process tree
+                    try:
+                        import psutil
+                        parent = psutil.Process(run["pid"])
+                        for child in parent.children(recursive=True):
+                            child.kill()
+                        parent.kill()
+                    except Exception:
+                        pass
+                    found = True
+                    break
+            state["queue"] = [item for item in state["queue"] if item["run_id"] != run_id]
+            state["active_runs"] = [run for run in state["active_runs"] if run["run_id"] != run_id]
+            coordinator._save_coordinator_state(state)
+            if found:
+                print(f"Successfully cancelled run {run_id}.")
+            else:
+                print(f"Run {run_id} not found or already completed.")
+        finally:
+            lock.release()
+        return
+
+    if subaction == "logs":
+        run_id = getattr(args, "run_id", None)
+        if not run_id:
+            print("Error: Please specify run_id to fetch logs.", file=sys.stderr)
+            sys.exit(1)
+        log_path = os.path.join("artifacts", "test-runs", run_id, "stdout.log")
+        if os.path.exists(log_path):
+            with open(log_path, "r", encoding="utf-8") as f:
+                print(f.read())
+        else:
+            print(f"No logs found for run {run_id} at {log_path}.", file=sys.stderr)
+        return
+
+    # Check rate limits before spawning any tests
     allowed, err_msg = coordinator.check_rate_limit()
     if not allowed:
         print(json.dumps({
@@ -3489,24 +3436,93 @@ def do_test_action(args):
         }, indent=2), file=sys.stderr)
         sys.exit(1)
 
-    try:
-        ret_code, stdout, stderr = coordinator.run_coordinated(cmd)
-        duration = round(time.time() - start_time, 2)
-        
-        report = {
-            "status": "success" if ret_code == 0 else "failed",
-            "changed_files": resolver.get_git_changed_files() if subaction == "affected" else [],
-            "selected_tests": test_targets if subaction == "affected" else [f"pytest {' '.join(pytest_args)}"],
-            "skipped_tests_count": skipped_count,
-            "execution_time_seconds": duration,
-            "estimated_time_saved_seconds": estimated_saved_seconds
-        }
-        
-        print(stdout)
-        if ret_code != 0:
-            print(stderr, file=sys.stderr)
+    # 1. Resolve targets
+    resolver = TestImpactResolver()
+    changed_files = resolver.get_git_changed_files()
+    
+    test_targets = []
+    
+    if subaction == "affected":
+        test_targets = resolver.resolve_affected_tests(changed_files)
+    elif subaction == "module":
+        test_targets = resolve_module_tests(changed_files)
+    elif subaction == "integration":
+        test_targets = resolve_integration_tests()
+    elif subaction in ["unit", "browser", "e2e"]:
+        skills_root = "skills"
+        if os.path.exists(skills_root):
+            for skill in os.listdir(skills_root):
+                t_dir = os.path.join(skills_root, skill, "tests", subaction)
+                if os.path.exists(t_dir):
+                    for root, _, files in os.walk(t_dir):
+                        for file in files:
+                            if file.startswith("test_") and file.endswith(".py"):
+                                rel_path = os.path.relpath(os.path.join(root, file), ".")
+                                test_targets.append(rel_path.replace("\\", "/"))
+        test_targets = sorted(list(set(test_targets)))
+    elif subaction == "changed":
+        test_targets = sorted(list(set([f.replace("\\", "/") for f in changed_files if os.path.basename(f).startswith("test_") and f.endswith(".py")])))
+    elif subaction in ["full", "all"]:
+        # Check phase restriction under policy
+        if te_cfg.get("full_suite_only_at_final_verification", True) and not force:
+            session = load_session()
+            current_skill = session.get("current_skill") if session else None
+            if current_skill not in ["verification", "final-review", "final_review", "debug-to-verify", "vir-verify"]:
+                print(json.dumps({
+                    "status": "failed",
+                    "summary": "Execution of full test suite is restricted to the final review/verification phase under the current Runtime Policy.",
+                    "errors": ["Full test suite execution restricted by Runtime Policy."]
+                }, indent=2), file=sys.stderr)
+                sys.exit(1)
+        # Scan all tests
+        skills_root = "skills"
+        if os.path.exists(skills_root):
+            for skill in os.listdir(skills_root):
+                t_dir = os.path.join(skills_root, skill, "tests")
+                if os.path.exists(t_dir):
+                    for root, _, files in os.walk(t_dir):
+                        for file in files:
+                            if file.startswith("test_") and file.endswith(".py"):
+                                rel_path = os.path.relpath(os.path.join(root, file), ".")
+                                test_targets.append(rel_path.replace("\\", "/"))
+        test_targets = sorted(list(set(test_targets)))
+
+    elif subaction == "stability":
+        # Determine stability targets (lock/concurrency by default or changed files)
+        lock_files = [f for f in changed_files if "lock" in f.lower() or "concurrency" in f.lower() or "lease" in f.lower() or "state_store" in f.lower()]
+        if lock_files:
+            test_targets = ["skills/workflow-runtime/tests/concurrency/test_lock.py"]
+        else:
+            test_targets = resolver.resolve_affected_tests(changed_files)
             
-        print(json.dumps(report, indent=2))
+        if not test_targets:
+            test_targets = ["skills/workflow-runtime/tests/smoke/test_smoke.py"]
+            
+        if getattr(args, "run_stability_worker", False):
+            # Run the actual stability execution loop
+            run_stability_worker(test_targets, max_runs=100)
+            return
+        else:
+            # Spawn in the background as a subprocess
+            cli_path = os.path.abspath(__file__)
+            background_cmd = [sys.executable, cli_path, "test", "stability", "--run-stability-worker"]
+            p = subprocess.Popen(background_cmd, creationflags=subprocess.CREATE_NO_WINDOW if os.name == "nt" else 0, close_fds=True)
+            print(f"[INFO] Launched stability runs in background worker. Logging output to artifacts/test-runs/stability_*")
+            return
+
+    if not test_targets:
+        print(json.dumps({
+            "status": "success",
+            "message": f"No tests resolved for mode '{subaction}'.",
+            "changed_files": changed_files,
+            "selected_tests": []
+        }, indent=2))
+        return
+
+    cmd = [sys.executable, "-m", "pytest"] + test_targets
+    
+    try:
+        ret_code, stdout, stderr = coordinator.run_coordinated(cmd, test_mode=subaction, test_scope=",".join(test_targets), force=force)
         sys.exit(ret_code)
     except Exception as e:
         print(f"Error running tests: {e}", file=sys.stderr)
@@ -4379,6 +4395,7 @@ def main():
     _ = st.add_argument("--step", required=True, type=str)
     _ = st.add_argument("--work-item", type=str, help="Work item ID")
     _ = st.add_argument("--workflow", type=str, help="Workflow type")
+    _ = st.add_argument("--autonomous", action="store_true", help="Enable autonomous delivery mode")
     
     sp = subparsers.add_parser("step")
     _ = sp.add_argument("--step", required=True, type=str)
@@ -4725,7 +4742,10 @@ def main():
     _ = knowledge_sub.add_parser("validate")
 
     test_p = subparsers.add_parser("test")
-    _ = test_p.add_argument("subaction", nargs="?", choices=["affected", "unit", "integration", "concurrency", "smoke", "full", "validate"])
+    _ = test_p.add_argument("subaction", nargs="?", choices=["affected", "module", "integration", "full", "stability", "status", "queue", "cancel", "logs", "limits", "validate", "unit", "browser", "e2e", "changed", "all"])
+    _ = test_p.add_argument("--force", action="store_true", help="Force execution, overriding safety checks/phase restrictions")
+    _ = test_p.add_argument("--run-stability-worker", action="store_true", help=argparse.SUPPRESS)
+    _ = test_p.add_argument("run_id", nargs="?", default=None, help="Target run ID for cancel/logs commands")
 
     runtime_p = subparsers.add_parser("runtime", help="Runtime Policy Configuration commands")
     runtime_sub = runtime_p.add_subparsers(dest="subaction", required=True)

@@ -37,14 +37,23 @@ class TestRuntimeEngine(unittest.TestCase):
         self.original_get_global_db = db.get_global_db_path
         db.get_global_db_path = lambda: os.path.join(self.test_dir, "test_global_runtime.db")
         
-        # Isolate lock file for testing
+        # Isolate lock and lease files for testing
         self.lock_file = os.path.join(".agents", "runtime", "workflow.lock")
+        self.lease_file = os.path.join(".agents", "runtime", "workflow-lease.json")
         self.lock_backup = None
         if os.path.exists(self.lock_file):
             self.lock_backup = self.lock_file + ".testbackup"
             try:
                 shutil.copy2(self.lock_file, self.lock_backup)
                 os.remove(self.lock_file)
+            except Exception:
+                pass
+        self.lease_backup = None
+        if os.path.exists(self.lease_file):
+            self.lease_backup = self.lease_file + ".testbackup"
+            try:
+                shutil.copy2(self.lease_file, self.lease_backup)
+                os.remove(self.lease_file)
             except Exception:
                 pass
         
@@ -91,18 +100,19 @@ class TestRuntimeEngine(unittest.TestCase):
             except Exception:
                 pass
                 
-        # Clean lock file and restore backup if any
-        if os.path.exists(self.lock_file):
-            try:
-                os.remove(self.lock_file)
-            except Exception:
-                pass
-        if self.lock_backup and os.path.exists(self.lock_backup):
-            try:
-                shutil.copy2(self.lock_backup, self.lock_file)
-                os.remove(self.lock_backup)
-            except Exception:
-                pass
+        # Clean lock and lease files and restore backups if any
+        for f, backup in [(self.lock_file, self.lock_backup), (self.lease_file, self.lease_backup)]:
+            if os.path.exists(f):
+                try:
+                    os.remove(f)
+                except Exception:
+                    pass
+            if backup and os.path.exists(backup):
+                try:
+                    shutil.copy2(backup, f)
+                    os.remove(backup)
+                except Exception:
+                    pass
 
         # Clean any generated session.json.bak
         bak_file = SESSION_FILE + ".bak"
@@ -490,22 +500,23 @@ class TestRuntimeEngine(unittest.TestCase):
         
         # Scenario 9: Non-release implementation completion does not suggest auto-release execution
         # If no explicit release request, suggestion gate should not suggest implementation-to-release
-        save_session_atomic({"checkpoint": 8})
+        save_session_atomic({"checkpoint": 8, "suggestion_gate": {}})
         session = load_session()
         self.assertNotEqual(session.get("suggestion_gate", {}).get("recommended_skill"), "implementation-to-release")
         
         # Scenario 10: Explicit /quick-fix bypasses suggestion gate and runs quick-fix normally
-        save_session_atomic({"checkpoint": 1})
+        save_session_atomic({"checkpoint": 1, "suggestion_gate": {}})
         # If running start for quick-fix directly
         res = subprocess.run(
             [sys.executable, cli_path, "start", "--skill", "quick-fix", "--command", "fix", "--checkpoint", "2", "--step", "Starting"],
             capture_output=True, text=True
         )
-        if os.path.exists(self.lock_file):
-            try:
-                os.remove(self.lock_file)
-            except Exception:
-                pass
+        for f in [self.lock_file, self.lease_file]:
+            if os.path.exists(f):
+                try:
+                    os.remove(f)
+                except Exception:
+                    pass
         self.assertEqual(res.returncode, 0)
         session = load_session()
         self.assertEqual(session["current_skill"], "quick-fix")
@@ -517,11 +528,12 @@ class TestRuntimeEngine(unittest.TestCase):
             [sys.executable, cli_path, "start", "--skill", "brainstorming", "--command", "brainstorm", "--checkpoint", "2", "--step", "Starting"],
             capture_output=True, text=True
         )
-        if os.path.exists(self.lock_file):
-            try:
-                os.remove(self.lock_file)
-            except Exception:
-                pass
+        for f in [self.lock_file, self.lease_file]:
+            if os.path.exists(f):
+                try:
+                    os.remove(f)
+                except Exception:
+                    pass
         session = load_session()
         self.assertEqual(session["current_skill"], "brainstorming")
         
@@ -531,11 +543,12 @@ class TestRuntimeEngine(unittest.TestCase):
             [sys.executable, cli_path, "start", "--skill", "implementation-to-release", "--command", "release", "--checkpoint", "10", "--step", "Releasing"],
             capture_output=True, text=True
         )
-        if os.path.exists(self.lock_file):
-            try:
-                os.remove(self.lock_file)
-            except Exception:
-                pass
+        for f in [self.lock_file, self.lease_file]:
+            if os.path.exists(f):
+                try:
+                    os.remove(f)
+                except Exception:
+                    pass
         session = load_session()
         self.assertEqual(session["current_skill"], "implementation-to-release")
 

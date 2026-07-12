@@ -1,0 +1,177 @@
+{
+  "modules": [
+    {
+      "name": "state_sync",
+      "classes": [
+        {
+          "class_name": "StateSyncEngine",
+          "responsibilities": [
+            "Serializes and deserializes the execution state",
+            "Calculates the progressive completion percentage of the active DAG"
+          ],
+          "methods": [
+            {
+              "name": "aggregate_state",
+              "parameters": [
+                {
+                  "name": "workspace_root",
+                  "type": "str"
+                }
+              ],
+              "return_type": "dict[str, Any]"
+            },
+            {
+              "name": "deconstruct_state",
+              "parameters": [
+                {
+                  "name": "workspace_root",
+                  "type": "str"
+                },
+                {
+                  "name": "session",
+                  "type": "dict[str, Any]"
+                }
+              ],
+              "return_type": "None"
+            }
+          ],
+          "lifecycle": "Stateless utility module",
+          "state_ownership": "Bridges memory models and state files"
+        }
+      ]
+    },
+    {
+      "name": "workflow_runtime",
+      "classes": [
+        {
+          "class_name": "CLIController",
+          "responsibilities": [
+            "Intercepts development lifecycle commands",
+            "Enforces and checks approval boundaries dynamically"
+          ],
+          "methods": [
+            {
+              "name": "requires_approval",
+              "parameters": [
+                {
+                  "name": "action_type",
+                  "type": "str"
+                },
+                {
+                  "name": "path",
+                  "type": "str",
+                  "default": "None"
+                }
+              ],
+              "return_type": "bool"
+            }
+          ],
+          "lifecycle": "CLI execution runtime lifetime",
+          "state_ownership": "None"
+        }
+      ]
+    }
+  ],
+  "configuration": {
+    "schema": {
+      "autonomous_delivery": {
+        "type": "boolean",
+        "description": "Bypasses approval gates for non-critical developer tasks"
+      },
+      "progress_percentage": {
+        "type": "integer",
+        "description": "Computed SDLC lifecycle execution completeness"
+      }
+    },
+    "defaults": {
+      "autonomous_delivery": false,
+      "progress_percentage": 0
+    }
+  },
+  "database": {
+    "tables": [],
+    "growth_estimation": "No DB growth impact.",
+    "maintenance_strategy": "N/A"
+  },
+  "cache": {
+    "keys": [],
+    "ttl_seconds": 0,
+    "invalidation_rules": []
+  },
+  "errors": [
+    {
+      "exception_class": "UnrecoverableBlockerError",
+      "trigger": "Fails to automatically resolve code defects or pytest failures after 5 retries",
+      "recovery": "Halts execution, persists session status as blocked, and requests human review"
+    }
+  ],
+  "sequence_flows": [
+    {
+      "flow_name": "Autonomous Phase Transition Flow",
+      "steps": [
+        "Read session and verify autonomous_delivery flag is active",
+        "Phase command complete is executed",
+        "Orchestrator computes next-skill and next-command parameters",
+        "Orchestrator skips human manual selection check and proceeds to call start command",
+        "Status and progress percentage recalculated and written to context.json"
+      ]
+    }
+  ],
+  "integration_contracts": [],
+  "cli_contracts": [
+    {
+      "command": "workflow_runtime.py start",
+      "options": [
+        {
+          "name": "--autonomous",
+          "type": "flag",
+          "description": "Starts the execution pipeline with automated transitions"
+        }
+      ]
+    }
+  ],
+  "implementation_contracts": [
+    {
+      "file_path": "skills/workflow-runtime/scripts/state_sync.py",
+      "owner": "Coder",
+      "notes": "Inject autonomous_delivery in state gộp/rã"
+    },
+    {
+      "file_path": "skills/workflow-runtime/scripts/workflow_runtime.py",
+      "owner": "Coder",
+      "notes": "Inject --autonomous arg and implement requires_approval bypass logic"
+    },
+    {
+      "file_path": "extensions/visualizer/resources/webview.html",
+      "owner": "Frontend Developer",
+      "notes": "Display progressive progress bar and active badge"
+    }
+  ],
+  "implementation_packages": [
+    {
+      "task_id": "Task 1.1",
+      "module": "state_sync",
+      "read_set": ["skills/workflow-runtime/scripts/state_sync.py"],
+      "write_set": ["skills/workflow-runtime/scripts/state_sync.py"],
+      "dependencies": [],
+      "implementation_notes": "Add schema mapping keys",
+      "verification": "Unit tests verifying context.json keys",
+      "rollback": "Git checkout",
+      "expected_outputs": ["skills/workflow-runtime/scripts/state_sync.py mutated"]
+    }
+  ],
+  "tests": [
+    {
+      "requirement_id": "FR-01",
+      "test_type": "Unit Test",
+      "target_file": "skills/workflow-runtime/tests/integration/test_runtime.py"
+    }
+  ],
+  "traceability": [
+    "FR-01 -> Task 1.1 -> state_sync.py -> test_runtime.py",
+    "FR-04 -> Task 2.1 -> workflow_runtime.py -> test_runtime.py"
+  ],
+  "artifacts": [
+    "docs/designs/FEAT-116_autonomous_delivery_after_brainstorming_blueprint.md"
+  ]
+}

@@ -1,0 +1,2 @@
+{"timestamp": "2026-07-12T23:36:38.072027+07:00", "gate_name": "Choose Git branch action:", "permission_mode": "full_access", "resolution": "AUTHORIZED_BY_FULL_ACCESS", "decision": "Continue on current branch"}
+{"timestamp": "2026-07-12T23:44:30.184408+07:00", "gate_name": "Choose release action:", "permission_mode": "full_access", "resolution": "AUTHORIZED_BY_FULL_ACCESS", "decision": "Continue"}
