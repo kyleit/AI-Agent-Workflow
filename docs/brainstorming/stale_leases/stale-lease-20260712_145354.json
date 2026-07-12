@@ -1,0 +1,10 @@
+{
+  "lock_owner": "orchestrator|plan-to-blueprint",
+  "work_item_id": "FEAT-001",
+  "skill": "plan-to-blueprint",
+  "pid": 69248,
+  "process_started_at": "1783842815.3381386",
+  "hostname": "KYLE",
+  "started_at": "2026-07-12T14:53:36.005697+07:00",
+  "heartbeat_at": "2026-07-12T14:53:36.005697+07:00"
+}
