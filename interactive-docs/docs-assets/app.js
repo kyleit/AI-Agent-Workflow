@@ -195,7 +195,7 @@ const simStepsData = {
     {
       title: "Khởi tạo (Initialize)",
       cli: "python skills/workflow-runtime/scripts/workflow_runtime.py init --permission 1",
-      agentAction: "Phân tích cấu trúc thư mục, phát hiện Git repository và khởi tạo tệp phiên làm việc `.agents/.session.json` ở chế độ Sandbox.",
+      agentAction: "Phân tích cấu trúc thư mục, phát hiện Git repository và khởi tạo trạng thái chia sẻ split-state store tại thư mục `.agents/state/` ở chế độ Sandbox.",
       gate: "proceed",
       terminal: [
         { type: "prompt", text: "$ python skills/workflow-runtime/scripts/workflow_runtime.py init --permission 1" },
@@ -320,7 +320,7 @@ const simStepsData = {
     {
       title: "Khởi tạo (Initialize)",
       cli: "python skills/workflow-runtime/scripts/workflow_runtime.py init --permission 2",
-      agentAction: "Khởi tạo `.agents/.session.json` ở chế độ Full Access. Quyền chỉnh sửa file và chạy test được bypass phê duyệt.",
+      agentAction: "Khởi tạo trạng thái chia sẻ split-state store tại thư mục `.agents/state/` ở chế độ Full Access. Quyền chỉnh sửa file và chạy test được bypass phê duyệt.",
       gate: "proceed",
       terminal: [
         { type: "prompt", text: "$ python skills/workflow-runtime/scripts/workflow_runtime.py init --permission 2" },
@@ -381,7 +381,7 @@ const simStepsData = {
     {
       title: "Khởi tạo (Initialize)",
       cli: "python skills/workflow-runtime/scripts/workflow_runtime.py init --permission 2",
-      agentAction: "Khởi tạo `.agents/.session.json` ở chế độ Full Access để sửa bug nhanh.",
+      agentAction: "Khởi tạo trạng thái chia sẻ split-state store tại thư mục `.agents/state/` ở chế độ Full Access để sửa bug nhanh.",
       gate: "proceed",
       terminal: [
         { type: "prompt", text: "$ python skills/workflow-runtime/scripts/workflow_runtime.py init --permission 2" },

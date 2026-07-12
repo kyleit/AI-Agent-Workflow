@@ -7,7 +7,7 @@ const skillsData = [
     checkpoint: "1",
     purpose: "Khởi tạo môi trường phát triển AI, cấu hình Git, đồng bộ RAG và chọn mức độ phân quyền (permission mode).",
     input: "workspace_path (auto), permission_mode (1, 2 hoặc 3)",
-    output: "Khởi tạo tệp .agents/.session.json ghi nhận phiên làm việc.",
+    output: "Khởi tạo trạng thái chia sẻ split-state store tại thư mục .agents/state/.",
     pitfall: "Lệnh chạy không tương tác (non-interactive). Cần chọn chế độ 2 (Full Access) ngay từ đầu để hạn chế xác nhận Proceed liên tiếp khi AI viết code."
   },
   {
@@ -17,8 +17,8 @@ const skillsData = [
     checkpoint: "N/A",
     purpose: "Khôi phục lại phiên làm việc trước đó sau khi bị đứt quãng hoặc chuyển đổi giữa các cuộc hội thoại.",
     input: "Không có tham số bắt buộc.",
-    output: "Đọc tệp .session.json, khôi phục nhánh Git và tự động đưa AI về đúng checkpoint đang làm dở.",
-    pitfall: "Nếu tệp .session.json bị hỏng, lệnh sẽ tìm bản sao lưu .session.json.bak để tự phục hồi."
+    output: "Đọc trạng thái chia sẻ từ .agents/state/ và tự động đưa AI về đúng checkpoint đang làm dở.",
+    pitfall: "Sử dụng daemon.json để xác định và đính kèm (attach) an toàn vào Resident Orchestrator."
   },
   {
     name: "project-memory-update",
