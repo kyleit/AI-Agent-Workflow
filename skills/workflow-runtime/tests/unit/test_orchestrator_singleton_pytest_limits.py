@@ -74,8 +74,21 @@ def test_pytest_coordinator_coalescing(tmp_path, monkeypatch):
         def __init__(self):
             self.subaction = "smoke"
             
+    mock_policy = {
+        "resource_limits": {
+            "max_pytest_workers": 2,
+            "max_parallel_pytest_processes": 1
+        },
+        "pytest": {
+            "default_mode": "affected",
+            "run_full_suite_only_at_final_review": True,
+            "deduplicate_requests": True
+        }
+    }
+    
     # Mock subprocess.run to verify we run pytest with -n 2
-    with patch("subprocess.run") as mock_run:
+    with patch("session.load_runtime_policy", return_value=mock_policy), \
+         patch("subprocess.run") as mock_run:
         mock_run.return_value = MagicMock(returncode=0, stdout="Mocked pytest passed", stderr="")
         
         try:

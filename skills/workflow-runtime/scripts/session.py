@@ -611,3 +611,139 @@ def load_config_section(section_name: str, default_val: dict) -> dict:
     return default_val
 
 
+DEFAULT_RUNTIME_POLICY = {
+  "resource_limits": {
+    "max_subagents": 4,
+    "max_concurrency": 2,
+    "max_spawn_per_minute": 4,
+    "max_pending_spawns": 5,
+    "max_parallel_pytest_processes": 1,
+    "max_pytest_workers": 1,
+    "cpu_warning_percent": 70,
+    "cpu_throttle_percent": 80,
+    "memory_warning_percent": 70,
+    "memory_throttle_percent": 80,
+    "memory_circuit_breaker_percent": 90
+  },
+  "scheduler": {
+    "adaptive_concurrency": True,
+    "pause_on_high_cpu": True,
+    "pause_on_high_memory": True
+  },
+  "pytest": {
+    "default_mode": "affected",
+    "run_full_suite_only_at_final_review": True,
+    "deduplicate_requests": True
+  }
+}
+
+
+def get_runtime_policy_path() -> str:
+    root = os.environ.get("AIWF_RUNTIME_POLICY_ROOT", "")
+    if root:
+        return os.path.abspath(os.path.join(root, "runtime-policy.json"))
+    return os.path.abspath(os.path.join(".agents", "config", "runtime-policy.json"))
+
+
+def validate_runtime_policy(policy: dict[str, Any]) -> tuple[bool, str]:
+    if not isinstance(policy, dict):
+        return False, "Policy must be a JSON object."
+    
+    sections = ["resource_limits", "scheduler", "pytest"]
+    for s in sections:
+        if s not in policy or not isinstance(policy[s], dict):
+            return False, f"Missing or invalid section: '{s}'."
+            
+    # resource_limits keys validation
+    rl_keys = {
+        "max_subagents": int,
+        "max_concurrency": int,
+        "max_spawn_per_minute": int,
+        "max_pending_spawns": int,
+        "max_parallel_pytest_processes": int,
+        "max_pytest_workers": int,
+        "cpu_warning_percent": (int, float),
+        "cpu_throttle_percent": (int, float),
+        "memory_warning_percent": (int, float),
+        "memory_throttle_percent": (int, float),
+        "memory_circuit_breaker_percent": (int, float)
+    }
+    
+    rl = policy["resource_limits"]
+    for k, t in rl_keys.items():
+        if k not in rl:
+            return False, f"Missing key in resource_limits: '{k}'."
+        if not isinstance(rl[k], t):
+            return False, f"Invalid type for resource_limits.{k}: expected {t}, got {type(rl[k])}."
+            
+    # scheduler keys validation
+    sch_keys = {
+        "adaptive_concurrency": bool,
+        "pause_on_high_cpu": bool,
+        "pause_on_high_memory": bool
+    }
+    sch = policy["scheduler"]
+    for k, t in sch_keys.items():
+        if k not in sch:
+            return False, f"Missing key in scheduler: '{k}'."
+        if not isinstance(sch[k], t):
+            return False, f"Invalid type for scheduler.{k}: expected {t}, got {type(sch[k])}."
+            
+    # pytest keys validation
+    py_keys = {
+        "default_mode": str,
+        "run_full_suite_only_at_final_review": bool,
+        "deduplicate_requests": bool
+    }
+    py = policy["pytest"]
+    for k, t in py_keys.items():
+        if k not in py:
+            return False, f"Missing key in pytest: '{k}'."
+        if not isinstance(py[k], t):
+            return False, f"Invalid type for pytest.{k}: expected {t}, got {type(py[k])}."
+            
+    return True, "Valid"
+
+
+def write_runtime_policy(policy: dict[str, Any]) -> None:
+    path = get_runtime_policy_path()
+    dir_name = os.path.dirname(path)
+    if dir_name:
+        os.makedirs(dir_name, exist_ok=True)
+    
+    fd, tmp_path = tempfile.mkstemp(dir=dir_name or ".", suffix=".tmp")
+    try:
+        with os.fdopen(fd, 'w', encoding='utf-8') as f:
+            json.dump(policy, f, indent=2, ensure_ascii=False)
+        os.replace(tmp_path, path)
+    except Exception as e:
+        if os.path.exists(tmp_path):
+            try:
+                os.remove(tmp_path)
+            except Exception:
+                pass
+        raise e
+
+
+def load_runtime_policy(validate: bool = True) -> dict[str, Any]:
+    path = get_runtime_policy_path()
+    if not os.path.exists(path):
+        write_runtime_policy(DEFAULT_RUNTIME_POLICY)
+        
+    try:
+        with open(path, "r", encoding="utf-8") as f:
+            policy = json.load(f)
+    except Exception as e:
+        if validate:
+            raise ValueError(f"Failed to parse runtime-policy.json: {e}")
+        return DEFAULT_RUNTIME_POLICY
+        
+    if validate:
+        ok, err = validate_runtime_policy(policy)
+        if not ok:
+            raise ValueError(f"Invalid runtime-policy.json schema: {err}")
+            
+    return policy
+
+
+

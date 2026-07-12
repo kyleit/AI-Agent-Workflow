@@ -441,7 +441,7 @@ class HierarchicalRuntime:
         if os.environ.get("AIWF_IS_SUBAGENT") == "true":
             return False, "Subagent is strictly prohibited from spawning another Subagent"
 
-        # 2. Check CPU / Memory limits
+        # 2. Check CPU / Memory limits against centralized policy
         try:
             cpu = psutil.cpu_percent(interval=None)
             mem = psutil.virtual_memory().percent
@@ -449,28 +449,46 @@ class HierarchicalRuntime:
             cpu = 0.0
             mem = 0.0
             
-        from session import load_config_section, DEFAULT_RESOURCE_LIMITS, DEFAULT_SPAWN_LIMITS
-        limits = load_config_section("resource_limits", DEFAULT_RESOURCE_LIMITS)
-        spawn_limits = load_config_section("spawn_limits", DEFAULT_SPAWN_LIMITS)
+        from session import load_runtime_policy
+        try:
+            policy = load_runtime_policy(validate=True)
+        except Exception as e:
+            return False, f"Failed to load or validate runtime policy: {e}"
+            
+        rl = policy.get("resource_limits", {})
+        sch = policy.get("scheduler", {})
         
-        if cpu > limits.get("max_cpu_percent", 85):
-            return False, f"CPU too high ({cpu}%)"
-        if mem > limits.get("max_memory_percent", 80):
-            return False, f"Memory too high ({mem}%)"
+        if sch.get("pause_on_high_cpu", True) and cpu > rl.get("cpu_throttle_percent", 80):
+            return False, f"CPU too high ({cpu}% > throttle {rl.get('cpu_throttle_percent', 80)}%)"
+        if sch.get("pause_on_high_memory", True) and mem > rl.get("memory_throttle_percent", 80):
+            return False, f"Memory too high ({mem}% > throttle {rl.get('memory_throttle_percent', 80)}%)"
 
         # 3. Check active subagents count
         active_subagent_count = sum(1 for a in self.agents.values() if a.get("status") == "busy" and a.get("role") == "subagent")
-        if active_subagent_count >= spawn_limits.get("max_total_subagents", 8):
-            return False, f"Global subagent limit exceeded ({active_subagent_count}/{spawn_limits.get('max_total_subagents', 8)})"
+        max_subagents = rl.get("max_subagents", 4)
+        if active_subagent_count >= max_subagents:
+            return False, f"Global subagent limit exceeded ({active_subagent_count}/{max_subagents})"
 
-        # Check per work item limit
+        # Check per work item limit: concurrency and pending spawner limits
         running_tasks_for_wi = sum(1 for t in self.task_graph.get("tasks", {}).values() if t.get("status") == "running")
-        if running_tasks_for_wi >= spawn_limits.get("max_subagents_per_work_item", 4):
-            return False, f"Per work item subagent limit exceeded ({running_tasks_for_wi}/{spawn_limits.get('max_subagents_per_work_item', 4)})"
+        
+        # Concurrency & Adaptive Concurrency
+        max_concurrency = rl.get("max_concurrency", 2)
+        if sch.get("adaptive_concurrency", True):
+            cpu_warn = rl.get("cpu_warning_percent", 70)
+            mem_warn = rl.get("memory_warning_percent", 70)
+            if cpu > cpu_warn or mem > mem_warn:
+                max_concurrency = max(1, max_concurrency // 2)
+                self.log_event("concurrency_adapted", f"High load warning (CPU={cpu}%, MEM={mem}%). Adapting max_concurrency to {max_concurrency}.")
 
-        # 4. Check Concurrency
-        if running_tasks_for_wi >= limits.get("max_concurrency", 4):
-            return False, f"Concurrency limit exceeded ({running_tasks_for_wi}/{limits.get('max_concurrency', 4)})"
+        if running_tasks_for_wi >= max_concurrency:
+            return False, f"Concurrency limit exceeded ({running_tasks_for_wi}/{max_concurrency})"
+
+        # Check max pending spawns
+        pending_spawns = sum(1 for t in self.task_graph.get("tasks", {}).values() if t.get("status") in ["assigned", "ready"])
+        max_pending = rl.get("max_pending_spawns", 5)
+        if pending_spawns >= max_pending:
+            return False, f"Pending spawn limit exceeded ({pending_spawns}/{max_pending})"
 
         # 5. Check Circuit Breaker
         cb_path = os.path.join(self.state_dir, "circuit-breakers.json")
@@ -484,8 +502,14 @@ class HierarchicalRuntime:
                 pass
 
         # 6. Rate limiting (Token Bucket)
-        if not self.check_spawn_rate_limit():
-            return False, "Spawn rate limit exceeded"
+        if not hasattr(self, "spawn_timestamps"):
+            self.spawn_timestamps = []
+        now = time.time()
+        max_spawn = rl.get("max_spawn_per_minute", 4)
+        self.spawn_timestamps = [t for t in self.spawn_timestamps if now - t < 60]
+        if len(self.spawn_timestamps) >= max_spawn:
+            return False, f"Spawn rate limit exceeded ({len(self.spawn_timestamps)}/{max_spawn} per min)"
+        self.spawn_timestamps.append(now)
 
         return True, "READY"
 
@@ -536,6 +560,19 @@ class HierarchicalRuntime:
                 cb_data.update(old_cb)
             except Exception:
                 pass
+                
+        # Trip spawn circuit breaker if memory limits are exceeded
+        from session import load_runtime_policy
+        try:
+            policy = load_runtime_policy(validate=True)
+            rl = policy.get("resource_limits", {})
+            mem_cb = rl.get("memory_circuit_breaker_percent", 90)
+            if mem > mem_cb:
+                cb_data["spawn_circuit"] = "open"
+                self.log_event("circuit_breaker_tripped", f"Memory ({mem}%) exceeded circuit breaker threshold ({mem_cb}%). Spawn circuit OPEN.")
+        except Exception:
+            pass
+            
         self.save_state_atomic("circuit-breakers.json", cb_data)
 
     def start_daemon_loop(self):

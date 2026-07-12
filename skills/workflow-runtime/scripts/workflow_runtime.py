@@ -354,6 +354,14 @@ def do_init(args):
     save_session_atomic(session)
     print(f"Session initialized with permission_mode={mode}.")
     
+    # Load and validate runtime policy configuration
+    from session import load_runtime_policy
+    try:
+        load_runtime_policy(validate=True)
+    except Exception as e:
+        print(f"Error loading/validating runtime policy: {e}", file=sys.stderr)
+        sys.exit(1)
+    
     def check_daemon_running() -> bool:
         import psutil
         from datetime import datetime, timedelta
@@ -3253,6 +3261,19 @@ def do_test_action(args):
     test_targets = []
     pytest_args = []
     
+    subaction = getattr(args, "subaction", None)
+    
+    # Load runtime policy
+    from session import load_runtime_policy, load_session
+    try:
+        policy = load_runtime_policy(validate=True)
+    except Exception as e:
+        print(f"Error loading/validating runtime policy: {e}", file=sys.stderr)
+        sys.exit(1)
+        
+    if not subaction:
+        subaction = policy.get("pytest", {}).get("default_mode", "affected")
+
     class TestCoordinator:
         def __init__(self, workspace_path: str = "."):
             self.state_dir = os.path.join(workspace_path, ".agents", "state")
@@ -3318,7 +3339,9 @@ def do_test_action(args):
             from session import OSFileLock
             lock = OSFileLock(self.lock_path)
             
-            if not lock.acquire():
+            dedup = policy.get("pytest", {}).get("deduplicate_requests", True)
+            
+            if dedup and not lock.acquire():
                 print("[INFO] Another pytest suite is running. Waiting for coalesced results...")
                 while not lock.acquire():
                     time.sleep(0.5)
@@ -3331,6 +3354,9 @@ def do_test_action(args):
                         return data["returncode"], data["stdout"], data["stderr"]
                     except Exception:
                         pass
+            elif not dedup:
+                while not lock.acquire():
+                    time.sleep(0.5)
                 
             exec_data = {
                 "status": "busy",
@@ -3358,7 +3384,8 @@ def do_test_action(args):
                     has_n = True
                     break
             if not has_n:
-                cmd.extend(["-n", "2"])
+                workers = policy.get("resource_limits", {}).get("max_pytest_workers", 1)
+                cmd.extend(["-n", str(workers)])
                 
             try:
                 res = subprocess.run(cmd, capture_output=True, text=True)
@@ -3379,7 +3406,7 @@ def do_test_action(args):
                         pass
                 lock.release()
 
-    if args.subaction == "validate":
+    if subaction == "validate":
         res = validate_test_architecture(".")
         if res["status"] == "success":
             print(json.dumps({
@@ -3396,17 +3423,28 @@ def do_test_action(args):
             }, indent=2), file=sys.stderr)
             sys.exit(1)
             
-    if args.subaction == "smoke":
+    if subaction == "smoke":
         pytest_args = ["-m", "smoke"]
-    elif args.subaction == "unit":
+    elif subaction == "unit":
         pytest_args = ["-m", "unit"]
-    elif args.subaction == "integration":
+    elif subaction == "integration":
         pytest_args = ["-m", "integration"]
-    elif args.subaction == "concurrency":
+    elif subaction == "concurrency":
         pytest_args = ["-m", "concurrency"]
-    elif args.subaction == "full":
+    elif subaction == "full":
+        # Check phase restriction under policy
+        if policy.get("pytest", {}).get("run_full_suite_only_at_final_review", True):
+            session = load_session()
+            current_skill = session.get("current_skill") if session else None
+            if current_skill not in ["verification", "final-review", "final_review", "debug-to-verify", "vir-verify"]:
+                print(json.dumps({
+                    "status": "failed",
+                    "summary": "Execution of full test suite is restricted to the final review/verification phase under the current Runtime Policy.",
+                    "errors": ["Full test suite execution restricted by Runtime Policy."]
+                }, indent=2), file=sys.stderr)
+                sys.exit(1)
         pytest_args = []
-    elif args.subaction == "affected":
+    elif subaction == "affected":
         resolver = TestImpactResolver()
         changed = resolver.get_git_changed_files()
         test_targets = resolver.resolve_affected_tests(changed)
@@ -3424,9 +3462,9 @@ def do_test_action(args):
             
     total_tests_estimate = 24
     selected_tests_count = len(test_targets) if test_targets else total_tests_estimate
-    if args.subaction == "smoke":
+    if subaction == "smoke":
         selected_tests_count = 3
-    elif args.subaction == "affected":
+    elif subaction == "affected":
         selected_tests_count = len(test_targets)
         
     skipped_count = max(0, total_tests_estimate - selected_tests_count)
@@ -3457,8 +3495,8 @@ def do_test_action(args):
         
         report = {
             "status": "success" if ret_code == 0 else "failed",
-            "changed_files": resolver.get_git_changed_files() if args.subaction == "affected" else [],
-            "selected_tests": test_targets if args.subaction == "affected" else [f"pytest {' '.join(pytest_args)}"],
+            "changed_files": resolver.get_git_changed_files() if subaction == "affected" else [],
+            "selected_tests": test_targets if subaction == "affected" else [f"pytest {' '.join(pytest_args)}"],
             "skipped_tests_count": skipped_count,
             "execution_time_seconds": duration,
             "estimated_time_saved_seconds": estimated_saved_seconds
@@ -4215,6 +4253,60 @@ def do_project_version_cached(args: argparse.Namespace) -> None:
         sys.exit(1)
 
 
+def do_runtime_action(args):
+    import json
+    import sys
+    import os
+    from session import (
+        get_runtime_policy_path,
+        load_runtime_policy,
+        validate_runtime_policy,
+        write_runtime_policy,
+        DEFAULT_RUNTIME_POLICY
+    )
+    
+    subaction = getattr(args, "subaction", None)
+    if subaction != "policy":
+        print(f"Unknown runtime subaction: {subaction}", file=sys.stderr)
+        sys.exit(1)
+        
+    policy_action = getattr(args, "policy_action", None)
+    
+    if not policy_action:
+        try:
+            policy = load_runtime_policy(validate=True)
+            print(json.dumps(policy, indent=2))
+        except Exception as e:
+            print(f"Error: {e}", file=sys.stderr)
+            sys.exit(1)
+            
+    elif policy_action == "validate":
+        path = get_runtime_policy_path()
+        if not os.path.exists(path):
+            print("Error: runtime-policy.json does not exist. Run 'aiwf init' first to generate it.", file=sys.stderr)
+            sys.exit(1)
+            
+        try:
+            with open(path, "r", encoding="utf-8") as f:
+                policy = json.load(f)
+            ok, err = validate_runtime_policy(policy)
+            if not ok:
+                print(f"Validation FAILED: {err}", file=sys.stderr)
+                sys.exit(1)
+            print("Validation PASSED: runtime-policy.json conforms to the schema.")
+        except Exception as e:
+            print(f"Validation FAILED: {e}", file=sys.stderr)
+            sys.exit(1)
+            
+    elif policy_action == "reset":
+        try:
+            write_runtime_policy(DEFAULT_RUNTIME_POLICY)
+            print("Successfully reset runtime-policy.json to default values.")
+        except Exception as e:
+            print(f"Error resetting runtime-policy.json: {e}", file=sys.stderr)
+            sys.exit(1)
+
+
 def main():
     parser = argparse.ArgumentParser(description="AI Workflow Runtime Engine CLI")
     subparsers = parser.add_subparsers(dest="action", required=True)
@@ -4633,7 +4725,14 @@ def main():
     _ = knowledge_sub.add_parser("validate")
 
     test_p = subparsers.add_parser("test")
-    _ = test_p.add_argument("subaction", choices=["affected", "unit", "integration", "concurrency", "smoke", "full", "validate"])
+    _ = test_p.add_argument("subaction", nargs="?", choices=["affected", "unit", "integration", "concurrency", "smoke", "full", "validate"])
+
+    runtime_p = subparsers.add_parser("runtime", help="Runtime Policy Configuration commands")
+    runtime_sub = runtime_p.add_subparsers(dest="subaction", required=True)
+    policy_p = runtime_sub.add_parser("policy", help="Show or manage runtime policy")
+    policy_sub = policy_p.add_subparsers(dest="policy_action", required=False)
+    _ = policy_sub.add_parser("validate", help="Validate runtime-policy.json schema")
+    _ = policy_sub.add_parser("reset", help="Reset runtime-policy.json to default values")
 
     provider_p = subparsers.add_parser("provider")
     provider_sub = provider_p.add_subparsers(dest="subaction", required=True)
@@ -4757,7 +4856,8 @@ def main():
         "knowledge": do_knowledge_action,
         "test": do_test_action,
         "update-source": do_update_source,
-        "orchestrator": do_orchestrator
+        "orchestrator": do_orchestrator,
+        "runtime": do_runtime_action
     }
     
     modifying_actions = ["init", "start", "step", "complete", "fail", "blueprint", "suggest", "compact", "task", "deps", "execution", "analysis-agent", "choice", "active-workflow", "resume", "discover", "classify", "memory", "env", "debug", "verify", "release", "state", "provider", "knowledge", "orchestrator"]
