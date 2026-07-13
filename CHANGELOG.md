@@ -5,6 +5,12 @@ All notable changes to this project will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [6.15.1] - 2026-07-13
+
+### Fixed
+- **Verification Gate (FEAT-401)**:
+  - Khởi tạo thành công và lập báo cáo kiểm định chất lượng đạt trạng thái PASS cho Work Item FEAT-401 tại docs/verification/FEAT-401_verify.md.
+
 ## [6.15.0] - 2026-07-13
 
 ### Added
