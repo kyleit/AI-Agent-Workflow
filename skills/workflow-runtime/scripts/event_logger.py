@@ -67,6 +67,8 @@ AGENT_STARTED = "agent.started"
 TOOL_EXECUTED = "tool.executed"
 ARTIFACT_CREATED = "artifact.created"
 WORKFLOW_COMPLETED_EVENT = "workflow.completed"
+WORKFLOW_ARTIFACT_VIOLATION = "workflow.artifact.violation"
+WORKFLOW_BLOCKED = "workflow.blocked"
 
 # All valid event types (used for validation)
 ALL_EVENT_TYPES = frozenset([
@@ -79,7 +81,8 @@ ALL_EVENT_TYPES = frozenset([
     USAGE_UPDATED, STATE_MIGRATED, STATE_DOCTOR_RUN,
     WORKFLOW_REQUEST_RECEIVED, WORKFLOW_STARTED_EVENT, WORKFLOW_PHASE_STARTED_EVENT,
     SKILL_SELECTED, SKILL_STARTED_EVENT, AGENT_STARTED, TOOL_EXECUTED,
-    ARTIFACT_CREATED, WORKFLOW_COMPLETED_EVENT
+    ARTIFACT_CREATED, WORKFLOW_COMPLETED_EVENT,
+    WORKFLOW_ARTIFACT_VIOLATION, WORKFLOW_BLOCKED
 ])
 
 # ---------------------------------------------------------------------------

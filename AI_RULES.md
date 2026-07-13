@@ -532,7 +532,100 @@ No AIWF Skill may access knowledge providers (such as Markdown files, SQLite dat
 *   **Forbid Manual Environment Checks**: AI agents MUST NOT manually run verification commands such as `python --version`, `go version`, `node --version`, `git --version`, `docker --version`, or similar tool validation commands.
 *   **Mandatory Doctor Consumption**: All environment, capability, and stack checking operations must strictly consume the structured JSON payload returned by executing `workspace_doctor.py`.
 
+---
+
+## 27. Workflow First Enforcement Policy
+
+To enforce standard software engineering processes and prevent bypasses, all operations must adhere to the Workflow First Enforcement rules:
+
+1. **Mandatory Workflow Entry Gate**:
+   Every engineering request (including new features, bug fixes, refactoring, architecture changes, migrations, and code modifications) MUST enter through the Workflow Supervisor. AI must perform Intent Detection and routing first. Direct implementation is strictly prohibited.
+   *Flow:* User Request -> Workflow Entry Gateway -> Intent Detection -> Workflow Supervisor -> Skill Router -> Skill Execution -> Agent Execution -> Artifacts + Evidence.
+
+2. **Prevention of Direct Coding**:
+   The AI MUST NOT directly edit source code, create implementation files, modify configurations, run build commands, or run tests before the required workflow phases are completed. Code modifications are only allowed after the design phase is approved.
+
+3. **Mandatory Skill Lifecycle Mapping**:
+   Every workflow phase must map to a registered skill:
+   - Discovery -> `brainstorming`
+   - Planning -> `brainstorming-to-plan`
+   - Architecture -> `architecture-review`
+   - Design -> `plan-to-blueprint` / `quick-feature` / `quick-fix`
+   - Implementation -> `blueprint-to-implementation`
+   - Debug -> `implementation-to-debug`
+   - Verification -> `debug-to-verify`
+   - Certification -> `vir-verify`
+   - Final Review -> `final-review`
+   - Release Preparation -> `release-preparation`
+   - Release -> `implementation-to-release`
+
+4. **Artifact Enforcement**:
+   Every skill must generate its required artifacts under the approved docs/ directories:
+   - Discovery/Brainstorming: `docs/brainstorming/FEAT-xxx.md` (or `docs/brainstorming/FIX-xxx.md`)
+   - Planning: `docs/planning/FEAT-xxx_plan.md`
+   - Design/Blueprint: `docs/blueprints/FEAT-xxx_blueprint.md`
+   - Technical Reports: `docs/reports/FEAT-xxx_report.md`
+   Creating workflow artifacts in project root is strictly forbidden. If a required artifact is missing or stored in an invalid location, the workflow status is set to `BLOCKED`.
+
+5. **State Separation (Workspace vs. Workflow)**:
+   Workspace state is decoupled from feature workflow state. Workspace state being `READY` does not mean the feature workflow is completed or released. Release decisions must depend on verified evidence.
+
+6. **Human Approval Gates**:
+   Human approval is strictly required at three strategic gates:
+   - Gate 1: Planning Approval
+   - Gate 2: Blueprint Approval
+   - Gate 3: Release Approval
+   All intermediate phases (Implementation, Debug, Verification, Certification, Final Review, Release Preparation, Post Release Validation, Monitoring, Governance) must execute autonomously when evidence passes.
+
+7. **AI Response Behavior**:
+   When receiving an engineering request, the AI must first output a detection summary and STOP:
+   ```text
+   AIWF Workflow Detection
+   Intent: [Feature Request | Bug Fix | Refactoring | Migration]
+   Workflow: [feature-development | bug-fix | refactoring | migration]
+   Starting Skill: [skill-name]
+   ```
+   Do not modify code immediately.
+
+8. **Workflow Trace Requirement**:
+   Every engineering request must create trace events:
+   - `workflow.request.received`
+   - `workflow.started`
+   - `skill.selected`
+   - `skill.started`
+   - `artifact.created`
+   - `phase.completed`
+   - `workflow.completed`
+   These events must be appended to `.agents/state/events/events.jsonl` (or `.agents/state/events.jsonl`).
+
+9. **Legacy Resident Orchestrator Migration**:
+   The Resident Orchestrator is deprecated. The default model is Session Runtime + Workflow Supervisor. Resident daemon mode only runs when explicitly commanded by the user.
 
 
+---
 
+## Section 28: Artifact Governance & Documentation Structure Policy
 
+1. **Approved Documentation Storage**:
+   All AIWF generated artifacts MUST be stored under approved documentation directories. Creating workflow artifacts in project root is forbidden.
+   
+   Approved mappings:
+   - **Brainstorming**: `docs/brainstorming/`
+   - **Planning**: `docs/planning/`
+   - **Architecture**: `docs/architecture/`
+   - **Blueprints**: `docs/blueprints/`
+   - **Implementation**: `docs/implementation/`
+   - **Verification**: `docs/verification/`
+   - **Release**: `docs/release/`
+   - **Reports**: `docs/reports/`
+   - **Operations**: `docs/operations/`
+
+2. **Creation Lifecycle**:
+   Before creating any artifact:
+   - Identify artifact type.
+   - Select approved directory.
+   - Validate path.
+   - Create document.
+
+3. **Supervisor Blocking**:
+   Workflow Supervisor must verify artifact paths and naming before phase transitions. Any violation will set status to `BLOCKED` with reason `Artifact governance violation`.

@@ -33,6 +33,8 @@ The following policies are defined in AI_RULES.md and apply to every task:
 9. Release Policy
 10. Workflow Phase Separation Policy
 11. Absolute Path Prohibition Policy
+12. Workflow First Enforcement Policy
+13. Artifact Governance & Documentation Structure Policy
 
 AI_RULES.md is the **single source of truth** for all shared framework behavior. If any instruction conflicts with another document, follow AI_RULES.md.
 

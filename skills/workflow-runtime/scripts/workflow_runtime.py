@@ -4,8 +4,10 @@ import sys
 import os
 import json
 import subprocess
+import http
+import http.server
 from datetime import datetime
-from typing import cast
+from typing import cast, Any, Optional
 
 # Add the directory containing this script to sys.path to resolve sibling modules
 sys.path.append(os.path.dirname(os.path.abspath(__file__)))
@@ -562,6 +564,209 @@ def do_init(args):
             json.dump(runtime_data, f, indent=2)
     except Exception:
         pass
+
+class WorkflowObservatoryHTTPHandler(http.server.BaseHTTPRequestHandler):
+    workspace_override: Optional[str] = None
+
+    def log_message(self, format: str, *args: object) -> None:
+        pass
+
+    def do_GET(self) -> None:
+        self.send_response(200)
+        self.send_header('Content-Type', 'application/json')
+        self.send_header('Access-Control-Allow-Origin', '*')
+        self.send_header('Access-Control-Allow-Methods', 'GET, OPTIONS')
+        self.send_header('Access-Control-Allow-Headers', 'Content-Type')
+        self.end_headers()
+
+        if self.path == '/api/workflow/current':
+            _ = self.wfile.write(json.dumps(self.get_current_workflow(), indent=2).encode('utf-8'))
+        elif self.path == '/api/workflow/events':
+            _ = self.wfile.write(json.dumps(self.get_workflow_events(), indent=2).encode('utf-8'))
+        elif self.path == '/api/workflow/agents':
+            _ = self.wfile.write(json.dumps(self.get_workflow_agents(), indent=2).encode('utf-8'))
+        elif self.path == '/api/workflow/skills':
+            _ = self.wfile.write(json.dumps(self.get_workflow_skills(), indent=2).encode('utf-8'))
+        elif self.path == '/api/workflow/gates':
+            _ = self.wfile.write(json.dumps(self.get_workflow_gates(), indent=2).encode('utf-8'))
+        else:
+            _ = self.wfile.write(json.dumps({"error": "Not Found", "path": self.path}).encode('utf-8'))
+
+    def do_OPTIONS(self) -> None:
+        self.send_response(200)
+        self.send_header('Access-Control-Allow-Origin', '*')
+        self.send_header('Access-Control-Allow-Methods', 'GET, OPTIONS')
+        self.send_header('Access-Control-Allow-Headers', 'Content-Type')
+        self.end_headers()
+
+    def get_current_workflow(self) -> dict[str, Any]:
+        try:
+            from state_store import get_state_store
+            store = get_state_store()
+            workflow = cast(dict[str, Any], store.get("workflow") or {})
+            context = cast(dict[str, Any], store.get("context") or {})
+            
+            # Fallback to reading split state directory files
+            if not workflow:
+                try:
+                    from state_path import get_state_file
+                    with open(get_state_file("workflow", self.workspace_override), "r", encoding="utf-8") as f:
+                        workflow = json.load(f) or {}
+                except Exception:
+                    pass
+            if not context:
+                try:
+                    from state_path import get_state_file
+                    with open(get_state_file("context", self.workspace_override), "r", encoding="utf-8") as f:
+                        context = json.load(f) or {}
+                except Exception:
+                    pass
+
+            return {
+                "workflow_id": workflow.get("active_workflow") or context.get("conversation_id") or "WF-DEFAULT",
+                "feature_id": cast(dict[str, Any], workflow.get("work_item") or {}).get("id") or "FEAT-DEFAULT",
+                "active_phase": workflow.get("active_phase") or "brainstorming",
+                "checkpoint": workflow.get("checkpoint") or 1,
+                "status": workflow.get("status") or "running",
+                "progress_percentage": context.get("progress_percentage") or 10,
+                "current_skill": workflow.get("suggested_next_skill") or "initialize-workflow",
+                "waiting_for": workflow.get("waiting_for")
+            }
+        except Exception as e:
+            return {"error": str(e)}
+
+    def get_workflow_events(self) -> list[Any]:
+        try:
+            from state_path import get_events_path
+            events_path = get_events_path(self.workspace_override)
+        except Exception:
+            events_path = os.path.join(".", ".agents", "state", "events", "events.jsonl")
+
+        if not os.path.exists(events_path):
+            return []
+        events: list[Any] = []
+        try:
+            with open(events_path, "r", encoding="utf-8") as f:
+                for line in f:
+                    line = line.strip()
+                    if line:
+                        events.append(json.loads(line))
+        except Exception:
+            pass
+        return events
+
+    def get_workflow_agents(self) -> dict[str, Any]:
+        try:
+            from state_store import get_state_store
+            store = get_state_store()
+            agents_data = cast(dict[str, Any], store.get("agents") or {})
+
+            # Fallback to split state
+            if not agents_data:
+                try:
+                    from state_path import get_state_root
+                    state_root = get_state_root(self.workspace_override)
+                    agents_path = os.path.join(state_root, "agents", "agents.json")
+                    if os.path.exists(agents_path):
+                        with open(agents_path, "r", encoding="utf-8") as f:
+                            agents_data = json.load(f) or {}
+                except Exception:
+                    pass
+
+            return {
+                "execution_mode": agents_data.get("execution_mode", "workflow"),
+                "running_agents": agents_data.get("running_agents", []),
+                "queued_agents": agents_data.get("queued_agents", []),
+                "blocked_agents": agents_data.get("blocked_agents", []),
+                "waiting_dependencies": agents_data.get("waiting_dependencies", [])
+            }
+        except Exception as e:
+            return {"error": str(e)}
+
+    def get_workflow_skills(self) -> dict[str, Any]:
+        try:
+            from state_store import get_state_store
+            store = get_state_store()
+            runtime = cast(dict[str, Any], store.get("runtime") or {})
+
+            # Fallback to split state
+            if not runtime:
+                try:
+                    from state_path import get_state_root
+                    state_root = get_state_root(self.workspace_override)
+                    runtime_path = os.path.join(state_root, "runtime", "runtime.json")
+                    if os.path.exists(runtime_path):
+                        with open(runtime_path, "r", encoding="utf-8") as f:
+                            runtime = json.load(f) or {}
+                except Exception:
+                    pass
+
+            return {
+                "current_skill": runtime.get("current_skill") or "initialize-workflow",
+                "current_command": runtime.get("current_command") or "init",
+                "current_step": runtime.get("current_step") or "Ready",
+                "status": runtime.get("status") or "completed",
+                "context_health": runtime.get("context_health") or "healthy",
+                "current_logs": runtime.get("current_logs") or []
+            }
+        except Exception as e:
+            return {"error": str(e)}
+
+    def get_workflow_gates(self) -> dict[str, Any]:
+        try:
+            from state_store import get_state_store
+            store = get_state_store()
+            approvals = cast(dict[str, Any], store.get("approvals") or {})
+
+            # Fallback to split state
+            if not approvals:
+                from state_path import get_state_root
+                state_root = get_state_root(self.workspace_override)
+                # Try approvals
+                try:
+                    approvals_path = os.path.join(state_root, "approvals", "approvals.json")
+                    if os.path.exists(approvals_path):
+                        with open(approvals_path, "r", encoding="utf-8") as f:
+                            approvals = json.load(f) or {}
+                except Exception:
+                    pass
+                # Try legacy gates
+                if not approvals:
+                    try:
+                        gates_path = os.path.join(state_root, "gates", "gates.json")
+                        if os.path.exists(gates_path):
+                            with open(gates_path, "r", encoding="utf-8") as f:
+                                approvals = json.load(f) or {}
+                    except Exception:
+                        pass
+
+            return {
+                "blueprint": approvals.get("blueprint") or approvals.get("blueprint_gate") or {"exists": False, "approved": False},
+                "specification": approvals.get("specification") or approvals.get("specification_gate") or {"exists": False, "approved": False},
+                "release": approvals.get("release") or approvals.get("release_gate") or {"exists": False, "approved": False}
+            }
+        except Exception as e:
+            return {"error": str(e)}
+
+
+def do_api_server(args: Any) -> None:
+    import http.server
+    from typing import Any, cast
+    port = getattr(args, "port", 31000) or 31000
+    host = getattr(args, "host", "localhost") or "localhost"
+    server_address = (host, port)
+    
+    class HTTPServerV6(http.server.HTTPServer):
+        allow_reuse_address = True
+
+    httpd = HTTPServerV6(server_address, cast(Any, WorkflowObservatoryHTTPHandler))
+    print(f"Workflow Observatory API Server running on http://{host}:{port}")
+    try:
+        httpd.serve_forever()
+    except KeyboardInterrupt:
+        print("\nStopping server...")
+        httpd.server_close()
+
 
 def do_validate(args):
     if getattr(args, "subaction", None):
@@ -5052,6 +5257,10 @@ def main():
     _ = ups_p.add_argument("--yes", action="store_true")
     _ = ups_p.add_argument("--allow-dirty", action="store_true")
     
+    api_server_p = subparsers.add_parser("api-server", help="Start stable Observability API Server")
+    _ = api_server_p.add_argument("--port", type=int, default=31000)
+    _ = api_server_p.add_argument("--host", type=str, default="localhost")
+    
     args = parser.parse_args()
     
     # Interceptor for scoped work item activation
@@ -5077,6 +5286,7 @@ def main():
         os.environ["AIWF_WORK_ITEM_ID"] = work_item_id
     
     cmds = {
+        "api-server": do_api_server,
         "init": do_init,
         "validate": do_validate,
         "start": do_start,

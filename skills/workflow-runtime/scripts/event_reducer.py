@@ -19,6 +19,7 @@ from event_logger import (  # type: ignore
     DEBUG_PASSED, DEBUG_FAILED, VERIFY_PASSED, VERIFY_FAILED,
     RELEASE_REQUESTED, RELEASE_BLOCKED, RELEASE_COMPLETED,
     USAGE_UPDATED, STATE_MIGRATED,
+    WORKFLOW_ARTIFACT_VIOLATION, WORKFLOW_BLOCKED
 )
 
 
@@ -57,6 +58,8 @@ class EventReducer:
             RELEASE_COMPLETED:    self._on_release_completed,
             USAGE_UPDATED:        self._on_usage_updated,
             STATE_MIGRATED:       self._on_state_migrated,
+            WORKFLOW_ARTIFACT_VIOLATION: self._on_artifact_violation,
+            WORKFLOW_BLOCKED:     self._on_workflow_blocked,
         }
 
     # ------------------------------------------------------------------
@@ -402,3 +405,20 @@ class EventReducer:
         existing["last_migration_at"] = self._now()
         existing["migration_details"] = p
         write_json_atomic(recovery_path, existing)
+
+    def _on_artifact_violation(self, p: dict) -> None:
+        """Record artifact governance violation in workflow.json."""
+        workflow = self._read("workflow")
+        workflow["status"] = "blocked"
+        workflow["waiting_for"] = "Artifact governance violation"
+        workflow["last_violation_reason"] = p.get("reason", "")
+        workflow["last_updated"] = self._now()
+        self._write("workflow", workflow)
+
+    def _on_workflow_blocked(self, p: dict) -> None:
+        """Mark workflow as blocked."""
+        workflow = self._read("workflow")
+        workflow["status"] = "blocked"
+        workflow["waiting_for"] = p.get("reason", "Action required")
+        workflow["last_updated"] = self._now()
+        self._write("workflow", workflow)

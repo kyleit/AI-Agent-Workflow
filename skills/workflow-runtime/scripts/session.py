@@ -260,7 +260,10 @@ def save_session_atomic(data: dict[str, Any]) -> None:  # type: ignore
         try:
             existing = load_session()
             new_data = dict(existing)
+            existing_revisions = existing.get("_revisions", {})
             new_data.update(data)
+            if "_revisions" in new_data and existing_revisions:
+                new_data["_revisions"].update(existing_revisions)
             
             if "conversation_id" not in new_data or not new_data["conversation_id"]:
                 new_data["conversation_id"] = existing.get("conversation_id", str(uuid.uuid4()))

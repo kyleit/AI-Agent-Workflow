@@ -1,0 +1,20 @@
+{
+  "active_workflow": null,
+  "active_phase": null,
+  "checkpoint": 1,
+  "waiting_for": null,
+  "work_item": {
+    "id": "FEAT-115"
+  },
+  "workflow_type": null,
+  "parent_workflow_id": null,
+  "suggested_next_skill": null,
+  "suggested_next_command": null,
+  "resume_state": null,
+  "_metadata": {
+    "generation": 1,
+    "revision": 1,
+    "writer_id": "25468-495f8d73",
+    "updated_at": "2026-07-13T19:13:37.558256+07:00"
+  }
+}

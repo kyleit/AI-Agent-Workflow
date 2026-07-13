@@ -1,0 +1,74 @@
+{
+  "project_id": "ai-skill-framework",
+  "workspace_path": ".",
+  "project_type": "python",
+  "languages": [
+    "python"
+  ],
+  "frameworks": [],
+  "git": {
+    "is_git_repository": false
+  },
+  "project_version": "1.0.0",
+  "version_source": "none",
+  "memory": {
+    "status": "MISSING",
+    "last_updated": "N/A"
+  },
+  "rag": {
+    "connected": false,
+    "provider": "none"
+  },
+  "permission_mode": "sandbox",
+  "permission_mode_selected_at": "2026-07-13T19:13:37.557719+07:00",
+  "permission_mode_selected_by": "test",
+  "conversation_id": "",
+  "project_fingerprint": "",
+  "initialized_at": "2026-07-13T19:13:37.557805+07:00",
+  "authorization": {
+    "authorization_id": "AUTH-FEAT-116",
+    "project_id": "ai-skill-framework",
+    "workspace_id": "workspace-id",
+    "work_item_id": "FEAT-116",
+    "workflow_id": "WF-FEAT-116",
+    "permission_mode": "sandbox",
+    "authorization_status": "inactive",
+    "source": "system_default",
+    "allowed_phases": [],
+    "allow_document_create": false,
+    "allow_document_modify": false,
+    "allow_source_create": false,
+    "allow_source_modify": false,
+    "allow_test_create": false,
+    "allow_test_modify": false,
+    "allow_runtime_state_modify": false,
+    "allow_agent_spawn": false,
+    "allow_agent_reassignment": false,
+    "allow_parallel_execution": false,
+    "allow_retry": false,
+    "allow_replan": false,
+    "allow_commit": false,
+    "allow_merge": false,
+    "allow_rebase": false,
+    "allow_tag": false,
+    "allow_push": false,
+    "allow_release": false,
+    "allow_publish": false,
+    "allow_deploy": false,
+    "stop_at": "release_approval",
+    "expires_when": "release_approved_or_work_item_cancelled",
+    "created_at": "2026-07-13T19:13:37.557760+07:00",
+    "terminated_at": null,
+    "max_retries_per_task": 3,
+    "max_replans_per_work_item": 2,
+    "max_agent_reassignments_per_task": 2
+  },
+  "autonomous_delivery": false,
+  "progress_percentage": 10,
+  "_metadata": {
+    "generation": 1,
+    "revision": 1,
+    "writer_id": "25468-4ec9ade6",
+    "updated_at": "2026-07-13T19:13:37.557872+07:00"
+  }
+}

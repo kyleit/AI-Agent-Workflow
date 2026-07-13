@@ -72,6 +72,60 @@ class WorkflowSupervisor:
         phase_config = self.registry[registry_key]
         agent_name = phase_config.get("agent", "worker-agent")
         next_phase = phase_config.get("next", "ContinuousImprovement")
+
+        # Validate artifacts using ArtifactGovernance
+        from artifact_governance import ArtifactGovernance
+        
+        def detect_expected_type(filename: str, phase: str) -> str:
+            fn_lower = filename.lower()
+            if "blueprint" in fn_lower:
+                return "blueprint"
+            if "plan" in fn_lower:
+                return "planning"
+            if "brainstorm" in fn_lower:
+                return "brainstorming"
+            if phase == "implementation":
+                return "implementation"
+            if phase == "verification":
+                return "verification"
+            if "report" in fn_lower:
+                return "report"
+            return "report"
+
+        # Check evidence dict file keys
+        file_keys_mapping = {
+            "plan_file": "planning",
+            "blueprint_file": "blueprint",
+            "release_candidate_file": "report",
+        }
+        for key, expected_type in file_keys_mapping.items():
+            file_val = evidence.get(key)
+            if file_val:
+                res = ArtifactGovernance.validate_artifact_path(file_val, expected_type, self.workspace_root)
+                if res["status"] == "failure":
+                    self.emit_notification("error", f"Artifact governance violation: {res['summary']}")
+                    self.state_machine.append_event("workflow.artifact.violation", {
+                        "file": file_val,
+                        "type": expected_type,
+                        "reason": res["summary"],
+                        "code": res["code"]
+                    })
+                    return current
+
+        # Check phase configured evidence list
+        phase_evidence_files = phase_config.get("evidence", [])
+        for ev_file in phase_evidence_files:
+            expected_type = detect_expected_type(ev_file, registry_key)
+            res = ArtifactGovernance.validate_artifact_path(ev_file, expected_type, self.workspace_root)
+            if res["status"] == "failure":
+                self.emit_notification("error", f"Artifact governance violation: {res['summary']}")
+                self.state_machine.append_event("workflow.artifact.violation", {
+                    "file": ev_file,
+                    "type": expected_type,
+                    "reason": res["summary"],
+                    "code": res["code"]
+                })
+                return current
         
         # Dispatch the agent to execute
         def dummy_agent_task():
