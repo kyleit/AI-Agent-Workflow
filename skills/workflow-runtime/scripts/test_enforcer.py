@@ -3,6 +3,7 @@ import os
 import sys
 import json
 import subprocess
+import inspect
 from typing import Tuple, List, Any
 
 # Backup original subprocess functions
@@ -22,7 +23,6 @@ def is_test_command(cmd: Any) -> bool:
         
     cmd_str = " ".join(cmd_list).lower()
     
-    # 1. Executables patterns
     test_executables = [
         "pytest", "unittest", "vitest", "jest", "playwright", "cypress",
         "go test", "cargo test", "npm test", "npm run test", "pnpm test", "yarn test"
@@ -31,7 +31,6 @@ def is_test_command(cmd: Any) -> bool:
         if te in cmd_str:
             return True
             
-    # 2. Script names patterns
     test_scripts = [
         "test_", "run_tests", "test.sh", "test.ps1", "test.py"
     ]
@@ -39,7 +38,6 @@ def is_test_command(cmd: Any) -> bool:
         if ts in cmd_str:
             return True
             
-    # 3. Makefile/Taskfile test targets
     if "make" in cmd_str or "task" in cmd_str or "just" in cmd_str:
         if "test" in cmd_str:
             return True
@@ -47,11 +45,9 @@ def is_test_command(cmd: Any) -> bool:
     return False
 
 def verify_tester_ownership(cmd: Any) -> Tuple[bool, str]:
-    # Resolve path to state directory
     base_dir = os.environ.get("AIWF_BASE_DIR") or os.path.abspath(os.path.join(os.path.dirname(__file__), "../../.."))
     state_dir = os.path.join(base_dir, ".agents", "state")
     if not os.path.exists(state_dir):
-        # Fallback to local default path if not exist
         if not os.environ.get("AIWF_BASE_DIR"):
             state_dir = ".agents/state"
         
@@ -76,7 +72,6 @@ def verify_tester_ownership(cmd: Any) -> Tuple[bool, str]:
         except Exception:
             pass
             
-    # Find a running test task
     running_test_tasks = []
     for tid, t in tasks.items():
         if t.get("status") == "running":
@@ -88,39 +83,112 @@ def verify_tester_ownership(cmd: Any) -> Tuple[bool, str]:
     if not running_test_tasks:
         return False, "No active running test task found in tasks.json"
         
-    # Check ownership of running test tasks
     for tid, t in running_test_tasks:
         assigned = t.get("assigned_agent")
         if not assigned:
             continue
         agent_meta = agents.get(assigned, {})
         agent_type = agent_meta.get("type", "")
-        # A TESTER/QA agent has type "qa" or "tester" or ID match
         if agent_type in ["qa", "tester"] or assigned == "AGENT-TESTER-001" or "tester" in assigned.lower() or "qa" in assigned.lower():
             return True, f"Valid owner found: {assigned} for task {tid}"
             
     return False, "Running test task exists but is not owned by a QA or TESTER agent"
 
+def is_caller_authorized() -> bool:
+    stack = inspect.stack()
+    for frame_info in stack:
+        filename = os.path.basename(frame_info.filename)
+        if filename == "test_enforcer.py":
+            continue
+        if filename == "execution_manager.py":
+            return True
+        if filename in ["workflow_runtime.py", "fingerprint.py", "init_wizard.py"]:
+            return True
+    return False
+
 def patched_run(*args, **kwargs):
     cmd = args[0] if args else kwargs.get("args")
-    if is_test_command(cmd):
-        allowed, msg = verify_tester_ownership(cmd)
-        if not allowed:
-            err_msg = f"Policy Violation: Test execution blocked. Reason: {msg} (Command: {cmd})"
-            # Log violation event to tasks log if possible
-            print(f"❌ {err_msg}", file=sys.stderr)
-            raise PermissionError(err_msg)
-    return _orig_run(*args, **kwargs)
+    
+    if is_caller_authorized():
+        # Double check test ownership inside Execution Manager
+        if is_test_command(cmd):
+            allowed, msg = verify_tester_ownership(cmd)
+            if not allowed:
+                err_msg = f"Policy Violation: Test execution blocked. Reason: {msg} (Command: {cmd})"
+                print(f"❌ {err_msg}", file=sys.stderr)
+                raise PermissionError(err_msg)
+        return _orig_run(*args, **kwargs)
+
+    # If not authorized, check strict enforcement or redirect
+    strict = os.environ.get("AIWF_STRICT_PROCESS_ENFORCEMENT") == "true"
+    if strict:
+        err_msg = f"Policy Violation: Direct OS Process creation blocked. All execution must go through Execution Manager. (Command: {cmd})"
+        print(f"❌ {err_msg}", file=sys.stderr)
+        raise PermissionError(err_msg)
+
+    # Transparent redirect through Execution Manager
+    from execution_manager import ExecutionManager
+    cmd_list = []
+    if isinstance(cmd, str):
+        cmd_list = cmd.split()
+    elif isinstance(cmd, (list, tuple)):
+        cmd_list = [str(c) for c in cmd]
+        
+    cwd = kwargs.get("cwd", ".")
+    timeout = kwargs.get("timeout", 300)
+    
+    owner_agent = os.environ.get("AIWF_ACTIVE_AGENT") or "AGENT-SYSTEM"
+    task_id = os.environ.get("AIWF_ACTIVE_WORK_ITEM") or os.environ.get("AIWF_WORK_ITEM_ID") or "TASK-SYSTEM"
+    
+    print(f"🔄 [Redirect] Direct subprocess.run of {cmd} redirected through Execution Manager.", file=sys.stderr)
+    return ExecutionManager.run_command_managed(cmd_list, cwd=cwd, owner_agent_id=owner_agent, task_id=task_id, timeout=timeout)
 
 def patched_Popen(*args, **kwargs):
     cmd = args[0] if args else kwargs.get("args")
-    if is_test_command(cmd):
-        allowed, msg = verify_tester_ownership(cmd)
-        if not allowed:
-            err_msg = f"Policy Violation: Test execution blocked. Reason: {msg} (Command: {cmd})"
-            print(f"❌ {err_msg}", file=sys.stderr)
-            raise PermissionError(err_msg)
-    return _orig_Popen(*args, **kwargs)
+    
+    if is_caller_authorized():
+        # Double check test ownership inside Execution Manager
+        if is_test_command(cmd):
+            allowed, msg = verify_tester_ownership(cmd)
+            if not allowed:
+                err_msg = f"Policy Violation: Test execution blocked. Reason: {msg} (Command: {cmd})"
+                print(f"❌ {err_msg}", file=sys.stderr)
+                raise PermissionError(err_msg)
+        return _orig_Popen(*args, **kwargs)
+
+    # If not authorized, check strict enforcement or redirect
+    strict = os.environ.get("AIWF_STRICT_PROCESS_ENFORCEMENT") == "true"
+    if strict:
+        err_msg = f"Policy Violation: Direct OS Process creation blocked. All execution must go through Execution Manager. (Command: {cmd})"
+        print(f"❌ {err_msg}", file=sys.stderr)
+        raise PermissionError(err_msg)
+
+    # Transparent redirect through Execution Manager
+    from execution_manager import ExecutionManager
+    cmd_list = []
+    if isinstance(cmd, str):
+        cmd_list = cmd.split()
+    elif isinstance(cmd, (list, tuple)):
+        cmd_list = [str(c) for c in cmd]
+        
+    cwd = kwargs.get("cwd", ".")
+    timeout = kwargs.get("timeout", 300)
+    stdout = kwargs.get("stdout")
+    stderr = kwargs.get("stderr")
+    preexec_fn = kwargs.get("preexec_fn")
+    creationflags = kwargs.get("creationflags", 0)
+    text = kwargs.get("text", True)
+    bufsize = kwargs.get("bufsize", -1)
+    
+    owner_agent = os.environ.get("AIWF_ACTIVE_AGENT") or "AGENT-SYSTEM"
+    task_id = os.environ.get("AIWF_ACTIVE_WORK_ITEM") or os.environ.get("AIWF_WORK_ITEM_ID") or "TASK-SYSTEM"
+    
+    print(f"🔄 [Redirect] Direct subprocess.Popen of {cmd} redirected through Execution Manager.", file=sys.stderr)
+    return ExecutionManager.popen_command_managed(
+        cmd_list, cwd=cwd, owner_agent_id=owner_agent, task_id=task_id, timeout=timeout,
+        stdout=stdout, stderr=stderr, preexec_fn=preexec_fn, creationflags=creationflags,
+        text=text, bufsize=bufsize
+    )
 
 def patch_subprocess():
     subprocess.run = patched_run

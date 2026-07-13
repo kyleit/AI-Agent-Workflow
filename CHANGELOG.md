@@ -5,6 +5,18 @@ All notable changes to this project will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [6.14.2] - 2026-07-13
+
+### Added
+- **Session Runtime Redesign (FEAT-211)**:
+  - Tái thiết kế Session Runtime Core chuyển đổi từ mô hình đa tiến trình daemon sang in-process async engine siêu nhẹ.
+  - Tích hợp SQLite WAL Event Store lưu trữ dòng sự kiện lịch sử phục vụ event replay/recovery và audit trail.
+  - Xây dựng Shared Session Context Engine bất biến kết hợp Copy-on-Write và Optimistic Concurrency Control (OCC) loại bỏ xung đột dữ liệu đa tác nhân.
+  - Triển khai Scheduler & Bounded Worker Pool quản lý xếp hàng tác vụ và chống quá tải tài nguyên thông qua CPU throttling.
+  - Triển khai Tool Executor cô lập tiến trình kết hợp validator toàn cục chặn cuộc gọi subprocess lậu ngoài luồng kiểm duyệt.
+  - Thiết lập ranh giới phân quyền phân cấp Permission Boundary đa lớp (Global -> Session -> Agent -> Tool) chống privilege/scope escalation.
+  - Xây dựng máy chủ Runtime API v3 JSON-RPC cùng Runtime SDK v3 Client và Adapter tương thích ngược v1/v2 phát cảnh báo di trú.
+
 ## [6.14.0] - 2026-07-13
 
 ### Added

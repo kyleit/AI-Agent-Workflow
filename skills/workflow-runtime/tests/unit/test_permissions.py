@@ -1,139 +1,108 @@
-import os
-import json
-import sys
+# test_permissions.py
 import pytest
-pytestmark = pytest.mark.unit
-from datetime import datetime
+import os
+import sys
+import time
 
-# Add scripts directory to sys.path
-sys.path.append(os.path.abspath(os.path.join(os.path.dirname(__file__), "..", "..", "scripts")))
+# Add script directory to sys.path to find permission_boundary
+sys.path.insert(0, os.path.abspath(os.path.join(os.path.dirname(__file__), "..", "..", "scripts")))
 
-from session import (
-    get_project_permission_config_path,
-    load_project_permissions,
-    write_project_permissions_atomic,
-    validate_permissions_data
-)
-from workflow_runtime import main
-pytestmark = [pytest.mark.unit, pytest.mark.smoke]
+from permission_boundary import Permission, PermissionBoundary, PermissionError, PrivilegeEscalationError
+from event_store import SQLiteEventStore
 
+def test_permission_creation():
+    perm = Permission(
+        owner_type="session",
+        owner_id="session-1",
+        scope=["skills"],
+        capabilities=["read", "write"],
+        duration_seconds=10
+    )
+    assert perm.owner_id == "session-1"
+    assert "skills" in perm.scope
+    assert "read" in perm.capabilities
+    assert perm.is_expired() is False
 
-@pytest.fixture(autouse=True)
-def setup_permissions_testing(monkeypatch):
-    monkeypatch.setenv("AIWF_TESTING_PERMISSIONS", "true")
+def test_permission_expiration():
+    # Set duration to negative to simulate immediate expiration
+    perm = Permission(
+        owner_type="agent",
+        owner_id="agent-1",
+        scope=["*"],
+        capabilities=["read"],
+        duration_seconds=-10
+    )
+    assert perm.is_expired() is True
 
-def test_config_path_override(tmp_path, monkeypatch):
-    # Without override
-    monkeypatch.delenv("AIWF_PERMISSION_CONFIG_ROOT", raising=False)
-    p = get_project_permission_config_path()
-    assert p.endswith(os.path.join(".agents", "config", "permissions.json"))
+def test_permission_inheritance_success(tmp_path):
+    store = SQLiteEventStore(workspace_root=str(tmp_path))
+    boundary = PermissionBoundary(event_store=store)
     
-    # With override
-    monkeypatch.setenv("AIWF_PERMISSION_CONFIG_ROOT", str(tmp_path))
-    p = get_project_permission_config_path()
-    assert p == os.path.join(str(tmp_path), "permissions.json")
+    parent = Permission(
+        owner_type="session",
+        owner_id="session-1",
+        scope=["skills", "docs"],
+        capabilities=["read", "write", "execute"]
+    )
+    
+    child = Permission(
+        owner_type="agent",
+        owner_id="agent-1",
+        scope=["skills/workflow-runtime"],
+        capabilities=["read", "write"]
+    )
+    
+    boundary.register_permission(parent)
+    boundary.validate_inheritance(parent, child)
+    # Should complete without error
 
-def test_load_and_write_atomic(tmp_path, monkeypatch):
-    monkeypatch.setenv("AIWF_PERMISSION_CONFIG_ROOT", str(tmp_path))
+def test_permission_escalation_denied():
+    boundary = PermissionBoundary()
     
-    # Missing config returns None under normal mode (if PYTEST_CURRENT_TEST is temporarily removed or normal mode check)
-    monkeypatch.delenv("PYTEST_CURRENT_TEST", raising=False)
-    monkeypatch.setenv("AIWF_RUNTIME_MODE", "normal")
-    assert load_project_permissions() is None
+    parent = Permission(
+        owner_type="session",
+        owner_id="session-1",
+        scope=["skills"],
+        capabilities=["read"]
+    )
     
-    # Restore pytest env for safety
-    monkeypatch.setenv("PYTEST_CURRENT_TEST", "true")
-    
-    data = {
-        "schema_version": "1.0.0",
-        "initialized": True,
-        "mode": "sandbox",
-        "config_revision": 1,
-        "initialized_at": datetime.now().astimezone().isoformat(),
-        "updated_at": datetime.now().astimezone().isoformat(),
-        "updated_by": "test",
-        "source": "cli"
-    }
-    
-    write_project_permissions_atomic(data)
-    loaded = load_project_permissions()
-    assert loaded["mode"] == "sandbox"
-    assert loaded["schema_version"] == "1.0.0"
+    # 1. Child tries to escalate capabilities
+    child_prio_escalation = Permission(
+        owner_type="agent",
+        owner_id="agent-1",
+        scope=["skills"],
+        capabilities=["read", "write"]  # Parents only has read
+    )
+    with pytest.raises(PrivilegeEscalationError):
+        boundary.validate_inheritance(parent, child_prio_escalation)
+        
+    # 2. Child tries to escalate scope
+    child_scope_escalation = Permission(
+        owner_type="agent",
+        owner_id="agent-1",
+        scope=["docs"],  # Parents only has skills
+        capabilities=["read"]
+    )
+    with pytest.raises(PrivilegeEscalationError):
+        boundary.validate_inheritance(parent, child_scope_escalation)
 
-def test_validate_permissions_data():
-    # Valid
-    valid_data = {
-        "schema_version": "1.0.0",
-        "initialized": True,
-        "mode": "sandbox"
-    }
-    ok, msg = validate_permissions_data(valid_data)
-    assert ok is True
+def test_permission_revocation():
+    boundary = PermissionBoundary()
+    perm = Permission(
+        owner_type="agent",
+        owner_id="agent-1",
+        scope=["*"],
+        capabilities=["read"]
+    )
+    boundary.register_permission(perm)
+    boundary.revoke_permission(perm.permission_id)
+    assert perm.is_revoked is True
     
-    # Invalid structure
-    ok, msg = validate_permissions_data([])
-    assert ok is False
-    
-    # Missing field
-    invalid_data = {
-        "schema_version": "1.0.0",
-        "initialized": True
-    }
-    ok, msg = validate_permissions_data(invalid_data)
-    assert ok is False
-    assert "mode" in msg
-    
-    # Invalid mode value
-    invalid_mode = {
-        "schema_version": "1.0.0",
-        "initialized": True,
-        "mode": "invalid"
-    }
-    ok, msg = validate_permissions_data(invalid_mode)
-    assert ok is False
-    assert "Invalid permission mode" in msg
-
-def test_cli_permissions_init_and_show(tmp_path, monkeypatch, capsys):
-    monkeypatch.chdir(tmp_path)
-    monkeypatch.setenv("AIWF_PERMISSION_CONFIG_ROOT", str(tmp_path))
-    
-    # CLI init
-    monkeypatch.setattr("sys.argv", ["workflow_runtime.py", "permissions", "init", "--mode", "full_access"])
-    main()
-    captured = capsys.readouterr()
-    assert "Successfully initialized project permission mode to 'full_access'" in captured.out
-    
-    # Verify file content
-    config_file = os.path.join(str(tmp_path), "permissions.json")
-    assert os.path.exists(config_file)
-    with open(config_file, "r") as f:
-        data = json.load(f)
-    assert data["mode"] == "full_access"
-    
-    # CLI show
-    monkeypatch.setattr("sys.argv", ["workflow_runtime.py", "permissions", "show"])
-    main()
-    captured = capsys.readouterr()
-    parsed = json.loads(captured.out)
-    assert parsed["mode"] == "full_access"
-
-def test_cli_permissions_change_and_validate(tmp_path, monkeypatch, capsys):
-    monkeypatch.chdir(tmp_path)
-    monkeypatch.setenv("AIWF_PERMISSION_CONFIG_ROOT", str(tmp_path))
-    
-    # CLI init first
-    monkeypatch.setattr("sys.argv", ["workflow_runtime.py", "permissions", "init", "--mode", "sandbox"])
-    main()
-    capsys.readouterr() # clear buffers
-    
-    # CLI change escalation with force
-    monkeypatch.setattr("sys.argv", ["workflow_runtime.py", "permissions", "change", "--mode", "full_access", "--force"])
-    main()
-    captured = capsys.readouterr()
-    assert "Successfully changed project permission mode from 'sandbox' to 'full_access'" in captured.out
-    
-    # CLI validate
-    monkeypatch.setattr("sys.argv", ["workflow_runtime.py", "permissions", "validate"])
-    main()
-    captured = capsys.readouterr()
-    assert "Validation succeeded: permissions.json is valid" in captured.out
+    child = Permission(
+        owner_type="tool",
+        owner_id="tool-1",
+        scope=["*"],
+        capabilities=["read"]
+    )
+    with pytest.raises(PermissionError):
+        boundary.validate_inheritance(perm, child)

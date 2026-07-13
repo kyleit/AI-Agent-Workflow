@@ -2767,7 +2767,152 @@ state drift and write contamination.
 ================================================================================
 """
         print(summary_text)
+        from session import sync_execution_state_to_session
         sync_execution_state_to_session()
+
+    else:
+        # New Execution Manager operations
+        from execution_manager import ExecutionManager, ProcessRegistry
+        ExecutionManager.start_scheduler()
+        
+        if args.subaction == "submit":
+            if not args.command:
+                print("Error: --command is required for submit.", file=sys.stderr)
+                sys.exit(1)
+            req = {
+                "task_id": args.task_id or "TASK-N/A",
+                "owner_agent_id": args.owner_agent or "AGENT-UNKNOWN",
+                "command": args.command,
+                "arguments": args.arguments or [],
+                "working_directory": args.cwd or ".",
+                "timeout": args.timeout,
+                "stdin_mode": args.stdin_mode or "disabled",
+                "priority": args.priority or "normal",
+                "is_force_task": args.is_force_task or False,
+                "cpu_limit": args.cpu_limit or 1.0,
+                "memory_limit": args.memory_limit or 0.5
+            }
+            try:
+                exec_id = ExecutionManager.submit(req)
+                print(f"Submitted execution: {exec_id}")
+                ExecutionManager.tick_scheduler()
+            except Exception as e:
+                print(f"Error submitting execution: {e}", file=sys.stderr)
+                sys.exit(1)
+                
+        elif args.subaction == "list":
+            data = ProcessRegistry.read()
+            print(f"{'EXECUTION ID':<18} | {'TASK ID':<10} | {'OWNER AGENT':<15} | {'PID':<6} | {'STATUS':<15} | {'COMMAND':<30}")
+            print("-" * 105)
+            for k, v in data.items():
+                cmd_sum = " ".join([v["command"]] + [str(a) for a in v.get("arguments", [])])[:30]
+                print(f"{v['execution_id']:<18} | {v.get('task_id', 'N/A'):<10} | {v.get('owner_agent_id', 'N/A'):<15} | {str(v.get('pid') or ''):<6} | {v['status']:<15} | {cmd_sum:<30}")
+                
+        elif args.subaction == "read":
+            if not args.id:
+                print("Error: --id is required for read.", file=sys.stderr)
+                sys.exit(1)
+            data = ProcessRegistry.read()
+            item = data.get(args.id)
+            if not item:
+                print(f"Execution not found: {args.id}", file=sys.stderr)
+                sys.exit(1)
+            print(json.dumps(item, indent=2))
+            
+        elif args.subaction == "stream":
+            if not args.id:
+                print("Error: --id is required for stream.", file=sys.stderr)
+                sys.exit(1)
+            data = ProcessRegistry.read()
+            item = data.get(args.id)
+            if not item:
+                print(f"Execution not found: {args.id}", file=sys.stderr)
+                sys.exit(1)
+            
+            stdout_path = item["stdout_artifact"]
+            stderr_path = item["stderr_artifact"]
+            print(f"Streaming logs for {args.id} (Ctrl+C to stop)...")
+            try:
+                out_pos = 0
+                err_pos = 0
+                while True:
+                    item_current = ProcessRegistry.read().get(args.id)
+                    if not item_current:
+                        break
+                    
+                    if os.path.exists(stdout_path):
+                        with open(stdout_path, "r", encoding="utf-8", errors="ignore") as f:
+                            f.seek(out_pos)
+                            chunk = f.read()
+                            if chunk:
+                                sys.stdout.write(chunk)
+                                sys.stdout.flush()
+                            out_pos = f.tell()
+                    
+                    if os.path.exists(stderr_path):
+                        with open(stderr_path, "r", encoding="utf-8", errors="ignore") as f:
+                            f.seek(err_pos)
+                            chunk = f.read()
+                            if chunk:
+                                sys.stderr.write(chunk)
+                                sys.stderr.flush()
+                            err_pos = f.tell()
+                    
+                    if item_current["status"] in ["COMPLETED", "FAILED", "CANCELLED", "TIMED_OUT", "ORPHANED", "BLOCKED_INTERACTIVE"]:
+                        break
+                    import time
+                    time.sleep(0.2)
+            except KeyboardInterrupt:
+                print("\nStopped streaming logs.")
+                
+        elif args.subaction == "cancel":
+            if not args.id:
+                print("Error: --id is required for cancel.", file=sys.stderr)
+                sys.exit(1)
+            reason = args.reason or "Cancelled by user via CLI"
+            ExecutionManager.cancel(args.id, reason)
+            print(f"Cancellation requested for {args.id}.")
+            
+        elif args.subaction == "kill":
+            if not args.id:
+                print("Error: --id is required for kill.", file=sys.stderr)
+                sys.exit(1)
+            reason = args.reason or "Killed by user via CLI"
+            ExecutionManager.kill(args.id, reason)
+            print(f"Force killed {args.id}.")
+            
+        elif args.subaction == "pause":
+            if not args.id:
+                print("Error: --id is required for pause.", file=sys.stderr)
+                sys.exit(1)
+            try:
+                ExecutionManager.pause(args.id)
+                print(f"Paused execution {args.id}.")
+            except Exception as e:
+                print(f"Error pausing: {e}", file=sys.stderr)
+                sys.exit(1)
+                
+        elif args.subaction == "resume":
+            if not args.id:
+                print("Error: --id is required for resume.", file=sys.stderr)
+                sys.exit(1)
+            try:
+                ExecutionManager.resume(args.id)
+                print(f"Resumed execution {args.id}.")
+            except Exception as e:
+                print(f"Error resuming: {e}", file=sys.stderr)
+                sys.exit(1)
+                
+        elif args.subaction == "recover":
+            recovered = ExecutionManager.recover()
+            print(f"Orphan recovery completed. Recovered/reattached executions: {recovered}")
+            
+        elif args.subaction == "capacity":
+            cpu, total, avail = ExecutionManager.get_system_capacity()
+            print(f"System Capacity Profile:")
+            print(f"- Logical CPUs: {cpu}")
+            print(f"- Total Memory: {total / (1024**3):.2f} GB")
+            print(f"- Available Memory: {avail / (1024**3):.2f} GB")
 
 def sync_analysis_agents_to_session() -> None:
     session = load_session()
@@ -4723,10 +4868,22 @@ def main():
     _ = conf_p.add_argument("subaction", choices=["detect", "resolve"])
     
     exec_p = subparsers.add_parser("execution")
-    _ = exec_p.add_argument("subaction", choices=["recommend", "mode", "summary"])
+    _ = exec_p.add_argument("subaction", choices=["recommend", "mode", "summary", "submit", "list", "read", "stream", "cancel", "kill", "pause", "resume", "recover", "capacity"])
     _ = exec_p.add_argument("--mode", type=str, choices=["parallel", "sequential"])
     _ = exec_p.add_argument("--reason", type=str)
     _ = exec_p.add_argument("--approve", action="store_true")
+    _ = exec_p.add_argument("--task-id", type=str)
+    _ = exec_p.add_argument("--owner-agent", type=str)
+    _ = exec_p.add_argument("--command", type=str)
+    _ = exec_p.add_argument("--arguments", nargs="*", type=str)
+    _ = exec_p.add_argument("--cwd", type=str)
+    _ = exec_p.add_argument("--timeout", type=int)
+    _ = exec_p.add_argument("--stdin-mode", type=str, choices=["disabled", "managed"])
+    _ = exec_p.add_argument("--priority", type=str, choices=["low", "normal", "high"])
+    _ = exec_p.add_argument("--is-force-task", action="store_true")
+    _ = exec_p.add_argument("--cpu-limit", type=float)
+    _ = exec_p.add_argument("--memory-limit", type=float)
+    _ = exec_p.add_argument("--id", type=str)
     
     analysis_p = subparsers.add_parser("analysis-agent")
     _ = analysis_p.add_argument("subaction", choices=["add", "list", "clear", "merge"])
