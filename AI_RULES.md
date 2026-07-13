@@ -577,9 +577,16 @@ To enforce standard software engineering processes and prevent bypasses, all ope
    - Gate 1: Planning Approval
    - Gate 2: Blueprint Approval
    - Gate 3: Release Approval
-   All intermediate phases (Implementation, Debug, Verification, Certification, Final Review, Release Preparation, Post Release Validation, Monitoring, Governance) must execute autonomously when evidence passes.
+    - All intermediate phases (Implementation, Debug, Verification, Certification, Final Review, Release Preparation, Post Release Validation, Monitoring, Governance) must execute autonomously when evidence passes.
 
-7. **AI Response Behavior**:
+7. **Session Auto-Initialization & Bootstrap Guard**:
+   All workflow requests must pass through Session Bootstrap Guard. If the current session is not initialized:
+   - execute initialize-workspace automatically.
+   - persist initialization state.
+   - continue the original request.
+   Initialization must never stop workflow execution.
+
+8. **AI Response Behavior**:
    When receiving an engineering request, the AI must first output a detection summary and STOP:
    ```text
    AIWF Workflow Detection

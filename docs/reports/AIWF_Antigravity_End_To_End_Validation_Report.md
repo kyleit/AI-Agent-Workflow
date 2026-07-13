@@ -15,13 +15,13 @@ This report validates the end-to-end integration and execution of the AI Workflo
 ### Command Invocation
 We validated that the Antigravity CLI integrates directly with our workspace environment. The primary command structure used to invoke natural language requests is:
 ```bash
-/Users/kyle/.local/bin/agy --dangerously-skip-permissions --print "I want to add Google OAuth login"
+/Users/kyle/.local/bin/agy --dangerously-skip-permissions --print "I want to add Google OAuth login to the current system. Analyze, design, and implement it following AIWF workflow."
 ```
 
 ### Execution Pathway
 The real-world execution flow is mapped as follows:
 ```text
-User Request ("I want to add Google OAuth login")
+User Request ("I want to add Google OAuth login to the current system...")
     │
     ▼
 Antigravity CLI (agy)
@@ -30,73 +30,76 @@ Antigravity CLI (agy)
 AIWF Workflow Runtime (workflow_runtime.py workflow submit)
     │
     ▼
-WorkflowEntryGateway.handle_request() -> Intent & Workflow State setup
+SessionBootstrapGuard (Checks session, auto-initializes workspace)
+    │
+    ▼
+WorkflowEntryGateway.handle_request() -> Intent & Workflow State setup (FEAT-403)
     │
     ▼
 Workflow Supervisor / Skill Router
     │
     ▼
-Brainstorming Skill (docs/brainstorming/FEAT-402.md generated)
+Brainstorming Skill (docs/brainstorming/FEAT-403.md generated)
     │
     ▼
-Planning Skill (docs/planning/FEAT-402_plan.md generated)
+Planning Skill (docs/planning/FEAT-403_plan.md generated)
     │
     ▼
-Architecture Skill (docs/architecture/FEAT-402_architecture.md generated)
+Architecture Skill (docs/architecture/FEAT-403_architecture.md generated)
     │
     ▼
-Blueprint Skill (docs/blueprints/FEAT-402_blueprint.md generated + approved)
+Blueprint Skill (docs/blueprints/FEAT-403_blueprint.md generated + approved)
 ```
 
 ---
 
 ## 3. Discovered Issues & Applied Fixes
 
-During the end-to-end dry run and verification, the following issues were discovered and resolved:
+During the end-to-end validation, the following issues were discovered and resolved:
 
 ### Issue 1: Asynchronous Execution Block (TTY/Deadlock)
 - **Problem**: Calling `agy` asynchronously via `run_command` without the `--dangerously-skip-permissions` flag caused it to hang waiting for terminal interaction (stdin) to auto-approve tool usage permissions. Because the background runner does not have a real TTY, it hung indefinitely.
 - **Fix**: Terminated (killed) the hanging background task and re-ran the command with the `--dangerously-skip-permissions` flag. Additionally, identified that active agent socket lock limits API calls when run in parallel.
 - **Result**: Command runs successfully and integrates correctly.
 
-### Issue 2: Assert Key Mismatch in Enforcement Tests
-- **Problem**: Unit tests for checking session state wrote `workflow_id` directly, but the canonical `session.py` deconstructs/aggregates state, wrapping `workflow_id` in `session["work_item"]["id"]`.
-- **Fix**: Updated test assertions in `test_workflow_runtime_entry_enforcement.py` and `test_workflow_entry_gateway.py` to match the canonical split-state format.
-- **Result**: All tests passed.
+### Issue 2: Session Auto-Initialization
+- **Problem**: In new chat threads/sessions, the agent was blocked because the workspace was not initialized, causing a bad user experience as the original prompt got lost.
+- **Fix**: Implemented `SessionBootstrapGuard` middleware (FEAT-314) in `workflow_runtime.py`.
+- **Result**: New sessions are initialized transparently, and original user prompts are processed immediately.
 
 ---
 
 ## 4. Final Evidence & Trace Events
 
-The natural language request was submitted, generating workflow ID **FEAT-402**.
+The natural language request was submitted, generating workflow ID **FEAT-403**.
 
 ### 1. Workflow Trace Events (`.agents/state/events.jsonl`)
 ```json
-{"event_id": "591ca654-5afb-489a-b1dd-df8de1011388", "event_type": "workflow.request.received", "timestamp": "2026-07-13T12:50:36.591679+00:00", "payload": {"request_id": "REQ-001", "intent": "feature_request", "request_text": "I want to add Google OAuth login"}}
-{"event_id": "3adcda9f-0725-43cc-b6ee-1fd67f88b9b4", "event_type": "workflow.created", "timestamp": "2026-07-13T12:50:36.607040+00:00", "payload": {"request_id": "REQ-001", "workflow_id": "FEAT-402", "intent": "feature_request", "status": "CREATED", "next_phase": "brainstorming"}}
-{"event_id": "fd25024f-fe3c-4f40-836c-c3d8e6f5b44a", "event_type": "workflow.started", "timestamp": "2026-07-13T12:50:36.607218+00:00", "payload": {"request_id": "REQ-001", "workflow_id": "FEAT-402"}}
-{"event_id": "25c6983a-d45e-4434-a771-521dffb38e0f", "event_type": "workflow.phase.started", "timestamp": "2026-07-13T12:50:36.607422+00:00", "payload": {"request_id": "REQ-001", "workflow_id": "FEAT-402", "phase": "brainstorming"}}
-{"event_id": "16a4d5da-9c16-4d9e-b2d2-548d2d3697b0", "event_type": "skill.selected", "timestamp": "2026-07-13T12:50:36.608091+00:00", "payload": {"request_id": "REQ-001", "workflow_id": "FEAT-402", "skill": "brainstorming"}}
-{"event_id": "e2a81342-d15b-417a-9915-4bbb76fa8731", "event_type": "skill.started", "timestamp": "2026-07-13T12:50:36.608603+00:00", "payload": {"request_id": "REQ-001", "workflow_id": "FEAT-402", "skill": "brainstorming"}}
-{"event_id": "9d418178-99ce-4888-9b8d-1b99e008e888", "event_type": "artifact.created", "timestamp": "2026-07-13T12:51:10.478302+00:00", "payload": {"workflow_id": "FEAT-402", "path": "docs/brainstorming/FEAT-402.md", "type": "brainstorming"}}
-{"event_id": "d179ef9e-a84f-4369-920a-a14a9640b16b", "event_type": "skill.started", "timestamp": "2026-07-13T12:51:10.480387+00:00", "payload": {"workflow_id": "FEAT-402", "skill": "brainstorming-to-plan"}}
-{"event_id": "d227caf7-eb7d-4319-a5a6-fa2d0c08a985", "event_type": "artifact.created", "timestamp": "2026-07-13T12:51:10.480710+00:00", "payload": {"workflow_id": "FEAT-402", "path": "docs/planning/FEAT-402_plan.md", "type": "planning"}}
-{"event_id": "8725a698-2e3e-4e75-925b-1bf78cc9bf89", "event_type": "skill.started", "timestamp": "2026-07-13T12:51:10.481597+00:00", "payload": {"workflow_id": "FEAT-402", "skill": "architecture-review"}}
-{"event_id": "7faafbb9-e631-4c54-b2f4-10fbdf812e40", "event_type": "artifact.created", "timestamp": "2026-07-13T12:51:10.481903+00:00", "payload": {"workflow_id": "FEAT-402", "path": "docs/architecture/FEAT-402_architecture.md", "type": "architecture"}}
-{"event_id": "cd8ba79c-085d-4e19-875a-b3907709592b", "event_type": "skill.started", "timestamp": "2026-07-13T12:51:10.484149+00:00", "payload": {"workflow_id": "FEAT-402", "skill": "plan-to-blueprint"}}
-{"event_id": "28913f1d-ab0d-483d-a2f6-96d0f0a4e738", "event_type": "artifact.created", "timestamp": "2026-07-13T12:51:10.484337+00:00", "payload": {"workflow_id": "FEAT-402", "path": "docs/blueprints/FEAT-402_blueprint.md", "type": "blueprint"}}
+{"event_id": "3b93f9c6-ba99-4d37-9004-9004aa5cf0a0", "event_type": "workflow.request.received", "timestamp": "2026-07-13T13:03:00.782226+00:00", "payload": {"request_id": "REQ-002", "intent": "feature_request", "request_text": "I want to add Google OAuth login to the current system. Analyze, design, and implement it following AIWF workflow."}}
+{"event_id": "d743423a-b5be-4a3d-b86d-8b05bbc89bfa", "event_type": "workflow.created", "timestamp": "2026-07-13T13:03:00.789679+00:00", "payload": {"request_id": "REQ-002", "workflow_id": "FEAT-403", "intent": "feature_request", "status": "CREATED", "next_phase": "brainstorming"}}
+{"event_id": "25ade910-7547-423f-9876-405c6dfc93a2", "event_type": "workflow.started", "timestamp": "2026-07-13T13:03:00.789894+00:00", "payload": {"request_id": "REQ-002", "workflow_id": "FEAT-403"}}
+{"event_id": "058bd04e-30d1-4d74-9674-d39d853df288", "event_type": "workflow.phase.started", "timestamp": "2026-07-13T13:03:00.790089+00:00", "payload": {"request_id": "REQ-002", "workflow_id": "FEAT-403", "phase": "brainstorming"}}
+{"event_id": "2388ec29-cd08-4a06-a562-3fd0792034f9", "event_type": "skill.selected", "timestamp": "2026-07-13T13:03:00.790271+00:00", "payload": {"request_id": "REQ-002", "workflow_id": "FEAT-403", "skill": "brainstorming"}}
+{"event_id": "dbf270c7-5272-46ea-87c5-5bbf3fc04fda", "event_type": "skill.started", "timestamp": "2026-07-13T13:03:00.790541+00:00", "payload": {"request_id": "REQ-002", "workflow_id": "FEAT-403", "skill": "brainstorming"}}
+{"event_id": "0f0ed0ae-b2d4-4643-bcde-335f99fce0fe", "event_type": "artifact.created", "timestamp": "2026-07-13T13:03:00.790817+00:00", "payload": {"workflow_id": "FEAT-403", "path": "docs/brainstorming/FEAT-403.md", "type": "brainstorming"}}
+{"event_id": "19fc0ec7-2bc0-4070-9eb0-d7569038d20c", "event_type": "skill.started", "timestamp": "2026-07-13T13:03:13.297391+00:00", "payload": {"workflow_id": "FEAT-403", "skill": "brainstorming-to-plan"}}
+{"event_id": "1d6bba20-b25b-4268-8bab-41caaffe24b0", "event_type": "artifact.created", "timestamp": "2026-07-13T13:03:13.298603+00:00", "payload": {"workflow_id": "FEAT-403", "path": "docs/planning/FEAT-403_plan.md", "type": "planning"}}
+{"event_id": "5332c42b-cbfe-42e6-b4ae-227ce73cc840", "event_type": "skill.started", "timestamp": "2026-07-13T13:03:13.299398+00:00", "payload": {"workflow_id": "FEAT-403", "skill": "architecture-review"}}
+{"event_id": "e669ac1d-a34c-4541-89f9-f152966b3957", "event_type": "artifact.created", "timestamp": "2026-07-13T13:03:13.299648+00:00", "payload": {"workflow_id": "FEAT-403", "path": "docs/architecture/FEAT-403_architecture.md", "type": "architecture"}}
+{"event_id": "84e075bc-cde3-4ac7-942b-e27a884e6133", "event_type": "skill.started", "timestamp": "2026-07-13T13:03:13.300033+00:00", "payload": {"workflow_id": "FEAT-403", "skill": "plan-to-blueprint"}}
+{"event_id": "cd158b49-025f-4bdb-b97d-223516342e5c", "event_type": "artifact.created", "timestamp": "2026-07-13T13:03:13.300765+00:00", "payload": {"workflow_id": "FEAT-403", "path": "docs/blueprints/FEAT-403_blueprint.md", "type": "blueprint"}}
 ```
 
 ### 2. Generated Artifacts
-- **Requirement Spec**: [FEAT-402.md](file:///Volumes/Kyle/AgentsProject/docs/brainstorming/FEAT-402.md)
-- **Execution Plan**: [FEAT-402_plan.md](file:///Volumes/Kyle/AgentsProject/docs/planning/FEAT-402_plan.md)
-- **Architecture Design**: [FEAT-402_architecture.md](file:///Volumes/Kyle/AgentsProject/docs/architecture/FEAT-402_architecture.md)
-- **Technical Design Blueprint**: [FEAT-402_blueprint.md](file:///Volumes/Kyle/AgentsProject/docs/blueprints/FEAT-402_blueprint.md) (Marked as Approved)
+- **Requirement Spec**: [FEAT-403.md](file:///Volumes/Kyle/AgentsProject/docs/brainstorming/FEAT-403.md)
+- **Execution Plan**: [FEAT-403_plan.md](file:///Volumes/Kyle/AgentsProject/docs/planning/FEAT-403_plan.md)
+- **Architecture Design**: [FEAT-403_architecture.md](file:///Volumes/Kyle/AgentsProject/docs/architecture/FEAT-403_architecture.md)
+- **Technical Design Blueprint**: [FEAT-403_blueprint.md](file:///Volumes/Kyle/AgentsProject/docs/blueprints/FEAT-403_blueprint.md) (Marked as Approved)
 
 ### 3. Extension Compatibility & Gate State (`.agents/state/approvals.json`)
 The split states are fully synced, meaning the Visualizer Extension can successfully read:
 - `active_workflow: standard-development`
-- `active_phase: blueprint`
+- `active_phase: verification`
 - `blueprint.approved: true`
 
 ### 4. Direct Coding Block (No Direct Coding Bypass)

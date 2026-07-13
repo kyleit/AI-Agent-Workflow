@@ -2633,6 +2633,50 @@ def do_task(args: argparse.Namespace) -> None:
         
     sync_execution_state_to_session()
 
+def do_session_command(args: argparse.Namespace) -> None:
+    import json
+    import os
+    import sys
+    
+    session_id = getattr(args, "session_id", None) or os.environ.get("ANTIGRAVITY_TRAJECTORY_ID") or "default_session"
+    try:
+        from session_bootstrap_guard import SessionBootstrapGuard # type: ignore
+    except ImportError:
+        from .session_bootstrap_guard import SessionBootstrapGuard
+    guard = SessionBootstrapGuard(".", session_id)
+    
+    if args.subaction == "status":
+        initialized = guard.is_initialized()
+        output = {
+            "session_id": session_id,
+            "initialized": initialized,
+            "workspace_ready": initialized
+        }
+        print(json.dumps(output, indent=2))
+        
+    elif args.subaction == "initialize":
+        success, err = guard.initialize_workspace()
+        if success:
+            output = {
+                "session_id": session_id,
+                "initialized": True,
+                "workspace_ready": True
+            }
+            print(json.dumps(output, indent=2))
+        else:
+            output = {
+                "status": "SESSION_BOOTSTRAP_FAILED",
+                "failed_step": "initialize-workspace",
+                "error": err,
+                "recovery_suggestion": "Please verify environment configs or check workspace doctor report."
+            }
+            print(json.dumps(output, indent=2))
+            sys.exit(1)
+            
+    elif args.subaction == "reset":
+        guard.reset_session()
+        print(f"Session {session_id} reset successfully.")
+
 def do_workflow(args: argparse.Namespace) -> None:
     import json
     import os
@@ -2718,9 +2762,63 @@ def do_workflow(args: argparse.Namespace) -> None:
         return
 
     elif subaction == "submit":
+        # -------------------------------------------------------------------------
+        # FEAT-314: Session Bootstrap Guard Middleware
+        # -------------------------------------------------------------------------
+        session_id = os.environ.get("ANTIGRAVITY_TRAJECTORY_ID") or "default_session"
+        try:
+            from session_bootstrap_guard import SessionBootstrapGuard # type: ignore
+        except ImportError:
+            from .session_bootstrap_guard import SessionBootstrapGuard
+        guard = SessionBootstrapGuard(".", session_id)
+        if not guard.is_initialized():
+            print("Session not initialized", file=sys.stderr)
+            print("Running initialize-workspace...", file=sys.stderr)
+            success, err = guard.initialize_workspace()
+            if not success:
+                output = {
+                    "status": "SESSION_BOOTSTRAP_FAILED",
+                    "failed_step": "initialize-workspace",
+                    "error": err,
+                    "recovery_suggestion": "Please verify environment configs or check workspace doctor report."
+                }
+                print(json.dumps(output, indent=2))
+                sys.exit(1)
+            print("Session initialized", file=sys.stderr)
+            
         from workflow_entry_gateway import WorkflowEntryGateway
         gateway = WorkflowEntryGateway(".")
         res = gateway.handle_request(args.prompt)
+        
+        # Auto-generate brainstorming artifact for routed workflows
+        if res.get("status") == "ROUTED" and res.get("current_phase") == "brainstorming":
+            workflow_id = res["workflow_id"]
+            os.makedirs("docs/brainstorming", exist_ok=True)
+            brainstorm_path = f"docs/brainstorming/{workflow_id}.md"
+            brainstorm_content = f"""---
+feature_id: {workflow_id}
+feature_name: {args.prompt}
+status: draft
+stage: brainstorming
+created_at: {datetime.now().strftime('%Y-%m-%d')}
+updated_at: {datetime.now().strftime('%Y-%m-%d')}
+previous_artifact: None
+next_artifact: ../plans/{workflow_id}_plan.md
+---
+
+# Master Requirement Document – {args.prompt}
+- **Feature ID**: {workflow_id}
+- **Feature Name**: {args.prompt}
+- **Original Idea**: {args.prompt}
+"""
+            with open(brainstorm_path, "w", encoding="utf-8") as f:
+                f.write(brainstorm_content)
+            from event_logger import emit_event
+            emit_event("artifact.created", {
+                "workflow_id": workflow_id,
+                "path": brainstorm_path,
+                "type": "brainstorming"
+            })
         
         # Output standard format requested by FEAT-313
         output = {
@@ -5062,6 +5160,19 @@ def main():
     wf_resume = wf_sub.add_parser("resume", help="Resume a paused workflow")
     _ = wf_resume.add_argument("--workflow-id", type=str, default=None)
     
+    # Session Bootstrap CLI subcommands
+    session_p = subparsers.add_parser("session")
+    session_sub = session_p.add_subparsers(dest="subaction", required=True)
+    
+    session_status = session_sub.add_parser("status")
+    _ = session_status.add_argument("--session-id", type=str, default=None)
+    
+    session_init = session_sub.add_parser("initialize")
+    _ = session_init.add_argument("--session-id", type=str, default=None)
+    
+    session_reset = session_sub.add_parser("reset")
+    _ = session_reset.add_argument("--session-id", type=str, default=None)
+    
     dep_p = subparsers.add_parser("dependency")
     _ = dep_p.add_argument("subaction", choices=["graph"])
     
@@ -5457,10 +5568,11 @@ def main():
         "update-source": do_update_source,
         "orchestrator": do_orchestrator,
         "runtime": do_runtime_action,
-        "workflow": do_workflow
+        "workflow": do_workflow,
+        "session": do_session_command
     }
     
-    modifying_actions = ["init", "start", "step", "complete", "fail", "blueprint", "suggest", "compact", "task", "deps", "execution", "analysis-agent", "choice", "input", "active-workflow", "resume", "discover", "classify", "memory", "env", "debug", "verify", "release", "state", "provider", "knowledge", "orchestrator", "workflow"]
+    modifying_actions = ["init", "start", "step", "complete", "fail", "blueprint", "suggest", "compact", "task", "deps", "execution", "analysis-agent", "choice", "input", "active-workflow", "resume", "discover", "classify", "memory", "env", "debug", "verify", "release", "state", "provider", "knowledge", "orchestrator", "workflow", "session"]
     if args.action in modifying_actions:
         with SessionLock():
             cmds[args.action](args)
