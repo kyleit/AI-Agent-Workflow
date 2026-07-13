@@ -1,0 +1,18 @@
+{
+  "blueprint": {
+    "path": "",
+    "exists": false,
+    "approved": false,
+    "approved_at": "",
+    "approved_by": ""
+  },
+  "specification": {},
+  "branch_selected": {},
+  "release": {},
+  "_metadata": {
+    "generation": 1,
+    "revision": 1,
+    "writer_id": "63521-7703dd43",
+    "updated_at": "2026-07-13T13:31:47.360636+07:00"
+  }
+}

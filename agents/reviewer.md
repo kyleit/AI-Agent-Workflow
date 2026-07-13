@@ -1,32 +1,64 @@
 ---
-name: reviewer
-role: Inspect source code and test logs
-responsibilities: Perform quality audits before release
-artifact_ownership: Code review reports
+id: "reviewer"
+name: "reviewer"
+display_name: "Reviewer"
+version: "1.0.0"
+agent_category: "review"
+role: "Inspect source code and test logs"
+description: "AIWF Agent representing role reviewer."
+capabilities:
+  - "review"
+specializations:
+  - "Reviewer"
+phase_ownership:
+  - "implementation"
+spawn_conditions:
+  phases:
+    - "debug"
+  task_tags:
+    - "review"
+  file_patterns: []
+  capabilities_required:
+    - "review"
+  confidence_minimum: 0.95
+input_contract: "Modified source code diffs and passing test logs"
+output_contract: "Code review report"
+permissions:
+  mode: "read-only"
+write_mode: "none"
+ownership_scope:
+  include:
+    - "scratch/**"
 allowed_reads:
-- Project source code
-- Test run logs
-- docs/designs/
+  - "Project Memory"
+  - "RAG Indexes"
 allowed_writes:
-- Review reports
-forbidden_actions:
-- Modifying version files
-- performing git merges
-input_contract: Modified source code diffs and passing test logs
-output_contract: Code review report
-handoff_target: release-manager
-done_criteria: Certified implementation as ready for release
+  - "scratch/"
+forbidden_actions: []
+required_skills: []
+required_tools: []
+tool_allowlist:
+  - "*"
+model_preferences:
+  - "gemini-2.5-flash"
+priority: 1
+max_concurrency: 1
+resource_limits: {}
+confidence_threshold:
+  brainstorm: 95
+  planning: 95
+  blueprint: 95
+handoff_targets:
+  - "release-manager"
+done_criteria: "Certified implementation as ready for release"
+failure_behavior: "report"
+retry_policy: {}
+observability: "full"
+runtime_visibility: true
 can_run_in_parallel: false
-agent_category: verification
-phase: debug
-required_skills:
-- implementation-to-debug
-- debug-to-verify
-required_memory: true
-required_rag_context: true
-runtime_requirements:
-- python3
+isolation_required: false
 ---
+
 
 # Agent: Reviewer
 

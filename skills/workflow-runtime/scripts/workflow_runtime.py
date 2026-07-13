@@ -10,6 +10,9 @@ from typing import cast
 # Add the directory containing this script to sys.path to resolve sibling modules
 sys.path.append(os.path.dirname(os.path.abspath(__file__)))
 
+from test_enforcer import patch_subprocess
+patch_subprocess()
+
 if sys.version_info < (3, 11):
     print("Error: Python 3.11 or higher is required.", file=sys.stderr)
     sys.exit(1)
@@ -1799,9 +1802,36 @@ def do_choice(args) -> None:
         choice_resolved = False
         selected_option = None
         
-        if session.get("autonomous_delivery") is True:
+        # Check Confidence Gate
+        from confidence_gate import ConfidenceGate
+        phase = None
+        if "blueprint" in args.id:
+            phase = "blueprint"
+        elif "spec" in args.id or "brainstorm" in args.id:
+            phase = "brainstorm"
+        elif "plan" in args.id:
+            phase = "planning"
+            
+        confidence_ok = True
+        score = 100.0
+        gaps = []
+        if phase:
+            score, gaps = ConfidenceGate.calculate_confidence(phase)
+            if score < 95.0:
+                confidence_ok = False
+
+        is_full_access = session.get("permission_mode") == "full_access" or session.get("autonomous_delivery") is True
+
+        if is_full_access:
             if args.id == "release_approval":
+                # Release is the ONLY mandatory approval gate in full access
                 pass
+            elif not confidence_ok:
+                print(f"\n[CONFIDENCE CHECK FAILED] Phase '{phase}' has confidence score {score}% (< 95%). Gaps detected:", file=sys.stderr)
+                for gap in gaps:
+                    print(f"  - {gap}", file=sys.stderr)
+                print("Aborting autonomous resolution. Clarification is required.", file=sys.stderr)
+                sys.exit(1)
             else:
                 choice_type = args.type
                 if not choice_type and os.path.exists(pending_path):
@@ -1823,7 +1853,7 @@ def do_choice(args) -> None:
                         except Exception:
                             pass
                     selected_option = options[0]["id"] if options else "approve"
-                print(f"Autonomous delivery is active. Automatically resolving choice {args.id} to: {selected_option}")
+                print(f"Autonomous delivery is active. Confidence score is {score}% (>=95%). Automatically resolving choice {args.id} to: {selected_option}")
                 
                 resp_payload = {
                     "id": args.id or "unknown",

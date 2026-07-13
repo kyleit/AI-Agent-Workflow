@@ -1,0 +1,11 @@
+{
+  "last_good_snapshot_at": "2026-07-13T13:31:47.361175+07:00",
+  "checksums": {},
+  "recovery_source": "session.json",
+  "_metadata": {
+    "generation": 1,
+    "revision": 2,
+    "writer_id": "63521-f9df23ef",
+    "updated_at": "2026-07-13T13:31:47.361197+07:00"
+  }
+}

@@ -1,33 +1,71 @@
 ---
-name: planner
-role: Convert Brainstorming requirements into Plans
-responsibilities: Create formal Implementation Plans
-artifact_ownership: docs/plans/
+id: "planner"
+name: "planner"
+display_name: "Planner"
+version: "1.0.0"
+agent_category: "planning"
+role: "Convert Brainstorming requirements into Plans"
+description: "AIWF Agent representing role planner."
+capabilities:
+  - "planning"
+  - "brainstorming"
+specializations:
+  - "Planner"
+phase_ownership:
+  - "planning"
+spawn_conditions:
+  phases:
+    - "planning"
+  task_tags:
+    - "planning"
+    - "brainstorming"
+  file_patterns: []
+  capabilities_required:
+    - "planning"
+    - "brainstorming"
+  confidence_minimum: 0.95
+input_contract: "Brainstorming requirements"
+output_contract: "Implementation plan docs/plans/FEAT-XXX_*.md"
+permissions:
+  mode: "scoped-write"
+write_mode: "single-writer"
+ownership_scope:
+  include:
+    - "docs/brainstorming/**"
+    - "docs/plans/**"
 allowed_reads:
-- docs/brainstorming/
-- docs/issues/
-- docs/quick/
-- Project Memory
-- RAG Indexes
+  - "Project Memory"
+  - "RAG Indexes"
 allowed_writes:
-- docs/plans/
+  - "docs/brainstorming/"
+  - "docs/plans/"
 forbidden_actions:
-- Modifying source code
-- finalizing releases
-input_contract: Brainstorming requirements
-output_contract: Implementation plan docs/plans/FEAT-XXX_*.md
-handoff_target: architect
-done_criteria: Plan covers scope and matches template
+  - "Bypassing test suite"
+  - "Silently scaling privileges"
+required_skills: []
+required_tools: []
+tool_allowlist:
+  - "*"
+model_preferences:
+  - "gemini-2.5-flash"
+priority: 1
+max_concurrency: 1
+resource_limits: {}
+confidence_threshold:
+  brainstorm: 95
+  planning: 95
+  blueprint: 95
+handoff_targets:
+  - "architect"
+done_criteria: "Plan covers scope and matches template"
+failure_behavior: "report"
+retry_policy: {}
+observability: "full"
+runtime_visibility: true
 can_run_in_parallel: false
-agent_category: planning
-phase: planning
-required_skills:
-- brainstorming-to-plan
-required_memory: true
-required_rag_context: true
-runtime_requirements:
-- python3
+isolation_required: false
 ---
+
 
 # Agent: Planner
 

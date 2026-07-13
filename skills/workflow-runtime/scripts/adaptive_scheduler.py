@@ -4,7 +4,8 @@ import json
 import time
 import psutil
 from datetime import datetime
-from typing import Any, Optional
+from typing import Any, Optional, Tuple, Dict
+from capacity_controller import CapacityController
 
 class SchedulerMetrics:
     def __init__(self):
@@ -84,19 +85,16 @@ class AdaptiveTeamPlanner:
         }
 
     def determine_execution_mode(self, task_name: str, locks: list[str]) -> str:
-        # Rules for Mode A, B, C selection
         lower_name = task_name.lower()
         
-        # Mode A: release, changelog, version bump, git, small sequential tasks
+        # Mode A: Git/release/bump tasks
         is_mode_a = any(k in lower_name for k in ["release", "changelog", "bump", "git", "commit", "tag", "push"])
-        # Mode A if locks contain core policy/config files
         is_mode_a = is_mode_a or any("AI_RULES" in l or "AGENTS" in l for l in locks)
         
         if is_mode_a:
             return "A"
             
-        # Mode C: multi-writer, allowed only if write scopes are isolated and parallel
-        # Let's check if locks contain isolated folders
+        # Mode C: Isolated write scopes (e.g. backend implementation)
         has_isolated_locks = len(locks) > 0 and all(
             any(isolated in l for isolated in ["backend/", "frontend/", "tests/", "designs/", "verification/"])
             for l in locks
@@ -104,10 +102,10 @@ class AdaptiveTeamPlanner:
         if has_isolated_locks and any(p in lower_name for p in ["implementation", "dashboard", "updates", "test"]):
             return "C"
             
-        # Fallback to Mode B (Multi-Agent Research + Single Writer) for analysis and documents
+        # Mode B: Fallback research/planning
         return "B"
 
-    def plan_team_and_graph(self, work_item_id: str, raw_tasks: list[dict]) -> tuple[dict, dict]:
+    def plan_team_and_graph(self, work_item_id: str, raw_tasks: list[dict]) -> tuple[dict, dict, float]:
         tstart = time.time()
         
         # 1. Dynamically spawn required agents based on task roles needed
@@ -142,9 +140,9 @@ class AdaptiveTeamPlanner:
             # Estimate token allocation per task
             task_tokens = 2000
             if mode == "B":
-                task_tokens = 5000  # More agents researching
+                task_tokens = 5000
             elif mode == "C":
-                task_tokens = 8000  # Worktree integrations
+                task_tokens = 8000
                 
             tasks_graph[tid] = {
                 "id": tid,
@@ -184,7 +182,6 @@ class RuntimeScheduler:
         self.active_locks = {}
         self.worktrees = {}
         
-        # Centralized lifecycle and budget configurations
         p = policy or {}
         self.max_runtime_managers_per_workspace = p.get("max_runtime_managers_per_workspace", 1)
         self.max_orchestrators_per_workspace = p.get("max_orchestrators_per_workspace", 1)
@@ -200,9 +197,17 @@ class RuntimeScheduler:
         
         # Spawn settings
         self.spawn_timestamps = []
-        self.spawn_rate_limit = p.get("spawn_rate_limit", 10) # max per minute
+        self.spawn_rate_limit = p.get("spawn_rate_limit", 10)
         self.max_spawn_retries = p.get("max_spawn_retries", 3)
         self.active_processes = {}
+        
+        # Centralized Capacity Controller integration
+        self.capacity_controller = CapacityController(
+            max_cpu_percent=self.max_cpu_percent,
+            max_ram_percent=85.0,
+            max_concurrency=self.max_concurrent_tasks
+        )
+        self.recruitment_decisions = []
 
     def check_spawn_rate_limit(self) -> bool:
         now = time.time()
@@ -213,42 +218,50 @@ class RuntimeScheduler:
         return True
 
     def scale_agents(self) -> int:
-        # 1. Check system hardware state
-        cpu = psutil.cpu_percent()
-        ram = psutil.virtual_memory().percent
-        
-        # Memory pressure check in megabytes
-        try:
-            process_mem_mb = psutil.Process(os.getpid()).memory_info().rss / (1024 * 1024)
-        except Exception:
-            process_mem_mb = 0
-            
-        # Watermark backpressure
-        if cpu > self.max_cpu_percent or ram > 85.0 or (self.max_memory_mb and process_mem_mb > self.max_memory_mb):
-            # Resource limits exceeded: emergency drain/scale down
-            return 1
-            
-        # 2. Adaptive Concurrency Scaling
-        scaled_limit = self.max_python_worker_processes
-        if cpu > 60.0 or ram > 60.0:
-            scaled_limit = min(scaled_limit, 2)
-        elif cpu > 40.0 or ram > 40.0:
-            scaled_limit = min(scaled_limit, 3)
-            
-        return min(scaled_limit, self.max_concurrent_tasks)
+        # Utilize central Capacity Controller evaluation
+        concurrency = self.capacity_controller.evaluate_concurrency_limit()
+        return min(concurrency, self.max_python_worker_processes)
+
+    def recruit_dynamic(self, role: str, workload_size: int) -> Tuple[bool, str]:
+        # Recruitment validation under hardware constraints
+        allowed, msg = self.capacity_controller.can_recruit(role, workload_size)
+        if not allowed:
+            self.recruitment_decisions.append({
+                "role": role,
+                "status": "rejected",
+                "reason": msg,
+                "timestamp": datetime.now().astimezone().isoformat()
+            })
+            return False, msg
+
+        # Spawn Dynamic Specialist Agent
+        agent_id = f"AGENT-DYNAMIC-{role.upper()}-{len(self.agents) + 1:03d}"
+        self.agents[agent_id] = {
+            "id": agent_id,
+            "name": f"Dynamic {role.capitalize()} Specialist",
+            "role": role,
+            "status": "IDLE",
+            "heartbeat": time.time(),
+            "retry_count": 0,
+            "capabilities": [f"{role} execution"],
+            "last_active": time.time()
+        }
+        self.capacity_controller.recruit_agent(agent_id, role)
+        self.recruitment_decisions.append({
+            "agent_id": agent_id,
+            "role": role,
+            "status": "recruited",
+            "timestamp": datetime.now().astimezone().isoformat()
+        })
+        return True, agent_id
 
     def reclaim_idle_agents(self, idle_timeout: Optional[float] = None):
-        # Automatically reclaim/destroy idle agents that haven't been active
-        now = time.time()
-        timeout = idle_timeout if idle_timeout is not None else self.worker_idle_ttl_seconds
-        reclaimed = []
-        for aid, a in list(self.agents.items()):
-            if a["status"] == "IDLE" and (now - a.get("last_active", now)) > timeout:
-                # PM/Orchestrator agents must not be destroyed
-                if "PM" not in aid and "ARCH" not in aid and "ORCH" not in aid:
-                    del self.agents[aid]
-                    reclaimed.append(aid)
-        return reclaimed
+        reclaimed_ids = self.capacity_controller.reclaim_idle_agents(self.agents, idle_timeout)
+        for aid in reclaimed_ids:
+            if aid in self.agents:
+                del self.agents[aid]
+                self.capacity_controller.release_agent(aid)
+        return reclaimed_ids
 
     def check_lease_overlap(self, path1: str, path2: str) -> bool:
         p1 = os.path.normpath(path1).replace("\\", "/").rstrip("/")
@@ -310,7 +323,6 @@ class RuntimeScheduler:
         agent["last_active"] = time.time()
         t["status"] = "running"
         
-        # 1. Lease check
         tstart = time.time()
         if simulate_lock_conflict or not self.acquire_leases(task_id, agent_id, t["locks"]):
             self.metrics.conflicts += 1
@@ -320,25 +332,22 @@ class RuntimeScheduler:
             agent["last_active"] = time.time()
             return False
             
-        # 2. Simulate Execution according to Mode A, B, or C
+        # Simulate Execution
         execution_time = 0.05
         if mode == "C":
-            # Allocate mock process
             self.active_processes[task_id] = {
                 "pid": 1000 + len(self.active_processes),
                 "ram_mb": 80,
                 "started_at": time.time()
             }
             self.worktrees[task_id] = f"git-worktree-{task_id}"
-            execution_time = 0.1  # Integration overhead
+            execution_time = 0.1
         elif mode == "B":
-            # Multi research
             execution_time = 0.08
             
         if simulate_retry:
             self.metrics.retries += 1
             t["attempt"] = t.get("attempt", 0) + 1
-            # Release lease, retry later
             self.release_leases(agent_id)
             if mode == "C" and task_id in self.active_processes:
                 del self.active_processes[task_id]
@@ -347,10 +356,8 @@ class RuntimeScheduler:
             agent["last_active"] = time.time()
             return False
             
-        # Simulate work
         time.sleep(execution_time)
         
-        # 3. Complete and release locks/processes
         self.release_leases(agent_id)
         if mode == "C" and task_id in self.active_processes:
             del self.active_processes[task_id]
@@ -358,7 +365,6 @@ class RuntimeScheduler:
         agent["status"] = "IDLE"
         agent["last_active"] = time.time()
         
-        # Record metrics
         duration = time.time() - tstart
         self.metrics.record_agent_busy(agent_id, duration)
         self.metrics.completed_tasks += 1
@@ -366,17 +372,17 @@ class RuntimeScheduler:
         
         return True
 
-    def execute_graph(self, lock_conflict_idx: int = -1, retry_idx: int = -1):
+    def execute_graph(self, lock_conflict_idx: int = -1, retry_idx: int = -1, force_tasks: list[str] = None):
         self.metrics.start_execution()
-        
-        # Sequential/parallel execution loop depending on scaled limits
         pending = list(self.graph["tasks"].keys())
+        
+        # Build priority queue: Force Tasks bypass queue order (scheduled first)
+        force_queue = force_tasks or []
         
         while pending:
             max_workers = self.scale_agents()
-            running = []
             
-            # Find ready tasks whose dependencies are fully completed
+            # 1. Identify ready tasks whose dependencies are completed
             ready = []
             for tid in pending:
                 t = self.graph["tasks"][tid]
@@ -384,19 +390,33 @@ class RuntimeScheduler:
                 if deps_ok and t["status"] not in ["running", "completed"]:
                     ready.append(tid)
                     
-            if not ready and not running:
-                # Circular dependency or deadlock
+            if not ready:
                 break
                 
-            # Dispatch up to max_workers
+            # 2. Sort ready tasks so that Force Tasks are executed first
+            ready_sorted = []
+            for ft in force_queue:
+                if ft in ready:
+                    ready_sorted.append(ft)
+            for r in ready:
+                if r not in ready_sorted:
+                    ready_sorted.append(r)
+            
             dispatched = 0
-            for tid in ready:
+            for tid in ready_sorted:
                 if dispatched >= max_workers:
                     break
                 
-
+                # Check dynamic recruitment trigger if workload is medium/large
+                role = self.graph["tasks"][tid].get("role", "development")
+                idle_agents = [aid for aid, a in self.agents.items() if a["status"] == "IDLE" and a["role"] == role]
                 
-                # Check conflict and retry scenarios
+                # Dynamic recruitment policy (recruit if no idle agent of matching role exists)
+                if not idle_agents:
+                    success_rec, rec_res = self.recruit_dynamic(role, len(pending))
+                    if success_rec:
+                        self.graph["tasks"][tid]["assigned_agent"] = rec_res
+                
                 idx = int(tid.split("-")[-1])
                 sim_conflict = (idx == lock_conflict_idx and self.graph["tasks"][tid].get("attempt", 0) == 0)
                 sim_retry = (idx == retry_idx and self.graph["tasks"][tid].get("attempt", 0) == 0)
@@ -406,16 +426,12 @@ class RuntimeScheduler:
                     pending.remove(tid)
                     dispatched += 1
                 else:
-                    # If blocked or failed, we skip for next iteration
                     if self.graph["tasks"][tid]["status"] == "failed":
-                        # Auto-retry logic
                         self.graph["tasks"][tid]["status"] = "queued"
                     elif self.graph["tasks"][tid]["status"] == "blocked":
-                        # Auto-resolution of lock conflict
                         self.graph["tasks"][tid]["status"] = "ready"
                     dispatched += 1
                     
-            # Auto reclaim idle agents
             self.reclaim_idle_agents()
             time.sleep(0.01)
             

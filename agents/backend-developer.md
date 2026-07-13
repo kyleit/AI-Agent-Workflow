@@ -1,30 +1,74 @@
 ---
-name: backend-developer
-role: Write backend service code and integration tests
-responsibilities: Assist owner in implementation tasks
-artifact_ownership: Structured recommendations and reports
+id: "backend-developer"
+name: "backend-developer"
+display_name: "Backend Developer"
+version: "1.0.0"
+agent_category: "implementation"
+role: "Write backend service code and integration tests"
+description: "AIWF Agent representing role backend-developer."
+capabilities:
+  - "backend"
+specializations:
+  - "Backend"
+phase_ownership:
+  - "implementation"
+spawn_conditions:
+  phases:
+    - "implementation"
+  task_tags:
+    - "backend"
+  file_patterns:
+    - "**/*.go"
+    - "**/*.py"
+    - "**/api/**"
+    - "**/service/**"
+  capabilities_required:
+    - "backend"
+  confidence_minimum: 0.95
+input_contract: "Task constraints and request"
+output_contract: "Analysis report and suggestions"
+permissions:
+  mode: "scoped-write"
+write_mode: "single-writer"
+ownership_scope:
+  include:
+    - "sources/backend/**"
+    - "skills/**"
+    - ".agents/skills/**"
 allowed_reads:
-- Project Memory
-- RAG Indexes
-- docs/
+  - "Project Memory"
+  - "RAG Indexes"
 allowed_writes:
-- scratch/
+  - "sources/backend/"
+  - "skills/"
+  - ".agents/skills/"
 forbidden_actions:
-- Directly modifying project source code
-- producing canonical artifacts
-input_contract: Task constraints and request
-output_contract: Analysis report and suggestions
-handoff_target: done
-done_criteria: Report and suggestions generated
-can_run_in_parallel: true
-agent_category: implementation
-phase: implementation
+  - "Bypassing test suite"
+  - "Silently scaling privileges"
 required_skills: []
-required_memory: true
-required_rag_context: true
-runtime_requirements:
-- python3
+required_tools: []
+tool_allowlist:
+  - "*"
+model_preferences:
+  - "gemini-2.5-flash"
+priority: 1
+max_concurrency: 1
+resource_limits: {}
+confidence_threshold:
+  brainstorm: 95
+  planning: 95
+  blueprint: 95
+handoff_targets:
+  - "qa-reviewer"
+done_criteria: "Report and suggestions generated"
+failure_behavior: "report"
+retry_policy: {}
+observability: "full"
+runtime_visibility: true
+can_run_in_parallel: true
+isolation_required: false
 ---
+
 
 # Agent: Backend Developer
 

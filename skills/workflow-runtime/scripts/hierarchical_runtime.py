@@ -191,9 +191,13 @@ class HierarchicalRuntime:
         self.agents = {
             "AGENT-PM-001": {"role": "orchestrator", "status": "active", "capabilities": CapabilityEngine.CAPABILITIES["orchestrator"]},
             "AGENT-QA-001": {"role": "supervisor", "status": "active", "capabilities": CapabilityEngine.CAPABILITIES["supervisor"]},
-            "AGENT-BACKEND-001": {"role": "subagent", "status": "idle", "capabilities": CapabilityEngine.CAPABILITIES["subagent"]},
-            "AGENT-FRONTEND-001": {"role": "subagent", "status": "idle", "capabilities": CapabilityEngine.CAPABILITIES["subagent"]},
-            "AGENT-TESTER-001": {"role": "subagent", "status": "idle", "capabilities": CapabilityEngine.CAPABILITIES["subagent"]}
+            "AGENT-PLANNER-001": {"role": "subagent", "status": "idle", "capabilities": CapabilityEngine.CAPABILITIES["subagent"], "type": "planner"},
+            "AGENT-ARCHITECT-001": {"role": "subagent", "status": "idle", "capabilities": CapabilityEngine.CAPABILITIES["subagent"], "type": "architect"},
+            "AGENT-BACKEND-001": {"role": "subagent", "status": "idle", "capabilities": CapabilityEngine.CAPABILITIES["subagent"], "type": "backend"},
+            "AGENT-FRONTEND-001": {"role": "subagent", "status": "idle", "capabilities": CapabilityEngine.CAPABILITIES["subagent"], "type": "frontend"},
+            "AGENT-TESTER-001": {"role": "subagent", "status": "idle", "capabilities": CapabilityEngine.CAPABILITIES["subagent"], "type": "qa"},
+            "AGENT-REVIEWER-001": {"role": "subagent", "status": "idle", "capabilities": CapabilityEngine.CAPABILITIES["subagent"], "type": "reviewer"},
+            "AGENT-RELEASE-001": {"role": "subagent", "status": "idle", "capabilities": CapabilityEngine.CAPABILITIES["subagent"], "type": "release"}
         }
         self.task_graph["tasks"] = {
             "TASK-001": {"name": "Requirement Discovery", "role": "discovery", "status": "ready", "dependencies": [], "write_scope": "docs/brainstorming/"},
@@ -293,7 +297,7 @@ class HierarchicalRuntime:
 
         try:
             # Simulate execution logic asynchronously
-            time.sleep(0.2)
+            time.sleep(10.0)
             
             # Heartbeat update
             self.heartbeats[agent_id] = datetime.now().astimezone().isoformat()
@@ -322,16 +326,47 @@ class HierarchicalRuntime:
         for tid, t in self.task_graph["tasks"].items():
             if t["status"] == "ready" or (t["status"] == "pending" and all(self.task_graph["tasks"][d]["status"] == "completed" for d in t["dependencies"])):
                 t["status"] = "running"
-                # Assign to idle subagent
+                
+                # Determine target agent type based on task role, name and write_scope
+                t_role = t.get("role", "")
+                t_name = t.get("name", "").lower()
+                write_scope = t.get("write_scope", "").lower()
+                
+                target_type = "backend"
+                if t_role in ["discovery", "planning"] or "plan" in t_name or "discovery" in t_name:
+                    target_type = "planner"
+                elif t_role == "blueprint" or "blueprint" in t_name:
+                    target_type = "architect"
+                elif t_role in ["testing", "verification"] or "test" in t_name or "verify" in t_name:
+                    target_type = "qa"
+                elif "review" in t_name or "review" in t_role:
+                    target_type = "reviewer"
+                elif "release" in t_name or "release" in t_role:
+                    target_type = "release"
+                elif "frontend" in t_name or "ui" in t_name or "html" in t_name or "css" in t_name or "webview" in t_name or "frontend" in write_scope:
+                    target_type = "frontend"
+                
+                # Assign to idle subagent of that specific type
                 assigned = None
                 for aid, a in self.agents.items():
-                    if a["role"] == "subagent" and a["status"] == "idle":
+                    if a.get("status") == "idle" and a.get("type") == target_type:
                         assigned = aid
                         break
+                        
+                # Fallback if no specific idle agent found
+                if not assigned:
+                    for aid, a in self.agents.items():
+                        if a.get("type") == target_type:
+                            assigned = aid
+                            break
                 if not assigned:
                     assigned = "AGENT-BACKEND-001"
+                    
                 t["assigned_agent"] = assigned
                 futures.append(self.executor.submit(self.execute_subagent, assigned, tid))
+
+        if futures:
+            self.save_state_atomic("tasks.json", self.task_graph)
 
         for f in futures:
             f.result()

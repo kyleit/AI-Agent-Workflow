@@ -1,10 +1,21 @@
 # agent_routing.py
 import os
 import json
-import yaml
 from typing import Dict, List, Tuple
 
 def load_agents(agents_dir: str) -> Dict[str, dict]:
+    # 1. Try to load from registry.json first (compiled by validate_registry)
+    registry_path = os.path.join(agents_dir, "registry.json")
+    if os.path.exists(registry_path):
+        try:
+            with open(registry_path, "r", encoding="utf-8") as f:
+                data = json.load(f)
+                if isinstance(data, dict) and "agents" in data:
+                    return data["agents"]
+        except Exception:
+            pass
+
+    # 2. Fallback to manual parsing
     agents = {}
     if not os.path.exists(agents_dir):
         return agents
@@ -17,8 +28,14 @@ def load_agents(agents_dir: str) -> Dict[str, dict]:
                 if content.startswith("---"):
                     parts = content.split("---", 2)
                     if len(parts) >= 3:
-                        meta = yaml.safe_load(parts[1])
-                        if isinstance(meta, dict) and "name" in meta:
+                        # Simple flat parser fallback
+                        lines = parts[1].split("\n")
+                        meta = {}
+                        for line in lines:
+                            if ":" in line:
+                                k, v = line.split(":", 1)
+                                meta[k.strip()] = v.strip().strip('"').strip("'")
+                        if "name" in meta:
                             agents[meta["name"]] = meta
             except Exception:
                 pass

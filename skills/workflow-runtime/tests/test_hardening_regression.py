@@ -108,5 +108,63 @@ class HardeningRegressionTests(RuntimeTestBase):
             except psutil.NoSuchProcess:
                 pass # expected
 
+    # Regression 4: Confidence Gate Engine calculates score and lists gaps properly
+    def test_confidence_gate_calculation(self):
+        from confidence_gate import ConfidenceGate
+        
+        # Test missing file path returns 0.0 confidence and gaps
+        score, gaps = ConfidenceGate.calculate_confidence("blueprint", workspace_root=self.workspace)
+        self.assertEqual(score, 0.0)
+        self.assertTrue(len(gaps) > 0)
+        self.assertIn("Missing", gaps[0])
+
+    # Regression 5: Strict Agent Ownership mapping on scheduler task distribution
+    def test_agent_ownership_mapping(self):
+        runtime = HierarchicalRuntime(work_item_id="WORK-TEST-002", state_dir=self.workspace)
+        
+        # Set agents and task graph mock
+        runtime.agents = {
+            "AGENT-PM-001": {"role": "orchestrator", "status": "active"},
+            "AGENT-PLANNER-001": {"role": "subagent", "status": "idle", "type": "planner"},
+            "AGENT-ARCHITECT-001": {"role": "subagent", "status": "idle", "type": "architect"},
+            "AGENT-BACKEND-001": {"role": "subagent", "status": "idle", "type": "backend"},
+            "AGENT-FRONTEND-001": {"role": "subagent", "status": "idle", "type": "frontend"},
+            "AGENT-TESTER-001": {"role": "subagent", "status": "idle", "type": "qa"}
+        }
+        
+        runtime.task_graph["tasks"] = {
+            "TASK-001": {"name": "Requirement Discovery", "role": "discovery", "status": "ready", "dependencies": []},
+            "TASK-002": {"name": "Implementation Planning", "role": "planning", "status": "pending", "dependencies": ["TASK-001"]},
+            "TASK-003": {"name": "Technical Blueprint Design", "role": "blueprint", "status": "pending", "dependencies": ["TASK-002"]},
+            "TASK-004": {"name": "Backend Implementation", "role": "subagent", "status": "pending", "dependencies": ["TASK-003"], "write_scope": "sources/backend/"},
+            "TASK-005": {"name": "Frontend Svelte UI Design", "role": "subagent", "status": "pending", "dependencies": ["TASK-003"], "write_scope": "sources/frontend/"},
+            "TASK-006": {"name": "QA Testing", "role": "verification", "status": "pending", "dependencies": ["TASK-004", "TASK-005"]}
+        }
+        
+        # Run cycle for TASK-001 (should assign to AGENT-PLANNER-001)
+        runtime.run_workflow_cycle()
+        t1 = runtime.task_graph["tasks"]["TASK-001"]
+        self.assertEqual(t1["assigned_agent"], "AGENT-PLANNER-001")
+        
+        # Complete TASK-001 so TASK-002 becomes ready
+        t1["status"] = "completed"
+        runtime.run_workflow_cycle()
+        t2 = runtime.task_graph["tasks"]["TASK-002"]
+        self.assertEqual(t2["assigned_agent"], "AGENT-PLANNER-001")
+        
+        # Complete TASK-002 so TASK-003 becomes ready
+        t2["status"] = "completed"
+        runtime.run_workflow_cycle()
+        t3 = runtime.task_graph["tasks"]["TASK-003"]
+        self.assertEqual(t3["assigned_agent"], "AGENT-ARCHITECT-001")
+        
+        # Complete TASK-003 so TASK-004 and TASK-005 become ready
+        t3["status"] = "completed"
+        runtime.run_workflow_cycle()
+        t4 = runtime.task_graph["tasks"]["TASK-004"]
+        t5 = runtime.task_graph["tasks"]["TASK-005"]
+        self.assertEqual(t4["assigned_agent"], "AGENT-BACKEND-001")
+        self.assertEqual(t5["assigned_agent"], "AGENT-FRONTEND-001")
+
 if __name__ == "__main__":
     unittest.main()

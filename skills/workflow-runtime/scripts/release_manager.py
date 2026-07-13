@@ -77,16 +77,55 @@ def run_release_execute(approve: bool = False) -> dict[str, object]:
                 state_dir = os.path.join(".agents", "state")
                 dest_walkthrough = os.path.join(state_dir, "walkthrough.md")
                 os.makedirs(state_dir, exist_ok=True)
-                import shutil
-                shutil.copy2(source_walkthrough, dest_walkthrough)
-                print(f"[INFO] Successfully packaged walkthrough.md to {dest_walkthrough}")
                 
-                if work_item_id:
-                    verify_dir = os.path.join("docs", "verification")
+                verify_dir = os.path.join("docs", "verification")
+                dest_verify = os.path.join(verify_dir, f"{work_item_id}_walkthrough.md") if work_item_id else None
+                if dest_verify:
                     os.makedirs(verify_dir, exist_ok=True)
-                    dest_verify = os.path.join(verify_dir, f"{work_item_id}_walkthrough.md")
-                    shutil.copy2(source_walkthrough, dest_verify)
-                    print(f"[INFO] Successfully archived walkthrough.md to {dest_verify}")
+                
+                import shutil
+                
+                # Check if target files exist and ask user
+                target_exists = os.path.exists(dest_walkthrough) or (dest_verify and os.path.exists(dest_verify))
+                action = "Overwrite"
+                if target_exists:
+                    try:
+                        try:
+                            from utils import prompt_select
+                        except (ImportError, ValueError):
+                            from .utils import prompt_select
+                        question = f"File walkthrough.md already exists in the repository for {work_item_id or 'this project'}. How would you like to handle it?"
+                        options = ["Overwrite (Create clean new walkthrough)", "Keep & Append (Merge history)", "Skip Packaging"]
+                        action = prompt_select(question, options, default="Keep & Append (Merge history)")
+                    except Exception as e:
+                        print(f"[WARN] Failed to prompt for walkthrough handling choice: {e}. Defaulting to 'Keep & Append'.")
+                        action = "Keep & Append"
+                
+                if action.startswith("Overwrite"):
+                    shutil.copy2(source_walkthrough, dest_walkthrough)
+                    print(f"[INFO] Successfully overwrote walkthrough.md to {dest_walkthrough}")
+                    if dest_verify:
+                        shutil.copy2(source_walkthrough, dest_verify)
+                        print(f"[INFO] Successfully archived walkthrough.md to {dest_verify}")
+                elif action.startswith("Keep"):
+                    # Helper to append walkthrough
+                    for path_dst in [dest_walkthrough, dest_verify]:
+                        if not path_dst:
+                            continue
+                        if os.path.exists(path_dst):
+                            with open(path_dst, "r", encoding="utf-8") as f:
+                                old_content = f.read()
+                            with open(source_walkthrough, "r", encoding="utf-8") as f:
+                                new_content = f.read()
+                            # Combine old and new content
+                            with open(path_dst, "w", encoding="utf-8") as f:
+                                f.write(old_content + "\n\n---\n\n" + new_content)
+                            print(f"[INFO] Successfully appended walkthrough to {path_dst}")
+                        else:
+                            shutil.copy2(source_walkthrough, path_dst)
+                            print(f"[INFO] Successfully created walkthrough at {path_dst}")
+                else:
+                    print(f"[INFO] Skipped copy/update of walkthrough files as per user choice.")
             else:
                 print(f"[WARN] Walkthrough file not found at IDE brain: {source_walkthrough}")
         else:

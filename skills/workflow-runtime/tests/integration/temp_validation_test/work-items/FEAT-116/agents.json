@@ -1,0 +1,17 @@
+{
+  "execution_mode": "parallel",
+  "recommended_mode": "parallel",
+  "approved": true,
+  "parallel_groups": [],
+  "running_agents": [],
+  "queued_agents": [],
+  "blocked_agents": [],
+  "waiting_dependencies": [],
+  "analysis_agents": [],
+  "_metadata": {
+    "generation": 1,
+    "revision": 1,
+    "writer_id": "63521-0fc92860",
+    "updated_at": "2026-07-13T13:31:47.361012+07:00"
+  }
+}

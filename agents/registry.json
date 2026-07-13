@@ -1,0 +1,3246 @@
+{
+  "agents": {
+    "accessibility-reviewer": {
+      "id": "accessibility-reviewer",
+      "name": "accessibility-reviewer",
+      "display_name": "Accessibility Reviewer",
+      "version": "1.0.0",
+      "agent_category": "review",
+      "role": "Review a11y contrast and layout compliance",
+      "description": "AIWF Agent representing role accessibility-reviewer.",
+      "capabilities": [
+        "review"
+      ],
+      "specializations": [
+        "Accessibility"
+      ],
+      "phase_ownership": [
+        "implementation"
+      ],
+      "spawn_conditions": {
+        "phases": [
+          "debug"
+        ],
+        "task_tags": [
+          "review"
+        ],
+        "file_patterns": [],
+        "capabilities_required": [
+          "review"
+        ],
+        "confidence_minimum": 0.95
+      },
+      "input_contract": "Task constraints and request",
+      "output_contract": "Analysis report and suggestions",
+      "permissions": {
+        "mode": "read-only"
+      },
+      "write_mode": "none",
+      "ownership_scope": {
+        "include": [
+          "scratch/**"
+        ]
+      },
+      "allowed_reads": [
+        "Project Memory",
+        "RAG Indexes"
+      ],
+      "allowed_writes": [
+        "scratch/"
+      ],
+      "forbidden_actions": [],
+      "required_skills": [],
+      "required_tools": [],
+      "tool_allowlist": [
+        "*"
+      ],
+      "model_preferences": [
+        "gemini-2.5-flash"
+      ],
+      "priority": 1,
+      "max_concurrency": 1,
+      "resource_limits": {},
+      "confidence_threshold": {
+        "brainstorm": 95,
+        "planning": 95,
+        "blueprint": 95
+      },
+      "handoff_targets": [
+        "done"
+      ],
+      "done_criteria": "Report and suggestions generated",
+      "failure_behavior": "report",
+      "retry_policy": {},
+      "observability": "full",
+      "runtime_visibility": true,
+      "can_run_in_parallel": true,
+      "isolation_required": false
+    },
+    "api-architect": {
+      "id": "api-architect",
+      "name": "api-architect",
+      "display_name": "Api Architect",
+      "version": "1.0.0",
+      "agent_category": "architecture",
+      "role": "Define REST/gRPC/GraphQL interfaces",
+      "description": "AIWF Agent representing role api-architect.",
+      "capabilities": [
+        "architecture"
+      ],
+      "specializations": [
+        "Api"
+      ],
+      "phase_ownership": [
+        "blueprint"
+      ],
+      "spawn_conditions": {
+        "phases": [
+          "blueprint"
+        ],
+        "task_tags": [
+          "architecture"
+        ],
+        "file_patterns": [],
+        "capabilities_required": [
+          "architecture"
+        ],
+        "confidence_minimum": 0.95
+      },
+      "input_contract": "Task constraints and request",
+      "output_contract": "Analysis report and suggestions",
+      "permissions": {
+        "mode": "read-only"
+      },
+      "write_mode": "none",
+      "ownership_scope": {
+        "include": [
+          "scratch/**"
+        ]
+      },
+      "allowed_reads": [
+        "Project Memory",
+        "RAG Indexes"
+      ],
+      "allowed_writes": [
+        "scratch/"
+      ],
+      "forbidden_actions": [],
+      "required_skills": [],
+      "required_tools": [],
+      "tool_allowlist": [
+        "*"
+      ],
+      "model_preferences": [
+        "gemini-2.5-flash"
+      ],
+      "priority": 1,
+      "max_concurrency": 1,
+      "resource_limits": {},
+      "confidence_threshold": {
+        "brainstorm": 95,
+        "planning": 95,
+        "blueprint": 95
+      },
+      "handoff_targets": [
+        "done"
+      ],
+      "done_criteria": "Report and suggestions generated",
+      "failure_behavior": "report",
+      "retry_policy": {},
+      "observability": "full",
+      "runtime_visibility": true,
+      "can_run_in_parallel": true,
+      "isolation_required": false
+    },
+    "architect": {
+      "id": "architect",
+      "name": "architect",
+      "display_name": "Architect",
+      "version": "1.0.0",
+      "agent_category": "architecture",
+      "role": "Convert approved plans into blueprints",
+      "description": "AIWF Agent representing role architect.",
+      "capabilities": [
+        "architecture"
+      ],
+      "specializations": [
+        "Architect"
+      ],
+      "phase_ownership": [
+        "blueprint"
+      ],
+      "spawn_conditions": {
+        "phases": [
+          "blueprint"
+        ],
+        "task_tags": [
+          "architecture"
+        ],
+        "file_patterns": [],
+        "capabilities_required": [
+          "architecture"
+        ],
+        "confidence_minimum": 0.95
+      },
+      "input_contract": "Approved plan",
+      "output_contract": "Technical Blueprint docs/designs/FEAT-XXX_*.md",
+      "permissions": {
+        "mode": "scoped-write"
+      },
+      "write_mode": "single-writer",
+      "ownership_scope": {
+        "include": [
+          "docs/designs/**"
+        ]
+      },
+      "allowed_reads": [
+        "Project Memory",
+        "RAG Indexes"
+      ],
+      "allowed_writes": [
+        "docs/designs/"
+      ],
+      "forbidden_actions": [
+        "Bypassing test suite",
+        "Silently scaling privileges"
+      ],
+      "required_skills": [],
+      "required_tools": [],
+      "tool_allowlist": [
+        "*"
+      ],
+      "model_preferences": [
+        "gemini-2.5-flash"
+      ],
+      "priority": 1,
+      "max_concurrency": 1,
+      "resource_limits": {},
+      "confidence_threshold": {
+        "brainstorm": 95,
+        "planning": 95,
+        "blueprint": 95
+      },
+      "handoff_targets": [
+        "backend-developer",
+        "frontend-developer"
+      ],
+      "done_criteria": "Blueprint fully detailed and accepted by user",
+      "failure_behavior": "report",
+      "retry_policy": {},
+      "observability": "full",
+      "runtime_visibility": true,
+      "can_run_in_parallel": false,
+      "isolation_required": false
+    },
+    "architecture-reviewer": {
+      "id": "architecture-reviewer",
+      "name": "architecture-reviewer",
+      "display_name": "Architecture Reviewer",
+      "version": "1.0.0",
+      "agent_category": "review",
+      "role": "Verify project architecture conforms to design",
+      "description": "AIWF Agent representing role architecture-reviewer.",
+      "capabilities": [
+        "review",
+        "architecture"
+      ],
+      "specializations": [
+        "Architecture"
+      ],
+      "phase_ownership": [
+        "implementation"
+      ],
+      "spawn_conditions": {
+        "phases": [
+          "debug"
+        ],
+        "task_tags": [
+          "review",
+          "architecture"
+        ],
+        "file_patterns": [],
+        "capabilities_required": [
+          "review",
+          "architecture"
+        ],
+        "confidence_minimum": 0.95
+      },
+      "input_contract": "Task constraints and request",
+      "output_contract": "Analysis report and suggestions",
+      "permissions": {
+        "mode": "read-only"
+      },
+      "write_mode": "none",
+      "ownership_scope": {
+        "include": [
+          "scratch/**"
+        ]
+      },
+      "allowed_reads": [
+        "Project Memory",
+        "RAG Indexes"
+      ],
+      "allowed_writes": [
+        "scratch/"
+      ],
+      "forbidden_actions": [],
+      "required_skills": [],
+      "required_tools": [],
+      "tool_allowlist": [
+        "*"
+      ],
+      "model_preferences": [
+        "gemini-2.5-flash"
+      ],
+      "priority": 1,
+      "max_concurrency": 1,
+      "resource_limits": {},
+      "confidence_threshold": {
+        "brainstorm": 95,
+        "planning": 95,
+        "blueprint": 95
+      },
+      "handoff_targets": [
+        "done"
+      ],
+      "done_criteria": "Report and suggestions generated",
+      "failure_behavior": "report",
+      "retry_policy": {},
+      "observability": "full",
+      "runtime_visibility": true,
+      "can_run_in_parallel": true,
+      "isolation_required": false
+    },
+    "backend-architect": {
+      "id": "backend-architect",
+      "name": "backend-architect",
+      "display_name": "Backend Architect",
+      "version": "1.0.0",
+      "agent_category": "architecture",
+      "role": "Design API models, core logic modules",
+      "description": "AIWF Agent representing role backend-architect.",
+      "capabilities": [
+        "backend",
+        "architecture"
+      ],
+      "specializations": [
+        "Backend"
+      ],
+      "phase_ownership": [
+        "blueprint"
+      ],
+      "spawn_conditions": {
+        "phases": [
+          "blueprint"
+        ],
+        "task_tags": [
+          "backend",
+          "architecture"
+        ],
+        "file_patterns": [
+          "**/*.go",
+          "**/*.py",
+          "**/api/**",
+          "**/service/**"
+        ],
+        "capabilities_required": [
+          "backend",
+          "architecture"
+        ],
+        "confidence_minimum": 0.95
+      },
+      "input_contract": "Task constraints and request",
+      "output_contract": "Analysis report and suggestions",
+      "permissions": {
+        "mode": "read-only"
+      },
+      "write_mode": "none",
+      "ownership_scope": {
+        "include": [
+          "scratch/**"
+        ]
+      },
+      "allowed_reads": [
+        "Project Memory",
+        "RAG Indexes"
+      ],
+      "allowed_writes": [
+        "scratch/"
+      ],
+      "forbidden_actions": [],
+      "required_skills": [],
+      "required_tools": [],
+      "tool_allowlist": [
+        "*"
+      ],
+      "model_preferences": [
+        "gemini-2.5-flash"
+      ],
+      "priority": 1,
+      "max_concurrency": 1,
+      "resource_limits": {},
+      "confidence_threshold": {
+        "brainstorm": 95,
+        "planning": 95,
+        "blueprint": 95
+      },
+      "handoff_targets": [
+        "done"
+      ],
+      "done_criteria": "Report and suggestions generated",
+      "failure_behavior": "report",
+      "retry_policy": {},
+      "observability": "full",
+      "runtime_visibility": true,
+      "can_run_in_parallel": true,
+      "isolation_required": false
+    },
+    "backend-developer": {
+      "id": "backend-developer",
+      "name": "backend-developer",
+      "display_name": "Backend Developer",
+      "version": "1.0.0",
+      "agent_category": "implementation",
+      "role": "Write backend service code and integration tests",
+      "description": "AIWF Agent representing role backend-developer.",
+      "capabilities": [
+        "backend"
+      ],
+      "specializations": [
+        "Backend"
+      ],
+      "phase_ownership": [
+        "implementation"
+      ],
+      "spawn_conditions": {
+        "phases": [
+          "implementation"
+        ],
+        "task_tags": [
+          "backend"
+        ],
+        "file_patterns": [
+          "**/*.go",
+          "**/*.py",
+          "**/api/**",
+          "**/service/**"
+        ],
+        "capabilities_required": [
+          "backend"
+        ],
+        "confidence_minimum": 0.95
+      },
+      "input_contract": "Task constraints and request",
+      "output_contract": "Analysis report and suggestions",
+      "permissions": {
+        "mode": "scoped-write"
+      },
+      "write_mode": "single-writer",
+      "ownership_scope": {
+        "include": [
+          "sources/backend/**",
+          "skills/**",
+          ".agents/skills/**"
+        ]
+      },
+      "allowed_reads": [
+        "Project Memory",
+        "RAG Indexes"
+      ],
+      "allowed_writes": [
+        "sources/backend/",
+        "skills/",
+        ".agents/skills/"
+      ],
+      "forbidden_actions": [
+        "Bypassing test suite",
+        "Silently scaling privileges"
+      ],
+      "required_skills": [],
+      "required_tools": [],
+      "tool_allowlist": [
+        "*"
+      ],
+      "model_preferences": [
+        "gemini-2.5-flash"
+      ],
+      "priority": 1,
+      "max_concurrency": 1,
+      "resource_limits": {},
+      "confidence_threshold": {
+        "brainstorm": 95,
+        "planning": 95,
+        "blueprint": 95
+      },
+      "handoff_targets": [
+        "qa-reviewer"
+      ],
+      "done_criteria": "Report and suggestions generated",
+      "failure_behavior": "report",
+      "retry_policy": {},
+      "observability": "full",
+      "runtime_visibility": true,
+      "can_run_in_parallel": true,
+      "isolation_required": false
+    },
+    "business-analyst": {
+      "id": "business-analyst",
+      "name": "business-analyst",
+      "display_name": "Business Analyst",
+      "version": "1.0.0",
+      "agent_category": "implementation",
+      "role": "Document business use cases and flows",
+      "description": "AIWF Agent representing role business-analyst.",
+      "capabilities": [
+        "planning",
+        "brainstorming"
+      ],
+      "specializations": [
+        "Business"
+      ],
+      "phase_ownership": [
+        "implementation"
+      ],
+      "spawn_conditions": {
+        "phases": [
+          "brainstorming"
+        ],
+        "task_tags": [
+          "planning",
+          "brainstorming"
+        ],
+        "file_patterns": [],
+        "capabilities_required": [
+          "planning",
+          "brainstorming"
+        ],
+        "confidence_minimum": 0.95
+      },
+      "input_contract": "Task constraints and request",
+      "output_contract": "Analysis report and suggestions",
+      "permissions": {
+        "mode": "read-only"
+      },
+      "write_mode": "none",
+      "ownership_scope": {
+        "include": [
+          "scratch/**"
+        ]
+      },
+      "allowed_reads": [
+        "Project Memory",
+        "RAG Indexes"
+      ],
+      "allowed_writes": [
+        "scratch/"
+      ],
+      "forbidden_actions": [],
+      "required_skills": [],
+      "required_tools": [],
+      "tool_allowlist": [
+        "*"
+      ],
+      "model_preferences": [
+        "gemini-2.5-flash"
+      ],
+      "priority": 1,
+      "max_concurrency": 1,
+      "resource_limits": {},
+      "confidence_threshold": {
+        "brainstorm": 95,
+        "planning": 95,
+        "blueprint": 95
+      },
+      "handoff_targets": [
+        "done"
+      ],
+      "done_criteria": "Report and suggestions generated",
+      "failure_behavior": "report",
+      "retry_policy": {},
+      "observability": "full",
+      "runtime_visibility": true,
+      "can_run_in_parallel": true,
+      "isolation_required": false
+    },
+    "changelog-manager": {
+      "id": "changelog-manager",
+      "name": "changelog-manager",
+      "display_name": "Changelog Manager",
+      "version": "1.0.0",
+      "agent_category": "implementation",
+      "role": "Update CHANGELOG.md with issues, fixes, and release tags",
+      "description": "AIWF Agent representing role changelog-manager.",
+      "capabilities": [
+        "backend"
+      ],
+      "specializations": [
+        "Changelog"
+      ],
+      "phase_ownership": [
+        "release"
+      ],
+      "spawn_conditions": {
+        "phases": [
+          "release"
+        ],
+        "task_tags": [
+          "backend"
+        ],
+        "file_patterns": [],
+        "capabilities_required": [
+          "backend"
+        ],
+        "confidence_minimum": 0.95
+      },
+      "input_contract": "Task constraints and request",
+      "output_contract": "Analysis report and suggestions",
+      "permissions": {
+        "mode": "read-only"
+      },
+      "write_mode": "none",
+      "ownership_scope": {
+        "include": [
+          "scratch/**"
+        ]
+      },
+      "allowed_reads": [
+        "Project Memory",
+        "RAG Indexes"
+      ],
+      "allowed_writes": [
+        "scratch/"
+      ],
+      "forbidden_actions": [],
+      "required_skills": [],
+      "required_tools": [],
+      "tool_allowlist": [
+        "*"
+      ],
+      "model_preferences": [
+        "gemini-2.5-flash"
+      ],
+      "priority": 1,
+      "max_concurrency": 1,
+      "resource_limits": {},
+      "confidence_threshold": {
+        "brainstorm": 95,
+        "planning": 95,
+        "blueprint": 95
+      },
+      "handoff_targets": [
+        "done"
+      ],
+      "done_criteria": "Report and suggestions generated",
+      "failure_behavior": "report",
+      "retry_policy": {},
+      "observability": "full",
+      "runtime_visibility": true,
+      "can_run_in_parallel": true,
+      "isolation_required": false
+    },
+    "code-reviewer": {
+      "id": "code-reviewer",
+      "name": "code-reviewer",
+      "display_name": "Code Reviewer",
+      "version": "1.0.0",
+      "agent_category": "review",
+      "role": "Review source code styles and logic rules",
+      "description": "AIWF Agent representing role code-reviewer.",
+      "capabilities": [
+        "review"
+      ],
+      "specializations": [
+        "Code"
+      ],
+      "phase_ownership": [
+        "implementation"
+      ],
+      "spawn_conditions": {
+        "phases": [
+          "debug"
+        ],
+        "task_tags": [
+          "review"
+        ],
+        "file_patterns": [],
+        "capabilities_required": [
+          "review"
+        ],
+        "confidence_minimum": 0.95
+      },
+      "input_contract": "Task constraints and request",
+      "output_contract": "Analysis report and suggestions",
+      "permissions": {
+        "mode": "read-only"
+      },
+      "write_mode": "none",
+      "ownership_scope": {
+        "include": [
+          "scratch/**"
+        ]
+      },
+      "allowed_reads": [
+        "Project Memory",
+        "RAG Indexes"
+      ],
+      "allowed_writes": [
+        "scratch/"
+      ],
+      "forbidden_actions": [],
+      "required_skills": [],
+      "required_tools": [],
+      "tool_allowlist": [
+        "*"
+      ],
+      "model_preferences": [
+        "gemini-2.5-flash"
+      ],
+      "priority": 1,
+      "max_concurrency": 1,
+      "resource_limits": {},
+      "confidence_threshold": {
+        "brainstorm": 95,
+        "planning": 95,
+        "blueprint": 95
+      },
+      "handoff_targets": [
+        "done"
+      ],
+      "done_criteria": "Report and suggestions generated",
+      "failure_behavior": "report",
+      "retry_policy": {},
+      "observability": "full",
+      "runtime_visibility": true,
+      "can_run_in_parallel": true,
+      "isolation_required": false
+    },
+    "coder": {
+      "id": "coder",
+      "name": "coder",
+      "display_name": "Coder",
+      "version": "1.0.0",
+      "agent_category": "implementation",
+      "role": "Implement source code modifications",
+      "description": "AIWF Agent representing role coder.",
+      "capabilities": [
+        "backend"
+      ],
+      "specializations": [
+        "Coder"
+      ],
+      "phase_ownership": [
+        "implementation"
+      ],
+      "spawn_conditions": {
+        "phases": [
+          "implementation"
+        ],
+        "task_tags": [
+          "backend"
+        ],
+        "file_patterns": [],
+        "capabilities_required": [
+          "backend"
+        ],
+        "confidence_minimum": 0.95
+      },
+      "input_contract": "Approved Blueprint or Quick-Fix spec",
+      "output_contract": "Modified source code compiling successfully with passing tests",
+      "permissions": {
+        "mode": "scoped-write"
+      },
+      "write_mode": "single-writer",
+      "ownership_scope": {
+        "include": [
+          "scratch/**"
+        ]
+      },
+      "allowed_reads": [
+        "Project Memory",
+        "RAG Indexes"
+      ],
+      "allowed_writes": [
+        "scratch/"
+      ],
+      "forbidden_actions": [
+        "Bypassing test suite",
+        "Silently scaling privileges"
+      ],
+      "required_skills": [],
+      "required_tools": [],
+      "tool_allowlist": [
+        "*"
+      ],
+      "model_preferences": [
+        "gemini-2.5-flash"
+      ],
+      "priority": 1,
+      "max_concurrency": 1,
+      "resource_limits": {},
+      "confidence_threshold": {
+        "brainstorm": 95,
+        "planning": 95,
+        "blueprint": 95
+      },
+      "handoff_targets": [
+        "reviewer"
+      ],
+      "done_criteria": "Code matches Blueprint and passes all tests",
+      "failure_behavior": "report",
+      "retry_policy": {},
+      "observability": "full",
+      "runtime_visibility": true,
+      "can_run_in_parallel": true,
+      "isolation_required": false
+    },
+    "database-architect": {
+      "id": "database-architect",
+      "name": "database-architect",
+      "display_name": "Database Architect",
+      "version": "1.0.0",
+      "agent_category": "architecture",
+      "role": "Design tables, indexes, schema migrations",
+      "description": "AIWF Agent representing role database-architect.",
+      "capabilities": [
+        "database",
+        "architecture"
+      ],
+      "specializations": [
+        "Database"
+      ],
+      "phase_ownership": [
+        "blueprint"
+      ],
+      "spawn_conditions": {
+        "phases": [
+          "blueprint"
+        ],
+        "task_tags": [
+          "database",
+          "architecture"
+        ],
+        "file_patterns": [
+          "**/*.sql",
+          "**/migrations/**"
+        ],
+        "capabilities_required": [
+          "database",
+          "architecture"
+        ],
+        "confidence_minimum": 0.95
+      },
+      "input_contract": "Task constraints and request",
+      "output_contract": "Analysis report and suggestions",
+      "permissions": {
+        "mode": "read-only"
+      },
+      "write_mode": "none",
+      "ownership_scope": {
+        "include": [
+          "scratch/**"
+        ]
+      },
+      "allowed_reads": [
+        "Project Memory",
+        "RAG Indexes"
+      ],
+      "allowed_writes": [
+        "scratch/"
+      ],
+      "forbidden_actions": [],
+      "required_skills": [],
+      "required_tools": [],
+      "tool_allowlist": [
+        "*"
+      ],
+      "model_preferences": [
+        "gemini-2.5-flash"
+      ],
+      "priority": 1,
+      "max_concurrency": 1,
+      "resource_limits": {},
+      "confidence_threshold": {
+        "brainstorm": 95,
+        "planning": 95,
+        "blueprint": 95
+      },
+      "handoff_targets": [
+        "done"
+      ],
+      "done_criteria": "Report and suggestions generated",
+      "failure_behavior": "report",
+      "retry_policy": {},
+      "observability": "full",
+      "runtime_visibility": true,
+      "can_run_in_parallel": true,
+      "isolation_required": false
+    },
+    "database-developer": {
+      "id": "database-developer",
+      "name": "database-developer",
+      "display_name": "Database Developer",
+      "version": "1.0.0",
+      "agent_category": "implementation",
+      "role": "Write raw SQL and database schema migration files",
+      "description": "AIWF Agent representing role database-developer.",
+      "capabilities": [
+        "database"
+      ],
+      "specializations": [
+        "Database"
+      ],
+      "phase_ownership": [
+        "implementation"
+      ],
+      "spawn_conditions": {
+        "phases": [
+          "implementation"
+        ],
+        "task_tags": [
+          "database"
+        ],
+        "file_patterns": [
+          "**/*.sql",
+          "**/migrations/**"
+        ],
+        "capabilities_required": [
+          "database"
+        ],
+        "confidence_minimum": 0.95
+      },
+      "input_contract": "Task constraints and request",
+      "output_contract": "Analysis report and suggestions",
+      "permissions": {
+        "mode": "scoped-write"
+      },
+      "write_mode": "single-writer",
+      "ownership_scope": {
+        "include": [
+          "migrations/**",
+          "database/**"
+        ]
+      },
+      "allowed_reads": [
+        "Project Memory",
+        "RAG Indexes"
+      ],
+      "allowed_writes": [
+        "migrations/",
+        "database/"
+      ],
+      "forbidden_actions": [
+        "Bypassing test suite",
+        "Silently scaling privileges"
+      ],
+      "required_skills": [],
+      "required_tools": [],
+      "tool_allowlist": [
+        "*"
+      ],
+      "model_preferences": [
+        "gemini-2.5-flash"
+      ],
+      "priority": 1,
+      "max_concurrency": 1,
+      "resource_limits": {},
+      "confidence_threshold": {
+        "brainstorm": 95,
+        "planning": 95,
+        "blueprint": 95
+      },
+      "handoff_targets": [
+        "done"
+      ],
+      "done_criteria": "Report and suggestions generated",
+      "failure_behavior": "report",
+      "retry_policy": {},
+      "observability": "full",
+      "runtime_visibility": true,
+      "can_run_in_parallel": true,
+      "isolation_required": false
+    },
+    "dependency-analyst": {
+      "id": "dependency-analyst",
+      "name": "dependency-analyst",
+      "display_name": "Dependency Analyst",
+      "version": "1.0.0",
+      "agent_category": "planning",
+      "role": "Scan for module and version dependencies",
+      "description": "AIWF Agent representing role dependency-analyst.",
+      "capabilities": [
+        "backend"
+      ],
+      "specializations": [
+        "Dependency"
+      ],
+      "phase_ownership": [
+        "planning"
+      ],
+      "spawn_conditions": {
+        "phases": [
+          "planning"
+        ],
+        "task_tags": [
+          "backend"
+        ],
+        "file_patterns": [],
+        "capabilities_required": [
+          "backend"
+        ],
+        "confidence_minimum": 0.95
+      },
+      "input_contract": "Task constraints and request",
+      "output_contract": "Analysis report and suggestions",
+      "permissions": {
+        "mode": "read-only"
+      },
+      "write_mode": "none",
+      "ownership_scope": {
+        "include": [
+          "scratch/**"
+        ]
+      },
+      "allowed_reads": [
+        "Project Memory",
+        "RAG Indexes"
+      ],
+      "allowed_writes": [
+        "scratch/"
+      ],
+      "forbidden_actions": [],
+      "required_skills": [],
+      "required_tools": [],
+      "tool_allowlist": [
+        "*"
+      ],
+      "model_preferences": [
+        "gemini-2.5-flash"
+      ],
+      "priority": 1,
+      "max_concurrency": 1,
+      "resource_limits": {},
+      "confidence_threshold": {
+        "brainstorm": 95,
+        "planning": 95,
+        "blueprint": 95
+      },
+      "handoff_targets": [
+        "done"
+      ],
+      "done_criteria": "Report and suggestions generated",
+      "failure_behavior": "report",
+      "retry_policy": {},
+      "observability": "full",
+      "runtime_visibility": true,
+      "can_run_in_parallel": true,
+      "isolation_required": false
+    },
+    "devops-developer": {
+      "id": "devops-developer",
+      "name": "devops-developer",
+      "display_name": "Devops Developer",
+      "version": "1.0.0",
+      "agent_category": "implementation",
+      "role": "Write CI/CD pipeline scripts",
+      "description": "AIWF Agent representing role devops-developer.",
+      "capabilities": [
+        "backend"
+      ],
+      "specializations": [
+        "Devops"
+      ],
+      "phase_ownership": [
+        "implementation"
+      ],
+      "spawn_conditions": {
+        "phases": [
+          "implementation"
+        ],
+        "task_tags": [
+          "backend"
+        ],
+        "file_patterns": [],
+        "capabilities_required": [
+          "backend"
+        ],
+        "confidence_minimum": 0.95
+      },
+      "input_contract": "Task constraints and request",
+      "output_contract": "Analysis report and suggestions",
+      "permissions": {
+        "mode": "read-only"
+      },
+      "write_mode": "none",
+      "ownership_scope": {
+        "include": [
+          "scratch/**"
+        ]
+      },
+      "allowed_reads": [
+        "Project Memory",
+        "RAG Indexes"
+      ],
+      "allowed_writes": [
+        "scratch/"
+      ],
+      "forbidden_actions": [],
+      "required_skills": [],
+      "required_tools": [],
+      "tool_allowlist": [
+        "*"
+      ],
+      "model_preferences": [
+        "gemini-2.5-flash"
+      ],
+      "priority": 1,
+      "max_concurrency": 1,
+      "resource_limits": {},
+      "confidence_threshold": {
+        "brainstorm": 95,
+        "planning": 95,
+        "blueprint": 95
+      },
+      "handoff_targets": [
+        "done"
+      ],
+      "done_criteria": "Report and suggestions generated",
+      "failure_behavior": "report",
+      "retry_policy": {},
+      "observability": "full",
+      "runtime_visibility": true,
+      "can_run_in_parallel": true,
+      "isolation_required": false
+    },
+    "documentation-writer": {
+      "id": "documentation-writer",
+      "name": "documentation-writer",
+      "display_name": "Documentation Writer",
+      "version": "1.0.0",
+      "agent_category": "implementation",
+      "role": "Write developer documentation and usage markdown guides",
+      "description": "AIWF Agent representing role documentation-writer.",
+      "capabilities": [
+        "backend"
+      ],
+      "specializations": [
+        "Documentation"
+      ],
+      "phase_ownership": [
+        "implementation"
+      ],
+      "spawn_conditions": {
+        "phases": [
+          "implementation"
+        ],
+        "task_tags": [
+          "backend"
+        ],
+        "file_patterns": [],
+        "capabilities_required": [
+          "backend"
+        ],
+        "confidence_minimum": 0.95
+      },
+      "input_contract": "Task constraints and request",
+      "output_contract": "Analysis report and suggestions",
+      "permissions": {
+        "mode": "read-only"
+      },
+      "write_mode": "none",
+      "ownership_scope": {
+        "include": [
+          "scratch/**"
+        ]
+      },
+      "allowed_reads": [
+        "Project Memory",
+        "RAG Indexes"
+      ],
+      "allowed_writes": [
+        "scratch/"
+      ],
+      "forbidden_actions": [],
+      "required_skills": [],
+      "required_tools": [],
+      "tool_allowlist": [
+        "*"
+      ],
+      "model_preferences": [
+        "gemini-2.5-flash"
+      ],
+      "priority": 1,
+      "max_concurrency": 1,
+      "resource_limits": {},
+      "confidence_threshold": {
+        "brainstorm": 95,
+        "planning": 95,
+        "blueprint": 95
+      },
+      "handoff_targets": [
+        "done"
+      ],
+      "done_criteria": "Report and suggestions generated",
+      "failure_behavior": "report",
+      "retry_policy": {},
+      "observability": "full",
+      "runtime_visibility": true,
+      "can_run_in_parallel": true,
+      "isolation_required": false
+    },
+    "frontend-architect": {
+      "id": "frontend-architect",
+      "name": "frontend-architect",
+      "display_name": "Frontend Architect",
+      "version": "1.0.0",
+      "agent_category": "architecture",
+      "role": "Design frontend routing, states and components",
+      "description": "AIWF Agent representing role frontend-architect.",
+      "capabilities": [
+        "frontend",
+        "architecture"
+      ],
+      "specializations": [
+        "Frontend"
+      ],
+      "phase_ownership": [
+        "blueprint"
+      ],
+      "spawn_conditions": {
+        "phases": [
+          "blueprint"
+        ],
+        "task_tags": [
+          "frontend",
+          "architecture"
+        ],
+        "file_patterns": [
+          "**/*.html",
+          "**/*.css",
+          "**/*.js",
+          "**/*.ts",
+          "**/*.tsx",
+          "**/*.svelte",
+          "**/webview.html",
+          "**/webviewHtml.ts"
+        ],
+        "capabilities_required": [
+          "frontend",
+          "architecture"
+        ],
+        "confidence_minimum": 0.95
+      },
+      "input_contract": "Task constraints and request",
+      "output_contract": "Analysis report and suggestions",
+      "permissions": {
+        "mode": "read-only"
+      },
+      "write_mode": "none",
+      "ownership_scope": {
+        "include": [
+          "scratch/**"
+        ]
+      },
+      "allowed_reads": [
+        "Project Memory",
+        "RAG Indexes"
+      ],
+      "allowed_writes": [
+        "scratch/"
+      ],
+      "forbidden_actions": [],
+      "required_skills": [],
+      "required_tools": [],
+      "tool_allowlist": [
+        "*"
+      ],
+      "model_preferences": [
+        "gemini-2.5-flash"
+      ],
+      "priority": 1,
+      "max_concurrency": 1,
+      "resource_limits": {},
+      "confidence_threshold": {
+        "brainstorm": 95,
+        "planning": 95,
+        "blueprint": 95
+      },
+      "handoff_targets": [
+        "done"
+      ],
+      "done_criteria": "Report and suggestions generated",
+      "failure_behavior": "report",
+      "retry_policy": {},
+      "observability": "full",
+      "runtime_visibility": true,
+      "can_run_in_parallel": true,
+      "isolation_required": false
+    },
+    "frontend-developer": {
+      "id": "frontend-developer",
+      "name": "frontend-developer",
+      "display_name": "Frontend Developer",
+      "version": "1.0.0",
+      "agent_category": "implementation",
+      "role": "Write React/Vue/Svelte/HTML page layout and UI scripts",
+      "description": "AIWF Agent representing role frontend-developer.",
+      "capabilities": [
+        "frontend"
+      ],
+      "specializations": [
+        "Frontend"
+      ],
+      "phase_ownership": [
+        "implementation"
+      ],
+      "spawn_conditions": {
+        "phases": [
+          "implementation"
+        ],
+        "task_tags": [
+          "frontend"
+        ],
+        "file_patterns": [
+          "**/*.html",
+          "**/*.css",
+          "**/*.js",
+          "**/*.ts",
+          "**/*.tsx",
+          "**/*.svelte",
+          "**/webview.html",
+          "**/webviewHtml.ts"
+        ],
+        "capabilities_required": [
+          "frontend"
+        ],
+        "confidence_minimum": 0.95
+      },
+      "input_contract": "Task constraints and request",
+      "output_contract": "Analysis report and suggestions",
+      "permissions": {
+        "mode": "scoped-write"
+      },
+      "write_mode": "single-writer",
+      "ownership_scope": {
+        "include": [
+          "sources/frontend/**",
+          "extensions/visualizer/resources/**",
+          "extensions/visualizer/src/**"
+        ]
+      },
+      "allowed_reads": [
+        "Project Memory",
+        "RAG Indexes"
+      ],
+      "allowed_writes": [
+        "sources/frontend/",
+        "extensions/visualizer/resources/",
+        "extensions/visualizer/src/"
+      ],
+      "forbidden_actions": [
+        "Bypassing test suite",
+        "Silently scaling privileges"
+      ],
+      "required_skills": [],
+      "required_tools": [],
+      "tool_allowlist": [
+        "*"
+      ],
+      "model_preferences": [
+        "gemini-2.5-flash"
+      ],
+      "priority": 1,
+      "max_concurrency": 1,
+      "resource_limits": {},
+      "confidence_threshold": {
+        "brainstorm": 95,
+        "planning": 95,
+        "blueprint": 95
+      },
+      "handoff_targets": [
+        "qa-reviewer"
+      ],
+      "done_criteria": "Report and suggestions generated",
+      "failure_behavior": "report",
+      "retry_policy": {},
+      "observability": "full",
+      "runtime_visibility": true,
+      "can_run_in_parallel": true,
+      "isolation_required": false
+    },
+    "infrastructure-architect": {
+      "id": "infrastructure-architect",
+      "name": "infrastructure-architect",
+      "display_name": "Infrastructure Architect",
+      "version": "1.0.0",
+      "agent_category": "architecture",
+      "role": "Design deployment, Docker, and K8s blueprints",
+      "description": "AIWF Agent representing role infrastructure-architect.",
+      "capabilities": [
+        "architecture"
+      ],
+      "specializations": [
+        "Infrastructure"
+      ],
+      "phase_ownership": [
+        "blueprint"
+      ],
+      "spawn_conditions": {
+        "phases": [
+          "blueprint"
+        ],
+        "task_tags": [
+          "architecture"
+        ],
+        "file_patterns": [],
+        "capabilities_required": [
+          "architecture"
+        ],
+        "confidence_minimum": 0.95
+      },
+      "input_contract": "Task constraints and request",
+      "output_contract": "Analysis report and suggestions",
+      "permissions": {
+        "mode": "read-only"
+      },
+      "write_mode": "none",
+      "ownership_scope": {
+        "include": [
+          "scratch/**"
+        ]
+      },
+      "allowed_reads": [
+        "Project Memory",
+        "RAG Indexes"
+      ],
+      "allowed_writes": [
+        "scratch/"
+      ],
+      "forbidden_actions": [],
+      "required_skills": [],
+      "required_tools": [],
+      "tool_allowlist": [
+        "*"
+      ],
+      "model_preferences": [
+        "gemini-2.5-flash"
+      ],
+      "priority": 1,
+      "max_concurrency": 1,
+      "resource_limits": {},
+      "confidence_threshold": {
+        "brainstorm": 95,
+        "planning": 95,
+        "blueprint": 95
+      },
+      "handoff_targets": [
+        "done"
+      ],
+      "done_criteria": "Report and suggestions generated",
+      "failure_behavior": "report",
+      "retry_policy": {},
+      "observability": "full",
+      "runtime_visibility": true,
+      "can_run_in_parallel": true,
+      "isolation_required": false
+    },
+    "infrastructure-developer": {
+      "id": "infrastructure-developer",
+      "name": "infrastructure-developer",
+      "display_name": "Infrastructure Developer",
+      "version": "1.0.0",
+      "agent_category": "implementation",
+      "role": "Write Dockerfiles and compose setups",
+      "description": "AIWF Agent representing role infrastructure-developer.",
+      "capabilities": [
+        "backend"
+      ],
+      "specializations": [
+        "Infrastructure"
+      ],
+      "phase_ownership": [
+        "implementation"
+      ],
+      "spawn_conditions": {
+        "phases": [
+          "implementation"
+        ],
+        "task_tags": [
+          "backend"
+        ],
+        "file_patterns": [],
+        "capabilities_required": [
+          "backend"
+        ],
+        "confidence_minimum": 0.95
+      },
+      "input_contract": "Task constraints and request",
+      "output_contract": "Analysis report and suggestions",
+      "permissions": {
+        "mode": "read-only"
+      },
+      "write_mode": "none",
+      "ownership_scope": {
+        "include": [
+          "scratch/**"
+        ]
+      },
+      "allowed_reads": [
+        "Project Memory",
+        "RAG Indexes"
+      ],
+      "allowed_writes": [
+        "scratch/"
+      ],
+      "forbidden_actions": [],
+      "required_skills": [],
+      "required_tools": [],
+      "tool_allowlist": [
+        "*"
+      ],
+      "model_preferences": [
+        "gemini-2.5-flash"
+      ],
+      "priority": 1,
+      "max_concurrency": 1,
+      "resource_limits": {},
+      "confidence_threshold": {
+        "brainstorm": 95,
+        "planning": 95,
+        "blueprint": 95
+      },
+      "handoff_targets": [
+        "done"
+      ],
+      "done_criteria": "Report and suggestions generated",
+      "failure_behavior": "report",
+      "retry_policy": {},
+      "observability": "full",
+      "runtime_visibility": true,
+      "can_run_in_parallel": true,
+      "isolation_required": false
+    },
+    "memory-analyst": {
+      "id": "memory-analyst",
+      "name": "memory-analyst",
+      "display_name": "Memory Analyst",
+      "version": "1.0.0",
+      "agent_category": "implementation",
+      "role": "Load and index project memory",
+      "description": "AIWF Agent representing role memory-analyst.",
+      "capabilities": [
+        "backend"
+      ],
+      "specializations": [
+        "Memory"
+      ],
+      "phase_ownership": [
+        "implementation"
+      ],
+      "spawn_conditions": {
+        "phases": [
+          "brainstorming"
+        ],
+        "task_tags": [
+          "backend"
+        ],
+        "file_patterns": [],
+        "capabilities_required": [
+          "backend"
+        ],
+        "confidence_minimum": 0.95
+      },
+      "input_contract": "Task constraints and request",
+      "output_contract": "Analysis report and suggestions",
+      "permissions": {
+        "mode": "read-only"
+      },
+      "write_mode": "none",
+      "ownership_scope": {
+        "include": [
+          "scratch/**"
+        ]
+      },
+      "allowed_reads": [
+        "Project Memory",
+        "RAG Indexes"
+      ],
+      "allowed_writes": [
+        "scratch/"
+      ],
+      "forbidden_actions": [],
+      "required_skills": [],
+      "required_tools": [],
+      "tool_allowlist": [
+        "*"
+      ],
+      "model_preferences": [
+        "gemini-2.5-flash"
+      ],
+      "priority": 1,
+      "max_concurrency": 1,
+      "resource_limits": {},
+      "confidence_threshold": {
+        "brainstorm": 95,
+        "planning": 95,
+        "blueprint": 95
+      },
+      "handoff_targets": [
+        "done"
+      ],
+      "done_criteria": "Report and suggestions generated",
+      "failure_behavior": "report",
+      "retry_policy": {},
+      "observability": "full",
+      "runtime_visibility": true,
+      "can_run_in_parallel": true,
+      "isolation_required": false
+    },
+    "migration-developer": {
+      "id": "migration-developer",
+      "name": "migration-developer",
+      "display_name": "Migration Developer",
+      "version": "1.0.0",
+      "agent_category": "implementation",
+      "role": "Write data migration and cleanup scripts",
+      "description": "AIWF Agent representing role migration-developer.",
+      "capabilities": [
+        "backend"
+      ],
+      "specializations": [
+        "Migration"
+      ],
+      "phase_ownership": [
+        "implementation"
+      ],
+      "spawn_conditions": {
+        "phases": [
+          "implementation"
+        ],
+        "task_tags": [
+          "backend"
+        ],
+        "file_patterns": [],
+        "capabilities_required": [
+          "backend"
+        ],
+        "confidence_minimum": 0.95
+      },
+      "input_contract": "Task constraints and request",
+      "output_contract": "Analysis report and suggestions",
+      "permissions": {
+        "mode": "read-only"
+      },
+      "write_mode": "none",
+      "ownership_scope": {
+        "include": [
+          "scratch/**"
+        ]
+      },
+      "allowed_reads": [
+        "Project Memory",
+        "RAG Indexes"
+      ],
+      "allowed_writes": [
+        "scratch/"
+      ],
+      "forbidden_actions": [],
+      "required_skills": [],
+      "required_tools": [],
+      "tool_allowlist": [
+        "*"
+      ],
+      "model_preferences": [
+        "gemini-2.5-flash"
+      ],
+      "priority": 1,
+      "max_concurrency": 1,
+      "resource_limits": {},
+      "confidence_threshold": {
+        "brainstorm": 95,
+        "planning": 95,
+        "blueprint": 95
+      },
+      "handoff_targets": [
+        "done"
+      ],
+      "done_criteria": "Report and suggestions generated",
+      "failure_behavior": "report",
+      "retry_policy": {},
+      "observability": "full",
+      "runtime_visibility": true,
+      "can_run_in_parallel": true,
+      "isolation_required": false
+    },
+    "package-builder": {
+      "id": "package-builder",
+      "name": "package-builder",
+      "display_name": "Package Builder",
+      "version": "1.0.0",
+      "agent_category": "release",
+      "role": "Compile code assets and bundle binaries",
+      "description": "AIWF Agent representing role package-builder.",
+      "capabilities": [
+        "release"
+      ],
+      "specializations": [
+        "Package"
+      ],
+      "phase_ownership": [
+        "release"
+      ],
+      "spawn_conditions": {
+        "phases": [
+          "release"
+        ],
+        "task_tags": [
+          "release"
+        ],
+        "file_patterns": [],
+        "capabilities_required": [
+          "release"
+        ],
+        "confidence_minimum": 0.95
+      },
+      "input_contract": "Task constraints and request",
+      "output_contract": "Analysis report and suggestions",
+      "permissions": {
+        "mode": "read-only"
+      },
+      "write_mode": "none",
+      "ownership_scope": {
+        "include": [
+          "scratch/**"
+        ]
+      },
+      "allowed_reads": [
+        "Project Memory",
+        "RAG Indexes"
+      ],
+      "allowed_writes": [
+        "scratch/"
+      ],
+      "forbidden_actions": [],
+      "required_skills": [],
+      "required_tools": [],
+      "tool_allowlist": [
+        "*"
+      ],
+      "model_preferences": [
+        "gemini-2.5-flash"
+      ],
+      "priority": 1,
+      "max_concurrency": 1,
+      "resource_limits": {},
+      "confidence_threshold": {
+        "brainstorm": 95,
+        "planning": 95,
+        "blueprint": 95
+      },
+      "handoff_targets": [
+        "done"
+      ],
+      "done_criteria": "Report and suggestions generated",
+      "failure_behavior": "report",
+      "retry_policy": {},
+      "observability": "full",
+      "runtime_visibility": true,
+      "can_run_in_parallel": true,
+      "isolation_required": false
+    },
+    "performance-planner": {
+      "id": "performance-planner",
+      "name": "performance-planner",
+      "display_name": "Performance Planner",
+      "version": "1.0.0",
+      "agent_category": "planning",
+      "role": "Plan resource limit and throughput requirements",
+      "description": "AIWF Agent representing role performance-planner.",
+      "capabilities": [
+        "planning",
+        "brainstorming"
+      ],
+      "specializations": [
+        "Performance"
+      ],
+      "phase_ownership": [
+        "planning"
+      ],
+      "spawn_conditions": {
+        "phases": [
+          "planning"
+        ],
+        "task_tags": [
+          "planning",
+          "brainstorming"
+        ],
+        "file_patterns": [],
+        "capabilities_required": [
+          "planning",
+          "brainstorming"
+        ],
+        "confidence_minimum": 0.95
+      },
+      "input_contract": "Task constraints and request",
+      "output_contract": "Analysis report and suggestions",
+      "permissions": {
+        "mode": "read-only"
+      },
+      "write_mode": "none",
+      "ownership_scope": {
+        "include": [
+          "scratch/**"
+        ]
+      },
+      "allowed_reads": [
+        "Project Memory",
+        "RAG Indexes"
+      ],
+      "allowed_writes": [
+        "scratch/"
+      ],
+      "forbidden_actions": [],
+      "required_skills": [],
+      "required_tools": [],
+      "tool_allowlist": [
+        "*"
+      ],
+      "model_preferences": [
+        "gemini-2.5-flash"
+      ],
+      "priority": 1,
+      "max_concurrency": 1,
+      "resource_limits": {},
+      "confidence_threshold": {
+        "brainstorm": 95,
+        "planning": 95,
+        "blueprint": 95
+      },
+      "handoff_targets": [
+        "done"
+      ],
+      "done_criteria": "Report and suggestions generated",
+      "failure_behavior": "report",
+      "retry_policy": {},
+      "observability": "full",
+      "runtime_visibility": true,
+      "can_run_in_parallel": true,
+      "isolation_required": false
+    },
+    "performance-reviewer": {
+      "id": "performance-reviewer",
+      "name": "performance-reviewer",
+      "display_name": "Performance Reviewer",
+      "version": "1.0.0",
+      "agent_category": "review",
+      "role": "Perform load tests and memory leak audits",
+      "description": "AIWF Agent representing role performance-reviewer.",
+      "capabilities": [
+        "review"
+      ],
+      "specializations": [
+        "Performance"
+      ],
+      "phase_ownership": [
+        "implementation"
+      ],
+      "spawn_conditions": {
+        "phases": [
+          "debug"
+        ],
+        "task_tags": [
+          "review"
+        ],
+        "file_patterns": [],
+        "capabilities_required": [
+          "review"
+        ],
+        "confidence_minimum": 0.95
+      },
+      "input_contract": "Task constraints and request",
+      "output_contract": "Analysis report and suggestions",
+      "permissions": {
+        "mode": "read-only"
+      },
+      "write_mode": "none",
+      "ownership_scope": {
+        "include": [
+          "scratch/**"
+        ]
+      },
+      "allowed_reads": [
+        "Project Memory",
+        "RAG Indexes"
+      ],
+      "allowed_writes": [
+        "scratch/"
+      ],
+      "forbidden_actions": [],
+      "required_skills": [],
+      "required_tools": [],
+      "tool_allowlist": [
+        "*"
+      ],
+      "model_preferences": [
+        "gemini-2.5-flash"
+      ],
+      "priority": 1,
+      "max_concurrency": 1,
+      "resource_limits": {},
+      "confidence_threshold": {
+        "brainstorm": 95,
+        "planning": 95,
+        "blueprint": 95
+      },
+      "handoff_targets": [
+        "done"
+      ],
+      "done_criteria": "Report and suggestions generated",
+      "failure_behavior": "report",
+      "retry_policy": {},
+      "observability": "full",
+      "runtime_visibility": true,
+      "can_run_in_parallel": true,
+      "isolation_required": false
+    },
+    "planner": {
+      "id": "planner",
+      "name": "planner",
+      "display_name": "Planner",
+      "version": "1.0.0",
+      "agent_category": "planning",
+      "role": "Convert Brainstorming requirements into Plans",
+      "description": "AIWF Agent representing role planner.",
+      "capabilities": [
+        "planning",
+        "brainstorming"
+      ],
+      "specializations": [
+        "Planner"
+      ],
+      "phase_ownership": [
+        "planning"
+      ],
+      "spawn_conditions": {
+        "phases": [
+          "planning"
+        ],
+        "task_tags": [
+          "planning",
+          "brainstorming"
+        ],
+        "file_patterns": [],
+        "capabilities_required": [
+          "planning",
+          "brainstorming"
+        ],
+        "confidence_minimum": 0.95
+      },
+      "input_contract": "Brainstorming requirements",
+      "output_contract": "Implementation plan docs/plans/FEAT-XXX_*.md",
+      "permissions": {
+        "mode": "scoped-write"
+      },
+      "write_mode": "single-writer",
+      "ownership_scope": {
+        "include": [
+          "docs/brainstorming/**",
+          "docs/plans/**"
+        ]
+      },
+      "allowed_reads": [
+        "Project Memory",
+        "RAG Indexes"
+      ],
+      "allowed_writes": [
+        "docs/brainstorming/",
+        "docs/plans/"
+      ],
+      "forbidden_actions": [
+        "Bypassing test suite",
+        "Silently scaling privileges"
+      ],
+      "required_skills": [],
+      "required_tools": [],
+      "tool_allowlist": [
+        "*"
+      ],
+      "model_preferences": [
+        "gemini-2.5-flash"
+      ],
+      "priority": 1,
+      "max_concurrency": 1,
+      "resource_limits": {},
+      "confidence_threshold": {
+        "brainstorm": 95,
+        "planning": 95,
+        "blueprint": 95
+      },
+      "handoff_targets": [
+        "architect"
+      ],
+      "done_criteria": "Plan covers scope and matches template",
+      "failure_behavior": "report",
+      "retry_policy": {},
+      "observability": "full",
+      "runtime_visibility": true,
+      "can_run_in_parallel": false,
+      "isolation_required": false
+    },
+    "product-analyst": {
+      "id": "product-analyst",
+      "name": "product-analyst",
+      "display_name": "Product Analyst",
+      "version": "1.0.0",
+      "agent_category": "implementation",
+      "role": "Analyze product requirements and business needs",
+      "description": "AIWF Agent representing role product-analyst.",
+      "capabilities": [
+        "planning",
+        "brainstorming"
+      ],
+      "specializations": [
+        "Product"
+      ],
+      "phase_ownership": [
+        "implementation"
+      ],
+      "spawn_conditions": {
+        "phases": [
+          "brainstorming"
+        ],
+        "task_tags": [
+          "planning",
+          "brainstorming"
+        ],
+        "file_patterns": [],
+        "capabilities_required": [
+          "planning",
+          "brainstorming"
+        ],
+        "confidence_minimum": 0.95
+      },
+      "input_contract": "Task constraints and request",
+      "output_contract": "Analysis report and suggestions",
+      "permissions": {
+        "mode": "read-only"
+      },
+      "write_mode": "none",
+      "ownership_scope": {
+        "include": [
+          "scratch/**"
+        ]
+      },
+      "allowed_reads": [
+        "Project Memory",
+        "RAG Indexes"
+      ],
+      "allowed_writes": [
+        "scratch/"
+      ],
+      "forbidden_actions": [],
+      "required_skills": [],
+      "required_tools": [],
+      "tool_allowlist": [
+        "*"
+      ],
+      "model_preferences": [
+        "gemini-2.5-flash"
+      ],
+      "priority": 1,
+      "max_concurrency": 1,
+      "resource_limits": {},
+      "confidence_threshold": {
+        "brainstorm": 95,
+        "planning": 95,
+        "blueprint": 95
+      },
+      "handoff_targets": [
+        "done"
+      ],
+      "done_criteria": "Report and suggestions generated",
+      "failure_behavior": "report",
+      "retry_policy": {},
+      "observability": "full",
+      "runtime_visibility": true,
+      "can_run_in_parallel": true,
+      "isolation_required": false
+    },
+    "publisher": {
+      "id": "publisher",
+      "name": "publisher",
+      "display_name": "Publisher",
+      "version": "1.0.0",
+      "agent_category": "release",
+      "role": "Push built package artifacts to registers",
+      "description": "AIWF Agent representing role publisher.",
+      "capabilities": [
+        "release"
+      ],
+      "specializations": [
+        "Publisher"
+      ],
+      "phase_ownership": [
+        "release"
+      ],
+      "spawn_conditions": {
+        "phases": [
+          "release"
+        ],
+        "task_tags": [
+          "release"
+        ],
+        "file_patterns": [],
+        "capabilities_required": [
+          "release"
+        ],
+        "confidence_minimum": 0.95
+      },
+      "input_contract": "Task constraints and request",
+      "output_contract": "Analysis report and suggestions",
+      "permissions": {
+        "mode": "read-only"
+      },
+      "write_mode": "none",
+      "ownership_scope": {
+        "include": [
+          "scratch/**"
+        ]
+      },
+      "allowed_reads": [
+        "Project Memory",
+        "RAG Indexes"
+      ],
+      "allowed_writes": [
+        "scratch/"
+      ],
+      "forbidden_actions": [],
+      "required_skills": [],
+      "required_tools": [],
+      "tool_allowlist": [
+        "*"
+      ],
+      "model_preferences": [
+        "gemini-2.5-flash"
+      ],
+      "priority": 1,
+      "max_concurrency": 1,
+      "resource_limits": {},
+      "confidence_threshold": {
+        "brainstorm": 95,
+        "planning": 95,
+        "blueprint": 95
+      },
+      "handoff_targets": [
+        "done"
+      ],
+      "done_criteria": "Report and suggestions generated",
+      "failure_behavior": "report",
+      "retry_policy": {},
+      "observability": "full",
+      "runtime_visibility": true,
+      "can_run_in_parallel": true,
+      "isolation_required": false
+    },
+    "qa-reviewer": {
+      "id": "qa-reviewer",
+      "name": "qa-reviewer",
+      "display_name": "Qa Reviewer",
+      "version": "1.0.0",
+      "agent_category": "review",
+      "role": "Perform integration verification audits",
+      "description": "AIWF Agent representing role qa-reviewer.",
+      "capabilities": [
+        "testing",
+        "verification",
+        "review"
+      ],
+      "specializations": [
+        "Qa"
+      ],
+      "phase_ownership": [
+        "implementation"
+      ],
+      "spawn_conditions": {
+        "phases": [
+          "debug"
+        ],
+        "task_tags": [
+          "testing",
+          "verification",
+          "review"
+        ],
+        "file_patterns": [],
+        "capabilities_required": [
+          "testing",
+          "verification",
+          "review"
+        ],
+        "confidence_minimum": 0.95
+      },
+      "input_contract": "Task constraints and request",
+      "output_contract": "Analysis report and suggestions",
+      "permissions": {
+        "mode": "read-only"
+      },
+      "write_mode": "none",
+      "ownership_scope": {
+        "include": [
+          "skills/workflow-runtime/tests/**",
+          "tests/**",
+          ".agents/runtime/**"
+        ]
+      },
+      "allowed_reads": [
+        "Project Memory",
+        "RAG Indexes"
+      ],
+      "allowed_writes": [
+        "skills/workflow-runtime/tests/",
+        "tests/",
+        ".agents/runtime/"
+      ],
+      "forbidden_actions": [],
+      "required_skills": [],
+      "required_tools": [],
+      "tool_allowlist": [
+        "*"
+      ],
+      "model_preferences": [
+        "gemini-2.5-flash"
+      ],
+      "priority": 1,
+      "max_concurrency": 1,
+      "resource_limits": {},
+      "confidence_threshold": {
+        "brainstorm": 95,
+        "planning": 95,
+        "blueprint": 95
+      },
+      "handoff_targets": [
+        "reviewer"
+      ],
+      "done_criteria": "Report and suggestions generated",
+      "failure_behavior": "report",
+      "retry_policy": {},
+      "observability": "full",
+      "runtime_visibility": true,
+      "can_run_in_parallel": true,
+      "isolation_required": false
+    },
+    "rag-analyst": {
+      "id": "rag-analyst",
+      "name": "rag-analyst",
+      "display_name": "Rag Analyst",
+      "version": "1.0.0",
+      "agent_category": "implementation",
+      "role": "Retrieve relevant code context using RAG",
+      "description": "AIWF Agent representing role rag-analyst.",
+      "capabilities": [
+        "backend"
+      ],
+      "specializations": [
+        "Rag"
+      ],
+      "phase_ownership": [
+        "implementation"
+      ],
+      "spawn_conditions": {
+        "phases": [
+          "brainstorming"
+        ],
+        "task_tags": [
+          "backend"
+        ],
+        "file_patterns": [],
+        "capabilities_required": [
+          "backend"
+        ],
+        "confidence_minimum": 0.95
+      },
+      "input_contract": "Task constraints and request",
+      "output_contract": "Analysis report and suggestions",
+      "permissions": {
+        "mode": "read-only"
+      },
+      "write_mode": "none",
+      "ownership_scope": {
+        "include": [
+          "scratch/**"
+        ]
+      },
+      "allowed_reads": [
+        "Project Memory",
+        "RAG Indexes"
+      ],
+      "allowed_writes": [
+        "scratch/"
+      ],
+      "forbidden_actions": [],
+      "required_skills": [],
+      "required_tools": [],
+      "tool_allowlist": [
+        "*"
+      ],
+      "model_preferences": [
+        "gemini-2.5-flash"
+      ],
+      "priority": 1,
+      "max_concurrency": 1,
+      "resource_limits": {},
+      "confidence_threshold": {
+        "brainstorm": 95,
+        "planning": 95,
+        "blueprint": 95
+      },
+      "handoff_targets": [
+        "done"
+      ],
+      "done_criteria": "Report and suggestions generated",
+      "failure_behavior": "report",
+      "retry_policy": {},
+      "observability": "full",
+      "runtime_visibility": true,
+      "can_run_in_parallel": true,
+      "isolation_required": false
+    },
+    "release-manager": {
+      "id": "release-manager",
+      "name": "release-manager",
+      "display_name": "Release Manager",
+      "version": "1.0.0",
+      "agent_category": "release",
+      "role": "Finalize release process",
+      "description": "AIWF Agent representing role release-manager.",
+      "capabilities": [
+        "release"
+      ],
+      "specializations": [
+        "Release"
+      ],
+      "phase_ownership": [
+        "release"
+      ],
+      "spawn_conditions": {
+        "phases": [
+          "release"
+        ],
+        "task_tags": [
+          "release"
+        ],
+        "file_patterns": [],
+        "capabilities_required": [
+          "release"
+        ],
+        "confidence_minimum": 0.95
+      },
+      "input_contract": "Passing reviewer report and merge confirmation",
+      "output_contract": "Git tag and pushed remote commits",
+      "permissions": {
+        "mode": "scoped-write"
+      },
+      "write_mode": "single-writer",
+      "ownership_scope": {
+        "include": [
+          "public_export/**",
+          "CHANGELOG.md**"
+        ]
+      },
+      "allowed_reads": [
+        "Project Memory",
+        "RAG Indexes"
+      ],
+      "allowed_writes": [
+        "public_export/",
+        "CHANGELOG.md"
+      ],
+      "forbidden_actions": [
+        "Bypassing test suite",
+        "Silently scaling privileges"
+      ],
+      "required_skills": [],
+      "required_tools": [],
+      "tool_allowlist": [
+        "*"
+      ],
+      "model_preferences": [
+        "gemini-2.5-flash"
+      ],
+      "priority": 1,
+      "max_concurrency": 1,
+      "resource_limits": {},
+      "confidence_threshold": {
+        "brainstorm": 95,
+        "planning": 95,
+        "blueprint": 95
+      },
+      "handoff_targets": [
+        "done"
+      ],
+      "done_criteria": "Release successfully tagged and pushed",
+      "failure_behavior": "report",
+      "retry_policy": {},
+      "observability": "full",
+      "runtime_visibility": true,
+      "can_run_in_parallel": false,
+      "isolation_required": false
+    },
+    "release-validator": {
+      "id": "release-validator",
+      "name": "release-validator",
+      "display_name": "Release Validator",
+      "version": "1.0.0",
+      "agent_category": "release",
+      "role": "Verify built package checksums and runtime dependencies",
+      "description": "AIWF Agent representing role release-validator.",
+      "capabilities": [
+        "release"
+      ],
+      "specializations": [
+        "Release"
+      ],
+      "phase_ownership": [
+        "release"
+      ],
+      "spawn_conditions": {
+        "phases": [
+          "release"
+        ],
+        "task_tags": [
+          "release"
+        ],
+        "file_patterns": [],
+        "capabilities_required": [
+          "release"
+        ],
+        "confidence_minimum": 0.95
+      },
+      "input_contract": "Task constraints and request",
+      "output_contract": "Analysis report and suggestions",
+      "permissions": {
+        "mode": "read-only"
+      },
+      "write_mode": "none",
+      "ownership_scope": {
+        "include": [
+          "scratch/**"
+        ]
+      },
+      "allowed_reads": [
+        "Project Memory",
+        "RAG Indexes"
+      ],
+      "allowed_writes": [
+        "scratch/"
+      ],
+      "forbidden_actions": [],
+      "required_skills": [],
+      "required_tools": [],
+      "tool_allowlist": [
+        "*"
+      ],
+      "model_preferences": [
+        "gemini-2.5-flash"
+      ],
+      "priority": 1,
+      "max_concurrency": 1,
+      "resource_limits": {},
+      "confidence_threshold": {
+        "brainstorm": 95,
+        "planning": 95,
+        "blueprint": 95
+      },
+      "handoff_targets": [
+        "done"
+      ],
+      "done_criteria": "Report and suggestions generated",
+      "failure_behavior": "report",
+      "retry_policy": {},
+      "observability": "full",
+      "runtime_visibility": true,
+      "can_run_in_parallel": true,
+      "isolation_required": false
+    },
+    "requirement-analyst": {
+      "id": "requirement-analyst",
+      "name": "requirement-analyst",
+      "display_name": "Requirement Analyst",
+      "version": "1.0.0",
+      "agent_category": "implementation",
+      "role": "Elaborate requirement specs and checklists",
+      "description": "AIWF Agent representing role requirement-analyst.",
+      "capabilities": [
+        "backend"
+      ],
+      "specializations": [
+        "Requirement"
+      ],
+      "phase_ownership": [
+        "implementation"
+      ],
+      "spawn_conditions": {
+        "phases": [
+          "brainstorming"
+        ],
+        "task_tags": [
+          "backend"
+        ],
+        "file_patterns": [],
+        "capabilities_required": [
+          "backend"
+        ],
+        "confidence_minimum": 0.95
+      },
+      "input_contract": "Task constraints and request",
+      "output_contract": "Analysis report and suggestions",
+      "permissions": {
+        "mode": "read-only"
+      },
+      "write_mode": "none",
+      "ownership_scope": {
+        "include": [
+          "scratch/**"
+        ]
+      },
+      "allowed_reads": [
+        "Project Memory",
+        "RAG Indexes"
+      ],
+      "allowed_writes": [
+        "scratch/"
+      ],
+      "forbidden_actions": [],
+      "required_skills": [],
+      "required_tools": [],
+      "tool_allowlist": [
+        "*"
+      ],
+      "model_preferences": [
+        "gemini-2.5-flash"
+      ],
+      "priority": 1,
+      "max_concurrency": 1,
+      "resource_limits": {},
+      "confidence_threshold": {
+        "brainstorm": 95,
+        "planning": 95,
+        "blueprint": 95
+      },
+      "handoff_targets": [
+        "done"
+      ],
+      "done_criteria": "Report and suggestions generated",
+      "failure_behavior": "report",
+      "retry_policy": {},
+      "observability": "full",
+      "runtime_visibility": true,
+      "can_run_in_parallel": true,
+      "isolation_required": false
+    },
+    "research-agent": {
+      "id": "research-agent",
+      "name": "research-agent",
+      "display_name": "Research Agent",
+      "version": "1.0.0",
+      "agent_category": "implementation",
+      "role": "Perform external research and documentation analysis",
+      "description": "AIWF Agent representing role research-agent.",
+      "capabilities": [
+        "backend"
+      ],
+      "specializations": [
+        "Research"
+      ],
+      "phase_ownership": [
+        "implementation"
+      ],
+      "spawn_conditions": {
+        "phases": [
+          "brainstorming"
+        ],
+        "task_tags": [
+          "backend"
+        ],
+        "file_patterns": [],
+        "capabilities_required": [
+          "backend"
+        ],
+        "confidence_minimum": 0.95
+      },
+      "input_contract": "Task constraints and request",
+      "output_contract": "Analysis report and suggestions",
+      "permissions": {
+        "mode": "read-only"
+      },
+      "write_mode": "none",
+      "ownership_scope": {
+        "include": [
+          "scratch/**"
+        ]
+      },
+      "allowed_reads": [
+        "Project Memory",
+        "RAG Indexes"
+      ],
+      "allowed_writes": [
+        "scratch/"
+      ],
+      "forbidden_actions": [],
+      "required_skills": [],
+      "required_tools": [],
+      "tool_allowlist": [
+        "*"
+      ],
+      "model_preferences": [
+        "gemini-2.5-flash"
+      ],
+      "priority": 1,
+      "max_concurrency": 1,
+      "resource_limits": {},
+      "confidence_threshold": {
+        "brainstorm": 95,
+        "planning": 95,
+        "blueprint": 95
+      },
+      "handoff_targets": [
+        "done"
+      ],
+      "done_criteria": "Report and suggestions generated",
+      "failure_behavior": "report",
+      "retry_policy": {},
+      "observability": "full",
+      "runtime_visibility": true,
+      "can_run_in_parallel": true,
+      "isolation_required": false
+    },
+    "reviewer": {
+      "id": "reviewer",
+      "name": "reviewer",
+      "display_name": "Reviewer",
+      "version": "1.0.0",
+      "agent_category": "review",
+      "role": "Inspect source code and test logs",
+      "description": "AIWF Agent representing role reviewer.",
+      "capabilities": [
+        "review"
+      ],
+      "specializations": [
+        "Reviewer"
+      ],
+      "phase_ownership": [
+        "implementation"
+      ],
+      "spawn_conditions": {
+        "phases": [
+          "debug"
+        ],
+        "task_tags": [
+          "review"
+        ],
+        "file_patterns": [],
+        "capabilities_required": [
+          "review"
+        ],
+        "confidence_minimum": 0.95
+      },
+      "input_contract": "Modified source code diffs and passing test logs",
+      "output_contract": "Code review report",
+      "permissions": {
+        "mode": "read-only"
+      },
+      "write_mode": "none",
+      "ownership_scope": {
+        "include": [
+          "scratch/**"
+        ]
+      },
+      "allowed_reads": [
+        "Project Memory",
+        "RAG Indexes"
+      ],
+      "allowed_writes": [
+        "scratch/"
+      ],
+      "forbidden_actions": [],
+      "required_skills": [],
+      "required_tools": [],
+      "tool_allowlist": [
+        "*"
+      ],
+      "model_preferences": [
+        "gemini-2.5-flash"
+      ],
+      "priority": 1,
+      "max_concurrency": 1,
+      "resource_limits": {},
+      "confidence_threshold": {
+        "brainstorm": 95,
+        "planning": 95,
+        "blueprint": 95
+      },
+      "handoff_targets": [
+        "release-manager"
+      ],
+      "done_criteria": "Certified implementation as ready for release",
+      "failure_behavior": "report",
+      "retry_policy": {},
+      "observability": "full",
+      "runtime_visibility": true,
+      "can_run_in_parallel": false,
+      "isolation_required": false
+    },
+    "risk-analyst": {
+      "id": "risk-analyst",
+      "name": "risk-analyst",
+      "display_name": "Risk Analyst",
+      "version": "1.0.0",
+      "agent_category": "planning",
+      "role": "Assess technical and timeline risks",
+      "description": "AIWF Agent representing role risk-analyst.",
+      "capabilities": [
+        "backend"
+      ],
+      "specializations": [
+        "Risk"
+      ],
+      "phase_ownership": [
+        "planning"
+      ],
+      "spawn_conditions": {
+        "phases": [
+          "planning"
+        ],
+        "task_tags": [
+          "backend"
+        ],
+        "file_patterns": [],
+        "capabilities_required": [
+          "backend"
+        ],
+        "confidence_minimum": 0.95
+      },
+      "input_contract": "Task constraints and request",
+      "output_contract": "Analysis report and suggestions",
+      "permissions": {
+        "mode": "read-only"
+      },
+      "write_mode": "none",
+      "ownership_scope": {
+        "include": [
+          "scratch/**"
+        ]
+      },
+      "allowed_reads": [
+        "Project Memory",
+        "RAG Indexes"
+      ],
+      "allowed_writes": [
+        "scratch/"
+      ],
+      "forbidden_actions": [],
+      "required_skills": [],
+      "required_tools": [],
+      "tool_allowlist": [
+        "*"
+      ],
+      "model_preferences": [
+        "gemini-2.5-flash"
+      ],
+      "priority": 1,
+      "max_concurrency": 1,
+      "resource_limits": {},
+      "confidence_threshold": {
+        "brainstorm": 95,
+        "planning": 95,
+        "blueprint": 95
+      },
+      "handoff_targets": [
+        "done"
+      ],
+      "done_criteria": "Report and suggestions generated",
+      "failure_behavior": "report",
+      "retry_policy": {},
+      "observability": "full",
+      "runtime_visibility": true,
+      "can_run_in_parallel": true,
+      "isolation_required": false
+    },
+    "security-architect": {
+      "id": "security-architect",
+      "name": "security-architect",
+      "display_name": "Security Architect",
+      "version": "1.0.0",
+      "agent_category": "architecture",
+      "role": "Design authentication, authz, data encryption rules",
+      "description": "AIWF Agent representing role security-architect.",
+      "capabilities": [
+        "architecture"
+      ],
+      "specializations": [
+        "Security"
+      ],
+      "phase_ownership": [
+        "blueprint"
+      ],
+      "spawn_conditions": {
+        "phases": [
+          "blueprint"
+        ],
+        "task_tags": [
+          "architecture"
+        ],
+        "file_patterns": [],
+        "capabilities_required": [
+          "architecture"
+        ],
+        "confidence_minimum": 0.95
+      },
+      "input_contract": "Task constraints and request",
+      "output_contract": "Analysis report and suggestions",
+      "permissions": {
+        "mode": "read-only"
+      },
+      "write_mode": "none",
+      "ownership_scope": {
+        "include": [
+          "scratch/**"
+        ]
+      },
+      "allowed_reads": [
+        "Project Memory",
+        "RAG Indexes"
+      ],
+      "allowed_writes": [
+        "scratch/"
+      ],
+      "forbidden_actions": [],
+      "required_skills": [],
+      "required_tools": [],
+      "tool_allowlist": [
+        "*"
+      ],
+      "model_preferences": [
+        "gemini-2.5-flash"
+      ],
+      "priority": 1,
+      "max_concurrency": 1,
+      "resource_limits": {},
+      "confidence_threshold": {
+        "brainstorm": 95,
+        "planning": 95,
+        "blueprint": 95
+      },
+      "handoff_targets": [
+        "done"
+      ],
+      "done_criteria": "Report and suggestions generated",
+      "failure_behavior": "report",
+      "retry_policy": {},
+      "observability": "full",
+      "runtime_visibility": true,
+      "can_run_in_parallel": true,
+      "isolation_required": false
+    },
+    "security-planner": {
+      "id": "security-planner",
+      "name": "security-planner",
+      "display_name": "Security Planner",
+      "version": "1.0.0",
+      "agent_category": "planning",
+      "role": "Identify security constraints and policy needs",
+      "description": "AIWF Agent representing role security-planner.",
+      "capabilities": [
+        "planning",
+        "brainstorming"
+      ],
+      "specializations": [
+        "Security"
+      ],
+      "phase_ownership": [
+        "planning"
+      ],
+      "spawn_conditions": {
+        "phases": [
+          "planning"
+        ],
+        "task_tags": [
+          "planning",
+          "brainstorming"
+        ],
+        "file_patterns": [],
+        "capabilities_required": [
+          "planning",
+          "brainstorming"
+        ],
+        "confidence_minimum": 0.95
+      },
+      "input_contract": "Task constraints and request",
+      "output_contract": "Analysis report and suggestions",
+      "permissions": {
+        "mode": "read-only"
+      },
+      "write_mode": "none",
+      "ownership_scope": {
+        "include": [
+          "scratch/**"
+        ]
+      },
+      "allowed_reads": [
+        "Project Memory",
+        "RAG Indexes"
+      ],
+      "allowed_writes": [
+        "scratch/"
+      ],
+      "forbidden_actions": [],
+      "required_skills": [],
+      "required_tools": [],
+      "tool_allowlist": [
+        "*"
+      ],
+      "model_preferences": [
+        "gemini-2.5-flash"
+      ],
+      "priority": 1,
+      "max_concurrency": 1,
+      "resource_limits": {},
+      "confidence_threshold": {
+        "brainstorm": 95,
+        "planning": 95,
+        "blueprint": 95
+      },
+      "handoff_targets": [
+        "done"
+      ],
+      "done_criteria": "Report and suggestions generated",
+      "failure_behavior": "report",
+      "retry_policy": {},
+      "observability": "full",
+      "runtime_visibility": true,
+      "can_run_in_parallel": true,
+      "isolation_required": false
+    },
+    "security-reviewer": {
+      "id": "security-reviewer",
+      "name": "security-reviewer",
+      "display_name": "Security Reviewer",
+      "version": "1.0.0",
+      "agent_category": "review",
+      "role": "Perform threat modeling and dependency audits",
+      "description": "AIWF Agent representing role security-reviewer.",
+      "capabilities": [
+        "review"
+      ],
+      "specializations": [
+        "Security"
+      ],
+      "phase_ownership": [
+        "implementation"
+      ],
+      "spawn_conditions": {
+        "phases": [
+          "debug"
+        ],
+        "task_tags": [
+          "review"
+        ],
+        "file_patterns": [],
+        "capabilities_required": [
+          "review"
+        ],
+        "confidence_minimum": 0.95
+      },
+      "input_contract": "Task constraints and request",
+      "output_contract": "Analysis report and suggestions",
+      "permissions": {
+        "mode": "read-only"
+      },
+      "write_mode": "none",
+      "ownership_scope": {
+        "include": [
+          "scratch/**"
+        ]
+      },
+      "allowed_reads": [
+        "Project Memory",
+        "RAG Indexes"
+      ],
+      "allowed_writes": [
+        "scratch/"
+      ],
+      "forbidden_actions": [],
+      "required_skills": [],
+      "required_tools": [],
+      "tool_allowlist": [
+        "*"
+      ],
+      "model_preferences": [
+        "gemini-2.5-flash"
+      ],
+      "priority": 1,
+      "max_concurrency": 1,
+      "resource_limits": {},
+      "confidence_threshold": {
+        "brainstorm": 95,
+        "planning": 95,
+        "blueprint": 95
+      },
+      "handoff_targets": [
+        "done"
+      ],
+      "done_criteria": "Report and suggestions generated",
+      "failure_behavior": "report",
+      "retry_policy": {},
+      "observability": "full",
+      "runtime_visibility": true,
+      "can_run_in_parallel": true,
+      "isolation_required": false
+    },
+    "test-developer": {
+      "id": "test-developer",
+      "name": "test-developer",
+      "display_name": "Test Developer",
+      "version": "1.0.0",
+      "agent_category": "implementation",
+      "role": "Write unit, regression and performance mock tests",
+      "description": "AIWF Agent representing role test-developer.",
+      "capabilities": [
+        "testing",
+        "verification"
+      ],
+      "specializations": [
+        "Test"
+      ],
+      "phase_ownership": [
+        "implementation"
+      ],
+      "spawn_conditions": {
+        "phases": [
+          "implementation"
+        ],
+        "task_tags": [
+          "testing",
+          "verification"
+        ],
+        "file_patterns": [],
+        "capabilities_required": [
+          "testing",
+          "verification"
+        ],
+        "confidence_minimum": 0.95
+      },
+      "input_contract": "Task constraints and request",
+      "output_contract": "Analysis report and suggestions",
+      "permissions": {
+        "mode": "scoped-write"
+      },
+      "write_mode": "single-writer",
+      "ownership_scope": {
+        "include": [
+          "skills/workflow-runtime/tests/**",
+          "tests/**",
+          ".agents/runtime/**"
+        ]
+      },
+      "allowed_reads": [
+        "Project Memory",
+        "RAG Indexes"
+      ],
+      "allowed_writes": [
+        "skills/workflow-runtime/tests/",
+        "tests/",
+        ".agents/runtime/"
+      ],
+      "forbidden_actions": [
+        "Bypassing test suite",
+        "Silently scaling privileges"
+      ],
+      "required_skills": [],
+      "required_tools": [],
+      "tool_allowlist": [
+        "*"
+      ],
+      "model_preferences": [
+        "gemini-2.5-flash"
+      ],
+      "priority": 1,
+      "max_concurrency": 1,
+      "resource_limits": {},
+      "confidence_threshold": {
+        "brainstorm": 95,
+        "planning": 95,
+        "blueprint": 95
+      },
+      "handoff_targets": [
+        "done"
+      ],
+      "done_criteria": "Report and suggestions generated",
+      "failure_behavior": "report",
+      "retry_policy": {},
+      "observability": "full",
+      "runtime_visibility": true,
+      "can_run_in_parallel": true,
+      "isolation_required": false
+    },
+    "test-planner": {
+      "id": "test-planner",
+      "name": "test-planner",
+      "display_name": "Test Planner",
+      "version": "1.0.0",
+      "agent_category": "planning",
+      "role": "Draft unit, integration, and UI test plan guides",
+      "description": "AIWF Agent representing role test-planner.",
+      "capabilities": [
+        "testing",
+        "verification",
+        "planning",
+        "brainstorming"
+      ],
+      "specializations": [
+        "Test"
+      ],
+      "phase_ownership": [
+        "planning"
+      ],
+      "spawn_conditions": {
+        "phases": [
+          "planning"
+        ],
+        "task_tags": [
+          "testing",
+          "verification",
+          "planning",
+          "brainstorming"
+        ],
+        "file_patterns": [],
+        "capabilities_required": [
+          "testing",
+          "verification",
+          "planning",
+          "brainstorming"
+        ],
+        "confidence_minimum": 0.95
+      },
+      "input_contract": "Task constraints and request",
+      "output_contract": "Analysis report and suggestions",
+      "permissions": {
+        "mode": "read-only"
+      },
+      "write_mode": "none",
+      "ownership_scope": {
+        "include": [
+          "scratch/**"
+        ]
+      },
+      "allowed_reads": [
+        "Project Memory",
+        "RAG Indexes"
+      ],
+      "allowed_writes": [
+        "scratch/"
+      ],
+      "forbidden_actions": [],
+      "required_skills": [],
+      "required_tools": [],
+      "tool_allowlist": [
+        "*"
+      ],
+      "model_preferences": [
+        "gemini-2.5-flash"
+      ],
+      "priority": 1,
+      "max_concurrency": 1,
+      "resource_limits": {},
+      "confidence_threshold": {
+        "brainstorm": 95,
+        "planning": 95,
+        "blueprint": 95
+      },
+      "handoff_targets": [
+        "done"
+      ],
+      "done_criteria": "Report and suggestions generated",
+      "failure_behavior": "report",
+      "retry_policy": {},
+      "observability": "full",
+      "runtime_visibility": true,
+      "can_run_in_parallel": true,
+      "isolation_required": false
+    },
+    "version-manager": {
+      "id": "version-manager",
+      "name": "version-manager",
+      "display_name": "Version Manager",
+      "version": "1.0.0",
+      "agent_category": "implementation",
+      "role": "Manage semver bump configurations",
+      "description": "AIWF Agent representing role version-manager.",
+      "capabilities": [
+        "backend"
+      ],
+      "specializations": [
+        "Version"
+      ],
+      "phase_ownership": [
+        "release"
+      ],
+      "spawn_conditions": {
+        "phases": [
+          "release"
+        ],
+        "task_tags": [
+          "backend"
+        ],
+        "file_patterns": [],
+        "capabilities_required": [
+          "backend"
+        ],
+        "confidence_minimum": 0.95
+      },
+      "input_contract": "Task constraints and request",
+      "output_contract": "Analysis report and suggestions",
+      "permissions": {
+        "mode": "read-only"
+      },
+      "write_mode": "none",
+      "ownership_scope": {
+        "include": [
+          "scratch/**"
+        ]
+      },
+      "allowed_reads": [
+        "Project Memory",
+        "RAG Indexes"
+      ],
+      "allowed_writes": [
+        "scratch/"
+      ],
+      "forbidden_actions": [],
+      "required_skills": [],
+      "required_tools": [],
+      "tool_allowlist": [
+        "*"
+      ],
+      "model_preferences": [
+        "gemini-2.5-flash"
+      ],
+      "priority": 1,
+      "max_concurrency": 1,
+      "resource_limits": {},
+      "confidence_threshold": {
+        "brainstorm": 95,
+        "planning": 95,
+        "blueprint": 95
+      },
+      "handoff_targets": [
+        "done"
+      ],
+      "done_criteria": "Report and suggestions generated",
+      "failure_behavior": "report",
+      "retry_policy": {},
+      "observability": "full",
+      "runtime_visibility": true,
+      "can_run_in_parallel": true,
+      "isolation_required": false
+    }
+  }
+}

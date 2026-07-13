@@ -1,0 +1,25 @@
+{
+  "current_skill": "initialize-workflow",
+  "current_command": "init",
+  "current_step": "Starting workflow initialization...",
+  "current_logs": [],
+  "status": "in_progress",
+  "context_health": "healthy",
+  "suggestion_gate": {
+    "active": false,
+    "raw_request": "",
+    "classification": "",
+    "recommended_skill": "",
+    "options": [],
+    "status": "idle"
+  },
+  "pending_input": null,
+  "telemetry_config": {},
+  "updated_at": "2026-07-13T13:31:47.359873+07:00",
+  "_metadata": {
+    "generation": 1,
+    "revision": 1,
+    "writer_id": "63521-6f64402f",
+    "updated_at": "2026-07-13T13:31:47.360459+07:00"
+  }
+}

@@ -72,6 +72,7 @@ Prior to running any release activities, the AI must strictly execute the follow
 3. **Verify Quality Gates**: Ensure all quality gates are met:
    - Debug Gate: `docs/debug/FEAT-XXX_debug.md` has `status: PASS`.
    - Verification Gate: `docs/verification/FEAT-XXX_verify.md` has `status: PASS`.
+4. **Walkthrough Handover Decision Gate**: The AI must prompt the user using the Choice Protocol before packaging or overwriting `walkthrough.md` in the repository, asking whether they want to overwrite (create new walkthrough) or keep/append to the previous history.
 
 **If any validation fails:**
 - **STOP immediately**.

@@ -1,32 +1,68 @@
 ---
-name: release-manager
-role: Finalize release process
-responsibilities: Update version files, CHANGELOG.md, Git tags
-artifact_ownership: Version files, CHANGELOG.md, Git tags
+id: "release-manager"
+name: "release-manager"
+display_name: "Release Manager"
+version: "1.0.0"
+agent_category: "release"
+role: "Finalize release process"
+description: "AIWF Agent representing role release-manager."
+capabilities:
+  - "release"
+specializations:
+  - "Release"
+phase_ownership:
+  - "release"
+spawn_conditions:
+  phases:
+    - "release"
+  task_tags:
+    - "release"
+  file_patterns: []
+  capabilities_required:
+    - "release"
+  confidence_minimum: 0.95
+input_contract: "Passing reviewer report and merge confirmation"
+output_contract: "Git tag and pushed remote commits"
+permissions:
+  mode: "scoped-write"
+write_mode: "single-writer"
+ownership_scope:
+  include:
+    - "public_export/**"
+    - "CHANGELOG.md**"
 allowed_reads:
-- Review reports
-- Git repository status
+  - "Project Memory"
+  - "RAG Indexes"
 allowed_writes:
-- Project version configurations
-- CHANGELOG.md
+  - "public_export/"
+  - "CHANGELOG.md"
 forbidden_actions:
-- Implementing new features
-- modifying business logic
-input_contract: Passing reviewer report and merge confirmation
-output_contract: Git tag and pushed remote commits
-handoff_target: done
-done_criteria: Release successfully tagged and pushed
+  - "Bypassing test suite"
+  - "Silently scaling privileges"
+required_skills: []
+required_tools: []
+tool_allowlist:
+  - "*"
+model_preferences:
+  - "gemini-2.5-flash"
+priority: 1
+max_concurrency: 1
+resource_limits: {}
+confidence_threshold:
+  brainstorm: 95
+  planning: 95
+  blueprint: 95
+handoff_targets:
+  - "done"
+done_criteria: "Release successfully tagged and pushed"
+failure_behavior: "report"
+retry_policy: {}
+observability: "full"
+runtime_visibility: true
 can_run_in_parallel: false
-agent_category: release
-phase: release
-required_skills:
-- implementation-to-release
-required_memory: true
-required_rag_context: true
-runtime_requirements:
-- python3
-- git
+isolation_required: false
 ---
+
 
 # Agent: Release Manager
 

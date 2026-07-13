@@ -1,9 +1,12 @@
-# validation_runner.py
 import os
 import sys
 import json
 import subprocess
 import time
+
+sys.path.append(os.path.dirname(os.path.abspath(__file__)))
+from test_enforcer import patch_subprocess
+patch_subprocess()
 import signal
 import socket
 import re

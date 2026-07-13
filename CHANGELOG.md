@@ -5,6 +5,19 @@ All notable changes to this project will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [6.14.0] - 2026-07-13
+
+### Added
+- **Dynamic Agent Registry**:
+  - Triển khai Dynamic Agent discovery và validation sử dụng JSON Schema (`agent.schema.json`).
+  - Tự động biên dịch 41 file markdown agent sang tệp registry duy nhất `registry.json`.
+  - Cập nhật quyền ghi `scoped-write` hợp lý cho Frontend, Backend, Database và Test Developer Agents.
+- **TESTER Agent Ownership Enforcement**:
+  - Monkey patch toàn cục `subprocess.run` và `subprocess.Popen` nhằm ngăn chặn mọi hoạt động thực thi test command trái phép (không có active test task hoặc được gán sai owner).
+- **Autonomous Workflow & Adaptive Capacity Planning (v1)**:
+  - Tích hợp Confidence Gates (yêu cầu >= 95% cho brainstorm/planning/blueprint).
+  - Triển khai Adaptive Team Planner và Capacity Controller giúp điều phối tối ưu concurrency dựa trên CPU/RAM và tự động tuyển dụng (dynamic recruitment) specialists.
+
 ## [6.13.2] - 2026-07-13
 
 ### Fixed
