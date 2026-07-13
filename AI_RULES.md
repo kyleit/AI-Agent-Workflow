@@ -523,5 +523,16 @@ No AIWF Skill may access knowledge providers (such as Markdown files, SQLite dat
    * **Xác thực tự động**: Validation pipeline phải thực hiện quét phân tích các thư mục tài nguyên nhúng (như `frontend/dist`). Nếu phát hiện chứa tệp dummy hoặc kích thước quá nhỏ (< 1KB), pipeline phải đánh dấu thất bại ngay lập tức (FAIL) và yêu cầu build đầy đủ frontend.
    * **Graceful Runtime Check**: Đảm bảo ứng dụng sau khi khởi chạy phải load được tài nguyên giao diện thật thông qua smoke tests kiểm tra nội dung trả về, thay vì chỉ kiểm tra cổng port mở.
 
+---
+
+## 26. Workspace Session Runtime Policy
+
+*   **Session Runtime as Default**: Session Runtime is the default execution model for all workspace operations. It uses lightweight in-memory and file-based state checks via the Workflow Supervisor, without requiring long-running daemons.
+*   **Resident Daemon is Optional**: The Resident Daemon (Resident Orchestrator / Runtime Manager) is optional and must never be started automatically during project initialization (`aiwf init`). It can only be started explicitly via command line (e.g., `aiwf orchestrator start --mode resident`).
+*   **Forbid Manual Environment Checks**: AI agents MUST NOT manually run verification commands such as `python --version`, `go version`, `node --version`, `git --version`, `docker --version`, or similar tool validation commands.
+*   **Mandatory Doctor Consumption**: All environment, capability, and stack checking operations must strictly consume the structured JSON payload returned by executing `workspace_doctor.py`.
+
+
+
 
 

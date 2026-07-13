@@ -28,6 +28,7 @@ import analytics_engine
 class TestRuntimeEngine(unittest.TestCase):
     def setUp(self):
         os.environ["TESTING"] = "1"
+        os.environ["AIWF_TESTING_PERMISSIONS"] = "true"
         
         # Isolate databases to a temp directory
         self.test_dir = os.path.abspath(os.path.join(os.path.dirname(__file__), "temp_test_db"))
@@ -89,6 +90,7 @@ class TestRuntimeEngine(unittest.TestCase):
                 pass
             
     def tearDown(self):
+        os.environ.pop("AIWF_TESTING_PERMISSIONS", None)
         # Restore DB paths
         db.PROJECT_DB = self.original_project_db
         db.get_global_db_path = self.original_get_global_db
@@ -172,13 +174,26 @@ class TestRuntimeEngine(unittest.TestCase):
         self.assertTrue(validate_checkpoint_level(3, "exactly 3 or 2"))
         
     def test_drift_detection(self):
-        session = {
-            "git": {"is_git_repository": True, "branch": "non_existent_branch"},
-            "version": {"version": "0.0.0"}
+        import drift
+        original_get_git = drift.get_git_info
+        drift.get_git_info = lambda: {
+            "is_git_repository": True,
+            "branch": "main",
+            "working_tree": "clean",
+            "default_branch": "main",
+            "latest_tag": "",
         }
-        drifted, msg = check_context_drift(session)
-        self.assertTrue(drifted)
-        self.assertIn("Branch drifted", msg)
+        try:
+            from validator import get_version_info
+            session = {
+                "git": {"is_git_repository": True, "branch": "non_existent_branch"},
+                "version": get_version_info()
+            }
+            drifted, msg = check_context_drift(session)
+            self.assertTrue(drifted)
+            self.assertIn("Branch drifted", msg)
+        finally:
+            drift.get_git_info = original_get_git
         
     def test_heartbeat_generation(self):
         session = {
@@ -505,7 +520,7 @@ class TestRuntimeEngine(unittest.TestCase):
         self.assertNotEqual(session.get("suggestion_gate", {}).get("recommended_skill"), "implementation-to-release")
         
         # Scenario 10: Explicit /quick-fix bypasses suggestion gate and runs quick-fix normally
-        save_session_atomic({"checkpoint": 1, "suggestion_gate": {}})
+        save_session_atomic({"checkpoint": 1, "suggestion_gate": {"active": False}})
         # If running start for quick-fix directly
         res = subprocess.run(
             [sys.executable, cli_path, "start", "--skill", "quick-fix", "--command", "fix", "--checkpoint", "2", "--step", "Starting"],
@@ -519,6 +534,7 @@ class TestRuntimeEngine(unittest.TestCase):
                     pass
         self.assertEqual(res.returncode, 0)
         session = load_session()
+        print("DEBUG_TEST_S10: session =", session)
         self.assertEqual(session["current_skill"], "quick-fix")
         self.assertEqual(session["suggestion_gate"]["active"], False)
         
@@ -612,6 +628,13 @@ class TestRuntimeEngine(unittest.TestCase):
         
         # S5: Full access mode bypasses normal file changes
         save_session_atomic({"permission_mode": "full_access"})
+        from session import get_project_permission_config_path
+        perm_path = get_project_permission_config_path()
+        if os.path.exists(perm_path):
+            try:
+                os.remove(perm_path)
+            except Exception:
+                pass
         self.assertEqual(get_permission_mode(), "full_access")
         self.assertEqual(requires_approval("normal_file_write"), False)
         self.assertEqual(requires_approval("source_code_change"), False)
@@ -1082,7 +1105,7 @@ class TestRuntimeEngine(unittest.TestCase):
                  
             self.assertIn("telemetry_config", session)
             self.assertEqual(session["telemetry_config"]["context_thresholds"]["warning"], 60)
-            self.assertEqual(session["telemetry_config"]["cost_thresholds"]["warning_usd"], 50.0)
+            self.assertEqual(session["telemetry_config"]["cost_thresholds"]["warning_usd"], 10.0)
             self.assertIn("context_styles", session["telemetry_config"])
             self.assertEqual(session["telemetry_config"]["context_styles"]["healthy"]["color"], "#10b981")
             

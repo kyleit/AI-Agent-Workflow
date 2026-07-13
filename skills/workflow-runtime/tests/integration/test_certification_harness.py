@@ -85,9 +85,15 @@ async def test_fault_injection_recovery(tmp_path, monkeypatch):
     assert res.error_category == "timeout"
     
     # Scenario 2: Forbidden process interception
-    with pytest.raises(ForbiddenProcessSpawnError):
-        import subprocess
-        subprocess.run(["python3", "-c", "print('bypass')"])
+    os.environ["AIWF_FORCE_ENFORCE"] = "true"
+    os.environ["AIWF_TESTING_BYPASS_ENFORCER"] = "true"
+    try:
+        with pytest.raises(ForbiddenProcessSpawnError):
+            import subprocess
+            subprocess.run(["python3", "-c", "print('bypass')"])
+    finally:
+        os.environ.pop("AIWF_FORCE_ENFORCE", None)
+        os.environ.pop("AIWF_TESTING_BYPASS_ENFORCER", None)
 
 @pytest.mark.asyncio
 async def test_performance_latencies(tmp_path, monkeypatch):

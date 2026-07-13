@@ -106,13 +106,30 @@ class ExecutionManager:
 
     @staticmethod
     def validate_request(req: Dict[str, Any]) -> Tuple[bool, str]:
+        # 0. Workflow Context Boundary Check (FEAT-308)
+        session_path = os.path.abspath(os.path.join(".", ".agents", ".session.json"))
+        session_data = {}
+        if os.path.exists(session_path):
+            try:
+                with open(session_path, "r", encoding="utf-8") as f:
+                    session_data = json.load(f)
+            except Exception:
+                pass
+                
+        execution_mode = os.environ.get("AIWF_EXECUTION_MODE") or session_data.get("execution_mode")
+        workflow_id = os.environ.get("AIWF_WORKFLOW_ID") or session_data.get("workflow_id")
+        
+        is_testing = os.environ.get("AIWF_TESTING") == "true"
+        if not is_testing and (execution_mode != "workflow" or not workflow_id):
+            return False, "EXECUTION_BLOCKED: Engineering action outside Workflow Gateway."
+
         # Path traversal checks
         cwd = req.get("working_directory", ".")
         abs_cwd = os.path.abspath(cwd)
         repo_root = os.path.abspath(os.path.join(os.path.dirname(__file__), "../../.."))
         
-        is_testing = os.environ.get("AIWF_TESTING") == "true" or os.environ.get("AIWF_STRICT_PROCESS_ENFORCEMENT") == "true" or "pytest" in abs_cwd.lower()
-        if not is_testing and not abs_cwd.startswith(repo_root):
+        is_testing_override = is_testing or os.environ.get("AIWF_STRICT_PROCESS_ENFORCEMENT") == "true" or "pytest" in abs_cwd.lower()
+        if not is_testing_override and not abs_cwd.startswith(repo_root):
             return False, f"Working directory {cwd} is outside workspace bounds."
 
         # Role checks

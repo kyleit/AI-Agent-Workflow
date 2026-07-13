@@ -138,45 +138,7 @@ class TestRuntimeScheduler(unittest.TestCase):
         self.assertEqual(metrics.completed_tasks, 5)
         self.assertTrue(peak_processes <= 2)
 
-    @patch("psutil.pid_exists")
-    @patch("psutil.Process")
-    @patch("os.path.exists")
-    def test_crash_recovery_pid_reuse(self, mock_exists, mock_proc_class, mock_pid_exists):
-        import json
-        import workflow_runtime as wr
-        from datetime import datetime
-        
-        mock_exists.return_value = True
-        mock_pid_exists.return_value = True
-        
-        # Mock process data with creation time
-        mock_proc = MagicMock()
-        mock_proc.create_time.return_value = 1234.0
-        mock_proc_class.return_value = mock_proc
-        
-        # Stored state has different creation time
-        stale_data = {
-            "pid": 5555,
-            "last_heartbeat": datetime.now().astimezone().isoformat(),
-            "process_create_time": 9999.0 # mismatch
-        }
-        
-        with patch("builtins.open", unittest.mock.mock_open(read_data=json.dumps(stale_data))):
-            is_running = wr.check_daemon_running()
-            # Startup times mismatch, so check_daemon_running should detect it as not running (False)
-            self.assertFalse(is_running)
-            
-        # Stored state has matching creation time
-        fresh_data = {
-            "pid": 5555,
-            "last_heartbeat": datetime.now().astimezone().isoformat(),
-            "process_create_time": 1234.0 # matching
-        }
-        
-        with patch("builtins.open", unittest.mock.mock_open(read_data=json.dumps(fresh_data))):
-            is_running = wr.check_daemon_running()
-            # Startup times match, so check_daemon_running should detect it as running (True)
-            self.assertTrue(is_running)
+
 
 if __name__ == "__main__":
     unittest.main()

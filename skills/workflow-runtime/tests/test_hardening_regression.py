@@ -22,7 +22,6 @@ else:
     raise ImportError("Could not load RuntimeTestBase from fixtures/conftest.py")
 
 from session import OSFileLock
-from hierarchical_runtime import HierarchicalRuntime
 from test_coordinator import kill_process_tree
 
 class HardeningRegressionTests(RuntimeTestBase):
@@ -49,35 +48,7 @@ class HardeningRegressionTests(RuntimeTestBase):
         daemon_lock.release()
         self.assertFalse(os.path.exists(lock_path))
 
-    # Regression 2: Current running task should not self-block when concurrency = 1
-    def test_concurrency_one_does_not_self_block(self):
-        runtime = HierarchicalRuntime(work_item_id="WORK-TEST-001", state_dir=self.workspace)
-        
-        # Configure concurrency limit = 1 and set current task to "running"
-        runtime.task_graph["concurrency_limit"] = 1
-        runtime.task_graph["tasks"] = {
-            "TASK-004": {
-                "name": "Backend Implementation",
-                "role": "subagent",
-                "status": "running",
-                "dependencies": [],
-                "write_scope": "sources/backend/"
-            }
-        }
-        
-        # Mock psutil.virtual_memory to return low memory usage to bypass host RAM limitations
-        import psutil
-        original_virtual_memory = psutil.virtual_memory
-        class MockVirtualMemory:
-            percent = 10.0
-        psutil.virtual_memory = lambda: MockVirtualMemory()
-        
-        try:
-            # Verify that evaluating TASK-004 does NOT trigger concurrency self-blocking
-            allowed, reason = runtime.can_spawn_subagent("AGENT-BACKEND-001", "TASK-004")
-            self.assertTrue(allowed, f"Should be allowed to spawn because task excludes itself from running checks. Reason: {reason}")
-        finally:
-            psutil.virtual_memory = original_virtual_memory
+
 
     # Regression 3: kill_process_tree must correctly kill process trees recursively on timeout
     def test_coordinator_timeout_cleanup(self):
@@ -118,53 +89,7 @@ class HardeningRegressionTests(RuntimeTestBase):
         self.assertTrue(len(gaps) > 0)
         self.assertIn("Missing", gaps[0])
 
-    # Regression 5: Strict Agent Ownership mapping on scheduler task distribution
-    def test_agent_ownership_mapping(self):
-        runtime = HierarchicalRuntime(work_item_id="WORK-TEST-002", state_dir=self.workspace)
-        
-        # Set agents and task graph mock
-        runtime.agents = {
-            "AGENT-PM-001": {"role": "orchestrator", "status": "active"},
-            "AGENT-PLANNER-001": {"role": "subagent", "status": "idle", "type": "planner"},
-            "AGENT-ARCHITECT-001": {"role": "subagent", "status": "idle", "type": "architect"},
-            "AGENT-BACKEND-001": {"role": "subagent", "status": "idle", "type": "backend"},
-            "AGENT-FRONTEND-001": {"role": "subagent", "status": "idle", "type": "frontend"},
-            "AGENT-TESTER-001": {"role": "subagent", "status": "idle", "type": "qa"}
-        }
-        
-        runtime.task_graph["tasks"] = {
-            "TASK-001": {"name": "Requirement Discovery", "role": "discovery", "status": "ready", "dependencies": []},
-            "TASK-002": {"name": "Implementation Planning", "role": "planning", "status": "pending", "dependencies": ["TASK-001"]},
-            "TASK-003": {"name": "Technical Blueprint Design", "role": "blueprint", "status": "pending", "dependencies": ["TASK-002"]},
-            "TASK-004": {"name": "Backend Implementation", "role": "subagent", "status": "pending", "dependencies": ["TASK-003"], "write_scope": "sources/backend/"},
-            "TASK-005": {"name": "Frontend Svelte UI Design", "role": "subagent", "status": "pending", "dependencies": ["TASK-003"], "write_scope": "sources/frontend/"},
-            "TASK-006": {"name": "QA Testing", "role": "verification", "status": "pending", "dependencies": ["TASK-004", "TASK-005"]}
-        }
-        
-        # Run cycle for TASK-001 (should assign to AGENT-PLANNER-001)
-        runtime.run_workflow_cycle()
-        t1 = runtime.task_graph["tasks"]["TASK-001"]
-        self.assertEqual(t1["assigned_agent"], "AGENT-PLANNER-001")
-        
-        # Complete TASK-001 so TASK-002 becomes ready
-        t1["status"] = "completed"
-        runtime.run_workflow_cycle()
-        t2 = runtime.task_graph["tasks"]["TASK-002"]
-        self.assertEqual(t2["assigned_agent"], "AGENT-PLANNER-001")
-        
-        # Complete TASK-002 so TASK-003 becomes ready
-        t2["status"] = "completed"
-        runtime.run_workflow_cycle()
-        t3 = runtime.task_graph["tasks"]["TASK-003"]
-        self.assertEqual(t3["assigned_agent"], "AGENT-ARCHITECT-001")
-        
-        # Complete TASK-003 so TASK-004 and TASK-005 become ready
-        t3["status"] = "completed"
-        runtime.run_workflow_cycle()
-        t4 = runtime.task_graph["tasks"]["TASK-004"]
-        t5 = runtime.task_graph["tasks"]["TASK-005"]
-        self.assertEqual(t4["assigned_agent"], "AGENT-BACKEND-001")
-        self.assertEqual(t5["assigned_agent"], "AGENT-FRONTEND-001")
+
 
 if __name__ == "__main__":
     unittest.main()

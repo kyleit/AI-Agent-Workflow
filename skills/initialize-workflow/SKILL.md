@@ -59,7 +59,7 @@ This skill is the **mandatory entry point** of the AI Engineering Workflow. Its 
 | Connect to RAG / query vector DB | Use `rag: cached` (metadata only) |
 | Scan `docs/`, workspace files, or manifests | `workspace_scan: none` |
 | Run `git describe --tags`, `git remote -v`, `git fetch` | Only 3 allowed git commands |
-| Run `python --version`, `node --version`, `docker version`, etc. | `environment: cached` — read snapshot JSON only |
+| Run `python --version`, `node --version`, `docker version`, etc. | Forbidden — consume `workspace_doctor` JSON report instead |
 | Parse transcript files or sync request history | `usage: cached` — read from `dashboard.json` or `context/usage.json` only |
 | Call `sync_request_history()`, `parse_transcript()`, `refresh_context_usage_for_active_conversation()` | All forbidden during init |
 | Write absolute paths to `.session.json` | Workspace `path` must always be `"."` |
@@ -141,7 +141,7 @@ git status --short
 ```
 
 - Store result in session `git` field.
-- **FORBIDDEN**: `git describe --tags`, `git remote -v`, `git fetch`, `git tag`, `git --version`.
+- **FORBIDDEN**: `git describe --tags`, `git remote -v`, `git fetch`, `git tag`, `git --version`, `python --version`, `node --version`, `go version`, `docker --version`.
 
 ### Step 4 — Read Cached State + Approvals
 
@@ -191,53 +191,29 @@ The following operations were removed from this skill in v3.0.0 and must NEVER b
 | Workspace scan (`docs/` scan for work item) | Filesystem I/O on every init | Read `work_item` from `context.json` only |
 | `get_version_info()` (scans manifests) | Not needed at init | Read `project_version` from `context.json` |
 | Validate documentation folders | Not needed at init | Handled by `environment-health` skill |
-| Env CLI checks (`python --version`, `node --version`, etc.) | Slow subprocess calls | Use `environment: cached` → `environment.json` |
+| Env CLI checks (`python --version`, `node --version`, etc.) | Slow subprocess calls — now automated by `workspace_doctor.py` | Consume `workspace_doctor` JSON report |
 | `git describe --tags` | Forbidden at init | Version from `context.json` only |
 | `sync_request_history()` | Expensive, async | Never during init; guarded by `usage: cached` |
 | `parse_transcript()` | File I/O + parsing | Never during init |
 | `refresh_context_usage_for_active_conversation()` | API call | Never during init |
 | Write absolute workspace path | Path leakage | Always write `path: "."` |
-| Permission mode prompt during init | Moved to separate gate | Handled by `permission_mode.py` when needed |
 
 ---
 
 ## Output Format
 
 ```text
-Current Phase:
-Workflow Initialization (Lightweight)
+Workspace:
+READY
 
-Status:
-Completed
+Runtime:
+SESSION_MODE
 
-Guardrails:
-- AI_RULES.md: [hash]
-- AGENTS.md: [hash]
-- SKILL.md: [hash]
-- Policy Flags: approval_gate=true, git_gate=true, blueprint_gate=true
+Resident Orchestrator:
+DISABLED
 
-Git Status:
-- Branch: [branch-name]
-- Working Tree: [clean | dirty]
-- Repository: [yes | no]
-
-Dependencies Resolved:
-- rules: loaded
-- state: loaded
-- approvals: loaded
-- git: cached
-- memory: deferred (lazy)
-- rag: deferred (lazy)
-- version: cached
-- provider: [cached | skipped]
-- usage: cached
-
-Init Latency: [XXXms]
-
-Recommended Next Skill:
-software-development-workflow
-
-Workflow Paused.
+Workflow Supervisor:
+READY
 ```
 
 ---

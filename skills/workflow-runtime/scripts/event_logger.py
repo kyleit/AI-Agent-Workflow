@@ -57,6 +57,17 @@ USAGE_UPDATED = "UsageUpdated"
 STATE_MIGRATED = "StateMigrated"
 STATE_DOCTOR_RUN = "StateDoctorRun"
 
+# Gateway and trace events
+WORKFLOW_REQUEST_RECEIVED = "workflow.request.received"
+WORKFLOW_STARTED_EVENT = "workflow.started"
+WORKFLOW_PHASE_STARTED_EVENT = "workflow.phase.started"
+SKILL_SELECTED = "skill.selected"
+SKILL_STARTED_EVENT = "skill.started"
+AGENT_STARTED = "agent.started"
+TOOL_EXECUTED = "tool.executed"
+ARTIFACT_CREATED = "artifact.created"
+WORKFLOW_COMPLETED_EVENT = "workflow.completed"
+
 # All valid event types (used for validation)
 ALL_EVENT_TYPES = frozenset([
     WORKFLOW_INITIALIZED, SKILL_STARTED, SKILL_COMPLETED, SKILL_FAILED,
@@ -66,6 +77,9 @@ ALL_EVENT_TYPES = frozenset([
     DEBUG_PASSED, DEBUG_FAILED, VERIFY_PASSED, VERIFY_FAILED,
     RELEASE_REQUESTED, RELEASE_BLOCKED, RELEASE_COMPLETED,
     USAGE_UPDATED, STATE_MIGRATED, STATE_DOCTOR_RUN,
+    WORKFLOW_REQUEST_RECEIVED, WORKFLOW_STARTED_EVENT, WORKFLOW_PHASE_STARTED_EVENT,
+    SKILL_SELECTED, SKILL_STARTED_EVENT, AGENT_STARTED, TOOL_EXECUTED,
+    ARTIFACT_CREATED, WORKFLOW_COMPLETED_EVENT
 ])
 
 # ---------------------------------------------------------------------------

@@ -118,6 +118,35 @@ def patched_run(*args, **kwargs):
                 print(f"❌ {err_msg}", file=sys.stderr)
                 raise PermissionError(err_msg)
         return _orig_run(*args, **kwargs)
+    
+    # 0. Workflow Context Check (FEAT-308)
+    import json
+    session_path = os.path.abspath(os.path.join(".", ".agents", ".session.json"))
+    session_data = {}
+    if os.path.exists(session_path):
+        try:
+            with open(session_path, "r", encoding="utf-8") as f:
+                session_data = json.load(f)
+        except Exception:
+            pass
+            
+    execution_mode = os.environ.get("AIWF_EXECUTION_MODE") or session_data.get("execution_mode")
+    workflow_id = os.environ.get("AIWF_WORKFLOW_ID") or session_data.get("workflow_id")
+    
+    force_enforce = os.environ.get("AIWF_FORCE_ENFORCE") == "true"
+    bypass_enforcer = os.environ.get("AIWF_TESTING_BYPASS_ENFORCER") == "true"
+    is_testing = bypass_enforcer or (not force_enforce and (
+        os.environ.get("AIWF_TESTING") == "true"
+        or "PYTEST_CURRENT_TEST" in os.environ
+        or "pytest" in os.path.basename(sys.argv[0])
+        or "unittest" in os.path.basename(sys.argv[0])
+    ))
+    if is_testing:
+        return _orig_run(*args, **kwargs)
+    if not is_testing and (execution_mode != "workflow" or not workflow_id):
+        err_msg = f"EXECUTION_BLOCKED: Engineering action outside Workflow Gateway. (Command: {cmd})"
+        print(f"❌ {err_msg}", file=sys.stderr)
+        raise PermissionError(err_msg)
 
     # If not authorized, check strict enforcement or redirect
     strict = os.environ.get("AIWF_STRICT_PROCESS_ENFORCEMENT") == "true"
@@ -146,6 +175,45 @@ def patched_run(*args, **kwargs):
 def patched_Popen(*args, **kwargs):
     cmd = args[0] if args else kwargs.get("args")
     
+    if is_caller_authorized():
+        # Double check test ownership inside Execution Manager
+        if is_test_command(cmd):
+            allowed, msg = verify_tester_ownership(cmd)
+            if not allowed:
+                err_msg = f"Policy Violation: Test execution blocked. Reason: {msg} (Command: {cmd})"
+                print(f"❌ {err_msg}", file=sys.stderr)
+                raise PermissionError(err_msg)
+        return _orig_Popen(*args, **kwargs)
+        
+    # 0. Workflow Context Check (FEAT-308)
+    import json
+    session_path = os.path.abspath(os.path.join(".", ".agents", ".session.json"))
+    session_data = {}
+    if os.path.exists(session_path):
+        try:
+            with open(session_path, "r", encoding="utf-8") as f:
+                session_data = json.load(f)
+        except Exception:
+            pass
+            
+    execution_mode = os.environ.get("AIWF_EXECUTION_MODE") or session_data.get("execution_mode")
+    workflow_id = os.environ.get("AIWF_WORKFLOW_ID") or session_data.get("workflow_id")
+    
+    force_enforce = os.environ.get("AIWF_FORCE_ENFORCE") == "true"
+    bypass_enforcer = os.environ.get("AIWF_TESTING_BYPASS_ENFORCER") == "true"
+    is_testing = bypass_enforcer or (not force_enforce and (
+        os.environ.get("AIWF_TESTING") == "true"
+        or "PYTEST_CURRENT_TEST" in os.environ
+        or "pytest" in os.path.basename(sys.argv[0])
+        or "unittest" in os.path.basename(sys.argv[0])
+    ))
+    if is_testing:
+        return _orig_Popen(*args, **kwargs)
+    if not is_testing and (execution_mode != "workflow" or not workflow_id):
+        err_msg = f"EXECUTION_BLOCKED: Engineering action outside Workflow Gateway. (Command: {cmd})"
+        print(f"❌ {err_msg}", file=sys.stderr)
+        raise PermissionError(err_msg)
+
     if is_caller_authorized():
         # Double check test ownership inside Execution Manager
         if is_test_command(cmd):
