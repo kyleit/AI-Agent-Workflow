@@ -4,24 +4,32 @@ This document is the single source of truth for all shared behaviors, constraint
 
 ---
 
-## 1. Approval Gate Policy
+### 1. Approval Gate Policy
 
-The framework is strictly **approval-driven**. Before executing any state-changing action, every Skill must seek explicit confirmation.
+The framework is strictly **approval-driven**, but allows dual execution modes depending on project configurations:
 
-*   **State-changing actions include**:
-    *   Modifying source code or tests.
-    *   Creating, deleting, or overwriting files (except Phase 1 spec/fix generation).
-    *   Creating, switching, or checking out Git branches.
-    *   Git merging, rebasing, committing, tagging, or pushing.
-    *   Performing version bumps or modifying `CHANGELOG.md`.
-*   **Procedure**:
-    1.  Explain the proposed action clearly.
-    2.  List all affected files (created, modified, or deleted).
-    3.  List the current Git branch (if in a Git project).
-    4.  Prompt the user for confirmation using the `ask_question` tool with options `["Yes (Proceed)", "No (Halt)"]`. If the tool is not supported by the client/IDE, fall back to asking in the chat text interface. Then **STOP**.
-*   **Accepted Approval Keywords**: `Y`, `Yes`, `Proceed`, `Continue` (case-insensitive) or selecting the corresponding option in the interactive UI.
-*   **Halt Condition**: Any other input (or selecting "No (Halt)") is treated as a **STOP**. The Skill must immediately halt execution. Never assume approval.
+- **Legacy Mode (`workflow_mode=legacy`)**: Every state-changing action (modifying files, commits, tags, branches) requires explicit human confirmation via the `ask_question` tool.
+- **Autonomous Mode (`workflow_mode=autonomous`)**: Workflow execution is managed by the **Workflow Supervisor**. State-changing actions during intermediate compilation, test runs, and static linting are automated. The supervisor strictly halts only at the following **3 Strategic Human Approval Gates**:
+  1. **Gate 1 — Planning Approval**: Human validates scope and priority.
+  2. **Gate 2 — Blueprint Approval**: Human validates technical architecture and contracts.
+  3. **Gate 3 — Release Approval**: Human validates production release risk.
+
 *   **No Double Confirmation Policy**: Mọi hành động mà người dùng đã phê duyệt hoặc lựa chọn thông qua giao diện tương tác (như `ask_question` hoặc CLI `prompt select` / `choice`) thì Agent **không được phép hỏi lại hoặc yêu cầu xác nhận lại** trong đoạn chat. Agent phải trực tiếp thực hiện hành động đó ngay sau khi có kết quả lựa chọn của người dùng, ngoại trừ việc chọn chế độ nguy hiểm `unrestricted` thì bắt buộc phải cảnh báo và xác nhận lại.
+
+---
+
+## 1A. Workflow Supervisor Execution Policy
+
+- **Lifecycle Ownership**: The Workflow Supervisor owns the thread execution loop, event routing, and checkpoint resume. Worker agents execute assigned micro-tasks only and cannot spawn other workers or edit workflow states directly.
+- **Retry & Fail-safe**: Failed agent compilations automatically trigger retries up to 3 times. If failures persist, the supervisor halts execution, escalates to the Debug Agent, and notifies the user.
+- **Suggestion Gate Bypass**: When tasks are triggered autonomously by the Supervisor loop, typical suggestion confirmation alerts are bypassed.
+
+---
+
+## 1B. Permission Model Separation
+
+- **Workflow Permission**: Grants the supervisor authorization to read/write state checkpoints and run local verification test scripts.
+- **Release Permission**: Controls packaging, version tagging, and git pushes. Release permission is NEVER automated and strictly requires user confirmation.
 
 ---
 
