@@ -539,7 +539,7 @@ No AIWF Skill may access knowledge providers (such as Markdown files, SQLite dat
 To enforce standard software engineering processes and prevent bypasses, all operations must adhere to the Workflow First Enforcement rules:
 
 1. **Mandatory Workflow Entry Gate**:
-   Every engineering request (including new features, bug fixes, refactoring, architecture changes, migrations, and code modifications) MUST enter through the Workflow Supervisor. AI must perform Intent Detection and routing first. Direct implementation is strictly prohibited.
+   Every engineering request (including new features, bug fixes, refactoring, architecture changes, migrations, and code modifications) MUST be submitted through `workflow_runtime.py workflow submit`. Direct implementation outside Workflow Runtime is forbidden. AI must perform Intent Detection and routing first. Direct implementation is strictly prohibited.
    *Flow:* User Request -> Workflow Entry Gateway -> Intent Detection -> Workflow Supervisor -> Skill Router -> Skill Execution -> Agent Execution -> Artifacts + Evidence.
 
 2. **Prevention of Direct Coding**:

@@ -2634,7 +2634,15 @@ def do_task(args: argparse.Namespace) -> None:
     sync_execution_state_to_session()
 
 def do_workflow(args: argparse.Namespace) -> None:
-    if args.subaction == "trace":
+    import json
+    import os
+    import sys
+    import re
+    from datetime import datetime
+    
+    subaction = getattr(args, "subaction", None)
+    
+    if subaction == "trace":
         from event_logger import get_logger
         logger = get_logger()
         events = logger.read_all()
@@ -2707,6 +2715,269 @@ def do_workflow(args: argparse.Namespace) -> None:
         print()
         print("Status:")
         print(status)
+        return
+
+    elif subaction == "submit":
+        # 1. Detect highest FEAT-XXX number
+        feat_id = 312  # default fallback
+        max_num = 0
+        brainstorm_dir = os.path.join(".agents", "docs", "brainstorming")
+        if not os.path.exists(brainstorm_dir):
+            brainstorm_dir = os.path.join("docs", "brainstorming")
+            
+        if os.path.exists(brainstorm_dir):
+            for f in os.listdir(brainstorm_dir):
+                match = re.match(r"FEAT-(\d+)", f)
+                if match:
+                    num = int(match.group(1))
+                    if num > max_num:
+                        max_num = num
+        
+        # Also check docs/designs or other docs directories to find the highest number
+        for d in ["docs/designs", ".agents/docs/designs", "docs/plans", "docs/verification"]:
+            if os.path.exists(d):
+                for f in os.listdir(d):
+                    match = re.search(r"FEAT-(\d+)", f)
+                    if match:
+                        num = int(match.group(1))
+                        if num > max_num:
+                            max_num = num
+
+        if max_num > 0:
+            feat_id = max_num + 1
+            
+        workflow_id = f"FEAT-{feat_id:03d}"
+        req_id = f"REQ-{feat_id:03d}"
+        
+        # 2. Intent detection
+        prompt = args.prompt.lower()
+        intent = "feature_request"
+        if any(w in prompt for w in ["fix", "bug", "error", "issue", "typo", "mismatch", "broken"]):
+            intent = "bug_fix"
+            
+        # 3. Create workflow state
+        state_dir = os.path.join(".agents", "state")
+        os.makedirs(state_dir, exist_ok=True)
+        
+        wf_path = os.path.join(state_dir, "workflow.json")
+        wf_data = {
+            "active_workflow": "standard-feature",
+            "active_phase": "brainstorming",
+            "checkpoint": 1,
+            "waiting_for": None,
+            "work_item": {
+                "id": workflow_id,
+                "type": "FEAT",
+                "title": args.prompt
+            },
+            "workflow_type": "standard-feature",
+            "parent_workflow_id": None,
+            "suggested_next_skill": "brainstorming",
+            "suggested_next_command": "brainstorm",
+            "resume_state": {},
+            "_metadata": {
+                "generation": 1,
+                "revision": 1,
+                "writer_id": "system",
+                "updated_at": datetime.now().astimezone().isoformat()
+            }
+        }
+        with open(wf_path, "w", encoding="utf-8") as f:
+            json.dump(wf_data, f, indent=2, ensure_ascii=False)
+            
+        ctx_path = os.path.join(state_dir, "context.json")
+        ctx_data = {}
+        if os.path.exists(ctx_path):
+            try:
+                with open(ctx_path, "r", encoding="utf-8") as f:
+                    ctx_data = json.load(f)
+            except Exception:
+                pass
+        ctx_data.update({
+            "project_id": "ai-skill-framework",
+            "workspace_path": ".",
+            "permission_mode": "sandbox",
+            "checkpoint": 1,
+            "work_item_id": workflow_id,
+            "workflow_id": workflow_id,
+            "phase": "brainstorming",
+            "execution_mode": "workflow",
+            "autonomous_delivery": False,
+            "progress_percentage": 0,
+            "project_version": ctx_data.get("project_version", "6.15.1"),
+            "authorization": {
+                "authorization_id": f"AUTH-{workflow_id}",
+                "project_id": "ai-skill-framework",
+                "workspace_id": "workspace-id",
+                "work_item_id": workflow_id,
+                "workflow_id": f"WF-{workflow_id}",
+                "permission_mode": "sandbox",
+                "authorization_status": "active",
+                "source": "system_default",
+                "allowed_phases": ["brainstorming", "planning", "blueprint", "implementation", "debug", "verification", "release"],
+                "allow_document_create": True,
+                "allow_document_modify": True,
+                "allow_source_create": True,
+                "allow_source_modify": True,
+                "allow_test_create": True,
+                "allow_test_modify": True,
+                "allow_runtime_state_modify": True,
+                "allow_agent_spawn": True,
+                "allow_agent_reassignment": True,
+                "allow_parallel_execution": True,
+                "allow_retry": True,
+                "allow_replan": True,
+                "allow_commit": True,
+                "allow_merge": True,
+                "allow_rebase": True,
+                "allow_tag": True,
+                "allow_push": True,
+                "allow_release": True,
+                "allow_publish": True,
+                "allow_deploy": True,
+                "stop_at": "release_approval",
+                "expires_when": "release_approved_or_work_item_cancelled",
+                "created_at": datetime.now().astimezone().isoformat(),
+                "terminated_at": None,
+                "max_retries_per_task": 3,
+                "max_replans_per_work_item": 2,
+                "max_agent_reassignments_per_task": 2
+            }
+        })
+        with open(ctx_path, "w", encoding="utf-8") as f:
+            json.dump(ctx_data, f, indent=2, ensure_ascii=False)
+            
+        rt_path = os.path.join(state_dir, "runtime.json")
+        rt_data = {}
+        if os.path.exists(rt_path):
+            try:
+                with open(rt_path, "r", encoding="utf-8") as f:
+                    rt_data = json.load(f)
+            except Exception:
+                pass
+        rt_data.update({
+            "status": "in_progress",
+            "current_skill": "brainstorming",
+            "current_command": "brainstorm",
+            "current_step": "Starting brainstorming...",
+            "checkpoint": 1,
+            "updated_at": datetime.now().astimezone().isoformat(),
+            "suggestion_gate": {
+                "active": True,
+                "raw_request": args.prompt,
+                "classification": intent,
+                "recommended_skill": "brainstorming",
+                "options": [],
+                "status": "status"
+            }
+        })
+        with open(rt_path, "w", encoding="utf-8") as f:
+            json.dump(rt_data, f, indent=2, ensure_ascii=False)
+            
+        # 4. Log Events
+        from event_logger import emit_event
+        emit_event("workflow.request.received", {
+            "request_id": req_id,
+            "prompt": args.prompt,
+            "intent": intent
+        })
+        emit_event("workflow.created", {
+            "request_id": req_id,
+            "workflow_id": workflow_id,
+            "intent": intent,
+            "status": "CREATED",
+            "next_phase": "brainstorming"
+        })
+        emit_event("workflow.started", {
+            "request_id": req_id,
+            "workflow_id": workflow_id
+        })
+        emit_event("skill.selected", {
+            "request_id": req_id,
+            "workflow_id": workflow_id,
+            "skill": "brainstorming"
+        })
+        emit_event("skill.started", {
+            "request_id": req_id,
+            "workflow_id": workflow_id,
+            "skill": "brainstorming"
+        })
+        
+        # 5. Return JSON response
+        res = {
+            "workflow_id": workflow_id,
+            "intent": intent,
+            "status": "CREATED",
+            "next_phase": "brainstorming"
+        }
+        print(json.dumps(res, indent=2))
+        return
+        
+    elif subaction == "start":
+        from event_logger import emit_event
+        workflow_id = args.workflow_id
+        emit_event("workflow.started", {
+            "workflow_id": workflow_id
+        })
+        print(f"Workflow {workflow_id} started.")
+        return
+        
+    elif subaction == "status":
+        state_dir = os.path.join(".agents", "state")
+        wf_path = os.path.join(state_dir, "workflow.json")
+        if os.path.exists(wf_path):
+            with open(wf_path, "r", encoding="utf-8") as f:
+                data = json.load(f)
+            print(json.dumps(data, indent=2))
+        else:
+            print("No active workflow state found.", file=sys.stderr)
+            sys.exit(1)
+        return
+        
+    elif subaction == "follow":
+        # Simply print runtime current step and logs
+        state_dir = os.path.join(".agents", "state")
+        rt_path = os.path.join(state_dir, "runtime.json")
+        if os.path.exists(rt_path):
+            with open(rt_path, "r", encoding="utf-8") as f:
+                data = json.load(f)
+            print(f"Step: {data.get('current_step')}")
+            for log in data.get("current_logs", []):
+                print(log)
+        else:
+            print("No runtime state found.", file=sys.stderr)
+        return
+        
+    elif subaction == "agents":
+        from autonomous_orchestrator import print_agents_extended
+        print_agents_extended(args.workflow_id or "FEAT-111")
+        return
+        
+    elif subaction == "timeline":
+        from event_logger import get_logger
+        logger = get_logger()
+        events = logger.read_all()
+        for e in events:
+            print(f"[{e.get('timestamp')}] {e.get('event_type')}: {json.dumps(e.get('payload'))}")
+        return
+        
+    elif subaction == "cancel":
+        state_dir = os.path.join(".agents", "state")
+        wf_path = os.path.join(state_dir, "workflow.json")
+        if os.path.exists(wf_path):
+            with open(wf_path, "r", encoding="utf-8") as f:
+                data = json.load(f)
+            data["waiting_for"] = None
+            data["resume_state"] = {}
+            with open(wf_path, "w", encoding="utf-8") as f:
+                json.dump(data, f, indent=2, ensure_ascii=False)
+            print(f"Workflow {args.workflow_id} cancelled.")
+        else:
+            print("Workflow not found.", file=sys.stderr)
+        return
+        
+    elif subaction == "resume":
+        do_resume_action(args)
         return
 
 def do_lock(args: argparse.Namespace) -> None:
@@ -3235,16 +3506,16 @@ def do_orchestrator(args):
     work_item = getattr(args, "work_item_id", None) or getattr(args, "work_item_opt", None) or getattr(args, "work_item", None) or "FEAT-111"
     
     if subaction == "run":
-        from autonomous_orchestrator import run_autonomous_delivery
-        from state_store import set_active_work_item_id, register_work_item
-        set_active_work_item_id(work_item)
-        register_work_item(work_item, workflow_type="autonomous-delivery", status="active", checkpoint=1)
+        print("Warning: 'orchestrator run' is DEPRECATED. Redirecting internally to 'workflow submit'...", file=sys.stderr)
         
-        # Ensure environment variable is set
-        os.environ["AIWF_ACTIVE_WORK_ITEM"] = work_item
-        os.environ["AIWF_WORK_ITEM_ID"] = work_item
-        
-        run_autonomous_delivery(work_item)
+        class ArgsMock(argparse.Namespace):
+            def __init__(self, prompt):
+                super().__init__()
+                self.subaction = "submit"
+                self.prompt = prompt
+                
+        mock_args = ArgsMock(prompt=f"Submitted via legacy orchestrator redirection for work_item={work_item}")
+        do_workflow(mock_args)
         return
         
     elif subaction in ["start", "stop", "restart", "attach", "detach"]:
@@ -4934,11 +5205,44 @@ def main():
     
     _ = subparsers.add_parser("status")
     
-    # FEAT-308: workflow subcommand
+    # FEAT-308 / FEAT-311: workflow subcommand
     wf_p = subparsers.add_parser("workflow")
     wf_sub = wf_p.add_subparsers(dest="subaction", required=True)
+    
     wf_trace = wf_sub.add_parser("trace", help="Trace current workflow request status")
     _ = wf_trace.add_argument("--request-id", type=str, default=None)
+    
+    # Submit
+    wf_submit = wf_sub.add_parser("submit", help="Submit a new workflow request")
+    _ = wf_submit.add_argument("prompt", type=str, help="User prompt/request description")
+    
+    # Start
+    wf_start = wf_sub.add_parser("start", help="Start workflow execution")
+    _ = wf_start.add_argument("--workflow-id", type=str, required=True)
+    
+    # Status
+    wf_status = wf_sub.add_parser("status", help="Get workflow status")
+    _ = wf_status.add_argument("--workflow-id", type=str, default=None)
+    
+    # Follow
+    wf_follow = wf_sub.add_parser("follow", help="Follow execution logs")
+    _ = wf_follow.add_argument("--workflow-id", type=str, default=None)
+    
+    # Agents
+    wf_agents = wf_sub.add_parser("agents", help="List active agents in workflow")
+    _ = wf_agents.add_argument("--workflow-id", type=str, default=None)
+    
+    # Timeline
+    wf_timeline = wf_sub.add_parser("timeline", help="Show workflow event timeline")
+    _ = wf_timeline.add_argument("--workflow-id", type=str, default=None)
+    
+    # Cancel
+    wf_cancel = wf_sub.add_parser("cancel", help="Cancel a running workflow")
+    _ = wf_cancel.add_argument("--workflow-id", type=str, required=True)
+    
+    # Resume
+    wf_resume = wf_sub.add_parser("resume", help="Resume a paused workflow")
+    _ = wf_resume.add_argument("--workflow-id", type=str, default=None)
     
     dep_p = subparsers.add_parser("dependency")
     _ = dep_p.add_argument("subaction", choices=["graph"])

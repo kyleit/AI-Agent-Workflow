@@ -1,0 +1,45 @@
+{
+  "modules": [],
+  "configuration": {
+    "schema": {},
+    "defaults": {}
+  },
+  "database": {
+    "tables": [],
+    "growth_estimation": "N/A",
+    "maintenance_strategy": "N/A"
+  },
+  "cache": {
+    "keys": [],
+    "ttl_seconds": 0,
+    "invalidation_rules": []
+  },
+  "errors": [],
+  "sequence_flows": [
+    {
+      "flow_name": "Workflow Runtime Redirection Flow",
+      "steps": [
+        "User calls orchestrator run",
+        "Issue deprecation warning",
+        "Call do_workflow submit internally"
+      ]
+    }
+  ],
+  "integration_contracts": [],
+  "cli_contracts": [],
+  "implementation_contracts": [
+    {
+      "file_path": "skills/workflow-runtime/scripts/workflow_runtime.py",
+      "owner": "Coder",
+      "notes": "Extend do_workflow CLI handler."
+    }
+  ],
+  "implementation_packages": [],
+  "tests": [
+    "skills/workflow-runtime/tests/test_workflow_runtime_entry.py"
+  ],
+  "traceability": [],
+  "artifacts": [
+    "docs/designs/FEAT-311_workflow_runtime_entry_migration_blueprint.md"
+  ]
+}
