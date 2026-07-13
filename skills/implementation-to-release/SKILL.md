@@ -149,8 +149,9 @@ Release Summary:
 - Affected Modules:[list of affected modules]
 - Git Tag(s) Written: [vX.Y.Z | module/vX.Y.Z | none]
 
-Recommended Next Skill:
-initialize-workflow
+Recommended Next Action:
+1. Open a New Conversation / Chat Session.
+2. Trigger the next skill in the new session: /initialize-workflow
 
 Workflow Paused.
 ```
