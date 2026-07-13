@@ -55,7 +55,9 @@ function Show-Help {
     Write-Host "  init         Initialize a new project workspace (collect specification, generate configs)"
     Write-Host "  update-source Update the centralized framework source repository safely via Git"
     Write-Host "  test         Execute test validate, smoke, or affected tests"
-    Write-Host "  orchestrator Manage the Resident Orchestrator service"
+    Write-Host "  workflow     Submit, inspect, track, or manage active SDLC workflows"
+    Write-Host "  session      Recover, inspect, lock, or update active workspace sessions"
+    Write-Host "  mcp          Automatically install, uninstall, validate, or check status of MCP Tool servers"
     Write-Host "  help         Show this help message"
 }
 
@@ -107,17 +109,12 @@ switch (`$Command) {
     "sync" {
         python (Join-Path `$FrameworkRoot "skills/workflow-runtime/scripts/workflow_runtime.py") provider sync @args
     }
-    "orchestrator" {
-        python (Join-Path `$FrameworkRoot "skills/workflow-runtime/scripts/workflow_runtime.py") orchestrator @args
-    }
     "help" {
         Show-Help
     }
 
     default {
-        Write-Host "Unknown command: `$Command" -ForegroundColor Red
-        Show-Help
-        exit 1
+        python (Join-Path `$FrameworkRoot "skills/workflow-runtime/scripts/workflow_runtime.py") `$Command @args
     }
 }
 "@

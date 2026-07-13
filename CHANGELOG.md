@@ -5,6 +5,17 @@ All notable changes to this project will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [6.16.0] - 2026-07-13
+
+### Added
+- **Antigravity Gateway Adapter (FEAT-315)**:
+  - Tích hợp Antigravity IDE với AIWF Workflow Runtime để submit, status và follow các workflows.
+  - Cung cấp cơ chế chuyển tiếp cuộc gọi an toàn thông qua các Adapter Gateway.
+- **AIWF MCP Auto Provisioning CLI (FEAT-316)**:
+  - Triển khai lệnh CLI `aiwf mcp` (hỗ trợ các subactions `install`, `uninstall`, `status`, `doctor`).
+  - Hỗ trợ cấu hình mcp.json/settings.json an toàn cho Windows, macOS, Linux trên các IDE Antigravity, VS Code, và Cursor.
+  - Tích hợp MCP auto-provision check tự động cài đặt MCP wrapper khi chạy `initialize-workspace`.
+
 ## [6.15.4] - 2026-07-13
 
 ### Added

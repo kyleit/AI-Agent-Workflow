@@ -50,7 +50,11 @@ show_help() {
     echo "  registry     Manage centralized global project registry"
     echo "  provider     Manage external knowledge providers (sync, list, config)"
     echo "  sync         Sync project memory/documentation to external providers (e.g. Obsidian)"
-    echo "  orchestrator Manage the Resident Orchestrator service"
+    echo "  init         Initialize a new project workspace"
+    echo "  test         Execute unit, integration, or e2e test validation runner"
+    echo "  workflow     Submit, inspect, track, or manage active SDLC workflows"
+    echo "  session      Recover, inspect, lock, or update active workspace sessions"
+    echo "  mcp          Automatically install, uninstall, validate, or check status of MCP Tool servers"
     echo "  help         Show this help message"
 }
 
@@ -93,17 +97,11 @@ case "$COMMAND" in
     sync)
         python3 "$FRAMEWORK_ROOT/skills/workflow-runtime/scripts/workflow_runtime.py" provider sync "$@"
         ;;
-    orchestrator)
-        python3 "$FRAMEWORK_ROOT/skills/workflow-runtime/scripts/workflow_runtime.py" orchestrator "$@"
-        ;;
     help|-h|--help)
         show_help
         ;;
-
     *)
-        echo "Unknown command: $COMMAND"
-        show_help
-        exit 1
+        python3 "$FRAMEWORK_ROOT/skills/workflow-runtime/scripts/workflow_runtime.py" "$COMMAND" "$@"
         ;;
 esac
 EOF

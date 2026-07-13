@@ -85,7 +85,7 @@ class WorkflowEntryGateway:
             return m.group(1).upper()
         return "FEAT-AUTO"
 
-    def handle_request(self, request_text: str) -> dict:
+    def handle_request(self, request_text: str, source: str = None, session_id: str = None) -> dict:
         """
         Receives an engineering/chat request and routes accordingly.
         """
@@ -95,7 +95,7 @@ class WorkflowEntryGateway:
         # 1. Emit received event
         emit_event(
             "workflow.request.received",
-            {"request_id": req_id, "intent": intent, "request_text": request_text}
+            {"request_id": req_id, "intent": intent, "request_text": request_text, "source": source or "system", "session_id": session_id or "default_session"}
         )
         
         if intent == "chat":
@@ -137,6 +137,10 @@ class WorkflowEntryGateway:
         session["execution_mode"] = "workflow"
         session["current_phase"] = "brainstorming"
         session["active_request_id"] = req_id
+        if source:
+            session["source"] = source
+        if session_id:
+            session["session_id"] = session_id
         
         save_session_atomic(session)
         
@@ -145,6 +149,10 @@ class WorkflowEntryGateway:
         os.environ["AIWF_EXECUTION_MODE"] = "workflow"
         os.environ["AIWF_CURRENT_PHASE"] = "brainstorming"
         os.environ["AIWF_ACTIVE_REQUEST_ID"] = req_id
+        if source:
+            os.environ["AIWF_SOURCE"] = source
+        if session_id:
+            os.environ["AIWF_SESSION_ID"] = session_id
 
         # Update workflow.json
         state_dir = os.path.join(self.workspace_root, ".agents", "state")
@@ -196,6 +204,8 @@ class WorkflowEntryGateway:
             "autonomous_delivery": False,
             "progress_percentage": 0,
             "project_version": ctx_data.get("project_version", "6.15.1"),
+            "source": source or ctx_data.get("source", "system"),
+            "session_id": session_id or ctx_data.get("session_id", "default_session"),
             "authorization": {
                 "authorization_id": f"AUTH-{workflow_id}",
                 "project_id": "ai-skill-framework",
@@ -267,7 +277,7 @@ class WorkflowEntryGateway:
             json.dump(rt_data, f, indent=2, ensure_ascii=False)
         
         # Emit workflow started events
-        emit_event("workflow.created", {"request_id": req_id, "workflow_id": workflow_id, "intent": intent, "status": "CREATED", "next_phase": "brainstorming"})
+        emit_event("workflow.created", {"request_id": req_id, "workflow_id": workflow_id, "intent": intent, "status": "CREATED", "next_phase": "brainstorming", "source": source or "system", "session_id": session_id or "default_session"})
         emit_event("workflow.started", {"request_id": req_id, "workflow_id": workflow_id})
         emit_event("workflow.phase.started", {"request_id": req_id, "workflow_id": workflow_id, "phase": "brainstorming"})
         emit_event("skill.selected", {"request_id": req_id, "workflow_id": workflow_id, "skill": "brainstorming"})
@@ -282,5 +292,7 @@ class WorkflowEntryGateway:
             "workflow": "standard-development",
             "execution_mode": "workflow",
             "current_phase": "brainstorming",
-            "next_skill": "brainstorming"
+            "next_skill": "brainstorming",
+            "source": source or "system",
+            "session_id": session_id or "default_session"
         }

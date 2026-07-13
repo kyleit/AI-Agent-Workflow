@@ -127,6 +127,8 @@ def aggregate_state(workspace_root: str) -> dict[str, Any]:
         "project_fingerprint": context.get("project_fingerprint", ""),
         "authorization": context.get("authorization"),
         "autonomous_delivery": context.get("autonomous_delivery", False),
+        "source": context.get("source", "system"),
+        "session_id": context.get("session_id", "default_session"),
         "workflow_usage_summary": usage.get("workflow_usage_summary", {}),
         "project_usage_summary": usage.get("project_usage_summary", {}),
         "global_usage_summary": usage.get("global_usage_summary", {}),
@@ -193,6 +195,8 @@ def deconstruct_state(workspace_root: str, session: dict[str, Any], force: bool 
         "initialized_at": session.get("initialized_at") or datetime.now().astimezone().isoformat(),
         "authorization": session.get("authorization"),
         "autonomous_delivery": session.get("autonomous_delivery", False),
+        "source": session.get("source", "system"),
+        "session_id": session.get("session_id", "default_session"),
         "progress_percentage": min(100, max(0, int(session.get("checkpoint", 1) / 10 * 100)))
     }
     
