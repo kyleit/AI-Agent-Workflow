@@ -99,9 +99,11 @@ If the result is `approve`, proceed to the next step. If `cancel`, stop.
 
 ## Workflow Sequence
 
-The release process runs in 11 sequential phases:
+The release process runs in 12 sequential phases:
 
 ```
+Phase 0: Automatically execute 'project-memory-update' to compile latest repository state
+         ↓
 Phase 1: Read release.config.json
          ↓
 Phase 2: Detect changed files via 'git diff' to identify affected modules

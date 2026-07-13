@@ -1,5 +1,6 @@
 # release_manager.py
 import os
+import sys
 import json
 import subprocess
 from session import load_session
@@ -29,7 +30,6 @@ def run_release_plan() -> dict[str, object]:
         "files_written": [],
         "next_skill": "implementation-to-release"
     }
-
 def run_release_execute(approve: bool = False) -> dict[str, object]:
     if not approve:
         return {
@@ -40,7 +40,27 @@ def run_release_execute(approve: bool = False) -> dict[str, object]:
             "files_read": [],
             "files_written": []
         }
+
+    # 0. Automatically update project memory before release to ensure memory files are packed in the release commit
+    print("[INFO] Automatically updating project memory before release execution...")
+    try:
+        sys_path_backup = list(sys.path)
+        current_dir = os.path.dirname(os.path.abspath(__file__))
+        memory_dir = os.path.join(current_dir, "memory")
+        if memory_dir not in sys.path:
+            sys.path.append(memory_dir)
+        if current_dir not in sys.path:
+            sys.path.append(current_dir)
+            
+        from memory.update import run_update
+        mem_res = run_update()
+        print(f"[INFO] Project memory update status: {mem_res.get('status')}. Summary: {mem_res.get('summary')}")
         
+        # Restore sys.path
+        sys.path = sys_path_backup
+    except Exception as e:
+        print(f"[WARN] Failed to automatically update project memory: {e}")
+
     from session import load_workflow_config
     config = load_workflow_config()
     git_flow = config.get("git_flow", {})
