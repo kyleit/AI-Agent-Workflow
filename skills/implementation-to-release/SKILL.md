@@ -150,8 +150,14 @@ Release Summary:
 - Git Tag(s) Written: [vX.Y.Z | module/vX.Y.Z | none]
 
 Recommended Next Action:
-1. Open a New Conversation / Chat Session.
-2. Trigger the next skill in the new session: /initialize-workflow
+- Option A: Start a new feature or major work item (Recommended)
+  1. Open a New Conversation / Chat Session.
+  2. Trigger the next skill in the new session: /initialize-workflow
+- Option B: Continue working in the current conversation (For hotfixes, brainstorming, or quick tweaks)
+  1. Trigger one of the following skills directly in this chat:
+     - /brainstorming (To brainstorm next steps or ideas)
+     - /quick-feature (For minor extensions to the released feature)
+     - /quick-fix (For immediate hotfixes or regression fixes)
 
 Workflow Paused.
 ```
