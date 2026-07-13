@@ -30,7 +30,48 @@ sqlite3.connect = _custom_sqlite3_connect
 
 from datetime import datetime
 
-PROJECT_DB = os.path.join(".agents", "project_runtime.db")
+import json
+
+def get_project_db_path() -> str:
+    project_id = "ai-skill-framework"
+    config_path = os.path.join(".agents", "memory.config.json")
+    if os.path.exists(config_path):
+        try:
+            with open(config_path, "r", encoding="utf-8") as f:
+                data = json.load(f)
+                project_id = data.get("project_id", "ai-skill-framework")
+        except Exception:
+            pass
+    new_db = os.path.join(".agents", "state", f"{project_id}.db")
+    old_db = os.path.join(".agents", "project_runtime.db")
+    
+    # Tạo thư mục cha nếu chưa có
+    os.makedirs(os.path.dirname(new_db), exist_ok=True)
+    
+    if os.path.exists(old_db) and not os.path.exists(new_db):
+        try:
+            import shutil
+            shutil.move(old_db, new_db)
+        except Exception:
+            try:
+                shutil.copy2(old_db, new_db)
+            except Exception:
+                return old_db
+    
+    if os.path.exists(new_db):
+        return new_db
+    return old_db
+
+PROJECT_DB = get_project_db_path()
+
+def connect_db(db_path: str) -> sqlite3.Connection:
+    conn = sqlite3.connect(db_path, timeout=30.0)
+    try:
+        conn.execute("PRAGMA journal_mode=WAL")
+        conn.execute("PRAGMA busy_timeout=30000")
+    except Exception:
+        pass
+    return conn
 
 def get_global_db_path() -> str:
     # Determine OS AppData path
@@ -46,7 +87,7 @@ def get_global_db_path() -> str:
     os.makedirs(folder, exist_ok=True)
     return os.path.join(folder, "global_runtime.db")
 
-import json
+_INITIALIZED_DBS = set()
 
 _schemas_initialized = set()
 
@@ -315,11 +356,186 @@ def init_db_schema(conn: sqlite3.Connection) -> None:
     cursor.execute("CREATE INDEX IF NOT EXISTS idx_qmd_project_module ON qmd_metadata (project_id, module)")
     conn.commit()
 
+    # ------------------------------------------------------------------ #
+    # FEAT-048: Provider-Centric Runtime & Usage Engine — additive migrations
+    # ------------------------------------------------------------------ #
+
+    # transcript_cursors: incremental reader byte-position tracking
+    cursor.execute("""
+        CREATE TABLE IF NOT EXISTS transcript_cursors (
+            file_path   TEXT PRIMARY KEY,
+            byte_pos    INTEGER NOT NULL DEFAULT 0,
+            file_hash   TEXT NOT NULL DEFAULT '',
+            updated_at  TEXT NOT NULL
+        )
+    """)
+
+    # runtime_events: durable event journal (Phase 1 — SQLite only per ADR-005)
+    cursor.execute("""
+        CREATE TABLE IF NOT EXISTS runtime_events (
+            id              INTEGER PRIMARY KEY AUTOINCREMENT,
+            event_id        TEXT NOT NULL UNIQUE,
+            timestamp       TEXT NOT NULL,
+            conversation_id TEXT NOT NULL,
+            provider        TEXT NOT NULL,
+            event_type      TEXT NOT NULL,
+            event_data_json TEXT NOT NULL
+        )
+    """)
+    cursor.execute(
+        "CREATE INDEX IF NOT EXISTS idx_runtime_events_conv "
+        "ON runtime_events (conversation_id)"
+    )
+    cursor.execute(
+        "CREATE INDEX IF NOT EXISTS idx_runtime_events_type "
+        "ON runtime_events (event_type)"
+    )
+
+    # connector_diagnostics: per-provider status snapshots
+    cursor.execute("""
+        CREATE TABLE IF NOT EXISTS connector_diagnostics (
+            id                  INTEGER PRIMARY KEY AUTOINCREMENT,
+            timestamp           TEXT NOT NULL,
+            provider            TEXT NOT NULL,
+            status              TEXT NOT NULL,
+            detected_path       TEXT,
+            error_message       TEXT,
+            accuracy_confidence TEXT NOT NULL
+        )
+    """)
+    cursor.execute(
+        "CREATE INDEX IF NOT EXISTS idx_connector_diag_provider "
+        "ON connector_diagnostics (provider)"
+    )
+
+    # Additive columns on provider_requests (safe: try/except OperationalError)
+    try:
+        cursor.execute(
+            "ALTER TABLE provider_requests ADD COLUMN accuracy_source TEXT DEFAULT 'estimated'"
+        )
+        conn.commit()
+    except sqlite3.OperationalError:
+        pass  # column already exists — normal on subsequent runs
+
+    try:
+        cursor.execute(
+            "ALTER TABLE provider_requests ADD COLUMN raw_payload TEXT"
+        )
+        conn.commit()
+    except sqlite3.OperationalError:
+        pass  # column already exists — normal on subsequent runs
+
+    # ------------------------------------------------------------------ #
+    # FEAT-049: Transcript-First Accounting System — schema migrations
+    # ------------------------------------------------------------------ #
+
+    # request_fingerprints: canonical request identity for deduplication
+    cursor.execute("""
+        CREATE TABLE IF NOT EXISTS request_fingerprints (
+            fingerprint     TEXT PRIMARY KEY,
+            provider        TEXT NOT NULL,
+            conv_id         TEXT NOT NULL,
+            request_id      TEXT NOT NULL,
+            model           TEXT NOT NULL,
+            timestamp       TEXT NOT NULL,
+            duplicate_count INTEGER NOT NULL DEFAULT 0,
+            first_seen      TEXT NOT NULL,
+            last_seen       TEXT NOT NULL
+        )
+    """)
+    cursor.execute(
+        "CREATE UNIQUE INDEX IF NOT EXISTS idx_fingerprints_hash "
+        "ON request_fingerprints (fingerprint)"
+    )
+    cursor.execute(
+        "CREATE INDEX IF NOT EXISTS idx_fingerprints_conv "
+        "ON request_fingerprints (conv_id)"
+    )
+
+    # pricing_versions: versioned pricing rates per model
+    cursor.execute("""
+        CREATE TABLE IF NOT EXISTS pricing_versions (
+            id                   INTEGER PRIMARY KEY AUTOINCREMENT,
+            provider             TEXT NOT NULL,
+            model                TEXT NOT NULL,
+            version              TEXT NOT NULL,
+            effective_date       TEXT NOT NULL,
+            input_per_mtok       REAL NOT NULL DEFAULT 0.0,
+            output_per_mtok      REAL NOT NULL DEFAULT 0.0,
+            cache_read_per_mtok  REAL NOT NULL DEFAULT 0.0,
+            cache_write_per_mtok REAL NOT NULL DEFAULT 0.0,
+            thinking_per_mtok    REAL NOT NULL DEFAULT 0.0,
+            tool_per_mtok        REAL NOT NULL DEFAULT 0.0,
+            created_at           TEXT NOT NULL,
+            UNIQUE (provider, model, version)
+        )
+    """)
+    cursor.execute(
+        "CREATE INDEX IF NOT EXISTS idx_pricing_versions_effective "
+        "ON pricing_versions (provider, model, effective_date DESC)"
+    )
+
+    # reconciliation_reports: logs of sync cycles and metrics
+    cursor.execute("""
+        CREATE TABLE IF NOT EXISTS reconciliation_reports (
+            id                      INTEGER PRIMARY KEY AUTOINCREMENT,
+            timestamp               TEXT NOT NULL,
+            requests_discovered     INTEGER NOT NULL DEFAULT 0,
+            requests_parsed         INTEGER NOT NULL DEFAULT 0,
+            duplicates_ignored      INTEGER NOT NULL DEFAULT 0,
+            corrupted_transcripts   INTEGER NOT NULL DEFAULT 0,
+            missing_usage_metadata  INTEGER NOT NULL DEFAULT 0,
+            reconstructed_usage     INTEGER NOT NULL DEFAULT 0,
+            estimated_usage         INTEGER NOT NULL DEFAULT 0,
+            confidence_score        REAL NOT NULL DEFAULT 0.0,
+            duration_ms             INTEGER NOT NULL DEFAULT 0
+        )
+    """)
+    cursor.execute(
+        "CREATE INDEX IF NOT EXISTS idx_reconciliation_timestamp "
+        "ON reconciliation_reports (timestamp DESC)"
+    )
+
+    # Additive columns on provider_requests (safe: try/except OperationalError)
+    try:
+        cursor.execute(
+            "ALTER TABLE provider_requests ADD COLUMN fingerprint TEXT"
+        )
+        conn.commit()
+    except sqlite3.OperationalError:
+        pass
+
+    try:
+        cursor.execute(
+            "ALTER TABLE provider_requests ADD COLUMN pricing_version TEXT DEFAULT ''"
+        )
+        conn.commit()
+    except sqlite3.OperationalError:
+        pass
+
+    try:
+        cursor.execute(
+            "ALTER TABLE provider_requests ADD COLUMN tool_tokens INTEGER DEFAULT 0"
+        )
+        conn.commit()
+    except sqlite3.OperationalError:
+        pass
+
+    try:
+        cursor.execute(
+            "ALTER TABLE provider_requests ADD COLUMN transcript_offset INTEGER DEFAULT -1"
+        )
+        conn.commit()
+    except sqlite3.OperationalError:
+        pass
+
+    conn.commit()
+
 def _save_record(db_path: str, record: tuple) -> None:
     # Ensure parent dir exists
     os.makedirs(os.path.dirname(os.path.abspath(db_path)), exist_ok=True)
     
-    conn = sqlite3.connect(db_path)
+    conn = connect_db(db_path)
     try:
         init_db_schema(conn)
         cursor = conn.cursor()
@@ -338,7 +554,7 @@ def save_provider_request(request_data: dict) -> None:
     # Ensure parent dir exists
     for db_path in [PROJECT_DB, get_global_db_path()]:
         os.makedirs(os.path.dirname(os.path.abspath(db_path)), exist_ok=True)
-        conn = sqlite3.connect(db_path)
+        conn = connect_db(db_path)
         try:
             init_db_schema(conn)
             cursor = conn.cursor()
@@ -372,7 +588,11 @@ def save_provider_request(request_data: dict) -> None:
                 request_data.get("context_limit_tokens", 2000000),
                 cb_json,
                 request_data.get("status", "success"),
-                request_data.get("error_summary")
+                request_data.get("error_summary"),
+                request_data.get("fingerprint"),
+                request_data.get("pricing_version", ""),
+                request_data.get("tool_tokens", 0),
+                request_data.get("transcript_offset", -1)
             )
             
             cursor.execute("""
@@ -381,18 +601,90 @@ def save_provider_request(request_data: dict) -> None:
                     model, provider, timestamp, duration, input_tokens, output_tokens, cache_tokens,
                     thinking_tokens, total_tokens, cost_usd, tool_call_count, workspace_read_count,
                     memory_hit_count, rag_hit_count, context_usage_percentage, context_limit_tokens,
-                    context_breakdown_json, status, error_summary
-                ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+                    context_breakdown_json, status, error_summary, fingerprint, pricing_version,
+                    tool_tokens, transcript_offset
+                ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
             """, record)
             conn.commit()
         finally:
             conn.close()
 
+def batch_insert_provider_requests(records: list[dict], batch_size: int = 1000) -> int:
+    """Insert provider requests in batches. Returns the number of inserted records."""
+    if not records:
+        return 0
+    
+    inserted_count = 0
+    for db_path in [PROJECT_DB, get_global_db_path()]:
+        os.makedirs(os.path.dirname(os.path.abspath(db_path)), exist_ok=True)
+        conn = connect_db(db_path)
+        try:
+            # Enable WAL mode for performance
+            conn.execute("PRAGMA journal_mode=WAL")
+            init_db_schema(conn)
+            cursor = conn.cursor()
+            
+            for i in range(0, len(records), batch_size):
+                batch = records[i:i+batch_size]
+                tuple_records = []
+                for request_data in batch:
+                    cb_json = request_data.get("context_breakdown_json")
+                    if isinstance(cb_json, (dict, list)):
+                        cb_json = json.dumps(cb_json)
+                    
+                    tuple_records.append((
+                        request_data.get("request_id"),
+                        request_data.get("workflow_id"),
+                        request_data.get("conversation_id"),
+                        request_data.get("project_id"),
+                        request_data.get("skill_name"),
+                        request_data.get("command_name"),
+                        request_data.get("model"),
+                        request_data.get("provider"),
+                        request_data.get("timestamp") or datetime.now().astimezone().isoformat(),
+                        request_data.get("duration", 0.0),
+                        request_data.get("input_tokens", 0),
+                        request_data.get("output_tokens", 0),
+                        request_data.get("cache_tokens", 0),
+                        request_data.get("thinking_tokens", 0),
+                        request_data.get("total_tokens", 0),
+                        request_data.get("cost_usd", 0.0),
+                        request_data.get("tool_call_count", 0),
+                        request_data.get("workspace_read_count", 0),
+                        request_data.get("memory_hit_count", 0),
+                        request_data.get("rag_hit_count", 0),
+                        request_data.get("context_usage_percentage", 0.0),
+                        request_data.get("context_limit_tokens", 2000000),
+                        cb_json,
+                        request_data.get("status", "success"),
+                        request_data.get("error_summary"),
+                        request_data.get("fingerprint"),
+                        request_data.get("pricing_version", ""),
+                        request_data.get("tool_tokens", 0),
+                        request_data.get("transcript_offset", -1)
+                    ))
+                
+                cursor.executemany("""
+                    INSERT OR IGNORE INTO provider_requests (
+                        request_id, workflow_id, conversation_id, project_id, skill_name, command_name,
+                        model, provider, timestamp, duration, input_tokens, output_tokens, cache_tokens,
+                        thinking_tokens, total_tokens, cost_usd, tool_call_count, workspace_read_count,
+                        memory_hit_count, rag_hit_count, context_usage_percentage, context_limit_tokens,
+                        context_breakdown_json, status, error_summary, fingerprint, pricing_version,
+                        tool_tokens, transcript_offset
+                    ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+                """, tuple_records)
+                conn.commit()
+            inserted_count = len(records)
+        finally:
+            conn.close()
+    return inserted_count
+
 def get_provider_requests(filters: dict, sort_by: str = "timestamp", desc: bool = True, limit: int = None) -> list[dict]:
     if not os.path.exists(PROJECT_DB):
         return []
     
-    conn = sqlite3.connect(PROJECT_DB)
+    conn = connect_db(PROJECT_DB)
     try:
         cursor = conn.cursor()
         
@@ -401,7 +693,8 @@ def get_provider_requests(filters: dict, sort_by: str = "timestamp", desc: bool 
                    model, provider, timestamp, duration, input_tokens, output_tokens, cache_tokens,
                    thinking_tokens, total_tokens, cost_usd, tool_call_count, workspace_read_count,
                    memory_hit_count, rag_hit_count, context_usage_percentage, context_limit_tokens,
-                   context_breakdown_json, status, error_summary
+                   context_breakdown_json, status, error_summary, fingerprint, pricing_version,
+                   tool_tokens, transcript_offset
             FROM provider_requests
         """
         
@@ -471,7 +764,11 @@ def get_provider_requests(filters: dict, sort_by: str = "timestamp", desc: bool 
                 "context_limit_tokens": r[21],
                 "context_breakdown_json": r[22],
                 "status": r[23],
-                "error_summary": r[24]
+                "error_summary": r[24],
+                "fingerprint": r[25],
+                "pricing_version": r[26],
+                "tool_tokens": r[27],
+                "transcript_offset": r[28]
             })
         return results
     except sqlite3.OperationalError as e:
@@ -488,7 +785,7 @@ def get_provider_request_detail(request_id: str) -> dict:
 def save_token_diff(diff_data: dict) -> None:
     for db_path in [PROJECT_DB, get_global_db_path()]:
         os.makedirs(os.path.dirname(os.path.abspath(db_path)), exist_ok=True)
-        conn = sqlite3.connect(db_path)
+        conn = connect_db(db_path)
         try:
             init_db_schema(conn)
             cursor = conn.cursor()
@@ -523,7 +820,7 @@ def get_token_diff(request_id: str) -> dict:
     if not os.path.exists(PROJECT_DB):
         return None
         
-    conn = sqlite3.connect(PROJECT_DB)
+    conn = connect_db(PROJECT_DB)
     try:
         cursor = conn.cursor()
         cursor.execute("""
@@ -560,7 +857,7 @@ def get_token_diff(request_id: str) -> dict:
 def save_insight_snapshot(snapshot: dict) -> None:
     for db_path in [PROJECT_DB, get_global_db_path()]:
         os.makedirs(os.path.dirname(os.path.abspath(db_path)), exist_ok=True)
-        conn = sqlite3.connect(db_path)
+        conn = connect_db(db_path)
         try:
             init_db_schema(conn)
             cursor = conn.cursor()
@@ -592,7 +889,7 @@ def save_insight_snapshot(snapshot: dict) -> None:
 def get_insight_snapshots(conversation_id: str) -> list[dict]:
     if not os.path.exists(PROJECT_DB):
         return []
-    conn = sqlite3.connect(PROJECT_DB)
+    conn = connect_db(PROJECT_DB)
     try:
         cursor = conn.cursor()
         cursor.execute("""
@@ -629,7 +926,7 @@ def get_insight_snapshots(conversation_id: str) -> list[dict]:
 def save_recommendations(recs: list[dict]) -> None:
     for db_path in [PROJECT_DB, get_global_db_path()]:
         os.makedirs(os.path.dirname(os.path.abspath(db_path)), exist_ok=True)
-        conn = sqlite3.connect(db_path)
+        conn = connect_db(db_path)
         try:
             init_db_schema(conn)
             cursor = conn.cursor()
@@ -659,7 +956,7 @@ def save_recommendations(recs: list[dict]) -> None:
 def get_recommendations(conversation_id: str) -> list[dict]:
     if not os.path.exists(PROJECT_DB):
         return []
-    conn = sqlite3.connect(PROJECT_DB)
+    conn = connect_db(PROJECT_DB)
     try:
         cursor = conn.cursor()
         cursor.execute("""
@@ -697,7 +994,7 @@ def update_recommendation_status(rec_id: str, status: str) -> bool:
     for db_path in [PROJECT_DB, get_global_db_path()]:
         if not os.path.exists(db_path):
             continue
-        conn = sqlite3.connect(db_path)
+        conn = connect_db(db_path)
         try:
             init_db_schema(conn)
             cursor = conn.cursor()
@@ -716,7 +1013,7 @@ def update_recommendation_status(rec_id: str, status: str) -> bool:
 def save_timeline_event(event: dict) -> None:
     for db_path in [PROJECT_DB, get_global_db_path()]:
         os.makedirs(os.path.dirname(os.path.abspath(db_path)), exist_ok=True)
-        conn = sqlite3.connect(db_path)
+        conn = connect_db(db_path)
         try:
             init_db_schema(conn)
             cursor = conn.cursor()
@@ -764,7 +1061,7 @@ def save_timeline_event(event: dict) -> None:
 def get_timeline_events(conversation_id: str) -> list[dict]:
     if not os.path.exists(PROJECT_DB):
         return []
-    conn = sqlite3.connect(PROJECT_DB)
+    conn = connect_db(PROJECT_DB)
     try:
         cursor = conn.cursor()
         cursor.execute("""
@@ -835,7 +1132,7 @@ def save_usage_to_dbs(conversation_id: str, project_id: str, skill: str, command
     # Read existing total_tokens from Project DB if it exists
     existing_total = 0
     if os.path.exists(PROJECT_DB):
-        conn = sqlite3.connect(PROJECT_DB)
+        conn = connect_db(PROJECT_DB)
         try:
             cursor = conn.cursor()
             cursor.execute("SELECT name FROM sqlite_master WHERE type='table' AND name='usage_records'")
@@ -918,7 +1215,7 @@ def get_workflow_summary(conversation_id: str, provider: str, model: str) -> dic
 
     conn = None
     try:
-        conn = sqlite3.connect(PROJECT_DB)
+        conn = connect_db(PROJECT_DB)
         cursor = conn.cursor()
         
         has_requests = False
@@ -1068,7 +1365,7 @@ def get_project_summary(project_id: str) -> dict:
 
     conn = None
     try:
-        conn = sqlite3.connect(PROJECT_DB)
+        conn = connect_db(PROJECT_DB)
         cursor = conn.cursor()
         
         has_requests = False
@@ -1140,7 +1437,7 @@ def get_global_summary() -> dict:
 
     conn = None
     try:
-        conn = sqlite3.connect(global_db)
+        conn = connect_db(global_db)
         cursor = conn.cursor()
         
         has_requests = False
@@ -1198,7 +1495,7 @@ def normalize_database_records(db_path: str) -> None:
     if not os.path.exists(db_path):
         return
     from context import parse_transcript
-    conn = sqlite3.connect(db_path)
+    conn = connect_db(db_path)
     try:
         cursor = conn.cursor()
         cursor.execute("SELECT name FROM sqlite_master WHERE type='table' AND name='usage_records'")

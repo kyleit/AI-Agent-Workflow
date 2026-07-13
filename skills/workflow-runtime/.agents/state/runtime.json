@@ -1,0 +1,60 @@
+{
+  "current_skill": "test-skill",
+  "current_command": "test-cmd",
+  "current_step": "step-1",
+  "current_logs": [
+    "> Starting test-skill..."
+  ],
+  "status": "in_progress",
+  "context_health": "healthy",
+  "suggestion_gate": {
+    "active": false,
+    "raw_request": "",
+    "classification": "",
+    "recommended_skill": "",
+    "options": [],
+    "status": "idle"
+  },
+  "telemetry_config": {
+    "context_thresholds": {
+      "warning": 60,
+      "high": 80,
+      "critical": 95
+    },
+    "context_styles": {
+      "healthy": {
+        "color": "#10b981",
+        "bg": "rgba(16, 185, 129, 0.1)",
+        "border": "rgba(16, 185, 129, 0.3)",
+        "icon": "\ud83d\udfe2",
+        "label": "Healthy"
+      },
+      "warning": {
+        "color": "#f59e0b",
+        "bg": "rgba(245, 158, 11, 0.1)",
+        "border": "rgba(245, 158, 11, 0.3)",
+        "icon": "\ud83d\udfe1",
+        "label": "Warning"
+      },
+      "high": {
+        "color": "#f97316",
+        "bg": "rgba(249, 115, 22, 0.1)",
+        "border": "rgba(249, 115, 22, 0.3)",
+        "icon": "\ud83d\udfe0",
+        "label": "High"
+      },
+      "critical": {
+        "color": "#ef4444",
+        "bg": "rgba(239, 68, 68, 0.1)",
+        "border": "rgba(239, 68, 68, 0.3)",
+        "icon": "\ud83d\udd34",
+        "label": "Critical"
+      }
+    },
+    "cost_thresholds": {
+      "warning_usd": 50.0,
+      "critical_usd": 100.0
+    }
+  },
+  "updated_at": "2026-07-10T12:05:41.543381+07:00"
+}

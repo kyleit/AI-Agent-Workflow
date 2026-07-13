@@ -11,6 +11,13 @@ class PolicyEnforcementEngine:
         self.workspace_root = os.path.abspath(workspace_root)
 
     def is_path_safe(self, target_path: str) -> bool:
+        # Check if the path contains a Windows drive letter
+        has_win_drive = bool(re.match(r"^[a-zA-Z]:", target_path))
+        
+        # If running on non-Windows but path has a Windows drive letter, it is unsafe
+        if has_win_drive and os.name != "nt":
+            return False
+
         target_abs = os.path.abspath(target_path)
         # Block write actions outside workspace root
         return target_abs.startswith(self.workspace_root)

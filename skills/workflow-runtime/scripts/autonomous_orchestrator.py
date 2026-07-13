@@ -770,6 +770,169 @@ def get_orchestrator_status(work_item_id: str = None):
     print(f"Heartbeat: {last_heartbeat}")
     print(f"Active Subagents: {active_subagents}")
 
+def follow_orchestrator_status(work_item_id: str = None):
+    import time
+    import sys
+    import os
+    import json
+    from datetime import datetime
+    import psutil
+
+    global_state_dir = os.path.join(".agents", "state")
+
+    try:
+        while True:
+            # Clear terminal screen
+            sys.stdout.write("\033[H\033[2J")
+            sys.stdout.flush()
+
+            # Read orchestrator/daemon status
+            orch_path = os.path.join(global_state_dir, "orchestrator.json")
+            daemon_path = os.path.join(global_state_dir, "daemon.json")
+            mgr_path = os.path.join(global_state_dir, "runtime-manager.json")
+
+            status = "STOPPED"
+            mgr_status = "STOPPED"
+            pid = "N/A"
+            hb_age = "N/A"
+
+            if os.path.exists(daemon_path):
+                try:
+                    with open(daemon_path, "r", encoding="utf-8") as f:
+                        dinfo = json.load(f)
+                    dpid = dinfo.get("pid")
+                    if dpid and psutil.pid_exists(dpid):
+                        status = "RUNNING"
+                        pid = str(dpid)
+                        hb_at_str = dinfo.get("heartbeat_at") or dinfo.get("last_heartbeat")
+                        if hb_at_str:
+                            hb_at = datetime.fromisoformat(hb_at_str)
+                            now = datetime.now().astimezone()
+                            hb_diff = (now - hb_at).total_seconds()
+                            if hb_diff > 10.0:
+                                status = "UNHEALTHY (stale heartbeat)"
+                            hb_age = f"{round(hb_diff, 1)}s ago"
+                except Exception:
+                    pass
+
+            if os.path.exists(mgr_path):
+                try:
+                    with open(mgr_path, "r", encoding="utf-8") as f:
+                        mdata = json.load(f)
+                    mpid = mdata.get("manager_pid")
+                    if mpid and psutil.pid_exists(mpid):
+                        mgr_status = "RUNNING"
+                except Exception:
+                    pass
+
+            print("======================================================================")
+            print("              AIWF RESIDENT ORCHESTRATOR LIVE MONITOR")
+            print("======================================================================")
+            print(f"Resident Orchestrator : {status} (PID: {pid})")
+            print(f"Runtime Manager       : {mgr_status}")
+            print(f"Heartbeat             : {hb_age}")
+            print("----------------------------------------------------------------------")
+
+            # Read Subagents
+            agents_path = os.path.join(global_state_dir, "agents.json")
+            subagents_list = []
+            if os.path.exists(agents_path):
+                try:
+                    with open(agents_path, "r", encoding="utf-8") as f:
+                        adata = json.load(f)
+                    
+                    # Try reading from subagents list first
+                    subagents = adata.get("subagents", [])
+                    if subagents:
+                        for s in subagents:
+                            subagents_list.append({
+                                "id": s.get("agent_id"),
+                                "role": s.get("agent_type"),
+                                "status": s.get("status", "idle").upper()
+                            })
+                    else:
+                        # Fallback to key-value pairs
+                        for k, v in adata.items():
+                            if isinstance(v, dict) and v.get("role") in ["subagent", "supervisor"]:
+                                subagents_list.append({
+                                    "id": k,
+                                    "role": v.get("role"),
+                                    "status": v.get("status", "idle").upper()
+                                })
+                except Exception:
+                    pass
+
+            print("SUBAGENTS STATUS:")
+            if subagents_list:
+                for sa in subagents_list:
+                    print(f"  - {sa['id']:<20} : [{sa['status']}] ({sa['role']})")
+            else:
+                print("  No subagents registered or idle.")
+            print("----------------------------------------------------------------------")
+
+            # Read Task Graph
+            tasks_path = os.path.join(global_state_dir, "tasks.json")
+            task_counts = {"ready": 0, "running": 0, "completed": 0, "pending": 0, "blocked": 0, "failed": 0}
+            active_tasks_list = []
+            if os.path.exists(tasks_path):
+                try:
+                    with open(tasks_path, "r", encoding="utf-8") as f:
+                        tdata = json.load(f)
+                    tasks = tdata.get("tasks", {})
+                    for tid, t in tasks.items():
+                        stat = t.get("status", "pending")
+                        if stat in task_counts:
+                            task_counts[stat] += 1
+                        if stat == "running":
+                            active_tasks_list.append(f"{tid} ({t.get('name')})")
+                except Exception:
+                    pass
+
+            print("TASK GRAPH STATUS:")
+            print(f"  - Pending   : {task_counts['pending']}")
+            print(f"  - Ready     : {task_counts['ready']}")
+            print(f"  - Running   : {task_counts['running']} {f'({', '.join(active_tasks_list)})' if active_tasks_list else ''}")
+            print(f"  - Completed : {task_counts['completed']}")
+            print(f"  - Failed    : {task_counts['failed']}")
+            print("----------------------------------------------------------------------")
+
+            # Read Timeline Event Logs (Last 5 lines)
+            timeline_path = os.path.join(global_state_dir, "timeline.jsonl")
+            timeline_lines = []
+            if os.path.exists(timeline_path):
+                try:
+                    with open(timeline_path, "r", encoding="utf-8") as f:
+                        lines = f.readlines()
+                    last_lines = [json.loads(l.strip()) for l in lines[-5:] if l.strip()]
+                    for l in last_lines:
+                        ts = l.get("timestamp", "")
+                        if ts:
+                            try:
+                                dt = datetime.fromisoformat(ts)
+                                ts_str = dt.strftime("%H:%M:%S")
+                            except Exception:
+                                ts_str = ts[:19].split("T")[-1]
+                        else:
+                            ts_str = "--:--:--"
+                        msg = l.get("message", "")
+                        timeline_lines.append(f"  [{ts_str}] {msg}")
+                except Exception:
+                    pass
+
+            print("RECENT TIMELINE EVENTS:")
+            if timeline_lines:
+                for line in timeline_lines:
+                    print(line)
+            else:
+                print("  No event logs recorded.")
+            print("======================================================================")
+            print("Press Ctrl+C to exit...")
+
+            time.sleep(1)
+    except KeyboardInterrupt:
+        print("\nLive monitor stopped. Goodbye!")
+        sys.exit(0)
+
 def get_orchestrator_health(work_item_id: str = None):
     import psutil
     global_state_dir = os.path.join(".agents", "state")

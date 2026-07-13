@@ -3,7 +3,10 @@ import os
 import ast
 import re
 import json
-import yaml
+try:
+    import yaml
+except ImportError:
+    yaml = None
 from typing import Any, Dict, List, Tuple, Optional
 
 DEFAULT_POLICY = {

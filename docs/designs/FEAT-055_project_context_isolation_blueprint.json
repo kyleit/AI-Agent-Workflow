@@ -1,0 +1,172 @@
+{
+  "modules": [
+    {
+      "name": "workflow_runtime",
+      "classes": [
+        {
+          "class_name": "ContextFirewall",
+          "responsibilities": [
+            "Thực thi tường lửa ngữ cảnh, từ chối nạp mọi thông tin nằm ngoài phạm vi hoạt động của dự án hiện tại."
+          ],
+          "methods": [
+            {
+              "name": "validate_context_path",
+              "parameters": [
+                {
+                  "name": "file_path",
+                  "type": "str"
+                }
+              ],
+              "return_type": "bool"
+            },
+            {
+              "name": "filter_rag_results",
+              "parameters": [
+                {
+                  "name": "results",
+                  "type": "list"
+                }
+              ],
+              "return_type": "list"
+            },
+            {
+              "name": "validate_conversation",
+              "parameters": [
+                {
+                  "name": "history",
+                  "type": "list"
+                },
+                {
+                  "name": "active_project_id",
+                  "type": "str"
+                }
+              ],
+              "return_type": "bool"
+            }
+          ],
+          "lifecycle": "Singleton",
+          "state_ownership": "Runtime memory"
+        }
+      ]
+    }
+  ],
+  "configuration": {
+    "schema": {
+      "project_scope": {
+        "type": "object",
+        "properties": {
+          "project_id": {
+            "type": "string"
+          },
+          "workspace_root": {
+            "type": "string"
+          },
+          "git_root": {
+            "type": "string"
+          },
+          "memory_root": {
+            "type": "string"
+          },
+          "vector_collection": {
+            "type": "string"
+          },
+          "sqlite_database": {
+            "type": "string"
+          },
+          "allow_cross_project_context": {
+            "type": "boolean"
+          }
+        }
+      }
+    },
+    "defaults": {
+      "project_scope": {
+        "project_id": "unknown",
+        "workspace_root": ".",
+        "git_root": ".",
+        "memory_root": ".agents/memory",
+        "vector_collection": "default",
+        "sqlite_database": "project_runtime.db",
+        "allow_cross_project_context": false
+      }
+    }
+  },
+  "database": {
+    "tables": [],
+    "growth_estimation": "N/A",
+    "maintenance_strategy": "N/A"
+  },
+  "cache": {
+    "keys": [],
+    "ttl_seconds": 0,
+    "invalidation_rules": []
+  },
+  "errors": [
+    {
+      "exception_class": "ProjectContextViolationError",
+      "trigger": "Phát hiện dữ liệu từ dự án chéo xâm nhập vào ngữ cảnh",
+      "recovery": "Hủy bỏ nạp dữ liệu, xuất cảnh báo mismatch ra console và Visualizer"
+    }
+  ],
+  "sequence_flows": [
+    {
+      "flow_name": "Firewall Validation Flow",
+      "steps": [
+        "Skill yêu cầu đọc file hoặc truy vấn RAG",
+        "ContextFirewall kiểm tra đường dẫn file_path đối chiếu workspace_root",
+        "Nếu vi phạm -> ném ProjectContextViolationError -> chặn truy cập và ghi nhận đếm log",
+        "Nếu hợp lệ -> cho phép tải dữ liệu tiếp tục"
+      ]
+    }
+  ],
+  "integration_contracts": [
+    {
+      "skill_name": "project-rag-search",
+      "description": "Hàm search bắt buộc phải truyền active_project_id để lọc chéo collection."
+    }
+  ],
+  "cli_contracts": [],
+  "implementation_contracts": [
+    {
+      "file_path": "skills/workflow-runtime/scripts/context_firewall.py",
+      "owner": "Coder",
+      "notes": "Tạo lớp ContextFirewall lọc ngữ cảnh."
+    }
+  ],
+  "implementation_packages": [
+    {
+      "task_id": "Task 1.2",
+      "module": "workflow_runtime",
+      "read_set": [],
+      "write_set": [
+        "skills/workflow-runtime/scripts/context_firewall.py"
+      ],
+      "dependencies": [],
+      "implementation_notes": "Xây dựng khung xương lớp Firewall.",
+      "verification": "Unit test",
+      "rollback": "rm file",
+      "expected_outputs": [
+        "ContextFirewall class created"
+      ]
+    }
+  ],
+  "tests": [
+    {
+      "requirement_id": "FR-02",
+      "test_type": "Unit Test",
+      "target_file": "skills/workflow-runtime/tests/test_context_firewall.py"
+    }
+  ],
+  "traceability": [
+    {
+      "requirement_id": "FR-02",
+      "task_id": "Task 1.2",
+      "component": "ContextFirewall",
+      "file_path": "skills/workflow-runtime/scripts/context_firewall.py",
+      "test_file": "skills/workflow-runtime/tests/test_context_firewall.py"
+    }
+  ],
+  "artifacts": [
+    "docs/designs/FEAT-055_project_context_isolation_blueprint.md"
+  ]
+}

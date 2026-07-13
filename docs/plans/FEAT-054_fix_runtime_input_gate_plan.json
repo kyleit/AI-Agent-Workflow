@@ -1,0 +1,172 @@
+{
+  "phases": [
+    {
+      "phase_name": "Phase 1: Core Input Gate & Security Policies",
+      "tasks": [
+        "Task 1.1",
+        "Task 1.2",
+        "Task 1.3",
+        "Task 1.4",
+        "Task 1.5"
+      ],
+      "deliverables": [
+        "State machine supports waiting_input",
+        "Secure resume_token generator",
+        "CLI input submit interface",
+        "Source verification logic",
+        "AI_RULES.md updated"
+      ],
+      "milestones": [
+        "Input Gate core logic complete",
+        "Security policy applied to AI_RULES.md"
+      ]
+    },
+    {
+      "phase_name": "Phase 2: IDE Compatibility & Clean Up",
+      "tasks": [
+        "Task 2.1",
+        "Task 2.2"
+      ],
+      "deliverables": [
+        "IDE Extension compatibility validation",
+        "Auto clean pending_input on resume"
+      ],
+      "milestones": [
+        "System integration and regression testing complete"
+      ]
+    }
+  ],
+  "tasks": [
+    {
+      "id": "Task 1.1",
+      "description": "Implement waiting_input state in session management",
+      "effort_hours": 3,
+      "owner": "Coder",
+      "operations": [
+        "MODIFY"
+      ],
+      "files": [
+        "skills/workflow-runtime/scripts/workflow_runtime.py"
+      ]
+    },
+    {
+      "id": "Task 1.2",
+      "description": "Implement secure resume_token generation and persistence",
+      "effort_hours": 2,
+      "owner": "Coder",
+      "operations": [
+        "MODIFY"
+      ],
+      "files": [
+        "skills/workflow-runtime/scripts/workflow_runtime.py"
+      ]
+    },
+    {
+      "id": "Task 1.3",
+      "description": "Develop CLI sub-command 'input submit' for user responses",
+      "effort_hours": 3,
+      "owner": "Coder",
+      "operations": [
+        "MODIFY"
+      ],
+      "files": [
+        "skills/workflow-runtime/scripts/workflow_runtime.py"
+      ]
+    },
+    {
+      "id": "Task 1.4",
+      "description": "Develop Source Validation Engine to reject AI/Agent inputs",
+      "effort_hours": 4,
+      "owner": "Coder",
+      "operations": [
+        "MODIFY"
+      ],
+      "files": [
+        "skills/workflow-runtime/scripts/workflow_runtime.py"
+      ]
+    },
+    {
+      "id": "Task 1.5",
+      "description": "Write 'Runtime Input Gate Policy' in AI_RULES.md",
+      "effort_hours": 1,
+      "owner": "Architect",
+      "operations": [
+        "MODIFY"
+      ],
+      "files": [
+        "AI_RULES.md"
+      ]
+    },
+    {
+      "id": "Task 2.1",
+      "description": "Verify conversation_id preservation and extension compatibility",
+      "effort_hours": 2,
+      "owner": "Reviewer",
+      "operations": [
+        "MODIFY"
+      ],
+      "files": [
+        "skills/workflow-runtime/scripts/workflow_runtime.py"
+      ]
+    },
+    {
+      "id": "Task 2.2",
+      "description": "Implement auto-clean mechanism for pending_input field upon successful resume",
+      "effort_hours": 2,
+      "owner": "Coder",
+      "operations": [
+        "MODIFY"
+      ],
+      "files": [
+        "skills/workflow-runtime/scripts/workflow_runtime.py"
+      ]
+    }
+  ],
+  "dependencies": {
+    "Task 1.2": [
+      "Task 1.1"
+    ],
+    "Task 1.3": [
+      "Task 1.2"
+    ],
+    "Task 1.4": [
+      "Task 1.3"
+    ],
+    "Task 2.2": [
+      "Task 1.4"
+    ]
+  },
+  "parallel_groups": [
+    [
+      "Task 1.5",
+      "Task 2.1"
+    ]
+  ],
+  "exit_criteria": [
+    "100% of unit and integration tests passed",
+    "No placeholder strings in code or configuration files",
+    "Session file integrity verified"
+  ],
+  "rollback": {
+    "trigger": "Syntax error prevents Python CLI execution or session corruption",
+    "steps": [
+      "git checkout skills/workflow-runtime/scripts/workflow_runtime.py",
+      "git checkout AI_RULES.md"
+    ]
+  },
+  "tests": [
+    {
+      "test_target": "skills/workflow-runtime/tests/test_runtime_gate.py",
+      "mapped_tasks": [
+        "Task 1.1",
+        "Task 1.2",
+        "Task 1.3",
+        "Task 1.4",
+        "Task 2.2"
+      ]
+    }
+  ],
+  "artifacts": [
+    "docs/designs/FEAT-054_fix_runtime_input_gate_blueprint.md"
+  ]
+}

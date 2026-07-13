@@ -1,0 +1,161 @@
+{
+  "feature_id": "FEAT-052",
+  "feature_name": "Safe Implementation Orchestrator (DAG, Locks, Workers, Patches)",
+  "phases": [
+    {
+      "phase_name": "Phase 1: DAG Planner, Lock Manager & Worker Manager",
+      "tasks": ["Task 1.1", "Task 1.2", "Task 1.3"],
+      "deliverables": [
+        "dag_planner.py",
+        "lock_manager.py",
+        "worker_manager.py",
+        "file-locks.json schema",
+        "workers.json schema"
+      ],
+      "milestones": ["DAG topologically sorted", "File locks prevent concurrent writes", "Worker PIDs tracked correctly"]
+    },
+    {
+      "phase_name": "Phase 2: Safe Orchestrator & Patch Applier",
+      "tasks": ["Task 2.1", "Task 2.2"],
+      "deliverables": [
+        "orchestrator.py",
+        "patch_applier.py",
+        ".agents/runtime/patches/ directory"
+      ],
+      "milestones": ["Orphan check blocks premature completion", "Patches applied safely without conflicts"]
+    },
+    {
+      "phase_name": "Phase 3: Skill & CLI Integration",
+      "tasks": ["Task 3.1", "Task 3.2"],
+      "deliverables": [
+        "Updated blueprint-to-implementation/SKILL.md",
+        "workflow_runtime.py implement abort/resume/completion gate"
+      ],
+      "milestones": ["Safe Execution Policy documented", "Abort and resume commands functional"]
+    }
+  ],
+  "tasks": [
+    {
+      "id": "Task 1.1",
+      "description": "Viết dag_planner.py: phân tích JSON blueprint, sắp xếp Task theo Topological Sort, phát hiện cycle và tham chiếu Task không tồn tại. Validate write_set chứa đường dẫn tương đối hợp lệ.",
+      "effort_hours": 4,
+      "owner": "Coder",
+      "operations": ["NEW"],
+      "files": ["skills/workflow-runtime/scripts/dag_planner.py"]
+    },
+    {
+      "id": "Task 1.2",
+      "description": "Viết lock_manager.py: quản lý file-locks.json với acquire (all-or-nothing), release, stale lock detection (PID check via os.kill), reject absolute paths và path traversal. Sequential fallback khi write_set chưa xác định.",
+      "effort_hours": 4,
+      "owner": "Coder",
+      "operations": ["NEW"],
+      "files": [
+        "skills/workflow-runtime/scripts/lock_manager.py",
+        ".agents/runtime/file-locks.json"
+      ]
+    },
+    {
+      "id": "Task 1.3",
+      "description": "Viết worker_manager.py: quản lý workers.json. Ghi nhận PID khi spawn, cập nhật trạng thái (running, completed, failed, orphaned), giữ log path per-worker.",
+      "effort_hours": 3,
+      "owner": "Coder",
+      "operations": ["NEW"],
+      "files": [
+        "skills/workflow-runtime/scripts/worker_manager.py",
+        ".agents/runtime/workers.json"
+      ]
+    },
+    {
+      "id": "Task 2.1",
+      "description": "Viết orchestrator.py: controller chính điều phối thực thi từng Execution Group theo DAG. Chạy Orphan Check trước khi báo hoàn thành. Tích hợp lock acquisition và worker registration cho mỗi Task.",
+      "effort_hours": 5,
+      "owner": "Coder",
+      "operations": ["NEW"],
+      "files": ["skills/workflow-runtime/scripts/orchestrator.py"]
+    },
+    {
+      "id": "Task 2.2",
+      "description": "Viết patch_applier.py: tiếp nhận .patch file từ Task worker, kiểm tra patch chỉ đụng đúng write_set đã khai báo, apply tuần tự và atomic vào workspace. Từ chối nếu phát hiện conflict với patch đã áp dụng.",
+      "effort_hours": 4,
+      "owner": "Coder",
+      "operations": ["NEW"],
+      "files": [
+        "skills/workflow-runtime/scripts/patch_applier.py",
+        ".agents/runtime/patches/"
+      ]
+    },
+    {
+      "id": "Task 3.1",
+      "description": "Cập nhật blueprint-to-implementation/SKILL.md: thêm Safe Implementation Execution Policy section. Ghi rõ: parallel definitions are candidates only, default is safe sequential, controlled parallel requires all conditions proven.",
+      "effort_hours": 1,
+      "owner": "Coder",
+      "operations": ["MODIFY"],
+      "files": ["skills/blueprint-to-implementation/SKILL.md"]
+    },
+    {
+      "id": "Task 3.2",
+      "description": "Cập nhật workflow_runtime.py: thêm sub-commands implement abort (dừng workers, thu hồi locks, giữ logs), implement resume (tiếp tục từ queued task có dependencies ready), và Completion Gate checks bắt buộc.",
+      "effort_hours": 3,
+      "owner": "Coder",
+      "operations": ["MODIFY"],
+      "files": ["skills/workflow-runtime/scripts/workflow_runtime.py"]
+    }
+  ],
+  "dependencies": {
+    "Task 1.2": ["Task 1.1"],
+    "Task 1.3": ["Task 1.1"],
+    "Task 2.1": ["Task 1.2", "Task 1.3"],
+    "Task 2.2": ["Task 2.1"],
+    "Task 3.1": ["Task 2.1"],
+    "Task 3.2": ["Task 2.1"]
+  },
+  "parallel_groups": [
+    ["Task 1.2", "Task 1.3"],
+    ["Task 3.1", "Task 3.2"]
+  ],
+  "exit_criteria": [
+    "DAG builder phát hiện đúng cycle và dependency không hợp lệ.",
+    "Lock Manager ngăn Task B ghi file đang bị Task A khóa.",
+    "Worker Manager ghi nhận đúng PID và cập nhật trạng thái khi kết thúc.",
+    "Phase không thể hoàn thành khi còn worker đang chạy.",
+    "Patch applier từ chối patch chồng lên nhau.",
+    "implement abort thu hồi lock và không xóa source code.",
+    "implement resume tiếp tục từ Task queued đầu tiên sẵn sàng.",
+    "SKILL.md phản ánh đúng Safe Execution Policy."
+  ],
+  "rollback": {
+    "trigger": "Lock Manager gây deadlock hoặc Patch applier gây hỏng source code.",
+    "steps": [
+      "Xóa file-locks.json và workers.json",
+      "Revert git commit nếu patch đã được apply vào workspace",
+      "Xóa .agents/runtime/patches/ và khởi tạo lại từ Task đầu"
+    ]
+  },
+  "tests": [
+    {
+      "test_target": "skills/workflow-runtime/tests/test_dag_planner.py",
+      "mapped_tasks": ["Task 1.1"]
+    },
+    {
+      "test_target": "skills/workflow-runtime/tests/test_file_locks.py",
+      "mapped_tasks": ["Task 1.2"]
+    },
+    {
+      "test_target": "skills/workflow-runtime/tests/test_worker_registry.py",
+      "mapped_tasks": ["Task 1.3"]
+    },
+    {
+      "test_target": "skills/workflow-runtime/tests/test_task_dag_execution.py",
+      "mapped_tasks": ["Task 2.1"]
+    },
+    {
+      "test_target": "skills/workflow-runtime/tests/test_resume_recovery.py",
+      "mapped_tasks": ["Task 2.1", "Task 3.2"]
+    }
+  ],
+  "artifacts": [
+    "docs/designs/FEAT-052_safe_implementation_orchestrator_blueprint.md",
+    "docs/adr/ADR-FEAT-052_safe_orchestrator_dag_locks_workers.md",
+    "docs/guides/safe-implementation-execution.md"
+  ]
+}

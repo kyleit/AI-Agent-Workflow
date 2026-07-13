@@ -12,7 +12,10 @@ from agent_routing import load_agents
 
 class TestAgentCatalog(unittest.TestCase):
     def setUp(self):
-        self.agents_dir = "agents"
+        # Resolve path relative to the workspace root (4 levels up from tests/)
+        _tests_dir = os.path.dirname(os.path.abspath(__file__))
+        _workspace_root = os.path.abspath(os.path.join(_tests_dir, "..", "..", "..", ".."))
+        self.agents_dir = os.path.join(_workspace_root, ".agents", "agents")
         
     def test_catalog_size_and_attributes(self):
         agents = load_agents(self.agents_dir)

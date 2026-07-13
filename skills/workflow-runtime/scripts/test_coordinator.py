@@ -8,6 +8,86 @@ import hashlib
 import subprocess
 from datetime import datetime
 
+def kill_process_tree(pid: int, timeout: float = 5.0):
+    """
+    Safely and recursively kill a process tree.
+    Adheres to: terminate children -> wait -> kill surviving children -> terminate parent -> wait -> kill parent.
+    Handles psutil errors and prevents PID reuse bugs by capturing process creation times.
+    """
+    import psutil
+    import signal
+    
+    try:
+        parent = psutil.Process(pid)
+        parent_create_time = parent.create_time()
+    except (psutil.NoSuchProcess, psutil.AccessDenied):
+        return
+
+    # Helper to check if PID is reused
+    def is_same_process(p, expected_create_time):
+        try:
+            return p.is_running() and abs(p.create_time() - expected_create_time) <= 1.0
+        except Exception:
+            return False
+
+    # Get children recursively with their creation times
+    children_info = []
+    try:
+        for child in parent.children(recursive=True):
+            try:
+                children_info.append((child, child.create_time()))
+            except Exception:
+                pass
+    except Exception:
+        pass
+
+    # 1. Terminate children
+    for child, ctime in children_info:
+        if is_same_process(child, ctime):
+            try:
+                child.terminate()
+            except Exception:
+                pass
+
+    # Wait for children to exit
+    child_wait_start = time.time()
+    child_timeout = timeout / 2.0
+    while time.time() - child_wait_start < child_timeout:
+        alive_children = [c for c, ctime in children_info if is_same_process(c, ctime)]
+        if not alive_children:
+            break
+        time.sleep(0.1)
+
+    # 2. Kill surviving children
+    for child, ctime in children_info:
+        if is_same_process(child, ctime):
+            try:
+                child.kill()
+            except Exception:
+                pass
+
+    # 3. Terminate parent
+    if is_same_process(parent, parent_create_time):
+        try:
+            parent.terminate()
+        except Exception:
+            pass
+
+    # Wait for parent to exit
+    parent_wait_start = time.time()
+    parent_timeout = timeout / 2.0
+    while time.time() - parent_wait_start < parent_timeout:
+        if not is_same_process(parent, parent_create_time):
+            break
+        time.sleep(0.1)
+
+    # 4. Kill parent
+    if is_same_process(parent, parent_create_time):
+        try:
+            parent.kill()
+        except Exception:
+            pass
+
 class TestCoordinator:
     def __init__(self, workspace_path: str = "."):
         self.workspace_root = os.path.abspath(workspace_path)
@@ -407,10 +487,10 @@ class TestCoordinator:
         except subprocess.TimeoutExpired:
             print(f"Progress: FAIL (Timeout after {timeout}s)")
             if te_cfg.get("kill_process_tree_on_timeout", True):
-                from conftest import kill_process_tree
                 kill_process_tree(p.pid)
-            p.kill()
-            p.wait()
+            else:
+                p.kill()
+                p.wait()
             
         duration = round(time.time() - start_time, 2)
         

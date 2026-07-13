@@ -515,12 +515,21 @@ class OSFileLock:
     def __init__(self, lock_path: str):
         self.lock_path = os.path.abspath(lock_path)
         self.file_handle = None
+        self.locked = False
+        self.owner_pid = os.getpid()
+        try:
+            import psutil
+            self.owner_create_time = psutil.Process(self.owner_pid).create_time()
+        except Exception:
+            self.owner_create_time = None
+        import uuid
+        self.runtime_instance_id = uuid.uuid4().hex
 
     @property
     def is_held(self) -> bool:
         if os.environ.get("AIWF_DISABLE_FILE_LOCKS") == "1" and "PYTEST_CURRENT_TEST" in os.environ:
             return True
-        return self.file_handle is not None
+        return self.locked
 
     def acquire(self) -> bool:
         if os.environ.get("AIWF_DISABLE_FILE_LOCKS") == "1" and "PYTEST_CURRENT_TEST" in os.environ:
@@ -537,36 +546,62 @@ class OSFileLock:
                 import msvcrt
                 self.file_handle.seek(0)
                 msvcrt.locking(self.file_handle.fileno(), msvcrt.LK_NBLCK, 1)
+            
+            self.locked = True
             return True
         except (ImportError, OSError):
-            self.release()
+            if self.file_handle:
+                try:
+                    self.file_handle.close()
+                except Exception:
+                    pass
+                self.file_handle = None
             return False
 
     def release(self):
         if os.environ.get("AIWF_DISABLE_FILE_LOCKS") == "1" and "PYTEST_CURRENT_TEST" in os.environ:
             return
-        if self.file_handle:
+            
+        if not self.locked or not self.file_handle:
+            return
+
+        current_pid = os.getpid()
+        try:
+            import psutil
+            current_create_time = psutil.Process(current_pid).create_time()
+        except Exception:
+            current_create_time = None
+
+        if current_pid != self.owner_pid:
+            return
+        if self.owner_create_time is not None and current_create_time is not None:
+            if abs(current_create_time - self.owner_create_time) > 1.0:
+                # PID was reused
+                return
+
+        try:
             try:
+                import fcntl
+                fcntl.flock(self.file_handle, fcntl.LOCK_UN)
+            except ImportError:
                 try:
-                    import fcntl
-                    fcntl.flock(self.file_handle, fcntl.LOCK_UN)
-                except ImportError:
-                    try:
-                        import msvcrt
-                        self.file_handle.seek(0)
-                        msvcrt.locking(self.file_handle.fileno(), msvcrt.LK_UNLCK, 1)
-                    except (ImportError, OSError):
-                        pass
-                self.file_handle.close()
-            except Exception:
-                pass
-            finally:
-                self.file_handle = None
-            try:
-                if os.path.exists(self.lock_path):
-                    os.remove(self.lock_path)
-            except Exception:
-                pass
+                    import msvcrt
+                    self.file_handle.seek(0)
+                    msvcrt.locking(self.file_handle.fileno(), msvcrt.LK_UNLCK, 1)
+                except (ImportError, OSError):
+                    pass
+            self.file_handle.close()
+        except Exception:
+            pass
+        finally:
+            self.file_handle = None
+            
+        try:
+            if os.path.exists(self.lock_path):
+                os.remove(self.lock_path)
+        except Exception:
+            pass
+        self.locked = False
 
 
 DEFAULT_CLIENT_POLICY = {

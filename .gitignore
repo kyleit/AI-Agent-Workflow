@@ -4,6 +4,7 @@ __pycache__/
 *.db
 *.db-journal
 *.db-wal
+*.db-shm
 *.tmp
 *.bak
 .agents/.session.json
@@ -12,5 +13,22 @@ __pycache__/
 .agents/runtime/*.db-journal
 .agents/runtime/*.db-wal
 .agents/runtime/env_cache.json
+.agents/runtime/logs/
+.agents/runtime/context_snapshot.json
+.agents/runtime/workflow.lock
 public_export/
 **/__pycache__/
+
+# Temporary scratch directory
+scratch/
+
+# Local runtime choices and transient data
+.agents/runtime/choice-response.json
+.agents/runtime/pending-choice.json
+
+# Performance soak/stress testing evidence and local lease logs
+docs/brainstorming/stale_leases/
+artifacts/adaptive-agent-team/conflict_resolution_evidence.json
+artifacts/adaptive-agent-team/ownership_evidence.json
+artifacts/adaptive-agent-team/stale_write_evidence.json
+artifacts/full-access-autonomous-delivery/

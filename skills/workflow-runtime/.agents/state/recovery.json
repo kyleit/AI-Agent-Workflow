@@ -1,0 +1,12 @@
+{
+  "last_good_snapshot_at": "2026-07-10T12:05:42.985253+07:00",
+  "checksums": {
+    "context.json": "c5e67a48b49c96c9fb9adc5c7fdfc13fe6e40fbf17fcdabf5138361ddd9e8206",
+    "workflow.json": "b742c24051eb354b654e4e689625cf8ab5558099d7fce4154a848b78bb9e9b75",
+    "runtime.json": "e7d7c6499221b3ddb304046983bde7f1d4a33b8b30bd5fbc466e05bcaf9289ff",
+    "approvals.json": "7a1a022f2248b9b3240653650dd582a15cd02080cd38d4dca676bfbbec7842be",
+    "usage.json": "d15ba65affc64a55073f7b645c9da7f063fe4cbe9f098c993d900916db0933f6",
+    "agents.json": "310fb96cc1ebadd9706fcccd5b9527457d791b36ecc37aa3a5728dfac70e5b67"
+  },
+  "recovery_source": "session.json"
+}

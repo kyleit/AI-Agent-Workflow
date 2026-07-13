@@ -1,0 +1,345 @@
+{
+  "feature_id": "FEAT-048",
+  "feature_name": "Provider-Centric Runtime & Usage Engine",
+  "phases": [
+    {
+      "phase_name": "Phase 1: Provider Engine Core (Must)",
+      "tasks": ["Task 1.1", "Task 1.2", "Task 1.3", "Task 1.4", "Task 1.5", "Task 1.6", "Task 1.7", "Task 1.8"],
+      "deliverables": [
+        "ProviderConnector base class + ConnectorRegistry",
+        "AntigravityConnector + ClaudeCodeConnector",
+        "CursorConnector + VSCodeAgentsConnector",
+        "IncrementalTranscriptReader + TranscriptParser",
+        "UsageNormalizer + NormalizedUsageRecord schema",
+        "CostEngine + pricing.json",
+        "provider_engine.py standalone CLI",
+        "Hash-tracking incremental indexing + SQLite cache"
+      ],
+      "milestones": [
+        "provider_engine.py detect returns DetectedProvider JSON",
+        "provider_engine.py parse returns NormalizedUsageRecord[] with accuracy_source",
+        "provider_engine.py pricing matches published rate within 1%",
+        "Hash tracking: second run on unchanged transcript uses SQLite cache only"
+      ]
+    },
+    {
+      "phase_name": "Phase 2: Database & Backend Layer (Must)",
+      "tasks": ["Task 2.1", "Task 2.2", "Task 2.3"],
+      "deliverables": [
+        "SQLite schema extension (runtime_events, connector_diagnostics, new columns)",
+        "Runtime/Usage separation in DB layer",
+        "WorkflowMetadataAdapter + workflow_runtime.py provider subcommand"
+      ],
+      "milestones": [
+        "Existing project_runtime.db migrated without data loss",
+        "AIWF optional: WorkflowMetadata returns None gracefully when .agents/ absent",
+        "workflow_runtime.py provider subcommand dispatches to provider_engine.py"
+      ]
+    },
+    {
+      "phase_name": "Phase 3: Extension UI Redesign (Must)",
+      "tasks": ["Task 3.1", "Task 3.2", "Task 3.3"],
+      "deliverables": [
+        "ProviderRegistry spawn integration in extension.ts",
+        "DiagnosticsPanel (collapsible sidebar section)",
+        "AccuracyBadge on all metric cards with Source/Provider/Model/Last Updated"
+      ],
+      "milestones": [
+        "DiagnosticsPanel shows correct per-provider status",
+        "All metric cards display AccuracyBadge (green/amber)",
+        "Extension loads without .agents/ — usage cards show provider data"
+      ]
+    },
+    {
+      "phase_name": "Phase 4: Runtime Event Bus & Log Collectors (Should)",
+      "tasks": ["Task 4.1", "Task 4.2"],
+      "deliverables": [
+        "Runtime Event Bus: EventCapture + EventReplay",
+        "IDE Log Collectors for Antigravity and Claude Code"
+      ],
+      "milestones": [
+        "Event Bus emits and replays events correctly",
+        "Log Collectors detect paths on Windows, macOS, Linux"
+      ]
+    },
+    {
+      "phase_name": "Phase 5: Testing, Cleanup & Validation (Must)",
+      "tasks": ["Task 5.1", "Task 5.2", "Task 5.3"],
+      "deliverables": [
+        "7 automated test files (unit + integration + performance)",
+        "Confirmed 100% existing test_runtime.py pass",
+        "Deprecated estimateContextUsage() + hardcoded pricing removed"
+      ],
+      "milestones": [
+        "Test coverage >= 80% on all new Python modules",
+        "All 10 Acceptance Criteria (AC-01 to AC-10) verified green",
+        "Zero regressions in existing functionality"
+      ]
+    }
+  ],
+  "tasks": [
+    {
+      "id": "Task 1.1",
+      "description": "Design and implement ProviderConnector abstract base class and ConnectorRegistry plugin system",
+      "effort_hours": 4,
+      "owner": "Architect",
+      "operations": ["CREATE"],
+      "files": [
+        "skills/workflow-runtime/scripts/connectors/__init__.py",
+        "skills/workflow-runtime/scripts/connectors/base.py"
+      ]
+    },
+    {
+      "id": "Task 1.2",
+      "description": "Implement AntigravityConnector and ClaudeCodeConnector with path auto-detection and transcript discovery",
+      "effort_hours": 5,
+      "owner": "Coder",
+      "operations": ["CREATE"],
+      "files": [
+        "skills/workflow-runtime/scripts/connectors/antigravity.py",
+        "skills/workflow-runtime/scripts/connectors/claude_code.py"
+      ]
+    },
+    {
+      "id": "Task 1.3",
+      "description": "Implement CursorConnector and VSCodeAgentsConnector",
+      "effort_hours": 4,
+      "owner": "Coder",
+      "operations": ["CREATE"],
+      "files": [
+        "skills/workflow-runtime/scripts/connectors/cursor.py",
+        "skills/workflow-runtime/scripts/connectors/vscode_agents.py"
+      ]
+    },
+    {
+      "id": "Task 1.4",
+      "description": "Implement IncrementalTranscriptReader (hash-tracked) and provider-specific TranscriptParsers",
+      "effort_hours": 6,
+      "owner": "Coder",
+      "operations": ["CREATE"],
+      "files": [
+        "skills/workflow-runtime/scripts/transcript_engine.py"
+      ]
+    },
+    {
+      "id": "Task 1.5",
+      "description": "Implement UsageNormalizer and define NormalizedUsageRecord schema",
+      "effort_hours": 4,
+      "owner": "Coder",
+      "operations": ["CREATE"],
+      "files": [
+        "skills/workflow-runtime/scripts/normalizer.py"
+      ]
+    },
+    {
+      "id": "Task 1.6",
+      "description": "Implement CostEngine and create initial pricing.json with Antigravity, Claude, and OpenAI pricing",
+      "effort_hours": 4,
+      "owner": "Coder",
+      "operations": ["CREATE"],
+      "files": [
+        "skills/workflow-runtime/scripts/cost_engine.py",
+        "skills/workflow-runtime/data/pricing.json"
+      ]
+    },
+    {
+      "id": "Task 1.7",
+      "description": "Implement provider_engine.py standalone CLI with detect, parse, pricing, diagnose subcommands",
+      "effort_hours": 5,
+      "owner": "Coder",
+      "operations": ["CREATE"],
+      "files": [
+        "skills/workflow-runtime/scripts/provider_engine.py"
+      ]
+    },
+    {
+      "id": "Task 1.8",
+      "description": "Integrate hash-based incremental indexing into TranscriptReader and SQLite cache layer",
+      "effort_hours": 3,
+      "owner": "Coder",
+      "operations": ["MODIFY"],
+      "files": [
+        "skills/workflow-runtime/scripts/transcript_engine.py"
+      ]
+    },
+    {
+      "id": "Task 2.1",
+      "description": "Extend SQLite schema: add runtime_events and connector_diagnostics tables; add accuracy_source and raw_payload columns to provider_requests",
+      "effort_hours": 5,
+      "owner": "Database Developer",
+      "operations": ["MODIFY"],
+      "files": [
+        "skills/workflow-runtime/scripts/db.py"
+      ]
+    },
+    {
+      "id": "Task 2.2",
+      "description": "Implement Runtime/Usage separation: separate runtime query functions from billing query functions in DB layer",
+      "effort_hours": 3,
+      "owner": "Database Developer",
+      "operations": ["MODIFY"],
+      "files": [
+        "skills/workflow-runtime/scripts/db.py"
+      ]
+    },
+    {
+      "id": "Task 2.3",
+      "description": "Implement WorkflowMetadataAdapter in context.py and add provider subcommand to workflow_runtime.py",
+      "effort_hours": 5,
+      "owner": "Backend Developer",
+      "operations": ["MODIFY"],
+      "files": [
+        "skills/workflow-runtime/scripts/context.py",
+        "skills/workflow-runtime/scripts/workflow_runtime.py"
+      ]
+    },
+    {
+      "id": "Task 3.1",
+      "description": "Implement AccuracyLevel system in Extension TypeScript: ProviderRegistry spawn integration, replace estimateContextUsage with getProviderUsage",
+      "effort_hours": 6,
+      "owner": "Frontend Developer",
+      "operations": ["MODIFY"],
+      "files": [
+        "extensions/visualizer/src/extension.ts"
+      ]
+    },
+    {
+      "id": "Task 3.2",
+      "description": "Build DiagnosticsPanel collapsible section in webview.html and wire updateDiagnosticsData() in extension.ts",
+      "effort_hours": 6,
+      "owner": "Frontend Developer",
+      "operations": ["MODIFY"],
+      "files": [
+        "extensions/visualizer/resources/webview.html",
+        "extensions/visualizer/src/extension.ts"
+      ]
+    },
+    {
+      "id": "Task 3.3",
+      "description": "Add AccuracyBadge to all metric cards; update all usage stat displays with Source, Provider, Model, Last Updated metadata",
+      "effort_hours": 5,
+      "owner": "Frontend Developer",
+      "operations": ["MODIFY"],
+      "files": [
+        "extensions/visualizer/resources/webview.html"
+      ]
+    },
+    {
+      "id": "Task 4.1",
+      "description": "Implement Runtime Event Bus base: EventCapture, EventReplay, runtime_events SQLite storage",
+      "effort_hours": 5,
+      "owner": "Backend Developer",
+      "operations": ["CREATE"],
+      "files": [
+        "skills/workflow-runtime/scripts/event_bus.py"
+      ]
+    },
+    {
+      "id": "Task 4.2",
+      "description": "Implement IDE Log Collectors for Antigravity and Claude Code with OS-aware path discovery",
+      "effort_hours": 4,
+      "owner": "Backend Developer",
+      "operations": ["CREATE"],
+      "files": [
+        "skills/workflow-runtime/scripts/log_collectors.py"
+      ]
+    },
+    {
+      "id": "Task 5.1",
+      "description": "Write 7 automated test files covering unit, integration, and performance scenarios",
+      "effort_hours": 8,
+      "owner": "Test Developer",
+      "operations": ["CREATE"],
+      "files": [
+        "skills/workflow-runtime/tests/test_connectors.py",
+        "skills/workflow-runtime/tests/test_transcript_engine.py",
+        "skills/workflow-runtime/tests/test_normalization.py",
+        "skills/workflow-runtime/tests/test_pricing.py",
+        "skills/workflow-runtime/tests/test_db_schema.py",
+        "skills/workflow-runtime/tests/test_aiwf_optional.py",
+        "skills/workflow-runtime/tests/test_transcript_performance.py"
+      ]
+    },
+    {
+      "id": "Task 5.2",
+      "description": "Execute full regression suite; confirm 100% existing test_runtime.py tests pass unchanged",
+      "effort_hours": 3,
+      "owner": "QA Reviewer",
+      "operations": [],
+      "files": [
+        "skills/workflow-runtime/tests/test_runtime.py"
+      ]
+    },
+    {
+      "id": "Task 5.3",
+      "description": "Remove deprecated estimateContextUsage() function and hardcoded pricing constants after Phase 3 validation",
+      "effort_hours": 3,
+      "owner": "Coder",
+      "operations": ["MODIFY"],
+      "files": [
+        "extensions/visualizer/src/extension.ts",
+        "skills/workflow-runtime/scripts/context.py"
+      ]
+    }
+  ],
+  "dependencies": {
+    "Task 1.2": ["Task 1.1"],
+    "Task 1.3": ["Task 1.1"],
+    "Task 1.4": ["Task 1.1"],
+    "Task 1.5": ["Task 1.1"],
+    "Task 1.7": ["Task 1.5"],
+    "Task 1.8": ["Task 1.4"],
+    "Task 2.2": ["Task 2.1"],
+    "Task 2.3": ["Task 2.1"],
+    "Task 3.1": ["Task 2.3"],
+    "Task 3.2": ["Task 3.1"],
+    "Task 3.3": ["Task 3.1"],
+    "Task 5.1": ["Task 3.3", "Task 4.1", "Task 4.2"],
+    "Task 5.2": ["Task 5.1"],
+    "Task 5.3": ["Task 5.2"]
+  },
+  "parallel_groups": [
+    ["Task 1.2", "Task 1.3", "Task 1.6"],
+    ["Task 1.4", "Task 1.5"],
+    ["Task 1.7", "Task 1.8"],
+    ["Task 2.2", "Task 2.3"],
+    ["Task 3.2", "Task 3.3"],
+    ["Task 4.1", "Task 4.2"],
+    ["Task 5.1", "Task 5.2"]
+  ],
+  "exit_criteria": [
+    "provider_engine.py detect returns DetectedProvider JSON for Antigravity environment",
+    "provider_engine.py parse returns NormalizedUsageRecord[] with accuracy_source field",
+    "Hash tracking confirmed: second run on unchanged transcript uses SQLite cache only",
+    "Existing project_runtime.db migrated without data loss",
+    "DiagnosticsPanel visible in sidebar with correct provider status",
+    "All metric cards display AccuracyBadge",
+    "Extension loads without .agents/ directory without crashing",
+    "100% of existing test_runtime.py tests pass unchanged",
+    "Test coverage >= 80% on all new Python modules",
+    "estimateContextUsage() and hardcoded pricing constants removed"
+  ],
+  "rollback": {
+    "trigger": "SQLite migration causes data loss OR any existing test_runtime.py test fails after deprecated code removal",
+    "steps": [
+      "Restore project_runtime.db from automated pre-migration backup",
+      "Revert db.py to pre-Phase-2 commit",
+      "Restore estimateContextUsage() and hardcoded pricing constants if removed prematurely",
+      "Revert extension.ts and webview.html to pre-Phase-3 commit and rebuild webviewHtml.ts"
+    ]
+  },
+  "tests": [
+    { "test_target": "skills/workflow-runtime/tests/test_connectors.py", "mapped_tasks": ["Task 1.2", "Task 1.3"] },
+    { "test_target": "skills/workflow-runtime/tests/test_transcript_engine.py", "mapped_tasks": ["Task 1.4", "Task 1.8"] },
+    { "test_target": "skills/workflow-runtime/tests/test_normalization.py", "mapped_tasks": ["Task 1.5"] },
+    { "test_target": "skills/workflow-runtime/tests/test_pricing.py", "mapped_tasks": ["Task 1.6"] },
+    { "test_target": "skills/workflow-runtime/tests/test_db_schema.py", "mapped_tasks": ["Task 2.1", "Task 2.2"] },
+    { "test_target": "skills/workflow-runtime/tests/test_aiwf_optional.py", "mapped_tasks": ["Task 2.3"] },
+    { "test_target": "skills/workflow-runtime/tests/test_transcript_performance.py", "mapped_tasks": ["Task 1.4", "Task 1.8"] },
+    { "test_target": "skills/workflow-runtime/tests/test_runtime.py", "mapped_tasks": ["Task 5.2"] }
+  ],
+  "artifacts": [
+    "docs/plans/FEAT-048_provider_centric_runtime_and_usage_engine_plan.md",
+    "docs/designs/FEAT-048_provider_centric_runtime_and_usage_engine_blueprint.md"
+  ]
+}

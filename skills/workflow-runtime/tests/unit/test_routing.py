@@ -14,8 +14,11 @@ from agent_routing import load_agents, load_routing_table, validate_routing
 
 class TestAgentRouting(unittest.TestCase):
     def setUp(self):
-        self.manifest_path = "MANIFEST.json"
-        self.agents_dir = "agents"
+        # Resolve paths relative to the workspace root (4 levels up from tests/)
+        _tests_dir = os.path.dirname(os.path.abspath(__file__))
+        _workspace_root = os.path.abspath(os.path.join(_tests_dir, "..", "..", "..", ".."))
+        self.manifest_path = os.path.join(_workspace_root, ".agents", "MANIFEST.json")
+        self.agents_dir = os.path.join(_workspace_root, ".agents", "agents")
         
     def test_routing_resolution(self):
         table = load_routing_table(self.manifest_path)

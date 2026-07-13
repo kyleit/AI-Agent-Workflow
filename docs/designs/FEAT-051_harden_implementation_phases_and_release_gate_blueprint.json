@@ -1,0 +1,176 @@
+{
+  "feature_id": "FEAT-051",
+  "feature_name": "Harden AIWF Implementation Flow and Release Gate",
+  "modules": [
+    {
+      "name": "ledger",
+      "classes": [
+        {
+          "class_name": "ImplementationLedger",
+          "responsibilities": ["CRUD on implementation-ledger.json", "Phase lifecycle management", "Single-phase backward compatibility"],
+          "methods": [
+            {"name": "load", "parameters": [], "return_type": "dict"},
+            {"name": "save", "parameters": [{"name": "data", "type": "dict"}], "return_type": "None"},
+            {"name": "init_from_blueprint", "parameters": [{"name": "blueprint_json", "type": "dict"}], "return_type": "dict"},
+            {"name": "mark_phase_started", "parameters": [{"name": "phase_id", "type": "str"}], "return_type": "None"},
+            {"name": "mark_phase_completed", "parameters": [{"name": "phase_id", "type": "str"}], "return_type": "None"},
+            {"name": "mark_task_completed", "parameters": [{"name": "task_id", "type": "str"}], "return_type": "None"},
+            {"name": "get_next_incomplete_phase", "parameters": [], "return_type": "str | None"},
+            {"name": "is_feature_complete", "parameters": [], "return_type": "bool"},
+            {"name": "get_release_gate_status", "parameters": [], "return_type": "dict"}
+          ],
+          "lifecycle": "singleton per feature",
+          "state_ownership": ".agents/runtime/implementation-ledger.json"
+        }
+      ]
+    },
+    {
+      "name": "phase_controller",
+      "classes": [
+        {
+          "class_name": "PhaseController",
+          "responsibilities": ["Phase boundary decisions", "Next action computation", "Phase resume logic"],
+          "methods": [
+            {"name": "on_phase_completed", "parameters": [{"name": "phase_id", "type": "str"}], "return_type": "dict"},
+            {"name": "resume_next_phase", "parameters": [], "return_type": "str | None"},
+            {"name": "get_phase_summary", "parameters": [], "return_type": "list[dict]"}
+          ],
+          "lifecycle": "stateless",
+          "state_ownership": "none (delegates to ImplementationLedger)"
+        }
+      ]
+    },
+    {
+      "name": "release_gate",
+      "classes": [
+        {
+          "class_name": "ReleaseGate",
+          "responsibilities": ["Hard pre-release validation", "Partial release confirmation"],
+          "methods": [
+            {"name": "validate", "parameters": [], "return_type": "tuple[bool, str]"},
+            {"name": "validate_partial", "parameters": [{"name": "phase_id", "type": "str"}], "return_type": "tuple[bool, str]"},
+            {"name": "require_explicit_confirmation", "parameters": [{"name": "text", "type": "str"}], "return_type": "bool"}
+          ],
+          "lifecycle": "stateless",
+          "state_ownership": "none (reads ledger, workers, locks)"
+        }
+      ]
+    }
+  ],
+  "configuration": {
+    "schema": {
+      "release_gate": {
+        "require_debug_report": "boolean",
+        "require_verify_report": "boolean",
+        "require_all_phases_complete": "boolean",
+        "allow_partial_release": "boolean"
+      }
+    },
+    "defaults": {
+      "release_gate.require_debug_report": true,
+      "release_gate.require_verify_report": true,
+      "release_gate.require_all_phases_complete": true,
+      "release_gate.allow_partial_release": false
+    }
+  },
+  "database": {
+    "tables": [],
+    "growth_estimation": "implementation-ledger.json ~2-10KB per feature",
+    "maintenance_strategy": "File reset after each new feature implementation begins"
+  },
+  "cache": {"keys": [], "ttl_seconds": 0, "invalidation_rules": ["No cache; ledger read from disk on each call"]},
+  "errors": [
+    {"exception_class": "LedgerNotFoundError", "trigger": "Ledger missing when validate() called", "recovery": "Auto-block release; prompt to run /implement"},
+    {"exception_class": "PrematureReleaseError", "trigger": "release_gate.validate() returns False", "recovery": "Print block reason; stop release"},
+    {"exception_class": "InvalidPhaseTransitionError", "trigger": "Non-monotonic phase status change attempted", "recovery": "Raise; log attempted transition"},
+    {"exception_class": "PartialReleaseConfirmationError", "trigger": "User confirmation text mismatch", "recovery": "Reject; print required confirmation text"}
+  ],
+  "sequence_flows": [
+    {
+      "flow_name": "Phase Completion → Next Phase",
+      "steps": [
+        "Coder marks Phase 1 done → phase_controller.on_phase_completed('Phase 1')",
+        "PhaseController reads ledger; detects Phase 2 pending",
+        "Returns {next_action: 'continue_implement', next_phase_id: 'Phase 2'}",
+        "StateAggregator updates suggested_next_skill = 'blueprint-to-implementation'",
+        "Dashboard: Next /implement --phase Phase 2. Release: BLOCKED"
+      ]
+    },
+    {
+      "flow_name": "Release Gate Block",
+      "steps": [
+        "User invokes /release after Phase 1 only",
+        "release_gate.validate() checks ledger → Phase 2 still pending",
+        "Returns (False, 'Release blocked: Remaining phases: Phase 2, Phase 3.')",
+        "Release aborted; block reason printed"
+      ]
+    }
+  ],
+  "integration_contracts": [
+    {"skill": "blueprint-to-implementation", "before_hook": "ledger.init_from_blueprint(blueprint_json)", "after_phase_hook": "phase_controller.on_phase_completed(phase_id)"},
+    {"skill": "implementation-to-release", "before_release": "release_gate.validate() must return (True, '')"}
+  ],
+  "cli_contracts": [
+    {"command": "implement resume", "output": "JSON {phase_id, phase_title, tasks_remaining}", "exit_codes": {"0": "resumed", "1": "nothing to resume"}},
+    {"command": "implement partial-release --phase 'Phase X'", "output": "JSON {confirmed, release_note_path}", "exit_codes": {"0": "confirmed", "1": "rejected"}},
+    {"command": "implement status", "output": "JSON {phases[], current_phase, release_allowed, release_block_reason}", "exit_codes": {"0": "success"}}
+  ],
+  "implementation_contracts": [
+    {"file_path": "skills/workflow-runtime/scripts/ledger.py", "owner": "Coder", "notes": "save() uses AtomicWriter. load() returns empty template if missing."},
+    {"file_path": "skills/workflow-runtime/scripts/phase_controller.py", "owner": "Coder", "notes": "Pure computation; works without FEAT-052 Worker Manager."},
+    {"file_path": "skills/workflow-runtime/scripts/release_gate.py", "owner": "Coder", "notes": "Cannot be bypassed by any CLI argument. All conditions listed in block reason."},
+    {"file_path": "skills/workflow-runtime/scripts/workflow_runtime.py", "owner": "Coder", "notes": "Add implement sub-parser with resume and partial-release sub-commands."},
+    {"file_path": "skills/implementation-to-release/SKILL.md", "owner": "Coder", "notes": "Add mandatory release_gate.validate() before any release step."}
+  ],
+  "implementation_packages": [
+    {
+      "task_id": "Task 1.1",
+      "module": "ledger",
+      "read_set": [".agents/runtime/implementation-ledger.json"],
+      "write_set": ["skills/workflow-runtime/scripts/ledger.py", ".agents/runtime/implementation-ledger.json"],
+      "dependencies": [],
+      "implementation_notes": "Backward compat: single-phase blueprint → synthetic Phase 1",
+      "verification": "python -m pytest skills/workflow-runtime/tests/test_ledger.py",
+      "rollback": "Delete ledger.py; rm .agents/runtime/implementation-ledger.json",
+      "expected_outputs": ["ledger.py created", "tests pass"]
+    },
+    {
+      "task_id": "Task 1.2",
+      "module": "phase_controller",
+      "read_set": ["skills/workflow-runtime/scripts/ledger.py"],
+      "write_set": ["skills/workflow-runtime/scripts/phase_controller.py"],
+      "dependencies": ["Task 1.1"],
+      "implementation_notes": "on_phase_completed() returns structured dict; does not print to stdout.",
+      "verification": "python -m pytest skills/workflow-runtime/tests/test_phase_controller.py",
+      "rollback": "Delete phase_controller.py",
+      "expected_outputs": ["phase_controller.py created", "tests pass"]
+    },
+    {
+      "task_id": "Task 2.1",
+      "module": "release_gate",
+      "read_set": ["skills/workflow-runtime/scripts/ledger.py"],
+      "write_set": ["skills/workflow-runtime/scripts/release_gate.py"],
+      "dependencies": ["Task 1.2"],
+      "implementation_notes": "8 validation conditions in order; all failures collected and reported together.",
+      "verification": "python -m pytest skills/workflow-runtime/tests/test_release_gate.py",
+      "rollback": "Delete release_gate.py",
+      "expected_outputs": ["release_gate.py created", "tests pass"]
+    }
+  ],
+  "tests": [
+    {"requirement_id": "FR-01", "test_type": "Unit", "target_file": "skills/workflow-runtime/tests/test_ledger.py"},
+    {"requirement_id": "FR-02", "test_type": "Unit", "target_file": "skills/workflow-runtime/tests/test_phase_controller.py"},
+    {"requirement_id": "FR-04", "test_type": "Unit", "target_file": "skills/workflow-runtime/tests/test_release_gate.py"},
+    {"requirement_id": "FR-05", "test_type": "Unit", "target_file": "skills/workflow-runtime/tests/test_release_gate.py"}
+  ],
+  "traceability": [
+    "FR-01 → Task 1.1 → ImplementationLedger → ledger.py → test_ledger.py",
+    "FR-02 → Task 1.2 → PhaseController.on_phase_completed() → phase_controller.py → test_phase_controller.py",
+    "FR-04 → Task 2.1 → ReleaseGate.validate() → release_gate.py → test_release_gate.py",
+    "FR-05 → Task 2.2 → ReleaseGate.require_explicit_confirmation() → release_gate.py → test_release_gate.py"
+  ],
+  "artifacts": [
+    "docs/designs/FEAT-051_harden_implementation_phases_and_release_gate_blueprint.md",
+    "docs/designs/FEAT-051_harden_implementation_phases_and_release_gate_blueprint.json"
+  ]
+}

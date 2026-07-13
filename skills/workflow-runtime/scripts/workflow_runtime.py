@@ -67,6 +67,67 @@ def get_permission_mode() -> str:
         return "sandbox"
     return str(mode)
 
+class ForbiddenAISourceError(ValueError):
+    pass
+
+class InvalidResumeTokenError(ValueError):
+    pass
+
+class RuntimeInputGate:
+    @staticmethod
+    def enter_waiting_state(prompt_id: str, question: str, options: list) -> dict:
+        import secrets
+        from datetime import datetime
+        token = secrets.token_hex(16)
+        pending = {
+            "input_id": prompt_id,
+            "question": question,
+            "options": options,
+            "resume_token": token,
+            "created_at": datetime.now().astimezone().isoformat()
+        }
+        
+        session = load_session()
+        session["status"] = "waiting_input"
+        session["pending_input"] = pending
+        
+        log_line = f"> Runtime waiting for input on prompt '{prompt_id}'. Secure token generated."
+        if "current_logs" in session:
+            session["current_logs"].append(log_line)
+        else:
+            session["current_logs"] = [log_line]
+            
+        save_session_atomic(session)
+        return pending
+
+    @staticmethod
+    def submit_input(prompt_id: str, value: str, source: str, token: str) -> bool:
+        if source and source.lower() == "ai":
+            raise ForbiddenAISourceError("Input submission from AI sources is strictly forbidden.")
+            
+        session = load_session()
+        pending = session.get("pending_input")
+        if not pending:
+            print("No pending input waiting in session.")
+            return False
+            
+        if pending.get("input_id") != prompt_id:
+            print(f"Prompt ID mismatch: expected {pending.get('input_id')}, got {prompt_id}.")
+            return False
+            
+        if pending.get("resume_token") != token:
+            raise InvalidResumeTokenError("Security token mismatch. Access denied.")
+            
+        session["status"] = "completed"
+        session["pending_input"] = None
+        
+        log_line = f"> Input for prompt '{prompt_id}' accepted from source '{source}'."
+        if "current_logs" in session:
+            session["current_logs"].append(log_line)
+            
+        save_session_atomic(session)
+        return True
+
 def requires_approval(action_type: str, path: str = None) -> bool:
     mode = get_permission_mode()
     if mode == "unrestricted":
@@ -393,8 +454,35 @@ def do_init(args):
     )
     config_exists = os.path.exists(os.path.join(getattr(args, "path", None) or ".", ".agents", "project.config.json"))
     if (has_project_args or not config_exists) and not getattr(args, "permission", None):
-        import init_wizard
-        sys.exit(init_wizard.handle_init(args))
+        if not sys.stdin.isatty():
+            # Non-interactive environment fallback to avoid hanging in tests
+            import json
+            default_config = {
+                "schema_version": "1.0.0",
+                "project": {
+                    "name": "default-project",
+                    "display_name": "Default Project",
+                    "description": "Auto-initialized project in non-interactive shell",
+                    "version": "1.0.0"
+                },
+                "topology": {"type": "single-module"},
+                "architecture": {"pattern": "DDD + Clean Architecture"},
+                "languages": ["Python"],
+                "database": {"engine": "SQLite"},
+                "git": {"initialize": True, "default_branch": "main"},
+                "created_at": datetime.now().astimezone().isoformat(),
+                "updated_at": datetime.now().astimezone().isoformat()
+            }
+            target_path = getattr(args, "path", None) or "."
+            os.makedirs(os.path.join(target_path, ".agents"), exist_ok=True)
+            config_path = os.path.join(target_path, ".agents", "project.config.json")
+            with open(config_path, "w", encoding="utf-8") as f:
+                json.dump(default_config, f, indent=2)
+            from session import write_project_permissions_atomic
+            write_project_permissions_atomic("sandbox")
+        else:
+            import init_wizard
+            sys.exit(init_wizard.handle_init(args))
 
     # Handle --permission flag if provided
     permission_flag = getattr(args, "permission", None)
@@ -516,6 +604,7 @@ def do_init(args):
         sys.exit(1)
     
     def register_client_attachment():
+        import json
         from session import get_project_identity, load_config_section, DEFAULT_CLIENT_POLICY
         identity = get_project_identity(getattr(args, "path", None) or ".")
         workspace_id = identity["workspace_id"]
@@ -2769,6 +2858,24 @@ def do_prompt(args) -> None:
     res = prompt_select(args.question, options_list, args.default)
     print(res)
 
+def do_input(args) -> None:
+    if args.subaction == "submit":
+        try:
+            success = RuntimeInputGate.submit_input(
+                prompt_id=args.input_id,
+                value=args.value,
+                source=args.source,
+                token=args.resume_token
+            )
+            if success:
+                print(json.dumps({"success": True, "message": "Input accepted. Resuming workflow..."}))
+            else:
+                print(json.dumps({"success": False, "message": "Failed to submit input."}))
+                sys.exit(1)
+        except (ForbiddenAISourceError, InvalidResumeTokenError) as e:
+            print(json.dumps({"success": False, "message": str(e)}), file=sys.stderr)
+            sys.exit(1)
+
 
 def do_status_action(args):
     session = load_session()
@@ -2869,8 +2976,13 @@ def do_orchestrator(args):
         return
         
     elif subaction == "status":
-        from autonomous_orchestrator import get_orchestrator_status
-        get_orchestrator_status(work_item)
+        follow = getattr(args, "follow", False)
+        if follow:
+            from autonomous_orchestrator import follow_orchestrator_status
+            follow_orchestrator_status(work_item)
+        else:
+            from autonomous_orchestrator import get_orchestrator_status
+            get_orchestrator_status(work_item)
         return
         
     elif subaction == "health":
@@ -4747,7 +4859,8 @@ def main():
     _ = orchestrator_sub.add_parser("start")
     _ = orchestrator_sub.add_parser("stop")
     _ = orchestrator_sub.add_parser("restart")
-    _ = orchestrator_sub.add_parser("status")
+    status_p = orchestrator_sub.add_parser("status")
+    _ = status_p.add_argument("-f", "--follow", action="store_true", help="Follow status updates in real-time")
     _ = orchestrator_sub.add_parser("health")
     _ = orchestrator_sub.add_parser("attach")
     _ = orchestrator_sub.add_parser("detach")
@@ -4769,6 +4882,14 @@ def main():
     _ = logs_p.add_argument("--runtime", action="store_true")
 
     _ = subparsers.add_parser("context")
+    
+    input_p = subparsers.add_parser("input")
+    input_sub = input_p.add_subparsers(dest="subaction", required=True)
+    submit_p = input_sub.add_parser("submit")
+    _ = submit_p.add_argument("--input-id", required=True, type=str)
+    _ = submit_p.add_argument("--value", required=True, type=str)
+    _ = submit_p.add_argument("--source", required=True, type=str)
+    _ = submit_p.add_argument("--resume-token", required=True, type=str)
     
     rules_p = subparsers.add_parser("rules")
     rules_sub = rules_p.add_subparsers(dest="subaction", required=True)
@@ -4916,6 +5037,7 @@ def main():
         "analysis-agent": do_analysis_agent,
         "routing": do_routing,
         "prompt": do_prompt,
+        "input": do_input,
         "choice": do_choice,
         "active-workflow": do_active_workflow,
         "resume": do_resume_action,
@@ -4940,7 +5062,7 @@ def main():
         "runtime": do_runtime_action
     }
     
-    modifying_actions = ["init", "start", "step", "complete", "fail", "blueprint", "suggest", "compact", "task", "deps", "execution", "analysis-agent", "choice", "active-workflow", "resume", "discover", "classify", "memory", "env", "debug", "verify", "release", "state", "provider", "knowledge", "orchestrator"]
+    modifying_actions = ["init", "start", "step", "complete", "fail", "blueprint", "suggest", "compact", "task", "deps", "execution", "analysis-agent", "choice", "input", "active-workflow", "resume", "discover", "classify", "memory", "env", "debug", "verify", "release", "state", "provider", "knowledge", "orchestrator"]
     if args.action in modifying_actions:
         with SessionLock():
             cmds[args.action](args)

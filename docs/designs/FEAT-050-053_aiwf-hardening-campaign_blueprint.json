@@ -1,0 +1,163 @@
+{
+  "modules": [
+    {
+      "name": "session",
+      "classes": [
+        {
+          "class_name": "OSFileLock",
+          "responsibilities": [
+            "Quản lý ghi độc quyền tệp tin lock, tránh chạy song song nhiều daemon."
+          ],
+          "methods": [
+            {
+              "name": "acquire",
+              "parameters": [],
+              "return_type": "bool"
+            },
+            {
+              "name": "release",
+              "parameters": [],
+              "return_type": "None"
+            }
+          ],
+          "lifecycle": "Lưu trữ thông tin owner bằng JSON metadata.",
+          "state_ownership": "session_file (.agents/state/)"
+        }
+      ]
+    },
+    {
+      "name": "hierarchical_runtime",
+      "classes": [
+        {
+          "class_name": "HierarchicalRuntime",
+          "responsibilities": [
+            "Quản lý điều phối luồng chạy subagents và thích ứng concurrency."
+          ],
+          "methods": [
+            {
+              "name": "can_spawn_subagent",
+              "parameters": [
+                {
+                  "name": "agent_id",
+                  "type": "str"
+                },
+                {
+                  "name": "task_id",
+                  "type": "str"
+                }
+              ],
+              "return_type": "tuple[bool, str]"
+            },
+            {
+              "name": "execute_subagent",
+              "parameters": [
+                {
+                  "name": "agent_id",
+                  "type": "str"
+                },
+                {
+                  "name": "task_id",
+                  "type": "str"
+                }
+              ],
+              "return_type": "None"
+            }
+          ],
+          "lifecycle": "Trạng thái chạy ngầm dài hạn.",
+          "state_ownership": "tasks.json, agents.json"
+        }
+      ]
+    }
+  ],
+  "configuration": {
+    "schema": {
+      "resource_limits.max_runtime_rss_mb": "int",
+      "resource_limits.memory_throttle_percent": "int",
+      "scheduler.adaptive_concurrency": "bool"
+    },
+    "defaults": {
+      "resource_limits.max_runtime_rss_mb": 300,
+      "resource_limits.memory_throttle_percent": 80,
+      "scheduler.adaptive_concurrency": true
+    }
+  },
+  "database": {
+    "tables": [],
+    "growth_estimation": "N/A",
+    "maintenance_strategy": "N/A"
+  },
+  "cache": {
+    "keys": [],
+    "ttl_seconds": 600,
+    "invalidation_rules": []
+  },
+  "errors": [
+    {
+      "exception_class": "OSError",
+      "trigger": "Không thể flock tệp lock",
+      "recovery": "Đóng file handle cục bộ và trả về False."
+    },
+    {
+      "exception_class": "ImportError",
+      "trigger": "Thiếu thư viện fcntl hoặc msvcrt",
+      "recovery": "Sử dụng thư viện thay thế tương ứng nền tảng."
+    }
+  ],
+  "sequence_flows": [
+    {
+      "flow_name": "Lock verification during CLI check",
+      "steps": [
+        "CLI gọi OSFileLock.acquire()",
+        "Nếu flock thành công, release() ngay lập tức và trả về True",
+        "Nếu flock thất bại, đóng file handle mà KHÔNG xóa file lock và trả về False"
+      ]
+    }
+  ],
+  "integration_contracts": [],
+  "cli_contracts": [],
+  "implementation_contracts": [
+    {
+      "file_path": "skills/workflow-runtime/scripts/session.py",
+      "owner": "Coder",
+      "notes": "Cập nhật lớp OSFileLock với cơ chế lưu metadata owner và kiểm soát xoá file lock."
+    },
+    {
+      "file_path": "skills/workflow-runtime/scripts/hierarchical_runtime.py",
+      "owner": "Coder",
+      "notes": "Sửa đổi can_spawn_subagent để tránh đếm trùng task đang chạy và triển khai Dynamic RAM throttle."
+    },
+    {
+      "file_path": "skills/workflow-runtime/scripts/test_coordinator.py",
+      "owner": "Coder",
+      "notes": "Cập nhật hàm kill_process_tree để ngăn zombie processes khi xảy ra timeout."
+    }
+  ],
+  "implementation_packages": [
+    {
+      "task_id": "Task 1.1",
+      "module": "session",
+      "read_set": [
+        "skills/workflow-runtime/scripts/session.py"
+      ],
+      "write_set": [
+        "skills/workflow-runtime/scripts/session.py"
+      ],
+      "dependencies": [],
+      "implementation_notes": "Sử dụng JSON để ghi đè dữ liệu owner trong file lock.",
+      "verification": "Chạy pytest trên test_orchestrator_singleton_pytest_limits.py",
+      "rollback": "Git checkout session.py",
+      "expected_outputs": [
+        "skills/workflow-runtime/scripts/session.py"
+      ]
+    }
+  ],
+  "tests": [
+    {
+      "requirement_id": "REQ-LOCK-OWN",
+      "test_type": "Unit Test",
+      "target_file": "skills/workflow-runtime/tests/test_hardening_regression.py"
+    }
+  ],
+  "traceability": [],
+  "artifacts": []
+}

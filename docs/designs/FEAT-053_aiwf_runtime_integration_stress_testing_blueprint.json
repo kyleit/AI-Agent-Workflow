@@ -1,0 +1,174 @@
+{
+  "feature_id": "FEAT-053",
+  "feature_name": "AIWF Runtime Integration and Stress Testing Suite",
+  "modules": [
+    {
+      "name": "test_fixtures",
+      "classes": [
+        {
+          "class_name": "RuntimeTestBase",
+          "responsibilities": ["Isolated tempdir workspace per test", "StatePath patching", "Fixture loading utilities", "Automatic cleanup"],
+          "methods": [
+            {"name": "setUp", "parameters": [], "return_type": "None"},
+            {"name": "tearDown", "parameters": [], "return_type": "None"},
+            {"name": "load_fixture", "parameters": [{"name": "fixture_path", "type": "str"}], "return_type": "dict"},
+            {"name": "copy_fixture_workspace", "parameters": [{"name": "fixture_name", "type": "str"}], "return_type": "str"}
+          ],
+          "lifecycle": "per-test",
+          "state_ownership": "isolated tempdir per test"
+        }
+      ]
+    },
+    {
+      "name": "test_runtime_stress",
+      "classes": [
+        {
+          "class_name": "StressTest",
+          "responsibilities": ["Generate random valid blueprints with seed", "Run full lifecycle simulation", "Assert zero corruption", "Failure injection scenarios"],
+          "methods": [
+            {"name": "generate_random_blueprint", "parameters": [{"name": "n_phases", "type": "int"}, {"name": "n_tasks_per_phase", "type": "int"}, {"name": "seed", "type": "int"}], "return_type": "dict"},
+            {"name": "run_blueprint_lifecycle", "parameters": [{"name": "blueprint", "type": "dict"}], "return_type": "dict"},
+            {"name": "test_stress_50_blueprints", "parameters": [], "return_type": "None"},
+            {"name": "test_failure_injection_json_write", "parameters": [], "return_type": "None"},
+            {"name": "test_failure_injection_permission_denied", "parameters": [], "return_type": "None"},
+            {"name": "test_failure_injection_patch_conflict", "parameters": [], "return_type": "None"}
+          ],
+          "lifecycle": "per-test",
+          "state_ownership": "isolated tempdir per blueprint"
+        }
+      ]
+    }
+  ],
+  "configuration": {
+    "schema": {
+      "test_suite": {
+        "fast_timeout_seconds": "integer",
+        "stress_blueprint_count": "integer",
+        "stress_tasks_per_phase_range": "list[int]",
+        "failure_injection_enabled": "boolean",
+        "cleanup_temp_dirs": "boolean"
+      }
+    },
+    "defaults": {
+      "test_suite.fast_timeout_seconds": 30,
+      "test_suite.stress_blueprint_count": 50,
+      "test_suite.stress_tasks_per_phase_range": [10, 30],
+      "test_suite.failure_injection_enabled": true,
+      "test_suite.cleanup_temp_dirs": true
+    }
+  },
+  "database": {
+    "tables": [],
+    "growth_estimation": "Tests use tempfile.mkdtemp() only; no persistent storage",
+    "maintenance_strategy": "tearDown() calls shutil.rmtree() on each test workspace"
+  },
+  "cache": {"keys": [], "ttl_seconds": 0, "invalidation_rules": ["No cache; fresh state per test"]},
+  "errors": [
+    {"exception_class": "JSONCorruptionAssertionError", "trigger": "Any JSON file invalid after test operation", "recovery": "Test fails; temp dir preserved for inspection"},
+    {"exception_class": "EarlyReleaseAssertionError", "trigger": "release_allowed=True before verify PASS", "recovery": "Test fails with clear assertion message"},
+    {"exception_class": "OrphanWorkerAssertionError", "trigger": "Worker still alive after completion gate", "recovery": "Test fails; prints worker PID"},
+    {"exception_class": "StressTimeoutError", "trigger": "Single blueprint lifecycle exceeds 10s", "recovery": "Skip remaining stress iterations; log seed"}
+  ],
+  "sequence_flows": [
+    {
+      "flow_name": "Stress Test Blueprint Lifecycle",
+      "steps": [
+        "generate_random_blueprint(n_phases=5, n_tasks_per_phase=15, seed=N) called",
+        "workspace = tempfile.mkdtemp() created",
+        "State migration simulation: init canonical state structure",
+        "ledger.init_from_blueprint(blueprint)",
+        "For each phase: orchestrator.run_phase() with fake I/O",
+        "After all phases: attempt premature release → assert blocked",
+        "Emit DebugPassed event → verify debug_allowed transitions",
+        "Emit VerifyPassed event → verify release_allowed=True",
+        "Attempt release → assert allowed",
+        "Validate: no JSON corruption, no active locks, no orphan workers",
+        "tearDown(): shutil.rmtree(workspace)"
+      ]
+    }
+  ],
+  "integration_contracts": [],
+  "cli_contracts": [
+    {"command": "python -m pytest skills/workflow-runtime/tests/ -k 'not stress' -v", "description": "Fast tests only (< 30s)", "exit_codes": {"0": "all pass", "1": "failures"}},
+    {"command": "python -m pytest skills/workflow-runtime/tests/test_runtime_stress.py -v --timeout=300", "description": "Stress tests (opt-in)", "exit_codes": {"0": "all pass", "1": "failures"}},
+    {"command": "python -m pytest skills/workflow-runtime/tests/ -v", "description": "Full regression suite", "exit_codes": {"0": "all pass", "1": "failures"}}
+  ],
+  "implementation_contracts": [
+    {"file_path": "skills/workflow-runtime/tests/fixtures/conftest.py", "owner": "Coder", "notes": "Shared RuntimeTestBase; StatePath patching; no circular imports"},
+    {"file_path": "skills/workflow-runtime/tests/fixtures/blueprints/FEAT-999_multi_phase_blueprint.json", "owner": "Coder", "notes": "5 phases, 15+ tasks, overlapping+non-overlapping write_sets, dependencies, expected_outputs, verification commands"},
+    {"file_path": "skills/workflow-runtime/tests/fixtures/blueprints/FEAT-997_broken_blueprint.json", "owner": "Coder", "notes": "Cycle: Task A→B→A; missing task ref; absolute path in write_set; task with no task_id"},
+    {"file_path": "skills/workflow-runtime/tests/test_runtime_stress.py", "owner": "Coder", "notes": "Reproducible via seed; 50 blueprints min; 10s timeout per blueprint; opt-in via pytest marker"},
+    {"file_path": "docs/guides/runtime-integration-testing.md", "owner": "Coder", "notes": "Table of test files vs components; how to run fast/stress/failure tests"},
+    {"file_path": "docs/guides/runtime-recovery-playbook.md", "owner": "Coder", "notes": "Each entry: Symptom → Diagnosis Command → Fix Command → Verification"}
+  ],
+  "implementation_packages": [
+    {
+      "task_id": "Task 1.1",
+      "module": "fixtures",
+      "read_set": [],
+      "write_set": [
+        "skills/workflow-runtime/tests/fixtures/conftest.py",
+        "skills/workflow-runtime/tests/fixtures/state/legacy_session/.agents/.session.json",
+        "skills/workflow-runtime/tests/fixtures/state/flat_split/.agents/state/",
+        "skills/workflow-runtime/tests/fixtures/state/nested_split/.agents/state/",
+        "skills/workflow-runtime/tests/fixtures/blueprints/FEAT-999_multi_phase_blueprint.json",
+        "skills/workflow-runtime/tests/fixtures/blueprints/FEAT-998_single_phase_legacy_blueprint.md",
+        "skills/workflow-runtime/tests/fixtures/blueprints/FEAT-997_broken_blueprint.json"
+      ],
+      "dependencies": [],
+      "implementation_notes": "All fixtures validated as valid JSON before commit. Fixture dir read-only during tests.",
+      "verification": "python -m pytest skills/workflow-runtime/tests/ -k fixtures -v",
+      "rollback": "Delete fixtures/ directory entirely",
+      "expected_outputs": ["All fixture files created and valid JSON"]
+    },
+    {
+      "task_id": "Task 1.2",
+      "module": "test_state_migration",
+      "read_set": ["skills/workflow-runtime/tests/fixtures/"],
+      "write_set": ["skills/workflow-runtime/tests/test_state_migration.py"],
+      "dependencies": ["Task 1.1"],
+      "implementation_notes": "10 test cases; each uses copy_fixture_workspace() to isolated tempdir",
+      "verification": "python -m pytest skills/workflow-runtime/tests/test_state_migration.py -v",
+      "rollback": "Delete test_state_migration.py",
+      "expected_outputs": ["test_state_migration.py created", "10 tests pass"]
+    },
+    {
+      "task_id": "Task 3.1",
+      "module": "test_runtime_stress",
+      "read_set": ["skills/workflow-runtime/tests/fixtures/"],
+      "write_set": ["skills/workflow-runtime/tests/test_runtime_stress.py"],
+      "dependencies": ["Task 1.2", "Task 1.3", "Task 2.1", "Task 2.2", "Task 2.3"],
+      "implementation_notes": "Stress: 50 blueprints with seed 0-49. Failure injection via unittest.mock.patch.",
+      "verification": "python -m pytest skills/workflow-runtime/tests/test_runtime_stress.py -v --timeout=300",
+      "rollback": "Delete test_runtime_stress.py",
+      "expected_outputs": ["50 blueprints pass", "10 failure injections pass"]
+    }
+  ],
+  "tests": [
+    {"requirement_id": "FR-01", "test_type": "Unit", "target_file": "skills/workflow-runtime/tests/test_state_migration.py"},
+    {"requirement_id": "FR-02", "test_type": "Unit", "target_file": "skills/workflow-runtime/tests/test_state_aggregator.py"},
+    {"requirement_id": "FR-02", "test_type": "Unit", "target_file": "skills/workflow-runtime/tests/test_event_reducer.py"},
+    {"requirement_id": "FR-03", "test_type": "Unit", "target_file": "skills/workflow-runtime/tests/test_phase_release_gates.py"},
+    {"requirement_id": "FR-04", "test_type": "Unit", "target_file": "skills/workflow-runtime/tests/test_file_locks.py"},
+    {"requirement_id": "FR-04", "test_type": "Unit", "target_file": "skills/workflow-runtime/tests/test_worker_registry.py"},
+    {"requirement_id": "FR-04", "test_type": "Integration", "target_file": "skills/workflow-runtime/tests/test_task_dag_execution.py"},
+    {"requirement_id": "FR-04", "test_type": "Integration", "target_file": "skills/workflow-runtime/tests/test_resume_recovery.py"},
+    {"requirement_id": "FR-04", "test_type": "Integration", "target_file": "skills/workflow-runtime/tests/test_visualizer_dashboard_state.py"},
+    {"requirement_id": "FR-05", "test_type": "Stress", "target_file": "skills/workflow-runtime/tests/test_runtime_stress.py"},
+    {"requirement_id": "FR-06", "test_type": "Failure Injection", "target_file": "skills/workflow-runtime/tests/test_runtime_stress.py"}
+  ],
+  "traceability": [
+    "FR-01 → Task 1.2 → StateMigrationTests → test_state_migration.py",
+    "FR-02 → Task 1.3 → StateAggregatorTests + EventReducerTests → test_state_aggregator.py + test_event_reducer.py",
+    "FR-03 → Task 2.1 → PhaseReleaseGateTests → test_phase_release_gates.py",
+    "FR-04 → Task 2.2+2.3 → FileLock+Worker+DAG+Resume → test_file_locks.py + test_worker_registry.py + test_task_dag_execution.py + test_resume_recovery.py",
+    "FR-05 → Task 3.1 → StressTests (50 blueprints) → test_runtime_stress.py",
+    "FR-06 → Task 3.2 → FailureInjectionTests (10 scenarios) → test_runtime_stress.py"
+  ],
+  "artifacts": [
+    "docs/designs/FEAT-053_aiwf_runtime_integration_stress_testing_blueprint.md",
+    "docs/designs/FEAT-053_aiwf_runtime_integration_stress_testing_blueprint.json",
+    "docs/guides/runtime-integration-testing.md",
+    "docs/guides/runtime-recovery-playbook.md"
+  ]
+}

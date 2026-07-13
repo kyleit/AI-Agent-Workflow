@@ -13,6 +13,7 @@ show_help() {
     echo ""
     echo "Options:"
     echo "  -f, --force         Force overwrite of existing files without prompting"
+    echo "  -d, --deps-only     Only install/verify dependencies without copying files"
     echo "  -p, --permission    Set permission mode (sandbox, full_access, unrestricted)"
     echo "  -h, --help          Show this help message"
     echo ""
@@ -23,10 +24,15 @@ show_help() {
 # Parse options
 FORCE=false
 PERMISSION=""
+DEPS_ONLY=false
 while [ $# -gt 0 ]; do
     case "$1" in
         -f|--force)
             FORCE=true
+            shift
+            ;;
+        -d|--deps-only)
+            DEPS_ONLY=true
             shift
             ;;
         -p|--permission)
@@ -228,22 +234,46 @@ with open(file_path, 'w', encoding='utf-8') as f:
     fi
 }
 
-# 4. Copy required files/directories
-merge_agents_block "$INSTALL_TARGET/AGENTS.md" "$SCRIPT_DIR/AGENTS.md"
-copy_item "$SCRIPT_DIR/AI_RULES.md" "$INSTALL_TARGET/AI_RULES.md" false
-copy_item "$SCRIPT_DIR/SKILLS.md" "$INSTALL_TARGET/SKILLS.md" false
-copy_item "$SCRIPT_DIR/$SKILL_DIR" "$INSTALL_TARGET/$SKILL_DIR" true
-copy_item "$SCRIPT_DIR/$TEMPLATE_DIR" "$INSTALL_TARGET/$TEMPLATE_DIR" true
-copy_item "$SCRIPT_DIR/agents" "$INSTALL_TARGET/agents" true
-copy_item "$SCRIPT_DIR/runtime" "$INSTALL_TARGET/runtime" true
-mkdir -p "$INSTALL_TARGET/docs"
-copy_item "$SCRIPT_DIR/docs/release-guide.md" "$INSTALL_TARGET/docs/release-guide.md" false
-copy_item "$SCRIPT_DIR/MANIFEST.json" "$INSTALL_TARGET/MANIFEST.json" false
+# 4. Copy required files/directories (Only if DEPS_ONLY is false)
+if [ "$DEPS_ONLY" = false ]; then
+    merge_agents_block "$INSTALL_TARGET/AGENTS.md" "$SCRIPT_DIR/AGENTS.md"
+    copy_item "$SCRIPT_DIR/AI_RULES.md" "$INSTALL_TARGET/AI_RULES.md" false
+    copy_item "$SCRIPT_DIR/SKILLS.md" "$INSTALL_TARGET/SKILLS.md" false
+    copy_item "$SCRIPT_DIR/$SKILL_DIR" "$INSTALL_TARGET/$SKILL_DIR" true
+    copy_item "$SCRIPT_DIR/$TEMPLATE_DIR" "$INSTALL_TARGET/$TEMPLATE_DIR" true
+    copy_item "$SCRIPT_DIR/agents" "$INSTALL_TARGET/agents" true
+    copy_item "$SCRIPT_DIR/runtime" "$INSTALL_TARGET/runtime" true
+    mkdir -p "$INSTALL_TARGET/docs"
+    copy_item "$SCRIPT_DIR/docs/release-guide.md" "$INSTALL_TARGET/docs/release-guide.md" false
+    copy_item "$SCRIPT_DIR/MANIFEST.json" "$INSTALL_TARGET/MANIFEST.json" false
 
-# Initialize a clean .session.json if it doesn't exist
-if [ ! -f "$INSTALL_TARGET/.session.json" ]; then
-    log_info "Initializing default .session.json for visualizer UI..."
-    cat << 'EOF' > "$INSTALL_TARGET/.session.json"
+    # Ensure .gitignore exists in target and ignores logs
+    ensure_gitignore() {
+        local gitignore_file="$INSTALL_TARGET/.gitignore"
+        if [ ! -f "$gitignore_file" ]; then
+            log_info "Creating: $gitignore_file"
+            cat << 'EOF' > "$gitignore_file"
+.session.json
+state/
+runtime/*.db
+runtime/*.db-journal
+runtime/*.db-wal
+runtime/env_cache.json
+runtime/logs/
+EOF
+        else
+            if ! grep -Fxq "runtime/logs/" "$gitignore_file" && ! grep -Fxq "runtime/logs" "$gitignore_file"; then
+                log_info "Adding runtime/logs/ to $gitignore_file"
+                echo "runtime/logs/" >> "$gitignore_file"
+            fi
+        fi
+    }
+    ensure_gitignore
+
+    # Initialize a clean .session.json if it doesn't exist
+    if [ ! -f "$INSTALL_TARGET/.session.json" ]; then
+        log_info "Initializing default .session.json for visualizer UI..."
+        cat << 'EOF' > "$INSTALL_TARGET/.session.json"
 {
   "workspace": {
     "path": ".",
@@ -301,9 +331,28 @@ if [ ! -f "$INSTALL_TARGET/.session.json" ]; then
   "context_health": "healthy"
 }
 EOF
+    fi
 fi
 
-# 5. Validation and Summary
+# 5. Dependency Installation & Verification
+log_info "Verifying and installing Python dependencies..."
+if command -v pip3 &> /dev/null; then
+    pip3 install --quiet --upgrade pyyaml psutil pytest || log_warn "Failed to install dependencies via pip3."
+    log_success "Python dependencies verified/installed: pyyaml, psutil, pytest."
+elif command -v pip &> /dev/null; then
+    pip install --quiet --upgrade pyyaml psutil pytest || log_warn "Failed to install dependencies via pip."
+    log_success "Python dependencies verified/installed: pyyaml, psutil, pytest."
+else
+    log_warn "pip/pip3 command not found. Please install PyYAML, psutil, and pytest manually."
+fi
+
+# If only installing dependencies, exit successfully here
+if [ "$DEPS_ONLY" = true ]; then
+    log_success "Dependencies installation/verification completed successfully (no files copied)."
+    exit 0
+fi
+
+# 6. Validation and Summary
 MISSING_FILES=0
 for file in "AGENTS.md" "AI_RULES.md" "MANIFEST.json" "$SKILL_DIR" "$TEMPLATE_DIR" "agents" "runtime" "docs/release-guide.md"; do
     if [ ! -e "$INSTALL_TARGET/$file" ]; then

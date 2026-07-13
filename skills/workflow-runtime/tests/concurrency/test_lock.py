@@ -26,7 +26,11 @@ class TestExclusiveLock(unittest.TestCase):
                 pass
 
     def run_cli(self, args):
-        cmd = [sys.executable, ".agents/skills/workflow-runtime/scripts/workflow_runtime.py"] + args
+        # Use absolute path to avoid path doubling when pytest runs from skills/workflow-runtime/
+        script = os.path.abspath(
+            os.path.join(os.path.dirname(__file__), "..", "..", "scripts", "workflow_runtime.py")
+        )
+        cmd = [sys.executable, script] + args
         res = subprocess.run(cmd, capture_output=True, text=True)
         return res
 
@@ -63,14 +67,16 @@ class TestExclusiveLock(unittest.TestCase):
         self.assertIn("Do not continue.", res.stderr)
 
     def test_lock_released_on_complete(self):
-        self.run_cli(["start", "--skill", "test-skill", "--command", "test-cmd", "--step", "step-1"])
+        res_start = self.run_cli(["start", "--skill", "test-skill", "--command", "test-cmd", "--step", "step-1"])
+        self.assertEqual(res_start.returncode, 0, f"stdout: {res_start.stdout}\nstderr: {res_start.stderr}")
         self.assertTrue(os.path.exists(self.lock_file))
         res = self.run_cli(["complete", "--step", "complete-step"])
         self.assertEqual(res.returncode, 0)
         self.assertFalse(os.path.exists(self.lock_file))
 
     def test_lock_released_on_fail(self):
-        self.run_cli(["start", "--skill", "test-skill", "--command", "test-cmd", "--step", "step-1"])
+        res_start = self.run_cli(["start", "--skill", "test-skill", "--command", "test-cmd", "--step", "step-1"])
+        self.assertEqual(res_start.returncode, 0, f"stdout: {res_start.stdout}\nstderr: {res_start.stderr}")
         self.assertTrue(os.path.exists(self.lock_file))
         res = self.run_cli(["fail", "--step", "fail-step"])
         self.assertEqual(res.returncode, 0)

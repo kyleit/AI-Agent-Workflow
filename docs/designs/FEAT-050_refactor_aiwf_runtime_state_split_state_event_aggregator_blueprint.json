@@ -1,0 +1,284 @@
+{
+  "feature_id": "FEAT-050",
+  "feature_name": "Refactor AIWF Runtime State from session.json to Split State + Event-Sourced Aggregator",
+  "modules": [
+    {
+      "name": "state_path",
+      "classes": [
+        {
+          "class_name": "StatePath",
+          "responsibilities": ["Resolve canonical paths for all state components", "Create directory structure on demand"],
+          "methods": [
+            {"name": "get_state_root", "parameters": [], "return_type": "str"},
+            {"name": "get_subdir", "parameters": [{"name": "name", "type": "str"}], "return_type": "str"},
+            {"name": "get_events_path", "parameters": [], "return_type": "str"},
+            {"name": "get_dashboard_path", "parameters": [], "return_type": "str"},
+            {"name": "get_legacy_session_path", "parameters": [], "return_type": "str"},
+            {"name": "ensure_dirs", "parameters": [], "return_type": "None"}
+          ],
+          "lifecycle": "singleton",
+          "state_ownership": "none"
+        }
+      ]
+    },
+    {
+      "name": "atomic_writer",
+      "classes": [
+        {
+          "class_name": "AtomicWriter",
+          "responsibilities": ["Write JSON files atomically via tmp+rename", "Append JSONL records safely"],
+          "methods": [
+            {"name": "write_json_atomic", "parameters": [{"name": "path", "type": "str"}, {"name": "data", "type": "dict"}], "return_type": "None"},
+            {"name": "append_jsonl", "parameters": [{"name": "path", "type": "str"}, {"name": "record", "type": "dict"}], "return_type": "None"},
+            {"name": "_safe_rename", "parameters": [{"name": "src", "type": "str"}, {"name": "dst", "type": "str"}], "return_type": "None"}
+          ],
+          "lifecycle": "stateless",
+          "state_ownership": "none"
+        }
+      ]
+    },
+    {
+      "name": "event_logger",
+      "classes": [
+        {
+          "class_name": "EventLogger",
+          "responsibilities": ["Emit structured events to events.jsonl", "Read event history", "Compact old events"],
+          "methods": [
+            {"name": "emit", "parameters": [{"name": "event_type", "type": "str"}, {"name": "payload", "type": "dict"}, {"name": "event_id", "type": "str | None"}], "return_type": "str"},
+            {"name": "read_all", "parameters": [], "return_type": "list[dict]"},
+            {"name": "compact", "parameters": [{"name": "keep_last_n", "type": "int"}], "return_type": "None"}
+          ],
+          "lifecycle": "singleton",
+          "state_ownership": "events/events.jsonl"
+        }
+      ]
+    },
+    {
+      "name": "event_reducer",
+      "classes": [
+        {
+          "class_name": "EventReducer",
+          "responsibilities": ["Route events to handler functions", "Update sub-state JSON files", "Support full replay from events.jsonl"],
+          "methods": [
+            {"name": "apply", "parameters": [{"name": "event", "type": "dict"}], "return_type": "None"},
+            {"name": "replay_all", "parameters": [], "return_type": "None"},
+            {"name": "_on_workflow_initialized", "parameters": [{"name": "p", "type": "dict"}], "return_type": "None"},
+            {"name": "_on_skill_started", "parameters": [{"name": "p", "type": "dict"}], "return_type": "None"},
+            {"name": "_on_skill_completed", "parameters": [{"name": "p", "type": "dict"}], "return_type": "None"},
+            {"name": "_on_phase_completed", "parameters": [{"name": "p", "type": "dict"}], "return_type": "None"},
+            {"name": "_on_task_failed", "parameters": [{"name": "p", "type": "dict"}], "return_type": "None"}
+          ],
+          "lifecycle": "stateless",
+          "state_ownership": "workflow/, runtime/, context/"
+        }
+      ]
+    },
+    {
+      "name": "state_aggregator",
+      "classes": [
+        {
+          "class_name": "StateAggregator",
+          "responsibilities": ["Read all canonical state", "Compute derived fields (suggested_next_skill, release_allowed)", "Write dashboard.json and legacy .session.json"],
+          "methods": [
+            {"name": "aggregate", "parameters": [], "return_type": "dict"},
+            {"name": "write_dashboard", "parameters": [], "return_type": "None"},
+            {"name": "write_legacy_snapshot", "parameters": [], "return_type": "None"}
+          ],
+          "lifecycle": "stateless",
+          "state_ownership": "dashboard.json"
+        }
+      ]
+    }
+  ],
+  "configuration": {
+    "schema": {
+      "state": {
+        "root": "string",
+        "generate_legacy_session_json": "boolean",
+        "events_compact_threshold": "integer",
+        "dashboard_auto_aggregate": "boolean"
+      }
+    },
+    "defaults": {
+      "state.root": ".agents/state",
+      "state.generate_legacy_session_json": true,
+      "state.events_compact_threshold": 1000,
+      "state.dashboard_auto_aggregate": true
+    }
+  },
+  "database": {
+    "tables": [],
+    "growth_estimation": "events.jsonl grows ~200 bytes/event; compact at 1000 events threshold",
+    "maintenance_strategy": "EventLogger.compact(keep_last_n=500) called automatically after threshold exceeded"
+  },
+  "cache": {
+    "keys": [],
+    "ttl_seconds": 0,
+    "invalidation_rules": ["No cache; StateAggregator reads directly from disk on each call"]
+  },
+  "errors": [
+    {
+      "exception_class": "StateWriteError",
+      "trigger": "write_json_atomic fails (disk full, permission denied)",
+      "recovery": "Original file unchanged; caller retries or escalates"
+    },
+    {
+      "exception_class": "EventDeduplicateError",
+      "trigger": "emit() called with already-used event_id",
+      "recovery": "Skip emit, log warning, return existing event_id"
+    },
+    {
+      "exception_class": "StateCorruptError",
+      "trigger": "Sub-state JSON file cannot be parsed",
+      "recovery": "Return partial state with _health=degraded; do not crash"
+    },
+    {
+      "exception_class": "SecurityError",
+      "trigger": "Absolute path or path traversal passed to write_json_atomic",
+      "recovery": "Raise immediately without writing"
+    }
+  ],
+  "sequence_flows": [
+    {
+      "flow_name": "Normal Event Emission",
+      "steps": [
+        "Skill calls: workflow_runtime.py state emit --type SKILL_STARTED --payload {...}",
+        "EventLogger.emit() generates event_id = uuid4()",
+        "Append {event_id, event_type, timestamp, payload} to events.jsonl",
+        "EventReducer.apply(event) routes to _on_skill_started()",
+        "Handler updates workflow/workflow.json via AtomicWriter",
+        "StateAggregator.write_dashboard() generates dashboard.json",
+        "Optional: write_legacy_snapshot() generates .session.json with _deprecated: true"
+      ]
+    },
+    {
+      "flow_name": "State Migration",
+      "steps": [
+        "workflow_runtime.py state migrate invoked",
+        "Backup .agents/state/*.json to .agents/state/backups/YYYYMMDD_HHMMSS/",
+        "Map each flat file to nested subdir (workflow.json → workflow/workflow.json)",
+        "StatePath.ensure_dirs() creates directory structure",
+        "Files copied atomically",
+        "Migration report written to recovery/state-migration-report.json",
+        "StateAggregator.write_dashboard() called",
+        "StateAggregator.write_legacy_snapshot() called"
+      ]
+    }
+  ],
+  "integration_contracts": [
+    {
+      "skill": "initialize-workflow",
+      "before_hook": "workflow_runtime.py state doctor",
+      "after_hook": "workflow_runtime.py state aggregate"
+    },
+    {
+      "skill": "software-development-workflow",
+      "runtime_call": "workflow_runtime.py state emit --type SKILL_COMPLETED --payload '{...}'"
+    }
+  ],
+  "cli_contracts": [
+    {"command": "state migrate", "output": "JSON migration report", "exit_codes": {"0": "success", "1": "error"}},
+    {"command": "state aggregate", "output": "dashboard.json path", "exit_codes": {"0": "success", "1": "error"}},
+    {"command": "state validate", "output": "JSON {valid, errors[]}", "exit_codes": {"0": "valid", "1": "invalid"}},
+    {"command": "state emit", "output": "JSON {event_id}", "exit_codes": {"0": "success", "1": "error"}},
+    {"command": "state doctor", "output": "JSON health report", "exit_codes": {"0": "healthy", "1": "issues"}},
+    {"command": "state snapshot", "output": "backup path", "exit_codes": {"0": "success"}},
+    {"command": "state recover", "output": "restored path", "exit_codes": {"0": "success", "1": "error"}}
+  ],
+  "implementation_contracts": [
+    {"file_path": "skills/workflow-runtime/scripts/state_path.py", "owner": "Coder", "notes": "No imports from other AIWF modules to avoid circular imports"},
+    {"file_path": "skills/workflow-runtime/scripts/atomic_writer.py", "owner": "Coder", "notes": "Use tempfile.NamedTemporaryFile(dir=parent_dir) for same-partition guarantee"},
+    {"file_path": "skills/workflow-runtime/scripts/event_logger.py", "owner": "Coder", "notes": "Use threading.Lock() for concurrent access safety"},
+    {"file_path": "skills/workflow-runtime/scripts/event_reducer.py", "owner": "Coder", "notes": "Each handler must be idempotent"},
+    {"file_path": "skills/workflow-runtime/scripts/state_aggregator.py", "owner": "Coder", "notes": "Gracefully handle missing sub-state files; return _health=degraded"},
+    {"file_path": "skills/workflow-runtime/scripts/session.py", "owner": "Coder", "notes": "Add write_legacy_snapshot(); backward compatible - do not remove existing fields"},
+    {"file_path": "skills/workflow-runtime/scripts/workflow_runtime.py", "owner": "Coder", "notes": "Add state sub-parser with 7 sub-commands; JSON to stdout, errors to stderr"}
+  ],
+  "implementation_packages": [
+    {
+      "task_id": "Task 1.1",
+      "module": "state_path + atomic_writer",
+      "read_set": [],
+      "write_set": ["skills/workflow-runtime/scripts/state_path.py", "skills/workflow-runtime/scripts/atomic_writer.py"],
+      "dependencies": [],
+      "implementation_notes": "state_path must have zero AIWF imports. atomic_writer uses os.replace() for cross-platform safety.",
+      "verification": "python -m pytest skills/workflow-runtime/tests/test_atomic_writer.py",
+      "rollback": "Delete new files; no existing files modified",
+      "expected_outputs": ["state_path.py created", "atomic_writer.py created", "tests pass"]
+    },
+    {
+      "task_id": "Task 1.2",
+      "module": "event_logger",
+      "read_set": ["skills/workflow-runtime/scripts/state_path.py", "skills/workflow-runtime/scripts/atomic_writer.py"],
+      "write_set": ["skills/workflow-runtime/scripts/event_logger.py"],
+      "dependencies": ["Task 1.1"],
+      "implementation_notes": "Append-only; use threading.Lock; validate event_type against constants.",
+      "verification": "python -m pytest skills/workflow-runtime/tests/test_event_logger.py",
+      "rollback": "Delete event_logger.py",
+      "expected_outputs": ["event_logger.py created", "tests pass"]
+    },
+    {
+      "task_id": "Task 1.3",
+      "module": "event_reducer",
+      "read_set": ["skills/workflow-runtime/scripts/event_logger.py", "skills/workflow-runtime/scripts/atomic_writer.py"],
+      "write_set": ["skills/workflow-runtime/scripts/event_reducer.py"],
+      "dependencies": ["Task 1.2"],
+      "implementation_notes": "Each handler must be idempotent. Write sub-state files atomically.",
+      "verification": "python -m pytest skills/workflow-runtime/tests/test_event_reducer.py",
+      "rollback": "Delete event_reducer.py",
+      "expected_outputs": ["event_reducer.py created", "tests pass"]
+    },
+    {
+      "task_id": "Task 2.1",
+      "module": "state_aggregator",
+      "read_set": ["skills/workflow-runtime/scripts/event_reducer.py", "skills/workflow-runtime/scripts/state_path.py"],
+      "write_set": ["skills/workflow-runtime/scripts/state_aggregator.py"],
+      "dependencies": ["Task 1.3"],
+      "implementation_notes": "Return _health=degraded on missing/corrupt files. Never crash.",
+      "verification": "python -m pytest skills/workflow-runtime/tests/test_state_aggregator.py",
+      "rollback": "Delete state_aggregator.py",
+      "expected_outputs": ["state_aggregator.py created", "tests pass"]
+    },
+    {
+      "task_id": "Task 2.2",
+      "module": "session.py (modify)",
+      "read_set": ["skills/workflow-runtime/scripts/state_aggregator.py", "skills/workflow-runtime/scripts/session.py"],
+      "write_set": ["skills/workflow-runtime/scripts/session.py"],
+      "dependencies": ["Task 2.1"],
+      "implementation_notes": "Add write_legacy_snapshot(). Do not remove existing load_session/save_session_atomic signatures.",
+      "verification": "python -m pytest skills/workflow-runtime/tests/test_state_migration.py",
+      "rollback": "git checkout skills/workflow-runtime/scripts/session.py",
+      "expected_outputs": ["session.py has write_legacy_snapshot()", "tests pass"]
+    },
+    {
+      "task_id": "Task 2.3",
+      "module": "workflow_runtime.py (modify)",
+      "read_set": ["skills/workflow-runtime/scripts/workflow_runtime.py"],
+      "write_set": ["skills/workflow-runtime/scripts/workflow_runtime.py"],
+      "dependencies": ["Task 2.1"],
+      "implementation_notes": "Add state sub-parser. Each sub-command: JSON stdout, errors to stderr, exit 0/1.",
+      "verification": "python skills/workflow-runtime/scripts/workflow_runtime.py state validate",
+      "rollback": "git checkout skills/workflow-runtime/scripts/workflow_runtime.py",
+      "expected_outputs": ["state sub-commands work", "CLI tests pass"]
+    }
+  ],
+  "tests": [
+    {"requirement_id": "FR-01", "test_type": "Unit", "target_file": "skills/workflow-runtime/tests/test_atomic_writer.py"},
+    {"requirement_id": "FR-02", "test_type": "Unit", "target_file": "skills/workflow-runtime/tests/test_event_logger.py"},
+    {"requirement_id": "FR-03", "test_type": "Unit", "target_file": "skills/workflow-runtime/tests/test_event_reducer.py"},
+    {"requirement_id": "FR-04", "test_type": "Unit", "target_file": "skills/workflow-runtime/tests/test_state_aggregator.py"},
+    {"requirement_id": "FR-05", "test_type": "Integration", "target_file": "skills/workflow-runtime/tests/test_state_migration.py"},
+    {"requirement_id": "TC-01", "test_type": "Integration", "target_file": "skills/workflow-runtime/tests/test_state_cli.py"}
+  ],
+  "traceability": [
+    "FR-01 → Task 1.1 → StatePath + AtomicWriter → state_path.py + atomic_writer.py → test_atomic_writer.py",
+    "FR-02 → Task 1.2 → EventLogger.emit() → event_logger.py → test_event_logger.py",
+    "FR-03 → Task 1.3 → EventReducer.apply() → event_reducer.py → test_event_reducer.py",
+    "FR-04 → Task 2.1 → StateAggregator.write_dashboard() → state_aggregator.py → test_state_aggregator.py",
+    "FR-05 → Task 2.2 → write_legacy_snapshot() → session.py → test_state_migration.py"
+  ],
+  "artifacts": [
+    "docs/designs/FEAT-050_refactor_aiwf_runtime_state_split_state_event_aggregator_blueprint.md",
+    "docs/designs/FEAT-050_refactor_aiwf_runtime_state_split_state_event_aggregator_blueprint.json"
+  ]
+}

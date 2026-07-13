@@ -1,0 +1,177 @@
+{
+  "phases": [
+    {
+      "phase_name": "Phase 1: Architecture Policy & Skill References Update",
+      "tasks": [
+        "Task 1.1",
+        "Task 1.2",
+        "Task 1.3",
+        "Task 1.4",
+        "Task 1.5"
+      ],
+      "deliverables": [
+        "Chính sách chèn vào AI_RULES.md",
+        "Định nghĩa phân tầng DDD và Clean Architecture",
+        "Quy tắc lựa chọn công nghệ mặc định",
+        "Bảng soft line limits kích thước tệp",
+        "Cập nhật tham chiếu chính sách ở các Skill"
+      ],
+      "milestones": [
+        "AI_RULES.md update complete",
+        "All affected Skill files updated"
+      ]
+    },
+    {
+      "phase_name": "Phase 2: Project Documentation & Memory Sync",
+      "tasks": [
+        "Task 2.1",
+        "Task 2.2"
+      ],
+      "deliverables": [
+        "README, USAGE, INSTALL, AGENTS updated",
+        "Memory bootstrap skill updated to analyze architecture"
+      ],
+      "milestones": [
+        "All project documentation updated",
+        "Final checks complete"
+      ]
+    }
+  ],
+  "tasks": [
+    {
+      "id": "Task 1.1",
+      "description": "Insert 'Architecture & Code Organization Policy' section into AI_RULES.md",
+      "effort_hours": 2,
+      "owner": "Architect",
+      "operations": [
+        "MODIFY"
+      ],
+      "files": [
+        "AI_RULES.md"
+      ]
+    },
+    {
+      "id": "Task 1.2",
+      "description": "Define ddd/clean architecture layered boundaries and dependency directions",
+      "effort_hours": 3,
+      "owner": "Architect",
+      "operations": [
+        "MODIFY"
+      ],
+      "files": [
+        "AI_RULES.md"
+      ]
+    },
+    {
+      "id": "Task 1.3",
+      "description": "Formulate framework selection suggestion rules for frontend and backend stack",
+      "effort_hours": 2,
+      "owner": "Architect",
+      "operations": [
+        "MODIFY"
+      ],
+      "files": [
+        "AI_RULES.md"
+      ]
+    },
+    {
+      "id": "Task 1.4",
+      "description": "Establish recommended maximum file lines guidelines and refactoring triggers",
+      "effort_hours": 2,
+      "owner": "Architect",
+      "operations": [
+        "MODIFY"
+      ],
+      "files": [
+        "AI_RULES.md"
+      ]
+    },
+    {
+      "id": "Task 1.5",
+      "description": "Update skill markdown files with policy reference triggers",
+      "effort_hours": 4,
+      "owner": "Coder",
+      "operations": [
+        "MODIFY"
+      ],
+      "files": [
+        "skills/brainstorming-to-plan/SKILL.md",
+        "skills/plan-to-blueprint/SKILL.md",
+        "skills/blueprint-to-implementation/SKILL.md",
+        "skills/quick-feature/SKILL.md",
+        "skills/quick-fix/SKILL.md"
+      ]
+    },
+    {
+      "id": "Task 2.1",
+      "description": "Synchronize public documents (README, USAGE, INSTALL, AGENTS) with new policies",
+      "effort_hours": 3,
+      "owner": "Technical Writer",
+      "operations": [
+        "MODIFY"
+      ],
+      "files": [
+        "README.md",
+        "USAGE.md",
+        "INSTALL.md",
+        "AGENTS.md"
+      ]
+    },
+    {
+      "id": "Task 2.2",
+      "description": "Update project-memory-bootstrap to register project stack characteristics",
+      "effort_hours": 3,
+      "owner": "Coder",
+      "operations": [
+        "MODIFY"
+      ],
+      "files": [
+        "skills/project-memory-bootstrap/SKILL.md",
+        "skills/project-memory-update/SKILL.md"
+      ]
+    }
+  ],
+  "dependencies": {
+    "Task 1.2": [
+      "Task 1.1"
+    ],
+    "Task 1.3": [
+      "Task 1.2"
+    ],
+    "Task 1.4": [
+      "Task 1.2"
+    ],
+    "Task 1.5": [
+      "Task 1.4"
+    ],
+    "Task 2.1": [
+      "Task 1.5"
+    ],
+    "Task 2.2": [
+      "Task 1.5"
+    ]
+  },
+  "parallel_groups": [
+    [
+      "Task 1.3",
+      "Task 2.1"
+    ]
+  ],
+  "exit_criteria": [
+    "No duplicate architecture guidelines across updated Skills",
+    "Global guidelines render correctly in all markdown files",
+    "Central policy correctly referenced in all planning and blueprint workflows"
+  ],
+  "rollback": {
+    "trigger": "Markdown rendering errors or broken references",
+    "steps": [
+      "git checkout AI_RULES.md",
+      "git checkout skills/",
+      "git checkout README.md USAGE.md INSTALL.md AGENTS.md"
+    ]
+  },
+  "tests": [],
+  "artifacts": [
+    "docs/designs/FEAT-056_update_global_architecture_policy_blueprint.md"
+  ]
+}

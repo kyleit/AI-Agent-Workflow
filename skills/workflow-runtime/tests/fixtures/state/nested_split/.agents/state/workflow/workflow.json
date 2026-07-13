@@ -1,0 +1,13 @@
+{
+  "current_skill": "debug-to-verify",
+  "checkpoint": 8,
+  "feature_id": "FEAT-049",
+  "debug_status": "pass",
+  "verify_allowed": true,
+  "phases": {
+    "Phase 1": {"status": "completed", "tasks": ["Task 1.1", "Task 1.2"]},
+    "Phase 2": {"status": "in_progress", "tasks": ["Task 2.1"]}
+  },
+  "_source": "nested_split",
+  "_note": "Nested split state: files in .agents/state/{category}/{filename}.json"
+}

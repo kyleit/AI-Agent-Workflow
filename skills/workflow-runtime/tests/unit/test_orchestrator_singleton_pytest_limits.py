@@ -33,9 +33,20 @@ def test_can_spawn_subagent_resource_limits(tmp_path):
         "sub-2": {"role": "subagent", "status": "idle"}
     }
     
-    # Mock psutil resource usage to exceed limits
+    # Mock psutil resource usage to exceed limits and mock policy
+    mock_policy = {
+        "resource_limits": {
+            "cpu_throttle_percent": 80,
+            "memory_throttle_percent": 80
+        },
+        "scheduler": {
+            "pause_on_high_cpu": True,
+            "pause_on_high_memory": True
+        }
+    }
     with patch("psutil.cpu_percent", return_value=90.0), \
-         patch("psutil.virtual_memory") as mock_mem:
+         patch("psutil.virtual_memory") as mock_mem, \
+         patch("session.load_runtime_policy", return_value=mock_policy):
         mock_mem.return_value.percent = 50.0
         
         allowed, reason = runtime.can_spawn_subagent("sub-1", "TASK-1")

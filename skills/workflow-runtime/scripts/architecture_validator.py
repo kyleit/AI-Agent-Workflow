@@ -2,7 +2,10 @@
 import os
 import ast
 import re
-import yaml
+try:
+    import yaml
+except ImportError:
+    yaml = None
 from typing import Any, Dict, List, Tuple, Optional  # type: ignore
 
 DEFAULT_CONFIG = {
@@ -26,7 +29,29 @@ DEFAULT_CONFIG = {
                 "may_depend_on": ["application", "domain"]
             }
         },
-        "composition_roots": ["cmd", "main.go", "desktop/main.go", "skills/workflow-runtime/scripts/workflow_runtime.py"]
+        "composition_roots": ["cmd", "main.go", "desktop/main.go", "skills/workflow-runtime/scripts/workflow_runtime.py"],
+        "exceptions": [
+            {
+                "affected_path": "skills/vir-runtime/scripts/vir_runtime/domain/evidence_engine.py",
+                "reason": "Legacy database dependency inside evidence engine before FEAT-115 architecture enforcement.",
+                "owner": "Kyle",
+                "expiration_date": "2026-12-31",
+                "related_adr": "ADR-005-legacy-db-exceptions"
+            },
+            {
+                "affected_path": "public_export/skills/vir-runtime/scripts/vir_runtime/domain/evidence_engine.py",
+                "reason": "Legacy database dependency inside public export evidence engine before FEAT-115 architecture enforcement.",
+                "owner": "Kyle",
+                "expiration_date": "2026-12-31",
+                "related_adr": "ADR-005-legacy-db-exceptions"
+            },
+            {
+                "affected_path": "desktop/application/supervisor.go",
+                "reason": "False positive on built-in Go context package being confused with desktop/delivery/context.",
+                "owner": "Kyle",
+                "expiration_date": "2026-12-31"
+            }
+        ]
     }
 }
 
@@ -43,7 +68,7 @@ FORBIDDEN_DOMAIN_IMPORTS = [
 def load_architecture_config(root_dir: str = ".") -> dict:
     """Nạp tệp cấu hình architecture.yaml."""
     path = os.path.join(root_dir, ".agents", "config", "architecture.yaml")
-    if os.path.exists(path):
+    if os.path.exists(path) and yaml is not None:
         try:
             with open(path, "r", encoding="utf-8") as f:
                 cfg = yaml.safe_load(f)

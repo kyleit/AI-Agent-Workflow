@@ -12,6 +12,9 @@ from session import load_session
 
 def detect_project_type(cwd: str = ".") -> str:
     """Tự động phát hiện stack dự án."""
+    override = os.environ.get("AIWF_PROJECT_TYPE")
+    if override:
+        return override
     if os.path.exists(os.path.join(cwd, "go.mod")) or os.path.exists(os.path.join(cwd, "desktop", "go.mod")):
         return "go"
     if (os.path.exists(os.path.join(cwd, "pyproject.toml")) or 

@@ -1,0 +1,13 @@
+{
+  "project_type": "single",
+  "modules": [
+    {
+      "name": "core",
+      "path": ".",
+      "version_file": "MANIFEST.json",
+      "changelog_file": "CHANGELOG.md"
+    }
+  ],
+  "default_branch": "feat/FEAT-050-053-aiwf-hardening-campaign",
+  "remote_name": "origin"
+}

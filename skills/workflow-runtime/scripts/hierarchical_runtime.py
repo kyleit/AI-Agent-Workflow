@@ -174,6 +174,17 @@ class HierarchicalRuntime:
         self.active_workers = {} # agent_id -> subprocess / handle
         self.executor = ThreadPoolExecutor(max_workers=8)
 
+        # Cache process creation time and memory baseline
+        try:
+            self.process_create_time = psutil.Process(os.getpid()).create_time()
+            self.memory_baseline_mb = psutil.Process(os.getpid()).memory_info().rss / (1024 * 1024)
+        except Exception:
+            self.process_create_time = None
+            self.memory_baseline_mb = 20.0
+
+        self.drain_mode = False
+        self.drain_cycles = 0
+
         self.init_runtime_state()
 
     def init_runtime_state(self):
@@ -280,26 +291,30 @@ class HierarchicalRuntime:
             "started_at": datetime.now().astimezone().isoformat()
         }
 
-        # Simulate execution logic asynchronously
-        time.sleep(0.2)
-        
-        # Heartbeat update
-        self.heartbeats[agent_id] = datetime.now().astimezone().isoformat()
-        self.save_state_atomic("runtime.json", {"heartbeats": self.heartbeats})
+        try:
+            # Simulate execution logic asynchronously
+            time.sleep(0.2)
+            
+            # Heartbeat update
+            self.heartbeats[agent_id] = datetime.now().astimezone().isoformat()
+            self.save_state_atomic("runtime.json", {"heartbeats": self.heartbeats})
+            task["status"] = "completed"
+            self.log_event("task_completed", f"Subagent {agent_id} completed task {task_id}.", agent_id=agent_id, task_id=task_id)
+        except Exception as e:
+            task["status"] = "failed"
+            self.log_event("task_failed", f"Subagent {agent_id} failed task {task_id}: {e}", agent_id=agent_id, task_id=task_id)
+        finally:
+            # Lock release & clean up
+            self.lock_manager.release(write_scope, agent_id)
+            if write_scope in self.locks["active"]:
+                del self.locks["active"][write_scope]
+            self.save_state_atomic("locks.json", self.locks)
 
-        # Lock release & clean up
-        self.lock_manager.release(write_scope, agent_id)
-        if write_scope in self.locks["active"]:
-            del self.locks["active"][write_scope]
-        self.save_state_atomic("locks.json", self.locks)
-
-        task["status"] = "completed"
-        self.agents[agent_id]["status"] = "idle"
-        if agent_id in self.active_workers:
-            del self.active_workers[agent_id]
-        self.save_state_atomic("agents.json", self.agents)
-        self.save_state_atomic("tasks.json", self.task_graph)
-        self.log_event("task_completed", f"Subagent {agent_id} completed task {task_id}.", agent_id=agent_id, task_id=task_id)
+            self.agents[agent_id]["status"] = "idle"
+            if agent_id in self.active_workers:
+                del self.active_workers[agent_id]
+            self.save_state_atomic("agents.json", self.agents)
+            self.save_state_atomic("tasks.json", self.task_graph)
 
     def run_workflow_cycle(self):
         # Scan and run ready tasks in parallel
@@ -404,10 +419,7 @@ class HierarchicalRuntime:
                 current_attach_mode = odata.get("attach_mode", attach_mode)
             except Exception:
                 pass
-        try:
-            create_time = psutil.Process(os.getpid()).create_time()
-        except Exception:
-            create_time = None
+        create_time = getattr(self, "process_create_time", None)
             
         orch_data = {
             "orchestrator_id": "main-orchestrator",
@@ -568,7 +580,7 @@ class HierarchicalRuntime:
             return False, f"Global subagent limit exceeded ({active_subagent_count}/{max_subagents})"
 
         # Check per work item limit: concurrency and pending spawner limits
-        running_tasks_for_wi = sum(1 for t in self.task_graph.get("tasks", {}).values() if t.get("status") == "running")
+        running_tasks_for_wi = sum(1 for tid, t in self.task_graph.get("tasks", {}).items() if t.get("status") == "running" and tid != task_id)
         
         # Concurrency & Adaptive Concurrency
         max_concurrency = rl.get("max_concurrency", 2)
@@ -673,6 +685,55 @@ class HierarchicalRuntime:
             
         self.save_state_atomic("circuit-breakers.json", cb_data)
 
+    def check_resource_drain_mode(self):
+        try:
+            proc = psutil.Process(os.getpid())
+            my_rss = proc.memory_info().rss / (1024 * 1024) # MB
+            sys_mem_pct = psutil.virtual_memory().percent
+        except Exception:
+            return
+
+        from session import load_runtime_policy
+        try:
+            policy = load_runtime_policy(validate=True)
+            rl = policy.get("resource_limits", {})
+        except Exception:
+            rl = {}
+
+        # 1. max_runtime_rss_mb limit
+        max_rss = rl.get("max_runtime_rss_mb", 300)
+        
+        # 2. system memory limit
+        sys_mem_limit = rl.get("memory_throttle_percent", 80)
+        
+        # 3. baseline + safe buffer (default baseline + 150MB)
+        baseline_limit = getattr(self, "memory_baseline_mb", 20.0) + 150.0
+
+        over_limit = False
+        reason = ""
+        
+        if my_rss > max_rss:
+            over_limit = True
+            reason = f"Process RSS ({my_rss:.1f}MB) > max_runtime_rss_mb ({max_rss}MB)"
+        elif sys_mem_pct > sys_mem_limit:
+            over_limit = True
+            reason = f"System RAM usage ({sys_mem_pct}%) > memory_throttle_percent ({sys_mem_limit}%)"
+        elif my_rss > baseline_limit:
+            over_limit = True
+            reason = f"Process RSS ({my_rss:.1f}MB) > baseline buffer ({baseline_limit:.1f}MB)"
+
+        if over_limit:
+            self.drain_cycles += 1
+            if self.drain_cycles >= 3:
+                if not self.drain_mode:
+                    self.drain_mode = True
+                    self.log_event("drain_mode_entered", f"Resource limit exceeded for 3 consecutive cycles: {reason}. Entered Drain Mode.")
+        else:
+            self.drain_cycles = 0
+            if self.drain_mode:
+                self.drain_mode = False
+                self.log_event("drain_mode_exited", f"Resources recovered (RAM: {my_rss:.1f}MB). Exited Drain Mode.")
+
     def start_daemon_loop(self):
         self.acquire_orchestrator_lock()
         daemon_info = {
@@ -704,7 +765,15 @@ class HierarchicalRuntime:
                 self.load_commands_from_queue()
                 self.process_inbox()
                 self.cleanup_orphans()
-                self.run_workflow_cycle()
+                
+                # Check Resource Limits and manage Drain Mode
+                self.check_resource_drain_mode()
+                
+                if not self.drain_mode:
+                    self.run_workflow_cycle()
+                else:
+                    self.log_event("drain_mode_active", f"Daemon is in Drain Mode. Skipping workflow cycle execution.")
+                
                 time.sleep(1)
         except KeyboardInterrupt:
             self.log_event("daemon_stopped", "Resident Orchestrator Daemon stopped manually.")
