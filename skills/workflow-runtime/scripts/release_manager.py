@@ -61,6 +61,39 @@ def run_release_execute(approve: bool = False) -> dict[str, object]:
     except Exception as e:
         print(f"[WARN] Failed to automatically update project memory: {e}")
 
+    # 0.5. Automatically package/copy walkthrough context from IDE brain to the project repository before release commit
+    print("[INFO] Packaging conversation walkthrough.md into project repository...")
+    try:
+        session = load_session()
+        conversation_id = session.get("conversation_id")
+        work_item = session.get("work_item", {})
+        work_item_id = work_item.get("id") if isinstance(work_item, dict) else None
+        
+        if conversation_id:
+            home_dir = os.path.expanduser("~")
+            source_walkthrough = os.path.join(home_dir, ".gemini", "antigravity-ide", "brain", conversation_id, "walkthrough.md")
+            
+            if os.path.exists(source_walkthrough):
+                state_dir = os.path.join(".agents", "state")
+                dest_walkthrough = os.path.join(state_dir, "walkthrough.md")
+                os.makedirs(state_dir, exist_ok=True)
+                import shutil
+                shutil.copy2(source_walkthrough, dest_walkthrough)
+                print(f"[INFO] Successfully packaged walkthrough.md to {dest_walkthrough}")
+                
+                if work_item_id:
+                    verify_dir = os.path.join("docs", "verification")
+                    os.makedirs(verify_dir, exist_ok=True)
+                    dest_verify = os.path.join(verify_dir, f"{work_item_id}_walkthrough.md")
+                    shutil.copy2(source_walkthrough, dest_verify)
+                    print(f"[INFO] Successfully archived walkthrough.md to {dest_verify}")
+            else:
+                print(f"[WARN] Walkthrough file not found at IDE brain: {source_walkthrough}")
+        else:
+            print("[WARN] No active conversation_id found in session context.")
+    except Exception as e:
+        print(f"[WARN] Failed to automatically package walkthrough context: {e}")
+
     from session import load_workflow_config
     config = load_workflow_config()
     git_flow = config.get("git_flow", {})
