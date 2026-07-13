@@ -6,6 +6,7 @@ from typing import Any, Dict, List, Optional
 from workflow_state_machine import WorkflowStateMachine
 from evidence_gate_engine import EvidenceGateEngine
 from agent_dispatcher import AgentDispatcher
+from skill_router import SkillRouter
 
 class WorkflowSupervisor:
     def __init__(
@@ -17,6 +18,7 @@ class WorkflowSupervisor:
         self.state_machine = WorkflowStateMachine(workspace_root=self.workspace_root)
         self.gate_engine = EvidenceGateEngine(workspace_root=self.workspace_root)
         self.dispatcher = AgentDispatcher(max_workers=3)
+        self.router = SkillRouter(registry_path=os.path.join(self.workspace_root, ".agents", "skills", "registry.json"))
         
         # Load registry config
         if not registry_path:

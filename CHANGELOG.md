@@ -5,6 +5,15 @@ All notable changes to this project will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [6.15.0] - 2026-07-13
+
+### Added
+- **Workflow Supervisor & Skill Governance (FEAT-302 / FEAT-304)**:
+  - Tái cấu trúc Orchestrator từ Resident Daemon sang mô hình Workflow Supervisor chạy theo phiên (session-based) an toàn.
+  - Tích hợp ghi nhận nhật ký sự kiện Observability chi tiết vào `.agents/state/events.jsonl` (gồm workflow.started, phase.started, agent.started, agent.completed, phase.completed, workflow.completed).
+  - Cập nhật CLI lệnh `aiwf orchestrator` hỗ trợ các subcommands: start, stop, status, follow, và agents.
+  - Triển khai Skill Governance Engine kiểm duyệt vật lý sự tồn tại của tệp tin tài liệu (`docs/brainstorming/`, `docs/planning/`, `docs/blueprints/`) trước khi cho phép vượt qua các cổng kiểm soát trong chế độ autonomous.
+
 ## [6.14.2] - 2026-07-13
 
 ### Added

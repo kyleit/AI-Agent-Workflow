@@ -7,6 +7,22 @@ class EvidenceGateEngine:
         self.workspace_root = workspace_root
 
     def evaluate_gate(self, gate_name: str, evidence: Dict[str, Any]) -> str:
+        # Check physical folder artifacts as required by FEAT-304
+        if evidence.get("workflow_mode") == "autonomous":
+            brainstorming_dir = os.path.join(self.workspace_root, "docs", "brainstorming")
+            planning_dir = os.path.join(self.workspace_root, "docs", "planning")
+            blueprints_dir = os.path.join(self.workspace_root, "docs", "blueprints")
+            
+            # Brainstorming folder check
+            if not os.path.exists(brainstorming_dir) or not any(f.endswith(".md") for f in os.listdir(brainstorming_dir)):
+                return "FAIL"
+            # Planning folder check
+            if gate_name != "Gate1_PlanApproval" and (not os.path.exists(planning_dir) or not any(f.endswith(".md") for f in os.listdir(planning_dir))):
+                return "FAIL"
+            # Blueprints folder check
+            if gate_name == "Gate3_ReleaseApproval" and (not os.path.exists(blueprints_dir) or not any(f.endswith(".md") for f in os.listdir(blueprints_dir))):
+                return "FAIL"
+
         # Decisions: "PASS" | "FAIL" | "BLOCKED"
         if gate_name == "Gate1_PlanApproval":
             # Plan approval requires implementation plan file and project profile

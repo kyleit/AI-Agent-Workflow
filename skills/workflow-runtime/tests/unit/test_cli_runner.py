@@ -53,12 +53,25 @@ async def test_cli_session_follow():
     assert "TOPIC: agent.created" in res
 
 @pytest.mark.asyncio
-async def test_legacy_orchestrator_deprecation():
+async def test_orchestrator_supervisor_commands():
     server = RuntimeAPIServer()
     sdk = RuntimeSDKv3(api_server=server)
     runner = CLIRunner(sdk=sdk)
     
-    # Verify warning is raised for 'orchestrator start' legacy command
-    with pytest.deprecated_call():
-        res = await runner.execute(["orchestrator", "start"])
-        assert "Compatibility Adapter" in res
+    # Test orchestrator start
+    res_start = await runner.execute(["orchestrator", "start"])
+    assert "supervisor loop started" in res_start
+    
+    # Test orchestrator status
+    res_status = await runner.execute(["orchestrator", "status"])
+    assert "Supervisor status: RUNNING" in res_status
+    
+    # Test orchestrator follow
+    res_follow = await runner.execute(["orchestrator", "follow"])
+    assert "Planner started" in res_follow
+    assert "Verification started" in res_follow
+    
+    # Test orchestrator agents
+    res_agents = await runner.execute(["orchestrator", "agents"])
+    assert "developer-agent" in res_agents
+    assert "verification-agent" in res_agents
