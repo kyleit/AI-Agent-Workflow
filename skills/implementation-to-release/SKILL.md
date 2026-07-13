@@ -150,7 +150,7 @@ Release Summary:
 - Git Tag(s) Written: [vX.Y.Z | module/vX.Y.Z | none]
 
 Recommended Next Skill:
-project-memory-update
+initialize-workflow
 
 Workflow Paused.
 ```
