@@ -148,6 +148,7 @@ git status --short
 - Read `.agents/state/context.json` → work_item, checkpoint, project metadata.
 - Read `.agents/state/approvals.json` → approval state.
 - Read `.agents/state/workflow.json` → workflow progress.
+- **Handover Walkthrough**: If `.agents/state/walkthrough.md` exists, the AI MUST read this file to recover the handover context (accomplished tasks, testing status, and configurations) from the previous conversation thread.
 - Source functions: `load_approval_state()`, `load_dashboard_state()` in `session.py`.
 - **DO NOT** scan `docs/` directories. Work item is read from `context.json` only.
 
