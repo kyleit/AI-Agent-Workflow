@@ -43,10 +43,10 @@ def test_gateway_intent_classification(temp_ws):
     assert gateway.detect_intent("What is the difference between sequential and parallel runtimes?") == "chat"
     
     # Engineering queries
-    assert gateway.detect_intent("Add OAuth login page feature") == "engineering"
-    assert gateway.detect_intent("Fix the subprocess timeout regression bug in FEAT-112") == "engineering"
-    assert gateway.detect_intent("Refactor the state reducer to be pure function") == "engineering"
-    assert gateway.detect_intent("Run test suite on our new controller") == "engineering"
+    assert gateway.detect_intent("Add OAuth login page feature") == "feature_request"
+    assert gateway.detect_intent("Fix the subprocess timeout regression bug in FEAT-112") == "bug_fix"
+    assert gateway.detect_intent("Refactor the state reducer to be pure function") == "refactoring"
+    assert gateway.detect_intent("Run test suite on our new controller") == "feature_request"
 
 def test_gateway_chat_flow(temp_ws):
     gateway = WorkflowEntryGateway(temp_ws)
@@ -74,8 +74,9 @@ def test_gateway_engineering_flow(temp_ws):
     res = gateway.handle_request("Add OAuth login page (FEAT-401)")
     
     assert res["status"] == "ROUTED"
-    assert res["intent"] == "engineering"
+    assert res["intent"] == "feature_request"
     assert res["workflow_id"] == "FEAT-401"
+    assert res["workflow"] == "standard-development"
     assert res["execution_mode"] == "workflow"
     assert res["current_phase"] == "brainstorming"
     
@@ -98,16 +99,10 @@ def test_gateway_engineering_flow(temp_ws):
     assert sdata.get("work_item", {}).get("id") == "FEAT-401"
     assert sdata.get("execution_mode") == "workflow"
 
+@patch("sys.argv", ["mock_app.py"])
+@patch.dict(os.environ, {}, clear=True)
 def test_tool_execution_boundary_blocked(temp_ws):
     # Setup unmanaged scenario (no workflow environment context)
-    os.environ.pop("AIWF_WORKFLOW_ID", None)
-    os.environ.pop("AIWF_EXECUTION_MODE", None)
-    
-    # Verify session file does not exist
-    session_path = os.path.join(temp_ws, ".agents", ".session.json")
-    if os.path.exists(session_path):
-        os.remove(session_path)
-        
     executor = ToolExecutor()
     req = ToolRequest(
         session_id="SESS-001",

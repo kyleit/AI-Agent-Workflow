@@ -1,6 +1,8 @@
 import os
 import sys
 import re
+import json
+from datetime import datetime
 
 # Add parent directory to sys.path to resolve imports
 sys.path.insert(0, os.path.dirname(os.path.abspath(__file__)))
@@ -15,19 +17,51 @@ class WorkflowEntryGateway:
 
     def detect_intent(self, request_text: str) -> str:
         """
-        Detects if the request is Chat Mode or Engineering Mode.
+        Detects the intent of the request.
+        Returns one of: 'chat', 'feature_request', 'bug_fix', 'refactoring', 'migrations', 'architecture_changes', 'implementation_tasks'.
         """
-        # Search for engineering keywords
-        eng_keywords = [
-            r"\badd\b", r"\bfix\b", r"\bimplement\b", r"\brefactor\b", 
+        request_lower = request_text.lower()
+        
+        # 1. Check for bug fix keywords first
+        bug_keywords = [r"\bfix\b", r"\bbug\b", r"\berror\b", r"\bissue\b", r"\btypo\b", r"\bmismatch\b", r"\bbroken\b", r"\bregression\b"]
+        for kw in bug_keywords:
+            if re.search(kw, request_lower):
+                return "bug_fix"
+                
+        # 2. Check for migrations
+        migration_keywords = [r"\bmigration\b", r"\bmigrate\b", r"\bdb schema\b", r"\bupgrade database\b"]
+        for kw in migration_keywords:
+            if re.search(kw, request_lower):
+                return "migrations"
+                
+        # 3. Check for architecture changes
+        arch_keywords = [r"\barchitecture\b", r"\barchitect\b", r"\badr\b", r"\bdesign pattern\b"]
+        for kw in arch_keywords:
+            if re.search(kw, request_lower):
+                return "architecture_changes"
+                
+        # 4. Check for refactoring
+        refactor_keywords = [r"\brefactor\b", r"\bclean\b", r"\bsimplify\b", r"\brewrite\b"]
+        for kw in refactor_keywords:
+            if re.search(kw, request_lower):
+                return "refactoring"
+                
+        # 5. Check for implementation tasks
+        task_keywords = [r"\btask\b", r"\bimplement code\b", r"\bwrite code\b", r"\bcoding\b"]
+        for kw in task_keywords:
+            if re.search(kw, request_lower):
+                return "implementation_tasks"
+
+        # 6. Check for feature request
+        feat_keywords = [
+            r"\badd\b", r"\bfeature\b", r"\bnew\b", r"\bimplement\b", 
             r"\bcreate\b", r"\bmodify\b", r"\bdelete\b", r"\btest\b", 
             r"\bbuild\b", r"\brelease\b", r"\bpublish\b", r"feat-\d+", r"quick-\d+"
         ]
-        
-        request_lower = request_text.lower()
-        for kw in eng_keywords:
+        for kw in feat_keywords:
             if re.search(kw, request_lower):
-                return "engineering"
+                return "feature_request"
+                
         return "chat"
 
     def generate_request_id(self) -> str:
@@ -74,7 +108,21 @@ class WorkflowEntryGateway:
             
         # 2. Engineering mode workflow initialization
         workflow_id = self.extract_workflow_id(request_text)
-        
+        if workflow_id == "FEAT-AUTO":
+            # Auto-assign next FEAT ID
+            max_num = 0
+            for d in ["docs/brainstorming", "docs/designs", "docs/plans", "docs/verification"]:
+                d_path = os.path.join(self.workspace_root, d)
+                if os.path.exists(d_path):
+                    for f in os.listdir(d_path):
+                        match = re.search(r"FEAT-(\d+)", f)
+                        if match:
+                            num = int(match.group(1))
+                            if num > max_num:
+                                max_num = num
+            feat_id = max_num + 1 if max_num > 0 else 313
+            workflow_id = f"FEAT-{feat_id:03d}"
+
         # Load and update session context
         session = load_session()
         if not session:
@@ -84,7 +132,7 @@ class WorkflowEntryGateway:
         session["work_item"] = {
             "id": workflow_id,
             "type": "QUICK" if "QUICK" in workflow_id else "FEAT",
-            "title": f"Work Item {workflow_id}"
+            "title": request_text
         }
         session["execution_mode"] = "workflow"
         session["current_phase"] = "brainstorming"
@@ -97,18 +145,141 @@ class WorkflowEntryGateway:
         os.environ["AIWF_EXECUTION_MODE"] = "workflow"
         os.environ["AIWF_CURRENT_PHASE"] = "brainstorming"
         os.environ["AIWF_ACTIVE_REQUEST_ID"] = req_id
+
+        # Update workflow.json
+        state_dir = os.path.join(self.workspace_root, ".agents", "state")
+        os.makedirs(state_dir, exist_ok=True)
+        wf_path = os.path.join(state_dir, "workflow.json")
+        wf_data = {
+            "active_workflow": "standard-development",
+            "active_phase": "brainstorming",
+            "checkpoint": 1,
+            "waiting_for": None,
+            "work_item": {
+                "id": workflow_id,
+                "type": "FEAT",
+                "title": request_text
+            },
+            "workflow_type": "standard-development",
+            "parent_workflow_id": None,
+            "suggested_next_skill": "brainstorming",
+            "suggested_next_command": "brainstorm",
+            "resume_state": {},
+            "_metadata": {
+                "generation": 1,
+                "revision": 1,
+                "writer_id": "system",
+                "updated_at": datetime.now().astimezone().isoformat()
+            }
+        }
+        with open(wf_path, "w", encoding="utf-8") as f:
+            json.dump(wf_data, f, indent=2, ensure_ascii=False)
+
+        # Update context.json
+        ctx_path = os.path.join(state_dir, "context.json")
+        ctx_data = {}
+        if os.path.exists(ctx_path):
+            try:
+                with open(ctx_path, "r", encoding="utf-8") as f:
+                    ctx_data = json.load(f)
+            except Exception:
+                pass
+        ctx_data.update({
+            "project_id": "ai-skill-framework",
+            "workspace_path": ".",
+            "permission_mode": "sandbox",
+            "checkpoint": 1,
+            "work_item_id": workflow_id,
+            "workflow_id": workflow_id,
+            "phase": "brainstorming",
+            "execution_mode": "workflow",
+            "autonomous_delivery": False,
+            "progress_percentage": 0,
+            "project_version": ctx_data.get("project_version", "6.15.1"),
+            "authorization": {
+                "authorization_id": f"AUTH-{workflow_id}",
+                "project_id": "ai-skill-framework",
+                "workspace_id": "workspace-id",
+                "work_item_id": workflow_id,
+                "workflow_id": f"WF-{workflow_id}",
+                "permission_mode": "sandbox",
+                "authorization_status": "active",
+                "source": "system_default",
+                "allowed_phases": ["brainstorming", "planning", "blueprint", "implementation", "debug", "verification", "release"],
+                "allow_document_create": True,
+                "allow_document_modify": True,
+                "allow_source_create": True,
+                "allow_source_modify": True,
+                "allow_test_create": True,
+                "allow_test_modify": True,
+                "allow_runtime_state_modify": True,
+                "allow_agent_spawn": True,
+                "allow_agent_reassignment": True,
+                "allow_parallel_execution": True,
+                "allow_retry": True,
+                "allow_replan": True,
+                "allow_commit": True,
+                "allow_merge": True,
+                "allow_rebase": True,
+                "allow_tag": True,
+                "allow_push": True,
+                "allow_release": True,
+                "allow_publish": True,
+                "allow_deploy": True,
+                "stop_at": "release_approval",
+                "expires_when": "release_approved_or_work_item_cancelled",
+                "created_at": datetime.now().astimezone().isoformat(),
+                "terminated_at": None,
+                "max_retries_per_task": 3,
+                "max_replans_per_work_item": 2,
+                "max_agent_reassignments_per_task": 2
+            }
+        })
+        with open(ctx_path, "w", encoding="utf-8") as f:
+            json.dump(ctx_data, f, indent=2, ensure_ascii=False)
+
+        # Update runtime.json
+        rt_path = os.path.join(state_dir, "runtime.json")
+        rt_data = {}
+        if os.path.exists(rt_path):
+            try:
+                with open(rt_path, "r", encoding="utf-8") as f:
+                    rt_data = json.load(f)
+            except Exception:
+                pass
+        rt_data.update({
+            "status": "in_progress",
+            "current_skill": "brainstorming",
+            "current_command": "brainstorm",
+            "current_step": "Starting brainstorming...",
+            "checkpoint": 1,
+            "updated_at": datetime.now().astimezone().isoformat(),
+            "suggestion_gate": {
+                "active": True,
+                "raw_request": request_text,
+                "classification": intent,
+                "recommended_skill": "brainstorming",
+                "options": [],
+                "status": "status"
+            }
+        })
+        with open(rt_path, "w", encoding="utf-8") as f:
+            json.dump(rt_data, f, indent=2, ensure_ascii=False)
         
         # Emit workflow started events
+        emit_event("workflow.created", {"request_id": req_id, "workflow_id": workflow_id, "intent": intent, "status": "CREATED", "next_phase": "brainstorming"})
         emit_event("workflow.started", {"request_id": req_id, "workflow_id": workflow_id})
         emit_event("workflow.phase.started", {"request_id": req_id, "workflow_id": workflow_id, "phase": "brainstorming"})
         emit_event("skill.selected", {"request_id": req_id, "workflow_id": workflow_id, "skill": "brainstorming"})
+        emit_event("skill.started", {"request_id": req_id, "workflow_id": workflow_id, "skill": "brainstorming"})
         
         # Forward request to Workflow Supervisor (simulated by returning next step info)
         return {
             "status": "ROUTED",
             "request_id": req_id,
-            "intent": "engineering",
+            "intent": intent,
             "workflow_id": workflow_id,
+            "workflow": "standard-development",
             "execution_mode": "workflow",
             "current_phase": "brainstorming",
             "next_skill": "brainstorming"

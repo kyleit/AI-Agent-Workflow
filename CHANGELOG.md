@@ -5,6 +5,14 @@ All notable changes to this project will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [6.15.3] - 2026-07-13
+
+### Added
+- **Mandatory Entry Gateway Enforcement (FEAT-313)**:
+  - Triển khai `WorkflowEntryGateway` bắt buộc toàn bộ các yêu cầu kỹ thuật tự nhiên phải đi qua `workflow_runtime.py workflow submit`.
+  - Cập nhật quy tắc toàn cục `Workflow First Enforcement Policy` chặn đứng việc Agent tự viết code ngoài workflow context.
+  - Ghi nhận nhật ký sự kiện đồng bộ vào `.agents/state/events.jsonl` tại root của state.
+
 ## [6.15.1] - 2026-07-13
 
 ### Fixed
