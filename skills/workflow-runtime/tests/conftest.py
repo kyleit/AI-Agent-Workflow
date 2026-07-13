@@ -5,63 +5,37 @@ import shutil
 import tempfile
 import pytest
 import subprocess
-import signal
-import warnings
-
-# Filter line buffering runtime warnings in binary mode
-warnings.filterwarnings("ignore", category=RuntimeWarning, message="line buffering.*")
 
 ORIG_CWD = os.getcwd()
-_spawned_processes = []
-_orig_Popen = subprocess.Popen
 
-def kill_process_tree(pid: int):
-    try:
-        import psutil
-        parent = psutil.Process(pid)
-        for child in parent.children(recursive=True):
-            try:
-                child.kill()
-            except Exception:
-                pass
-        try:
-            parent.kill()
-        except Exception:
-            pass
-    except Exception:
-        try:
-            if os.name == 'nt':
-                subprocess.run(['taskkill', '/F', '/T', '/PID', str(pid)], stdout=subprocess.DEVNULL, stderr=subprocess.DEVNULL)
-            else:
-                os.kill(pid, signal.SIGKILL)
-        except Exception:
-            pass
+# Global patch of subprocess.run to rewrite relative paths of workflow_runtime.py
+# to absolute paths from the original workspace root.
+_orig_subprocess_run = subprocess.run
 
-class PatchedPopen(_orig_Popen):
-    def __init__(self, args, **kwargs):
-        if isinstance(args, list):
-            args = list(args)
-            for i, val in enumerate(args):
-                if "workflow_runtime.py" in val and not os.path.isabs(val):
-                    args[i] = os.path.abspath(os.path.join(ORIG_CWD, "skills", "workflow-runtime", "scripts", "workflow_runtime.py"))
-        
+def _patched_subprocess_run(*args, **kwargs):
+    if args and isinstance(args[0], list):
+        cmd = list(args[0])
+        for i, val in enumerate(cmd):
+            if "workflow_runtime.py" in val and not os.path.isabs(val):
+                # Rewrite to absolute path in original workspace
+                cmd[i] = os.path.abspath(os.path.join(ORIG_CWD, "skills", "workflow-runtime", "scripts", "workflow_runtime.py"))
+        # Force inheritance of environment variables
         env = kwargs.get("env", os.environ).copy()
         env["PYTHONPATH"] = ORIG_CWD + os.pathsep + os.path.join(ORIG_CWD, "skills", "workflow-runtime", "scripts") + os.pathsep + env.get("PYTHONPATH", "")
         env["AIWF_RUNTIME_MODE"] = "normal"
         env["AIWF_DISABLE_STATE_WRITES"] = "false"
-        env.pop("AIWF_STATE_ROOT", None)
-        env.pop("AIWF_PERMISSION_CONFIG_ROOT", None)
         kwargs["env"] = env
-        
-        super().__init__(args, **kwargs)
-        _spawned_processes.append(self)
+        return _orig_subprocess_run(cmd, *args[1:], **kwargs)
+    return _orig_subprocess_run(*args, **kwargs)
 
-subprocess.Popen = PatchedPopen
+subprocess.run = _patched_subprocess_run
 
 @pytest.fixture(autouse=True, scope="function")
 def isolated_workspace():
+    # 1. Create a unique isolated root directory under OS temp
     temp_workspace = tempfile.mkdtemp(prefix="aiwf-test-ws-")
     
+    # 2. Replicate the necessary .agents folder structure
     src_agents = os.path.abspath(os.path.join(ORIG_CWD, ".agents"))
     dst_agents = os.path.join(temp_workspace, ".agents")
     
@@ -70,7 +44,8 @@ def isolated_workspace():
         for item in os.listdir(src_agents):
             s = os.path.join(src_agents, item)
             d = os.path.join(dst_agents, item)
-            if item in ["state", "runtime", "config", "memory-state.json", "history.db"]:
+            # Skip states, locks, and history database to ensure a clean slate
+            if item in ["state", "runtime", "memory-state.json", "history.db"]:
                 continue
             try:
                 if os.path.isdir(s):
@@ -80,6 +55,7 @@ def isolated_workspace():
             except Exception:
                 pass
                 
+    # Replicate root agents, skills, and templates folders for test execution dependencies
     for root_dir in ["agents", "skills", "templates"]:
         src_dir = os.path.join(ORIG_CWD, root_dir)
         if os.path.exists(src_dir):
@@ -88,6 +64,7 @@ def isolated_workspace():
             except Exception:
                 pass
                 
+    # Copy root scripts and manifests needed by installers/tests
     for root_file in ["install.ps1", "install.sh", "update.ps1", "update.sh", "AGENTS.md", "AI_RULES.md", "MANIFEST.json"]:
         src_file = os.path.join(ORIG_CWD, root_file)
         if os.path.exists(src_file):
@@ -96,45 +73,27 @@ def isolated_workspace():
             except Exception:
                 pass
                 
+    # 3. Change directory to the isolated workspace
     os.chdir(temp_workspace)
+    
+    # Add script path to sys.path so test imports resolved from memory work
     sys.path.insert(0, os.path.join(ORIG_CWD, "skills", "workflow-runtime", "scripts"))
     
+    # Reset state store singleton to force re-initialization relative to new CWD
     try:
         from state_store import reset_state_store
         reset_state_store(None)
     except Exception:
         pass
-
-    orig_env = {
-        "AIWF_STATE_ROOT": os.environ.get("AIWF_STATE_ROOT"),
-        "AIWF_PERMISSION_CONFIG_ROOT": os.environ.get("AIWF_PERMISSION_CONFIG_ROOT"),
-        "AIWF_TESTING_PERMISSIONS": os.environ.get("AIWF_TESTING_PERMISSIONS")
-    }
-    
-    os.environ.pop("AIWF_STATE_ROOT", None)
-    os.environ.pop("AIWF_PERMISSION_CONFIG_ROOT", None)
-    os.environ.pop("AIWF_TESTING_PERMISSIONS", None)
     
     yield temp_workspace
     
+    # Restore original CWD and clean up sys.path
     os.chdir(ORIG_CWD)
     if os.path.join(ORIG_CWD, "skills", "workflow-runtime", "scripts") in sys.path:
         sys.path.remove(os.path.join(ORIG_CWD, "skills", "workflow-runtime", "scripts"))
         
-    for proc in _spawned_processes:
-        if proc.poll() is None:
-            try:
-                kill_process_tree(proc.pid)
-            except Exception:
-                pass
-    _spawned_processes.clear()
-
-    for k, v in orig_env.items():
-        if v is None:
-            os.environ.pop(k, None)
-        else:
-            os.environ[k] = v
-            
+    # Clean up isolated state folder
     try:
         shutil.rmtree(temp_workspace, ignore_errors=True)
     except Exception:

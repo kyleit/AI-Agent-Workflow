@@ -72,7 +72,7 @@ def test_pytest_coordinator_coalescing(tmp_path, monkeypatch):
     # We can construct mock Args for do_test_action
     class ArgsMock:
         def __init__(self):
-            self.subaction = "smoke"
+            self.subaction = "affected"
             
     mock_policy = {
         "resource_limits": {
@@ -86,8 +86,25 @@ def test_pytest_coordinator_coalescing(tmp_path, monkeypatch):
         }
     }
     
+    def custom_check_output(cmd, *args, **kwargs):
+        if isinstance(cmd, list) and len(cmd) > 0 and cmd[0] == "git":
+            if "status" in cmd:
+                return b" M skills/workflow-runtime/scripts/session.py\n"
+            else:
+                return b"skills/workflow-runtime/scripts/session.py\n"
+        return b""
+
+    mock_p = MagicMock()
+    mock_p.returncode = 0
+    mock_p.stdout = ["14 passed, 0 failed in 0.5s\n"]
+    mock_p.stderr = []
+    mock_p.wait.return_value = 0
+
     # Mock subprocess.run to verify we run pytest with -n 2
     with patch("session.load_runtime_policy", return_value=mock_policy), \
+         patch("subprocess.check_output", side_effect=custom_check_output), \
+         patch("subprocess.Popen", return_value=mock_p) as mock_popen, \
+         patch.dict("sys.modules", {"xdist": MagicMock()}), \
          patch("subprocess.run") as mock_run:
         mock_run.return_value = MagicMock(returncode=0, stdout="Mocked pytest passed", stderr="")
         
@@ -96,7 +113,14 @@ def test_pytest_coordinator_coalescing(tmp_path, monkeypatch):
         except SystemExit as e:
             assert e.code == 0
             
-        # Verify that cmd args executed by subprocess.run includes -n and 2
-        called_args = mock_run.call_args[0][0]
-        assert "-n" in called_args
-        assert "2" in called_args
+        # Verify that cmd args executed by subprocess.Popen includes -n and 2
+        pytest_call = None
+        for call in mock_popen.call_args_list:
+            args_list = call[0][0]
+            if isinstance(args_list, list) and "pytest" in args_list:
+                pytest_call = args_list
+                break
+                
+        assert pytest_call is not None, "pytest command was not executed via subprocess.Popen"
+        assert "-n" in pytest_call
+        assert "2" in pytest_call

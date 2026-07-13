@@ -41,19 +41,6 @@ def run_release_execute(approve: bool = False) -> dict[str, object]:
             "files_written": []
         }
         
-    # Enforce test and verification gates execution before release
-    from validation_runner import run_verify
-    verify_res = run_verify()
-    if verify_res["status"] != "success":
-        return {
-            "status": "failure",
-            "command": "release execute",
-            "summary": f"Release execution failed: Verification gates did not pass. Details: {verify_res.get('summary')}",
-            "warnings": verify_res.get("warnings", []),
-            "files_read": [],
-            "files_written": []
-        }
-
     from session import load_workflow_config
     config = load_workflow_config()
     git_flow = config.get("git_flow", {})

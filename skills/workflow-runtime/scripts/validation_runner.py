@@ -19,16 +19,6 @@ def detect_project_type(cwd: str = ".") -> str:
         os.path.exists(os.path.join(cwd, "poetry.lock")) or
         os.path.exists(os.path.join(cwd, "uv.lock"))):
         return "python"
-    
-    # Fallback to session metadata (e.g. inside temporary test workspace)
-    try:
-        session = load_session()
-        p_type = session.get("workspace", {}).get("project_type")
-        if p_type in ["go", "python"]:
-            return p_type
-    except Exception:
-        pass
-        
     return "unknown"
 
 def classify_log_error(log_content: str) -> Optional[str]:
@@ -126,31 +116,10 @@ def run_smoke_test(port: int) -> Tuple[bool, str]:
     except Exception as e:
         return False, f"Network connection failed: {e}"
 
-def run_pipeline(project_type: str, cwd: str = ".", force_tests: bool = False, phase: str = "debug") -> Tuple[bool, str, list[str]]:
+def run_pipeline(project_type: str, cwd: str = ".") -> Tuple[bool, str, list[str]]:
     """Thực thi Pipeline kiểm tra: Build -> Static -> Unit -> Start -> Ready -> Smoke -> Shutdown."""
     warnings = []
     
-    # Check execution policy to decide if tests should run
-    execution_policy = "manual"
-    try:
-        from session import load_runtime_policy
-        policy = load_runtime_policy(validate=True)
-        execution_policy = policy.get("test_execution", {}).get("execution_policy", "manual")
-    except Exception:
-        pass
-        
-    should_run_tests = False
-    if force_tests:
-        should_run_tests = True
-    elif execution_policy == "always":
-        should_run_tests = True
-    elif execution_policy == "verify_only" and phase in ["verify", "release"]:
-        should_run_tests = True
-    elif execution_policy == "release_only" and phase == "release":
-        should_run_tests = True
-    elif execution_policy == "manual":
-        should_run_tests = False
-
     # 1. Định vị thư mục con chứa code (Go desktop / Python root)
     target_dir = cwd
     if project_type == "go" and os.path.exists(os.path.join(cwd, "desktop")):
@@ -174,10 +143,7 @@ def run_pipeline(project_type: str, cwd: str = ".", force_tests: bool = False, p
             # go vet
             subprocess.run(["go", "vet", "./..."], cwd=target_dir, check=True, capture_output=True, text=True)
             # go test
-            if should_run_tests:
-                subprocess.run(["go", "test", "-v", "."], cwd=target_dir, check=True, capture_output=True, text=True)
-            else:
-                warnings.append(f"[INFO] Skipping go test execution (policy: {execution_policy}, phase: {phase})")
+            subprocess.run(["go", "test", "-v", "."], cwd=target_dir, check=True, capture_output=True, text=True)
             # go build binary target
             bin_name = "app_bin.exe" if sys.platform == "win32" else "app_bin"
             bin_path = os.path.join(target_dir, bin_name)
@@ -191,13 +157,10 @@ def run_pipeline(project_type: str, cwd: str = ".", force_tests: bool = False, p
             
         elif project_type == "python":
             # Python ruff / lint / pytest
-            if should_run_tests:
-                if os.path.exists(os.path.join(cwd, "tests")):
-                    subprocess.run(["pytest"], cwd=cwd, check=True, capture_output=True, text=True)
-                elif os.path.exists(os.path.join(cwd, "skills", "workflow-runtime", "tests")):
-                    subprocess.run(["pytest", "skills/workflow-runtime/tests/unit/test_prompt.py"], cwd=cwd, check=True, capture_output=True, text=True)
-            else:
-                warnings.append(f"[INFO] Skipping pytest execution (policy: {execution_policy}, phase: {phase})")
+            if os.path.exists(os.path.join(cwd, "tests")):
+                subprocess.run(["pytest"], cwd=cwd, check=True, capture_output=True, text=True)
+            elif os.path.exists(os.path.join(cwd, "skills", "workflow-runtime", "tests")):
+                subprocess.run(["pytest", "skills/workflow-runtime/tests/unit/test_prompt.py"], cwd=cwd, check=True, capture_output=True, text=True)
             
             # Start Application: Khởi chạy mock HTTP server qua python
             port = find_free_port()
@@ -237,7 +200,7 @@ def run_pipeline(project_type: str, cwd: str = ".", force_tests: bool = False, p
     except Exception as e:
         return False, f"Runtime error: {e}", [str(e)]
 
-def run_debug(force_tests: bool = False, phase: str = "debug") -> dict:
+def run_debug() -> dict:
     """Entrypoint cho do_debug_action."""
     cwd = "."
     project_type = detect_project_type(cwd)
@@ -251,7 +214,7 @@ def run_debug(force_tests: bool = False, phase: str = "debug") -> dict:
     
     while attempt < max_retries:
         attempt += 1
-        success, summary, warnings = run_pipeline(project_type, cwd, force_tests=force_tests, phase=phase)
+        success, summary, warnings = run_pipeline(project_type, cwd)
         if success:
             break
             
@@ -310,8 +273,8 @@ def run_verify(blueprint_path: str = None) -> dict:
             "files_written": [report_path]
         }
 
-    # 2. Chạy tiếp Runtime Debug Validation Pipeline (verify phase, force_tests=True)
-    res = run_debug(force_tests=True, phase="verify")
+    # 2. Chạy tiếp Runtime Debug Validation Pipeline
+    res = run_debug()
     if res["status"] != "success":
         return {
             "status": "failure",

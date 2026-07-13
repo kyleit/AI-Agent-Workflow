@@ -9,6 +9,87 @@ import subprocess
 from datetime import datetime, timedelta
 from concurrent.futures import ThreadPoolExecutor
 
+def setup_windows_job_object():
+    if os.name != "nt":
+        return
+    try:
+        import ctypes
+        from ctypes import wintypes
+        
+        # Create a Job Object
+        CreateJobObject = ctypes.windll.kernel32.CreateJobObjectW
+        CreateJobObject.restype = wintypes.HANDLE
+        CreateJobObject.argtypes = [ctypes.c_void_p, ctypes.c_wchar_p]
+        
+        job = CreateJobObject(None, None)
+        if not job:
+            return
+            
+        # Configure job limits: Kill on Job Close
+        JOBOBJECT_EXTENDED_LIMIT_INFORMATION = 9
+        JOB_OBJECT_LIMIT_KILL_ON_JOB_CLOSE = 0x2000
+        
+        class JOBOBJECT_BASIC_LIMIT_INFORMATION(ctypes.Structure):
+            _fields_ = [
+                ("PerProcessUserTimeLimit", ctypes.c_int64),
+                ("PerJobUserTimeLimit", ctypes.c_int64),
+                ("LimitFlags", wintypes.DWORD),
+                ("MinimumWorkingSetSize", ctypes.c_size_t),
+                ("MaximumWorkingSetSize", ctypes.c_size_t),
+                ("ActiveProcessLimit", wintypes.DWORD),
+                ("Affinity", ctypes.c_size_t),
+                ("PriorityClass", wintypes.DWORD),
+                ("SchedulingClass", wintypes.DWORD),
+            ]
+            
+        class IO_COUNTERS(ctypes.Structure):
+            _fields_ = [
+                ("ReadOperationCount", ctypes.c_uint64),
+                ("WriteOperationCount", ctypes.c_uint64),
+                ("OtherOperationCount", ctypes.c_uint64),
+                ("ReadTransferCount", ctypes.c_uint64),
+                ("WriteTransferCount", ctypes.c_uint64),
+                ("OtherTransferCount", ctypes.c_uint64),
+            ]
+            
+        class JOBOBJECT_EXTENDED_LIMIT_INFORMATION(ctypes.Structure):
+            _fields_ = [
+                ("BasicLimitInformation", JOBOBJECT_BASIC_LIMIT_INFORMATION),
+                ("IoInfo", IO_COUNTERS),
+                ("ProcessMemoryLimit", ctypes.c_size_t),
+                ("JobMemoryLimit", ctypes.c_size_t),
+                ("PeakProcessMemoryUsed", ctypes.c_size_t),
+                ("PeakJobMemoryUsed", ctypes.c_size_t),
+            ]
+            
+        limits = JOBOBJECT_EXTENDED_LIMIT_INFORMATION()
+        limits.BasicLimitInformation.LimitFlags = JOB_OBJECT_LIMIT_KILL_ON_JOB_CLOSE
+        
+        SetInformationJobObject = ctypes.windll.kernel32.SetInformationJobObject
+        SetInformationJobObject.restype = wintypes.BOOL
+        SetInformationJobObject.argtypes = [wintypes.HANDLE, ctypes.c_int, ctypes.c_void_p, wintypes.DWORD]
+        
+        res = SetInformationJobObject(
+            job,
+            9, # JobObjectExtendedLimitInformation
+            ctypes.byref(limits),
+            ctypes.sizeof(limits)
+        )
+        if not res:
+            return
+            
+        # Assign current process to the job object
+        AssignProcessToJobObject = ctypes.windll.kernel32.AssignProcessToJobObject
+        AssignProcessToJobObject.restype = wintypes.BOOL
+        AssignProcessToJobObject.argtypes = [wintypes.HANDLE, wintypes.HANDLE]
+        
+        GetCurrentProcess = ctypes.windll.kernel32.GetCurrentProcess
+        GetCurrentProcess.restype = wintypes.HANDLE
+        
+        AssignProcessToJobObject(job, GetCurrentProcess())
+    except Exception:
+        pass
+
 class CapabilityEngine:
     CAPABILITIES = {
         "orchestrator": {
@@ -323,11 +404,17 @@ class HierarchicalRuntime:
                 current_attach_mode = odata.get("attach_mode", attach_mode)
             except Exception:
                 pass
+        try:
+            create_time = psutil.Process(os.getpid()).create_time()
+        except Exception:
+            create_time = None
+            
         orch_data = {
             "orchestrator_id": "main-orchestrator",
             "status": "running",
             "resident": True,
             "pid": os.getpid(),
+            "process_create_time": create_time,
             "endpoint": None,
             "attach_mode": current_attach_mode,
             "started_at": self.started_at_iso,
@@ -401,13 +488,24 @@ class HierarchicalRuntime:
                     # Check if process is running
                     from lease import is_process_alive
                     if pid and is_process_alive(pid):
-                        # Verify heartbeat freshness (< 10 seconds)
-                        if last_hb:
-                            dt = datetime.fromisoformat(last_hb)
-                            now = datetime.now().astimezone()
-                            if now - dt < timedelta(seconds=10):
-                                print(f"Error: Another Main Orchestrator is running (PID: {pid}).", file=sys.stderr)
-                                sys.exit(1)
+                        # Verify heartbeat freshness and process creation time to avoid PID reuse
+                        is_same = True
+                        try:
+                            p = psutil.Process(pid)
+                            current_create_time = p.create_time()
+                            stored_create_time = odata.get("process_create_time")
+                            if stored_create_time is not None and abs(current_create_time - stored_create_time) > 1.0:
+                                is_same = False
+                        except Exception:
+                            is_same = False
+                            
+                        if is_same:
+                            if last_hb:
+                                dt = datetime.fromisoformat(last_hb)
+                                now = datetime.now().astimezone()
+                                if now - dt < timedelta(seconds=10):
+                                    print(f"Error: Another Main Orchestrator is running (PID: {pid}).", file=sys.stderr)
+                                    sys.exit(1)
                 except Exception:
                     pass
             # Try to force it if stale
@@ -637,6 +735,7 @@ class HierarchicalRuntime:
 
 if __name__ == "__main__":
     if "--daemon" in sys.argv:
+        setup_windows_job_object()
         rt = HierarchicalRuntime("FEAT-112")
         rt.start_daemon_loop()
     else:

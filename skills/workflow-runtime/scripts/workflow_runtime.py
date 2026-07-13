@@ -280,6 +280,108 @@ def update_context_health(session: dict) -> None:
     except Exception:
         pass
 
+
+def check_daemon_running() -> bool:
+    import psutil
+    from datetime import datetime, timedelta
+    state_dir = os.path.join(".agents", "state")
+    orch_path = os.path.join(state_dir, "orchestrator.json")
+    lock_path = os.path.join(state_dir, "orchestrator.lock")
+    
+    # Test if lock is held (if not held, daemon is not running)
+    # Skip this check in unit tests where lock files are not mocked/held.
+    if "PYTEST_CURRENT_TEST" not in os.environ:
+        from session import OSFileLock
+        test_lock = OSFileLock(lock_path)
+        if test_lock.acquire():
+            test_lock.release()
+            return False
+            
+    if os.path.exists(orch_path):
+        try:
+            with open(orch_path, "r", encoding="utf-8") as f:
+                odata = json.load(f)
+            pid = odata.get("pid")
+            last_hb = odata.get("last_heartbeat")
+            if pid and psutil.pid_exists(pid):
+                # PID reuse check
+                try:
+                    p = psutil.Process(pid)
+                    current_create_time = p.create_time()
+                    stored_create_time = odata.get("process_create_time")
+                    if stored_create_time is not None and abs(current_create_time - stored_create_time) > 1.0:
+                        # Process startup times differ, PID was reused
+                        return False
+                except Exception:
+                    return False
+                    
+                if not last_hb:
+                    return True
+                else:
+                    dt = datetime.fromisoformat(last_hb)
+                    now = datetime.now().astimezone()
+                    if now - dt < timedelta(seconds=10):
+                        return True
+        except Exception:
+            pass
+    return False
+
+def ensure_daemon_running():
+    # Cleanup stale daemon and lock if not running
+    if not check_daemon_running():
+        lock_path = os.path.join(".agents", "state", "orchestrator.lock")
+        if os.path.exists(lock_path):
+            try:
+                os.remove(lock_path)
+            except Exception:
+                pass
+        orch_path = os.path.join(".agents", "state", "orchestrator.json")
+        if os.path.exists(orch_path):
+            try:
+                with open(orch_path, "r", encoding="utf-8") as f:
+                    odata = json.load(f)
+                stale_pid = odata.get("pid")
+                if stale_pid and stale_pid != os.getpid():
+                    import psutil
+                    if psutil.pid_exists(stale_pid):
+                        p = psutil.Process(stale_pid)
+                        # PID reuse check
+                        try:
+                            current_create_time = p.create_time()
+                            stored_create_time = odata.get("process_create_time")
+                            if stored_create_time is None or abs(current_create_time - stored_create_time) <= 1.0:
+                                p.terminate()
+                                time.sleep(0.1)
+                                if p.is_running():
+                                    p.kill()
+                        except Exception:
+                            pass
+            except Exception:
+                pass
+
+        print("Starting Resident Orchestrator Daemon...")
+        script_path = os.path.join("skills", "workflow-runtime", "scripts", "hierarchical_runtime.py")
+        if not os.path.exists(script_path):
+            script_path = os.path.join(".agents", "skills", "workflow-runtime", "scripts", "hierarchical_runtime.py")
+        
+        import subprocess
+        import sys
+        import time
+        try:
+            if os.name == "nt":
+                subprocess.Popen([sys.executable, script_path, "--daemon"], 
+                                 creationflags=subprocess.CREATE_NO_WINDOW,
+                                 close_fds=True)
+            else:
+                subprocess.Popen([sys.executable, script_path, "--daemon"], 
+                                 stdout=subprocess.DEVNULL,
+                                 stderr=subprocess.DEVNULL,
+                                 close_fds=True)
+            time.sleep(0.5)
+        except Exception as e:
+            print(f"Error starting Resident Orchestrator: {e}", file=sys.stderr)
+
+
 def do_init(args):
     has_project_args = (
         getattr(args, "name", None) is not None or
@@ -413,95 +515,6 @@ def do_init(args):
         print(f"Error loading/validating runtime policy: {e}", file=sys.stderr)
         sys.exit(1)
     
-    def check_daemon_running() -> bool:
-        import psutil
-        from datetime import datetime, timedelta
-        state_dir = os.path.join(".agents", "state")
-        orch_path = os.path.join(state_dir, "orchestrator.json")
-        lock_path = os.path.join(state_dir, "orchestrator.lock")
-        
-        # Test if lock is held (if not held, daemon is not running)
-        # Skip this check in unit tests where lock files are not mocked/held.
-        if "PYTEST_CURRENT_TEST" not in os.environ:
-            from session import OSFileLock
-            test_lock = OSFileLock(lock_path)
-            if test_lock.acquire():
-                test_lock.release()
-                return False
-            
-        if os.path.exists(orch_path):
-            try:
-                with open(orch_path, "r", encoding="utf-8") as f:
-                    odata = json.load(f)
-                pid = odata.get("pid")
-                last_hb = odata.get("last_heartbeat")
-                if pid and psutil.pid_exists(pid):
-                    if not last_hb:
-                        return True
-                    else:
-                        dt = datetime.fromisoformat(last_hb)
-                        now = datetime.now().astimezone()
-                        if now - dt < timedelta(seconds=10):
-                            return True
-            except Exception:
-                pass
-        return False
-
-    def ensure_daemon_running():
-        # Cleanup stale daemon and lock if not running
-        if not check_daemon_running():
-            lock_path = os.path.join(".agents", "state", "orchestrator.lock")
-            if os.path.exists(lock_path):
-                try:
-                    os.remove(lock_path)
-                except Exception:
-                    pass
-            orch_path = os.path.join(".agents", "state", "orchestrator.json")
-            if os.path.exists(orch_path):
-                try:
-                    with open(orch_path, "r", encoding="utf-8") as f:
-                        odata = json.load(f)
-                    stale_pid = odata.get("pid")
-                    if stale_pid and stale_pid != os.getpid():
-                        import psutil
-                        if psutil.pid_exists(stale_pid):
-                            p = psutil.Process(stale_pid)
-                            p.terminate()
-                            time.sleep(0.1)
-                            if p.is_running():
-                                p.kill()
-                except Exception:
-                    pass
-        else:
-            print("Resident Orchestrator is already running. Attaching to existing instance.")
-            # Register client attachment
-            register_client_attachment()
-            return
-        
-        print("Starting Resident Orchestrator Daemon...")
-        script_path = os.path.join("skills", "workflow-runtime", "scripts", "hierarchical_runtime.py")
-        if not os.path.exists(script_path):
-            script_path = os.path.join(".agents", "skills", "workflow-runtime", "scripts", "hierarchical_runtime.py")
-        
-        import subprocess
-        import sys
-        import time
-        try:
-            if os.name == "nt":
-                subprocess.Popen([sys.executable, script_path, "--daemon"], 
-                                 creationflags=subprocess.CREATE_NO_WINDOW,
-                                 close_fds=True)
-            else:
-                subprocess.Popen([sys.executable, script_path, "--daemon"], 
-                                 stdout=subprocess.DEVNULL,
-                                 stderr=subprocess.DEVNULL,
-                                 close_fds=True)
-            time.sleep(0.5)
-        except Exception as e:
-            print(f"Error starting Resident Orchestrator: {e}", file=sys.stderr)
-            
-        register_client_attachment()
-
     def register_client_attachment():
         from session import get_project_identity, load_config_section, DEFAULT_CLIENT_POLICY
         identity = get_project_identity(getattr(args, "path", None) or ".")
@@ -554,6 +567,7 @@ def do_init(args):
     print(f"Attach Mode: {attach_mode}")
     
     ensure_daemon_running()
+    register_client_attachment()
     
     import time
     # Poll for up to 3.0 seconds to wait for daemon startup and file creation
@@ -1695,6 +1709,52 @@ def do_choice(args) -> None:
         start_time = time.time()
         choice_resolved = False
         selected_option = None
+        
+        if session.get("autonomous_delivery") is True:
+            if args.id == "release_approval":
+                pass
+            else:
+                choice_type = args.type
+                if not choice_type and os.path.exists(pending_path):
+                    try:
+                        with open(pending_path, "r", encoding="utf-8") as f:
+                            cdata = json.load(f)
+                            choice_type = cdata.get("type")
+                    except Exception:
+                        pass
+                if choice_type == "approval" or args.id == "blueprint_approval":
+                    selected_option = "approve"
+                else:
+                    options = []
+                    if os.path.exists(pending_path):
+                        try:
+                            with open(pending_path, "r", encoding="utf-8") as f:
+                                cdata = json.load(f)
+                                options = cdata.get("options", [])
+                        except Exception:
+                            pass
+                    selected_option = options[0]["id"] if options else "approve"
+                print(f"Autonomous delivery is active. Automatically resolving choice {args.id} to: {selected_option}")
+                
+                resp_payload = {
+                    "id": args.id or "unknown",
+                    "selected": selected_option,
+                    "cancelled": selected_option == "cancel"
+                }
+                tmp_resp = response_path + ".tmp"
+                with open(tmp_resp, "w", encoding="utf-8") as f:
+                    json.dump(resp_payload, f, indent=2, ensure_ascii=False)
+                if os.path.exists(response_path):
+                    os.replace(tmp_resp, response_path)
+                else:
+                    os.rename(tmp_resp, response_path)
+                    
+                if os.path.exists(pending_path):
+                    try:
+                        os.remove(pending_path)
+                    except Exception:
+                        pass
+                choice_resolved = True
         
         if interactive_choice:
             print(f"Waiting for UI choice response for {args.id} (timeout={timeout}s)...")

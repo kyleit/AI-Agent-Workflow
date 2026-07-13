@@ -17,7 +17,11 @@ def _custom_sqlite3_connect(database, *args, **kwargs):
     conn = _orig_sqlite3_connect(database, *args, **kwargs)
     if database != ":memory:":
         try:
-            conn.execute("PRAGMA journal_mode=WAL;")
+            cursor = conn.cursor()
+            cursor.execute("PRAGMA journal_mode;")
+            current_mode = cursor.fetchone()[0].lower()
+            if current_mode != "wal":
+                conn.execute("PRAGMA journal_mode=WAL;")
         except Exception:
             pass
     return conn
@@ -390,7 +394,6 @@ def get_provider_requests(filters: dict, sort_by: str = "timestamp", desc: bool 
     
     conn = sqlite3.connect(PROJECT_DB)
     try:
-        init_db_schema(conn)
         cursor = conn.cursor()
         
         query = """
@@ -471,6 +474,10 @@ def get_provider_requests(filters: dict, sort_by: str = "timestamp", desc: bool 
                 "error_summary": r[24]
             })
         return results
+    except sqlite3.OperationalError as e:
+        if "no such table" in str(e):
+            return []
+        raise
     finally:
         conn.close()
 
@@ -518,7 +525,6 @@ def get_token_diff(request_id: str) -> dict:
         
     conn = sqlite3.connect(PROJECT_DB)
     try:
-        init_db_schema(conn)
         cursor = conn.cursor()
         cursor.execute("""
             SELECT request_id, prev_request_id, conversation_id, net_change_tokens,
@@ -544,6 +550,10 @@ def get_token_diff(request_id: str) -> dict:
                 "timestamp": r[8]
             }
         return None
+    except sqlite3.OperationalError as e:
+        if "no such table" in str(e):
+            return None
+        raise
     finally:
         conn.close()
 
@@ -584,7 +594,6 @@ def get_insight_snapshots(conversation_id: str) -> list[dict]:
         return []
     conn = sqlite3.connect(PROJECT_DB)
     try:
-        init_db_schema(conn)
         cursor = conn.cursor()
         cursor.execute("""
             SELECT timestamp, conversation_id, efficiency_score, avg_tokens,
@@ -610,6 +619,10 @@ def get_insight_snapshots(conversation_id: str) -> list[dict]:
                 "insight_data": data
             })
         return results
+    except sqlite3.OperationalError as e:
+        if "no such table" in str(e):
+            return []
+        raise
     finally:
         conn.close()
 
@@ -648,7 +661,6 @@ def get_recommendations(conversation_id: str) -> list[dict]:
         return []
     conn = sqlite3.connect(PROJECT_DB)
     try:
-        init_db_schema(conn)
         cursor = conn.cursor()
         cursor.execute("""
             SELECT id, conversation_id, type, description, token_savings,
@@ -673,6 +685,10 @@ def get_recommendations(conversation_id: str) -> list[dict]:
                 "timestamp": r[9]
             })
         return results
+    except sqlite3.OperationalError as e:
+        if "no such table" in str(e):
+            return []
+        raise
     finally:
         conn.close()
 
@@ -750,7 +766,6 @@ def get_timeline_events(conversation_id: str) -> list[dict]:
         return []
     conn = sqlite3.connect(PROJECT_DB)
     try:
-        init_db_schema(conn)
         cursor = conn.cursor()
         cursor.execute("""
             SELECT id, timestamp, conversation_id, event_type, checkpoint, skill,
@@ -784,6 +799,10 @@ def get_timeline_events(conversation_id: str) -> list[dict]:
                 "details": details
             })
         return results
+    except sqlite3.OperationalError as e:
+        if "no such table" in str(e):
+            return []
+        raise
     finally:
         conn.close()
 
@@ -1259,7 +1278,6 @@ def save_qmd_metadata(record_data: dict) -> None:
 def get_qmd_metadata(filters: dict) -> list[dict]:
     conn = sqlite3.connect(PROJECT_DB)
     try:
-        init_db_schema(conn)
         cursor = conn.cursor()
         query = "SELECT point_id, project_id, module, feature_id, file_path, section_heading, updated_at, content_hash FROM qmd_metadata WHERE 1=1"
         params = []
@@ -1281,6 +1299,10 @@ def get_qmd_metadata(filters: dict) -> list[dict]:
                 "content_hash": r[7]
             })
         return results
+    except sqlite3.OperationalError as e:
+        if "no such table" in str(e):
+            return []
+        raise
     finally:
         conn.close()
 

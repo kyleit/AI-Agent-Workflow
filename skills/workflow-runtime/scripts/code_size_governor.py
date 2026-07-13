@@ -208,7 +208,7 @@ def run_code_size_audit(root_dir: str = ".") -> Tuple[bool, List[Dict], Dict]:
     exclude_patterns = policy.get("exclude", [])
     
     for dirpath, _, filenames in os.walk(root_dir):
-        if any(x in dirpath for x in [".git", "node_modules", "dist", ".pytest_cache", ".agents", "venv", "skills", "public_export", "test_temp", "artifacts"]):
+        if any(x in dirpath for x in [".git", "node_modules", "dist", ".pytest_cache", ".agents", "venv"]):
             continue
         for f in filenames:
             if f.endswith((".go", ".py")):

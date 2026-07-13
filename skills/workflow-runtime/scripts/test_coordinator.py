@@ -132,6 +132,7 @@ class TestCoordinator:
             git_rev = subprocess.check_output(["git", "rev-parse", "HEAD"], stderr=subprocess.DEVNULL).decode().strip()
         except Exception:
             pass
+        self.git_rev = git_rev
             
         # Changed files hash
         from tia_engine import TestImpactResolver
@@ -456,7 +457,7 @@ class TestCoordinator:
             "test_run_id": run_id,
             "dedup_key": dedup_key,
             "status": outcome_status,
-            "git_revision": git_rev,
+            "git_revision": getattr(self, "git_rev", "unknown"),
             "started_at": datetime.now().astimezone().isoformat(),
             "completed_at": datetime.now().astimezone().isoformat(),
             "elapsed_seconds": duration,

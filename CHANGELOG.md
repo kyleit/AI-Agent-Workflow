@@ -5,6 +5,27 @@ All notable changes to this project will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [6.13.2] - 2026-07-13
+
+### Fixed
+- **OS File Locking & Process Resiliency (FEAT-051 / Multi-Agent Safety)**:
+  - Khôi phục công cụ an toàn ghi đa tác nhân [safe_multi_agent_writes.py](file:///e:/AgentsProject/skills/workflow-runtime/scripts/safe_multi_agent_writes.py) và các tệp kiểm thử đi kèm.
+  - Sửa đổi cơ chế khóa `OSFileLock` trong [session.py](file:///e:/AgentsProject/skills/workflow-runtime/scripts/session.py) để cô lập cờ bypass lock chỉ kích hoạt trong môi trường kiểm thử pytest (`PYTEST_CURRENT_TEST`), đảm bảo lock vật lý luôn hoạt động trên production.
+  - Bổ sung cơ chế khóa tiến trình `OSFileLock` cho `LeaseManager` trong `safe_multi_agent_writes.py` nhằm loại bỏ rủi ro tranh chấp ghi file đĩa đồng thời trên Windows.
+  - Bổ sung cơ chế thử lại (atomic replace retry loop) tối đa 5 lần cho `write_json_atomic` tăng cường khả năng phục hồi lỗi khóa tệp Windows.
+  - Dọn dẹp triệt để các tiến trình mồ côi (zombie python tasks) giúp tái tạo môi trường làm việc sạch.
+  - Khắc phục 18 bài kiểm thử bị lỗi liên quan đến đường dẫn import chéo và mock liveness PID sai lệch.
+
+## [6.13.1] - 2026-07-13
+
+### Fixed
+- **Incident Recovery & Hardening (FEAT-118)**:
+  - Khắc phục sự cố tràn tiến trình Python gây OOM bằng cách tối ưu hóa kết nối SQLite trong [db.py](file:///e:/AgentsProject/skills/workflow-runtime/scripts/db.py) (tránh truy vấn khóa độc quyền ghi khi đọc dữ liệu).
+  - Tích hợp kiểm tra PID kết hợp `process_create_time` qua `psutil` trong [workflow_runtime.py](file:///e:/AgentsProject/skills/workflow-runtime/scripts/workflow_runtime.py) nhằm loại bỏ lỗi nhận diện sai tiến trình trùng lặp PID trên Windows.
+  - Áp dụng cơ chế nhóm Windows Job Object để tự động dọn dẹp các tiến trình con khi tiến trình cha daemon bị kết thúc.
+  - Tự động bỏ qua (bypass) các cổng phê duyệt trung gian (`blueprint_approval`) khi kích hoạt chế độ tự động `autonomous_delivery`, ngoại trừ cổng kiểm soát phát hành (`release_approval`).
+  - Hoàn thiện lập lịch thông minh Adaptive Team Planner và giới hạn tài nguyên tính toán cho `RuntimeScheduler`.
+
 ## [6.13.0] - 2026-07-12
 
 ### Added

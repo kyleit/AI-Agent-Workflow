@@ -23,6 +23,20 @@ class TestScriptFirstExecution(unittest.TestCase):
             shutil.copy2(self.session_file, self.session_backup)
             os.remove(self.session_file)
 
+        os.environ["AIWF_DISABLE_FILE_LOCKS"] = "1"
+
+        # Back up permissions.json
+        self.perm_file = os.path.join(".agents", "config", "permissions.json")
+        self.perm_backup = None
+        if os.path.exists(self.perm_file):
+            self.perm_backup = self.perm_file + ".testbackup"
+            shutil.copy2(self.perm_file, self.perm_backup)
+            os.remove(self.perm_file)
+
+        # Write requirements.txt to force python project type detection
+        with open("requirements.txt", "w", encoding="utf-8") as f:
+            f.write("")
+
         # Back up state directory
         self.state_dir = os.path.join(".agents", "state")
         self.state_backup = None
@@ -33,22 +47,26 @@ class TestScriptFirstExecution(unittest.TestCase):
             shutil.copytree(self.state_dir, self.state_backup)
             shutil.rmtree(self.state_dir)
 
-        # Create empty requirements.txt to help detect_project_type identify python stack
-        with open("requirements.txt", "w", encoding="utf-8") as f:
-            f.write("")
-
     def tearDown(self):
+        if os.path.exists(self.session_file):
+            try:
+                os.remove(self.session_file)
+            except Exception:
+                pass
+                
         if os.path.exists("requirements.txt"):
             try:
                 os.remove("requirements.txt")
             except Exception:
                 pass
 
-        if os.path.exists(self.session_file):
+        if os.path.exists(self.perm_file):
             try:
-                os.remove(self.session_file)
+                os.remove(self.perm_file)
             except Exception:
                 pass
+        if self.perm_backup and os.path.exists(self.perm_backup):
+            shutil.move(self.perm_backup, self.perm_file)
         
         # Clean state directory
         if os.path.exists(self.state_dir):
@@ -59,6 +77,9 @@ class TestScriptFirstExecution(unittest.TestCase):
 
         if self.session_backup and os.path.exists(self.session_backup):
             shutil.move(self.session_backup, self.session_file)
+
+        if "AIWF_DISABLE_FILE_LOCKS" in os.environ:
+            del os.environ["AIWF_DISABLE_FILE_LOCKS"]
             
     # Scenario 1: Skill classifier
     def test_skill_classifier(self):
@@ -143,10 +164,9 @@ class TestScriptFirstExecution(unittest.TestCase):
 
     def test_debug_runner(self):
         import os
-        print("MOCK DEBUG debug_runner: getcwd() =", os.getcwd())
-        print("MOCK DEBUG debug_runner: listdir('.') =", os.listdir('.'))
-        from validation_runner import run_debug, detect_project_type
-        print("MOCK DEBUG debug_runner: detect_project_type('.') =", detect_project_type('.'))
+        print("DIAGNOSTIC - CWD:", os.path.abspath("."))
+        print("DIAGNOSTIC - LISTDIR:", os.listdir("."))
+        from validation_runner import run_debug
         res = run_debug()
         self.assertEqual(res["status"], "success")
 
@@ -159,7 +179,7 @@ class TestScriptFirstExecution(unittest.TestCase):
             f.write("# FEAT-021 Blueprint\n\n## Technical Blueprint\n## System Architecture\n## Implementation Plan\n## Verification Plan")
         save_session_atomic({"checkpoint": 7, "active_workflow": {"blueprint_path": bp_path}})
         res = run_verify()
-        self.assertTrue(any("Release is currently blocked" in w for w in res["warnings"]), f"Expected block message, got warnings: {res['warnings']}")
+        self.assertIn("Release is currently blocked", res["warnings"][0])
 
     # Scenario 15: release manager refuses tag/push without approval
     def test_release_refuses_without_approval(self):
@@ -171,8 +191,6 @@ class TestScriptFirstExecution(unittest.TestCase):
     # Scenario 16: CLI JSON validation
     def test_cli_json_output(self):
         res = subprocess.run([sys.executable, self.cli_path, "env", "health"], capture_output=True, text=True)
-        print("CLI STDOUT:", res.stdout)
-        print("CLI STDERR:", res.stderr)
         self.assertEqual(res.returncode, 0)
         data = json.loads(res.stdout)
         self.assertEqual(data["status"], "success")

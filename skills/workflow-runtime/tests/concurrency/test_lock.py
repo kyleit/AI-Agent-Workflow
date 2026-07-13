@@ -42,13 +42,17 @@ class TestExclusiveLock(unittest.TestCase):
         self.assertIn("heartbeat_at", data)
 
     def test_lock_collision_blocks(self):
+        import psutil
         os.makedirs(os.path.dirname(self.lock_file), exist_ok=True)
+        my_pid = os.getpid()
+        my_create_time = psutil.Process(my_pid).create_time()
         with open(self.lock_file, "w") as f:
             json.dump({
                 "lock_owner": "orchestrator|other-skill",
                 "work_item_id": "unknown",
                 "skill": "other-skill",
-                "pid": 1234,
+                "pid": my_pid,
+                "process_create_time": my_create_time,
                 "started_at": datetime.now().astimezone().isoformat(),
                 "heartbeat_at": datetime.now().astimezone().isoformat()
             }, f)
