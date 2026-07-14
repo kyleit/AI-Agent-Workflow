@@ -57,7 +57,6 @@ function Show-Help {
     Write-Host "  test         Execute test validate, smoke, or affected tests"
     Write-Host "  workflow     Submit, inspect, track, or manage active SDLC workflows"
     Write-Host "  session      Recover, inspect, lock, or update active workspace sessions"
-    Write-Host "  mcp          Automatically install, uninstall, validate, or check status of MCP Tool servers"
     Write-Host "  help         Show this help message"
 }
 

@@ -54,7 +54,6 @@ show_help() {
     echo "  test         Execute unit, integration, or e2e test validation runner"
     echo "  workflow     Submit, inspect, track, or manage active SDLC workflows"
     echo "  session      Recover, inspect, lock, or update active workspace sessions"
-    echo "  mcp          Automatically install, uninstall, validate, or check status of MCP Tool servers"
     echo "  help         Show this help message"
 }
 

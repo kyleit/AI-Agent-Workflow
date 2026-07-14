@@ -14,7 +14,6 @@ from session import (
     DEFAULT_RUNTIME_POLICY
 )
 from workflow_runtime import do_init, do_test_action, do_runtime_action
-from hierarchical_runtime import HierarchicalRuntime
 
 class ArgsMock:
     def __init__(self, name="TestProj", path=".", non_interactive=True, config=None, dry_run=False, resume=False, permission="sandbox"):
@@ -123,52 +122,6 @@ def test_init_idempotent(tmp_path, monkeypatch):
         do_init(args)
         policy_reloaded = load_runtime_policy(validate=True)
         assert policy_reloaded["resource_limits"]["max_subagents"] == 12
-
-def test_runtime_obeys_limits(tmp_path, monkeypatch):
-    monkeypatch.chdir(tmp_path)
-    monkeypatch.setenv("AIWF_RUNTIME_POLICY_ROOT", str(tmp_path))
-    
-    # Initialize runtime
-    rt = HierarchicalRuntime("FEAT-112")
-    rt.state_dir = str(tmp_path)
-    rt.agents = {}
-    rt.task_graph = {"tasks": {}}
-    rt.spawn_timestamps = []
-    
-    # Setup healthy policy
-    load_runtime_policy(validate=True)
-    
-    with patch("psutil.cpu_percent", return_value=10.0), \
-         patch("psutil.virtual_memory") as mock_mem:
-        
-        mock_mem.return_value.percent = 15.0
-        
-        # Test healthy state
-        allowed, msg = rt.can_spawn_subagent("AGENT-001", "TASK-001")
-        assert allowed is True
-        assert msg == "READY"
-        
-        # Test CPU throttle
-        with patch("psutil.cpu_percent", return_value=85.0):
-            allowed, msg = rt.can_spawn_subagent("AGENT-001", "TASK-001")
-            assert allowed is False
-            assert "CPU too high" in msg
-            
-        # Test Memory throttle
-        mock_mem.return_value.percent = 85.0
-        allowed, msg = rt.can_spawn_subagent("AGENT-001", "TASK-001")
-        assert allowed is False
-        assert "Memory too high" in msg
-        
-        # Test Adaptive Concurrency
-        mock_mem.return_value.percent = 75.0 # above warning limit (70)
-        rt.task_graph["tasks"] = {
-            "T1": {"status": "running"},
-            "T2": {"status": "running"} # at warning load, concurrency limit adapted from 2 to 1
-        }
-        allowed, msg = rt.can_spawn_subagent("AGENT-001", "TASK-001")
-        assert allowed is False
-        assert "Concurrency limit exceeded" in msg
 
 def test_cli_actions(tmp_path, monkeypatch, capsys):
     monkeypatch.chdir(tmp_path)

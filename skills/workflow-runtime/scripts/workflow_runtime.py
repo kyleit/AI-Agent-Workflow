@@ -3733,36 +3733,6 @@ def do_context(args):
         }
     print(json.dumps(data, indent=2))
 
-def do_mcp(args):
-    mcp_dir = os.path.abspath(os.path.join(os.path.dirname(__file__), "..", "mcp"))
-    if mcp_dir not in sys.path:
-        sys.path.insert(0, mcp_dir)
-    from manager import MCPManager
-    
-    manager = MCPManager()
-    
-    if args.subaction == "install":
-        res = manager.install(args.ide)
-        if res.get("status") == "success":
-            print(f"{args.ide.capitalize()} detected")
-            print("AIWF MCP installed")
-            print("\nAvailable tools:")
-            print("- aiwf_submit_workflow")
-            print("- aiwf_workflow_status")
-            print("- aiwf_workflow_follow")
-            print("\nRestart IDE to activate")
-        else:
-            print(json.dumps(res, indent=2))
-    elif args.subaction == "uninstall":
-        res = manager.uninstall(args.ide)
-        print(json.dumps(res, indent=2))
-    elif args.subaction == "status":
-        res = manager.status(args.ide)
-        print(f"AIWF MCP Status\n\nIDE:\n{args.ide.capitalize()}\n\nMCP:\n{res.get('installed')}\n\nServer:\n{res.get('server_available')}\n\nWorkflow Runtime:\n{res.get('workflow_runtime_connected')}")
-    elif args.subaction == "doctor":
-        res = manager.doctor(args.ide)
-        print(json.dumps(res, indent=2))
-
 def do_rules_action(args):
     if args.subaction == "status":
         state_dir = os.path.join(".agents", "state")
@@ -5468,21 +5438,6 @@ def main():
     _ = policy_sub.add_parser("validate", help="Validate runtime-policy.json schema")
     _ = policy_sub.add_parser("reset", help="Reset runtime-policy.json to default values")
 
-    mcp_p = subparsers.add_parser("mcp", help="AIWF MCP Auto Provisioning commands")
-    mcp_sub = mcp_p.add_subparsers(dest="subaction", required=True)
-    
-    install_p = mcp_sub.add_parser("install")
-    install_p.add_argument("ide", choices=["antigravity", "vscode", "cursor"])
-    
-    uninstall_p = mcp_sub.add_parser("uninstall")
-    uninstall_p.add_argument("ide", choices=["antigravity", "vscode", "cursor"])
-    
-    status_p = mcp_sub.add_parser("status")
-    status_p.add_argument("ide", choices=["antigravity", "vscode", "cursor"])
-    
-    doctor_p = mcp_sub.add_parser("doctor")
-    doctor_p.add_argument("ide", choices=["antigravity", "vscode", "cursor"])
-
     provider_p = subparsers.add_parser("provider")
     provider_sub = provider_p.add_subparsers(dest="subaction", required=True)
     
@@ -5614,11 +5569,10 @@ def main():
         "orchestrator": do_orchestrator,
         "runtime": do_runtime_action,
         "workflow": do_workflow,
-        "session": do_session_command,
-        "mcp": do_mcp
+        "session": do_session_command
     }
     
-    modifying_actions = ["init", "start", "step", "complete", "fail", "blueprint", "suggest", "compact", "task", "deps", "execution", "analysis-agent", "choice", "input", "active-workflow", "resume", "discover", "classify", "memory", "env", "debug", "verify", "release", "state", "provider", "knowledge", "orchestrator", "workflow", "session", "mcp"]
+    modifying_actions = ["init", "start", "step", "complete", "fail", "blueprint", "suggest", "compact", "task", "deps", "execution", "analysis-agent", "choice", "input", "active-workflow", "resume", "discover", "classify", "memory", "env", "debug", "verify", "release", "state", "provider", "knowledge", "orchestrator", "workflow", "session"]
     if args.action in modifying_actions:
         with SessionLock():
             cmds[args.action](args)

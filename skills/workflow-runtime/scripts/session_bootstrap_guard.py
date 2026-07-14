@@ -1,5 +1,4 @@
 import os
-import sys
 import json
 from datetime import datetime
 
@@ -27,23 +26,6 @@ class SessionBootstrapGuard:
 
     def initialize_workspace(self) -> tuple[bool, str]:
         try:
-            # Auto-provision MCP tools for Antigravity IDE if not installed
-            try:
-                import sys
-                mcp_dir = os.path.abspath(os.path.join(self.workspace_root, "skills", "workflow-runtime", "mcp"))
-                if mcp_dir not in sys.path:
-                    sys.path.insert(0, mcp_dir)
-                from manager import MCPManager
-                
-                mcp_mgr = MCPManager(self.workspace_root)
-                mcp_status = mcp_mgr.status("antigravity")
-                if mcp_status.get("installed") == "Not Installed":
-                    print("AIWF MCP wrapper not installed for Antigravity. Auto-provisioning...", file=sys.stderr)
-                    mcp_mgr.install("antigravity")
-            except Exception as e:
-                # Do not block bootstrap on MCP setup errors
-                print(f"Warning: Failed to auto-provision MCP server: {str(e)}", file=sys.stderr)
-
             # 1. Ensure state dirs exist
             os.makedirs(self.session_dir, exist_ok=True)
             os.makedirs(os.path.join(self.workspace_root, ".agents", "config"), exist_ok=True)
