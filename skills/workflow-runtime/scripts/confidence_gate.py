@@ -121,3 +121,58 @@ class ConfidenceGate:
             if files:
                 return files[0]
         return ""
+
+
+class ClarificationGateException(Exception):
+    def __init__(self, message: str, gaps: List[str]):
+        super().__init__(message)
+        self.gaps = gaps
+
+
+class ClarificationGate:
+    def __init__(self, workspace_root: str = "."):
+        self.workspace_root = workspace_root
+
+    def _generate_clarification_prompt(self, gaps: List[str]) -> str:
+        gaps_list = "\n".join(f"- {g}" for g in gaps)
+        return (
+            f"The confidence score is below 85.0. Execution is blocked due to the following gaps:\n"
+            f"{gaps_list}\n"
+            f"Please clarify or provide the missing requirements to proceed."
+        )
+
+    def check_readiness_and_route(self, phase: str, score: float, gaps: List[str]) -> dict:
+        from state_store import get_state_store
+        store = get_state_store()
+        workflow = store.get("workflow") or {}
+        
+        if score < 85.0:
+            workflow["status"] = "BLOCKED"
+            workflow["active_phase"] = phase
+            store.set("workflow", workflow)
+            
+            prompt = self._generate_clarification_prompt(gaps)
+            raise ClarificationGateException(prompt, gaps)
+        else:
+            workflow["status"] = "success"
+            normalized_phase = phase.lower().strip()
+            if normalized_phase in ["brainstorming", "brainstorm"]:
+                workflow["active_phase"] = "planning"
+                workflow["suggested_next_skill"] = "brainstorming-to-plan"
+                workflow["suggested_next_command"] = "plan"
+            elif normalized_phase == "planning":
+                workflow["active_phase"] = "blueprint"
+                workflow["suggested_next_skill"] = "plan-to-blueprint"
+                workflow["suggested_next_command"] = "blueprint"
+            elif normalized_phase == "blueprint":
+                workflow["active_phase"] = "implementation"
+                workflow["suggested_next_skill"] = "blueprint-to-implementation"
+                workflow["suggested_next_command"] = "implement"
+                
+            store.set("workflow", workflow)
+            
+            return {
+                "status": "success",
+                "phase": workflow.get("active_phase"),
+                "next_skill": workflow.get("suggested_next_skill")
+            }

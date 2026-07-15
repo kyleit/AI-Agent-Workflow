@@ -12,6 +12,7 @@ from __future__ import annotations
 import json
 import os
 import subprocess
+import re
 from datetime import datetime, timezone
 
 _STATE_DIR = os.path.join(".agents", "state")
@@ -199,3 +200,65 @@ def read_environment_snapshot() -> dict:
         "stale": stale,
         "data": env_data,
     }
+
+
+def validate_safe_path(path: str, workspace_root: str = ".") -> str:
+    """
+    Ensure the path resides strictly within the workspace root.
+    Throws PermissionError if path resolves outside the workspace.
+    """
+    abs_root = os.path.abspath(workspace_root)
+    abs_path = os.path.abspath(path)
+    
+    # Check directory traversal escape
+    if ".." in path:
+        if not abs_path.startswith(abs_root):
+            raise PermissionError(f"Path escape detected: '{path}' resolves outside workspace.")
+            
+    if not abs_path.startswith(abs_root):
+        raise PermissionError(f"Path '{path}' is outside the workspace root.")
+        
+    return abs_path
+
+
+def has_absolute_paths(content: str) -> bool:
+    r"""
+    Check if the content contains local absolute filesystem paths.
+    Prohibits patterns like /Users/... or /Volumes/... or Windows equivalents C:\...
+    """
+    unix_pattern = r"/(Users|Volumes|private|home|var)/[a-zA-Z0-9_./-]+"
+    win_pattern = r"\b[A-Za-z]:\\[a-zA-Z0-9_./\\]+"
+    
+    if re.search(unix_pattern, content) or re.search(win_pattern, content):
+        return True
+    return False
+
+
+def validate_artifact_placement(path: str, active_skill: str) -> bool:
+    """
+    Verify that files created by active skills are placed under docs/
+    and path structure conforms to the active skill.
+    """
+    normalized_path = path.replace("\\", "/")
+    
+    if not (normalized_path.startswith("docs/") or normalized_path.startswith(".agents/")):
+        return False
+        
+    if active_skill == "brainstorming":
+        return normalized_path.startswith("docs/brainstorming/")
+        
+    if active_skill == "planning":
+        return normalized_path.startswith("docs/plans/")
+        
+    if active_skill == "blueprint":
+        return normalized_path.startswith("docs/designs/")
+        
+    if active_skill in ["quick-feature", "quick-fix"]:
+        if "plan" in normalized_path:
+            return normalized_path.startswith("docs/plans/")
+        if "blueprint" in normalized_path or "design" in normalized_path:
+            return normalized_path.startswith("docs/designs/")
+        if "brainstorm" in normalized_path:
+            return normalized_path.startswith("docs/brainstorming/")
+            
+    return True

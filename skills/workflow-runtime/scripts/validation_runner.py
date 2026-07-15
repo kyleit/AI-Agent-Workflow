@@ -163,10 +163,98 @@ def run_pipeline(project_type: str, cwd: str = ".") -> Tuple[bool, str, list[str
             
         elif project_type == "python":
             # Python ruff / lint / pytest
-            if os.path.exists(os.path.join(cwd, "tests")):
-                subprocess.run(["pytest"], cwd=cwd, check=True, capture_output=True, text=True)
-            elif os.path.exists(os.path.join(cwd, "skills", "workflow-runtime", "tests")):
-                subprocess.run(["pytest", "skills/workflow-runtime/tests/unit/test_prompt.py"], cwd=cwd, check=True, capture_output=True, text=True)
+            tier = os.environ.get("AIWF_VALIDATION_TIER")
+            if not tier:
+                session = load_session()
+                current_skill = session.get("current_skill")
+                if current_skill == "blueprint-to-implementation":
+                    tier = "implementation"
+                elif current_skill == "implementation-to-debug":
+                    tier = "implementation-to-debug"
+                elif current_skill == "debug-to-verify":
+                    tier = "debug-to-verify"
+                elif current_skill == "implementation-to-release":
+                    tier = "release"
+                else:
+                    tier = "manual"
+            else:
+                tier = tier.lower()
+                
+            from tia_engine import TestImpactResolver
+            from test_coordinator import resolve_module_tests
+            
+            resolver = TestImpactResolver(cwd)
+            try:
+                changed_files = resolver.get_git_changed_files()
+                affected_tests = resolver.resolve_affected_tests(changed_files)
+            except Exception as e:
+                print(f"[WARN] TIA Resolution failed: {e}. Falling back to smoke tests.")
+                changed_files = []
+                affected_tests = ["skills/workflow-runtime/tests/smoke/test_smoke.py"]
+            
+            session = load_session()
+            work_item_id = session.get("work_item", {}).get("id") or os.environ.get("AIWF_WORK_ITEM_ID", "FEAT-115")
+            
+            # Helper to get blueprint listed tests
+            blueprint_tests = []
+            designs_dir = os.path.join(cwd, "docs", "designs")
+            if os.path.exists(designs_dir):
+                for file in os.listdir(designs_dir):
+                    if work_item_id in file and file.endswith("blueprint.json"):
+                        json_path = os.path.join(designs_dir, file)
+                        try:
+                            with open(json_path, "r", encoding="utf-8") as f:
+                                data = json.load(f)
+                                tests_list = data.get("tests", [])
+                                for t in tests_list:
+                                    if isinstance(t, dict) and "target_file" in t:
+                                        blueprint_tests.append(t["target_file"].replace("\\", "/"))
+                        except Exception as e:
+                            print(f"[WARN] Error reading blueprint json {json_path}: {e}")
+            
+            # Filter blueprint tests to verify existence
+            blueprint_tests = [t for t in blueprint_tests if os.path.exists(os.path.join(cwd, t))]
+
+            if tier == "implementation":
+                # Compile changed python files
+                import py_compile
+                for f in changed_files:
+                    if f.endswith(".py") and os.path.exists(os.path.join(cwd, f)):
+                        try:
+                            py_compile.compile(os.path.join(cwd, f), doraise=True)
+                        except Exception as compile_err:
+                            err_msg = f"Compilation failed for {f}: {compile_err}"
+                            return False, err_msg, [err_msg]
+                test_targets = list(set(affected_tests + blueprint_tests))
+                
+            elif tier == "implementation-to-debug":
+                module_tests = resolve_module_tests(changed_files)
+                smoke_tests = ["skills/workflow-runtime/tests/smoke/test_smoke.py"]
+                test_targets = list(set(affected_tests + module_tests + smoke_tests))
+                
+            elif tier == "debug-to-verify":
+                test_targets = list(set(affected_tests + blueprint_tests))
+                
+            else:  # release/final/manual
+                test_targets = []
+                for root_dir in ["skills", "tests"]:
+                    full_root = os.path.join(cwd, root_dir)
+                    if os.path.exists(full_root):
+                        for root, _, files in os.walk(full_root):
+                            for file in files:
+                                if file.startswith("test_") and file.endswith(".py"):
+                                    rel_path = os.path.relpath(os.path.join(root, file), cwd)
+                                    test_targets.append(rel_path.replace("\\", "/"))
+                test_targets = sorted(list(set(test_targets)))
+
+            # Fallback handling: If no tests are resolved, fallback to skills/workflow-runtime/tests/smoke/test_smoke.py
+            test_targets = [t for t in test_targets if os.path.exists(os.path.join(cwd, t))]
+            if not test_targets:
+                test_targets = ["skills/workflow-runtime/tests/smoke/test_smoke.py"]
+                
+            # Execute resolved test targets
+            cmd = ["pytest"] + test_targets
+            subprocess.run(cmd, cwd=cwd, check=True, capture_output=True, text=True)
             
             # Start Application: Khởi chạy mock HTTP server qua python
             port = find_free_port()

@@ -151,3 +151,168 @@ def validate_routing(manifest_path: str, agents_dir: str) -> List[str]:
         dfs(agent_name)
         
     return errors
+
+
+class AgentSelector:
+    def __init__(self, agents_dir: str = "agents"):
+        self.agents_dir = os.path.abspath(agents_dir)
+        self._cache = {}
+
+    def _parse_frontmatter(self, file_content: str) -> dict:
+        if not file_content.startswith("---"):
+            return {}
+        parts = file_content.split("---", 2)
+        if len(parts) < 3:
+            return {}
+        fm_text = parts[1]
+        try:
+            import yaml
+            data = yaml.safe_load(fm_text)
+            if isinstance(data, dict):
+                return data
+        except Exception:
+            pass
+        
+        # Fallback manual parsing if yaml is not available
+        meta = {}
+        lines = fm_text.split("\n")
+        in_list_key = None
+        for line in lines:
+            if not line.strip():
+                continue
+            # Check for list items
+            if line.strip().startswith("-") and in_list_key:
+                val = line.strip().lstrip("-").strip().strip('"').strip("'")
+                if in_list_key in meta:
+                    if not isinstance(meta[in_list_key], list):
+                        meta[in_list_key] = [meta[in_list_key]]
+                    meta[in_list_key].append(val)
+                else:
+                    meta[in_list_key] = [val]
+                continue
+                
+            if ":" in line:
+                k, v = line.split(":", 1)
+                k = k.strip()
+                v = v.strip().strip('"').strip("'")
+                if not v: # list start
+                    in_list_key = k
+                    meta[k] = []
+                else:
+                    in_list_key = None
+                    if v.isdigit():
+                        meta[k] = int(v)
+                    elif v.lower() == "true":
+                        meta[k] = True
+                    elif v.lower() == "false":
+                        meta[k] = False
+                    else:
+                        meta[k] = v
+        return meta
+
+    def load_agent_metadata(self, agent_id: str) -> dict:
+        import time
+        cache_key = f"agent:{agent_id}"
+        if cache_key in self._cache:
+            entry = self._cache[cache_key]
+            if time.time() - entry["ts"] < 600:
+                return entry["data"]
+        
+        fn = f"{agent_id}.md"
+        fp = os.path.join(self.agents_dir, fn)
+        if not os.path.exists(fp):
+            if os.path.exists(self.agents_dir):
+                for f in os.listdir(self.agents_dir):
+                    if f.endswith(".md"):
+                        path = os.path.join(self.agents_dir, f)
+                        try:
+                            with open(path, "r", encoding="utf-8") as file:
+                                content = file.read()
+                            meta = self._parse_frontmatter(content)
+                            if meta.get("id") == agent_id or meta.get("name") == agent_id:
+                                self._cache[cache_key] = {"ts": time.time(), "data": meta}
+                                return meta
+                        except Exception:
+                            pass
+            return {}
+            
+        try:
+            with open(fp, "r", encoding="utf-8") as f:
+                content = f.read()
+            meta = self._parse_frontmatter(content)
+            self._cache[cache_key] = {"ts": time.time(), "data": meta}
+            return meta
+        except Exception:
+            return {}
+
+    def recruit_agent_for_task(self, task_type: str, task_tags: list[str]) -> dict:
+        candidates = []
+        if os.path.exists(self.agents_dir):
+            for fn in os.listdir(self.agents_dir):
+                if fn.endswith(".md"):
+                    fp = os.path.join(self.agents_dir, fn)
+                    try:
+                        with open(fp, "r", encoding="utf-8") as f:
+                            content = f.read()
+                        meta = self._parse_frontmatter(content)
+                        if not meta:
+                            continue
+                            
+                        agent_caps = meta.get("capabilities", [])
+                        if isinstance(agent_caps, str):
+                            agent_caps = [agent_caps]
+                            
+                        spawn_conds = meta.get("spawn_conditions", {})
+                        spawn_tags = []
+                        if isinstance(spawn_conds, dict):
+                            spawn_tags = spawn_conds.get("task_tags", [])
+                            if isinstance(spawn_tags, str):
+                                spawn_tags = [spawn_tags]
+                        
+                        cat_match = False
+                        category = meta.get("agent_category")
+                        phases = meta.get("phase_ownership", [])
+                        if isinstance(phases, str):
+                            phases = [phases]
+                        
+                        if category == task_type or task_type in phases:
+                            cat_match = True
+                        if isinstance(spawn_conds, dict) and task_type in spawn_conds.get("phases", []):
+                            cat_match = True
+                            
+                        if not cat_match:
+                            continue
+                            
+                        tag_match = False
+                        for tag in task_tags:
+                            if tag in agent_caps or tag in spawn_tags:
+                                tag_match = True
+                                break
+                        if not task_tags:
+                            tag_match = True
+                            
+                        if tag_match:
+                            candidates.append(meta)
+                    except Exception:
+                        pass
+                        
+        if not candidates:
+            return {}
+            
+        def get_priority(x):
+            try:
+                return int(x.get("priority", 999))
+            except Exception:
+                return 999
+                
+        candidates.sort(key=get_priority)
+        best = candidates[0]
+        
+        handoffs = best.get("handoff_targets", [])
+        if isinstance(handoffs, str):
+            handoffs = [handoffs]
+            
+        return {
+            "agent_id": best.get("id") or best.get("name"),
+            "handoff_targets": handoffs
+        }

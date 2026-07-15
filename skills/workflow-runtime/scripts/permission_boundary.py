@@ -142,6 +142,29 @@ class PermissionBoundary:
                 )
             raise PermissionError("Agent permission is invalid, revoked, or expired.")
 
+        # Restrict agent execution permission scope to read-only during brainstorming, planning, and design
+        from state_store import get_state_store
+        try:
+            store = get_state_store()
+            workflow = store.get("workflow") or {}
+            active_phase = workflow.get("active_phase")
+        except Exception:
+            active_phase = None
+
+        if active_phase in ["brainstorming", "brainstorm", "planning", "design", "blueprint"]:
+            norm_target = os.path.normpath(target_path).replace('\\', '/')
+            is_doc_or_scratch = norm_target.startswith("docs/") or norm_target.startswith("scratch/") or norm_target.startswith(".agents/state/")
+            is_code_extension = any(norm_target.endswith(ext) for ext in [".py", ".go", ".js", ".ts", ".sh", ".bat", ".ps1"])
+            
+            if (command in ["write", "execute"] and not is_doc_or_scratch) or is_code_extension:
+                if self.event_store:
+                    self.event_store.append_event(
+                        session_id=agent_perm.session_id,
+                        topic="permission.denied",
+                        payload={"reason": f"write attempt blocked in read-only phase '{active_phase}'", "target_path": target_path}
+                    )
+                raise PermissionError(f"Write/execute attempts to code files are blocked during the read-only phase '{active_phase}'.")
+
         # Tool execute action check
         if "execute" not in agent_perm.capabilities:
             raise PermissionError("Agent permission lacks execute capability.")

@@ -32,3 +32,5 @@ artifacts/adaptive-agent-team/conflict_resolution_evidence.json
 artifacts/adaptive-agent-team/ownership_evidence.json
 artifacts/adaptive-agent-team/stale_write_evidence.json
 artifacts/full-access-autonomous-delivery/
+
+qdrant_storage

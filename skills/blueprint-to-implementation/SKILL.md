@@ -57,7 +57,7 @@ This Skill MUST strictly adhere to the global policies defined in [AI_RULES.md](
 - **Memory First Policy** (Section 3) - Consult project summary/memory before source files or user questions.
 - **RAG Policy** (Section 4) - Follow retrieval sequence levels.
 - **Artifact Policy** (Section 5) - Strictly follow path boundaries and naming formats.
-- **Testing Policy** (Section 8) - Run compilation, build, and tests, halting on failures.
+- **Testing Policy** (Section 8) - Run compilation, build, and tests, halting on failures. Ensure tests are run via `python skills/workflow-runtime/scripts/workflow_runtime.py test affected` or explicit blueprint test lists, not raw full-suite pytest.
 - **Blueprint Mandatory Execution Policy** (Section 13) - Enforces Blueprint as the sole legal input.
 - **Skill Suggestion Gate Policy** (Section 14) - Raw requests require suggestion first; selected Skill requires confirmation.
 - **Workspace Permission Mode Policy** (Section 15) - Sandbox mode is default; ask user to choose sandbox or full_access at init.

@@ -416,6 +416,7 @@ def do_init(args):
             "git": get_git_info(),
             "work_item": {"type": "FEAT", "id": "FEAT-001", "title": "Initial Scaffolding"},
             "version": get_version_info(),
+            "release_channel": "stable",
             "memory": get_memory_info(),
             "rag": get_rag_info(),
             "blueprint": {
@@ -462,6 +463,24 @@ def do_init(args):
     session["permission_mode_selected_by"] = permissions.get("updated_by", "user")
     
     update_context_health(session)
+    
+    # Ensure release_channel is in session
+    if "release_channel" not in session:
+        session["release_channel"] = "stable"
+        
+    # Auto-migration: write release_channel to .agents/MANIFEST.json if missing
+    try:
+        manifest_path = os.path.join(".agents", "MANIFEST.json")
+        if os.path.exists(manifest_path):
+            with open(manifest_path, "r", encoding="utf-8") as f:
+                manifest_data = json.load(f)
+            if "release_channel" not in manifest_data:
+                manifest_data["release_channel"] = "stable"
+                with open(manifest_path, "w", encoding="utf-8") as f:
+                    json.dump(manifest_data, f, indent=2, ensure_ascii=False)
+    except Exception as e:
+        print(f"[WARN] Failed to auto-migrate release_channel in .agents/MANIFEST.json: {e}", file=sys.stderr)
+
     save_session_atomic(session)
     print(f"Session initialized with permission_mode={mode}.")
     
@@ -1769,8 +1788,17 @@ def do_suggest(args):
     session["suggestion_gate"] = suggestion
     update_context_health(session)
     save_session_atomic(session)
-    if not args.choose:
-        print(f"Suggestion gate updated (active={suggestion['active']}, status={suggestion['status']}).")
+    
+    # Format and output JSON suggestion per FEAT-404 blueprint
+    output_dict = {
+        "suggested_next_skill": orchestrator_state.get("recommended_skill") or session.get("workflow", {}).get("suggested_next_skill") or "",
+        "suggested_next_command": orchestrator_state.get("recommended_command") or session.get("workflow", {}).get("suggested_next_command") or "",
+        "reason": orchestrator_state.get("reason") or (
+            "Blueprint approved. Proceeding to implementation." if session.get("blueprint", {}).get("approved") else "Provide new instruction."
+        ),
+        "expected_input": session.get("blueprint", {}).get("path") or ""
+    }
+    print(json.dumps(output_dict, indent=2, ensure_ascii=False))
 
 def do_choice(args) -> None:
     session = load_session()
@@ -3349,6 +3377,39 @@ def do_input(args) -> None:
         except (ForbiddenAISourceError, InvalidResumeTokenError) as e:
             print(json.dumps({"success": False, "message": str(e)}), file=sys.stderr)
             sys.exit(1)
+
+
+def do_tick_action(args):
+    prompt = getattr(args, "prompt", None)
+    work_item_id = getattr(args, "work_item", None)
+    
+    if not prompt or not prompt.strip():
+        print(json.dumps({"error": "Missing parameter: prompt"}, indent=2))
+        sys.exit(1)
+        
+    try:
+        from workflow_entry_gateway import WorkflowEntryGateway
+        gateway = WorkflowEntryGateway(".")
+        res = gateway.handle_request(prompt, session_id=work_item_id)
+        
+        status = res.get("status")
+        output = {
+            "status": "blocked" if status == "waiting_for_approval" or status == "BLOCKED" else "success",
+            "current_phase": res.get("current_phase") or "brainstorming",
+            "next_skill": res.get("next_skill") or "brainstorming",
+            "workflow_id": res.get("workflow_id"),
+            "logs": res.get("logs", [f"Routed prompt for {res.get('workflow_id')}"])
+        }
+        print(json.dumps(output, indent=2))
+        if status in ["waiting_for_approval", "BLOCKED", "failed"]:
+            sys.exit(2)
+        sys.exit(0)
+    except ValueError as ve:
+        print(json.dumps({"error": str(ve)}, indent=2))
+        sys.exit(1)
+    except Exception as e:
+        print(json.dumps({"error": str(e)}, indent=2))
+        sys.exit(2)
 
 
 def do_status_action(args):
@@ -5332,7 +5393,7 @@ def main():
     rel_exec = release_sub.add_parser("execute")
     _ = rel_exec.add_argument("--approve", action="store_true")
     
-    orchestrator_p = subparsers.add_parser("orchestrator")
+    orchestrator_p = subparsers.add_parser("orchestrator", aliases=["orchestrate"])
     _ = orchestrator_p.add_argument("--work-item", type=str, help="Work item ID")
     orchestrator_sub = orchestrator_p.add_subparsers(dest="subaction", required=True)
     
@@ -5494,6 +5555,10 @@ def main():
     _ = api_server_p.add_argument("--port", type=int, default=31000)
     _ = api_server_p.add_argument("--host", type=str, default="localhost")
     
+    tick_p = subparsers.add_parser("tick")
+    _ = tick_p.add_argument("--prompt", required=True, type=str)
+    _ = tick_p.add_argument("--work-item", type=str, default=None)
+    
     args = parser.parse_args()
     
     # Interceptor for scoped work item activation
@@ -5563,16 +5628,18 @@ def main():
         "update": do_update,
         "provider": do_provider_action,
         "status": do_status_action,
+        "tick": do_tick_action,
         "knowledge": do_knowledge_action,
         "test": do_test_action,
         "update-source": do_update_source,
         "orchestrator": do_orchestrator,
+        "orchestrate": do_orchestrator,
         "runtime": do_runtime_action,
         "workflow": do_workflow,
         "session": do_session_command
     }
     
-    modifying_actions = ["init", "start", "step", "complete", "fail", "blueprint", "suggest", "compact", "task", "deps", "execution", "analysis-agent", "choice", "input", "active-workflow", "resume", "discover", "classify", "memory", "env", "debug", "verify", "release", "state", "provider", "knowledge", "orchestrator", "workflow", "session"]
+    modifying_actions = ["init", "start", "step", "complete", "fail", "blueprint", "suggest", "compact", "task", "deps", "execution", "analysis-agent", "choice", "input", "active-workflow", "resume", "discover", "classify", "memory", "env", "debug", "verify", "release", "state", "provider", "knowledge", "orchestrator", "orchestrate", "workflow", "session", "tick"]
     if args.action in modifying_actions:
         with SessionLock():
             cmds[args.action](args)

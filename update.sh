@@ -1,9 +1,10 @@
 #!/usr/bin/env bash
 # ==============================================================================
-# AI Skill Framework Updater
+# AI Skill Framework Updater (Unix/Linux/macOS version)
 # Usage: ./update.sh [options]
 # Options:
-#   -f, --force    Force update even if version is already up to date
+#   -f, --force    Force update even if version is already up to date or downgrade
+#   -a, --all      Update all registered projects globally
 #   -h, --help     Show this help message
 # ==============================================================================
 
@@ -16,10 +17,9 @@ show_help() {
     echo ""
     echo "Options:"
     echo "  -f, --force    Force update even if version is already up to date"
+    echo "  -a, --all      Update all registered projects globally"
     echo "  -h, --help     Show this help message"
     echo ""
-    echo "Example:"
-    echo "  ./update.sh --force"
 }
 
 # Logging helpers
@@ -31,7 +31,6 @@ log_success() { echo -e "\033[1;32m[SUCCESS]\033[0m $1"; }
 # Parse options
 FORCE=false
 UPDATE_ALL=false
-UPDATE_CURRENT=false
 for arg in "$@"; do
     case $arg in
         -f|--force)
@@ -39,9 +38,6 @@ for arg in "$@"; do
             ;;
         -a|--all)
             UPDATE_ALL=true
-            ;;
-        -c|--current)
-            UPDATE_CURRENT=true
             ;;
         -h|--help)
             show_help
@@ -59,11 +55,101 @@ if [ "$UPDATE_ALL" = true ]; then
     exit 0
 fi
 
-# Verify MANIFEST.json exists in source
-if [ ! -f "$SCRIPT_DIR/MANIFEST.json" ]; then
-    log_error "MANIFEST.json not found in source directory ($SCRIPT_DIR)."
-    exit 1
-fi
+# Compare SemVer versions in Bash
+# Returns 1 if v1 > v2, -1 if v1 < v2, 0 if equal
+compare_semver() {
+    local v1=$(echo "$1" | sed 's/^v//')
+    local v2=$(echo "$2" | sed 's/^v//')
+    
+    if [ "$v1" == "$v2" ]; then
+        echo 0
+        return
+    fi
+    
+    local main1=$(echo "$v1" | cut -d'-' -f1)
+    local pre1=$(echo "$v1" | cut -s -d'-' -f2-)
+    
+    local main2=$(echo "$v2" | cut -d'-' -f1)
+    local pre2=$(echo "$v2" | cut -s -d'-' -f2-)
+    
+    # Compare main versions
+    local IFS='.'
+    read -ra m1 <<< "$main1"
+    read -ra m2 <<< "$main2"
+    IFS=$' \t\n'
+    
+    for i in 0 1 2; do
+        local n1=${m1[$i]:-0}
+        local n2=${m2[$i]:-0}
+        if (( n1 > n2 )); then
+            echo 1
+            return
+        fi
+        if (( n1 < n2 )); then
+            echo -1
+            return
+        fi
+    done
+    
+    # Compare prerelease tags
+    if [ -z "$pre1" ] && [ -n "$pre2" ]; then
+        echo 1
+        return
+    fi
+    if [ -n "$pre1" ] && [ -z "$pre2" ]; then
+        echo -1
+        return
+    fi
+    if [ -z "$pre1" ] && [ -z "$pre2" ]; then
+        echo 0
+        return
+    fi
+    
+    # Both have prerelease, split by '.'
+    local IFS='.'
+    read -ra p1 <<< "$pre1"
+    read -ra p2 <<< "$pre2"
+    IFS=$' \t\n'
+    
+    local len1=${#p1[@]}
+    local len2=${#p2[@]}
+    local max=$(( len1 > len2 ? len1 : len2 ))
+    
+    for ((i=0; i<max; i++)); do
+        local part1=${p1[$i]:-}
+        local part2=${p2[$i]:-}
+        
+        if [ -z "$part1" ]; then
+            echo -1
+            return
+        fi
+        if [ -z "$part2" ]; then
+            echo 1
+            return
+        fi
+        
+        if [[ "$part1" =~ ^[0-9]+$ ]] && [[ "$part2" =~ ^[0-9]+$ ]]; then
+            if (( 10#$part1 > 10#$part2 )); then
+                echo 1
+                return
+            fi
+            if (( 10#$part1 < 10#$part2 )); then
+                echo -1
+                return
+            fi
+        else
+            if [[ "$part1" > "$part2" ]]; then
+                echo 1
+                return
+            fi
+            if [[ "$part1" < "$part2" ]]; then
+                echo -1
+                return
+            fi
+        fi
+    done
+    echo 0
+}
 
 # Helper to read JSON values
 get_manifest_val() {
@@ -72,300 +158,363 @@ get_manifest_val() {
     grep -o -E '"'"$key"'"\s*:\s*"[^"]*"' "$file" | head -n 1 | cut -d'"' -f4 || echo ""
 }
 
-# Helper to extract skills list
-get_skills_list() {
-    local file=$1
+SRC_INSTALL_TARGET=".agents"
+TARGET_MANIFEST="$SRC_INSTALL_TARGET/MANIFEST.json"
+SESSION_FILE="$SRC_INSTALL_TARGET/.session.json"
+CONTEXT_FILE="$SRC_INSTALL_TARGET/state/context.json"
+
+CURRENT_VERSION="0.0.0"
+RELEASE_CHANNEL="stable"
+
+# Read version from local installation if exists
+if [ -f "$TARGET_MANIFEST" ]; then
+    CURRENT_VERSION=$(get_manifest_val "version" "$TARGET_MANIFEST" || echo "0.0.0")
+    RELEASE_CHANNEL=$(get_manifest_val "release_channel" "$TARGET_MANIFEST" || echo "stable")
+fi
+
+# Override release_channel from context.json or .session.json
+if [ -f "$CONTEXT_FILE" ]; then
+    RELEASE_CHANNEL=$(python3 -c "import json, sys; print(json.load(open(sys.argv[1])).get('release_channel', 'stable'))" "$CONTEXT_FILE" 2>/dev/null || echo "stable")
+elif [ -f "$SESSION_FILE" ]; then
+    RELEASE_CHANNEL=$(python3 -c "import json, sys; print(json.load(open(sys.argv[1])).get('release_channel', 'stable'))" "$SESSION_FILE" 2>/dev/null || echo "stable")
+fi
+
+if [[ ! "$RELEASE_CHANNEL" =~ ^(stable|beta|alpha)$ ]]; then
+    log_warn "Invalid release channel value '$RELEASE_CHANNEL'. Defaulting to 'stable'."
+    RELEASE_CHANNEL="stable"
+fi
+
+log_info "Detected Installed Version: v$CURRENT_VERSION"
+log_info "Release Channel: $RELEASE_CHANNEL"
+
+# Helper for local sync mode (original behavior)
+run_local_sync() {
+    log_info "Running Local Sync Mode..."
+    if [ ! -f "$SCRIPT_DIR/MANIFEST.json" ]; then
+        log_error "MANIFEST.json not found in source directory ($SCRIPT_DIR)."
+        exit 1
+    fi
+    local src_version=$(get_manifest_val "version" "$SCRIPT_DIR/MANIFEST.json")
+    log_info "Available Repository Version: v$src_version"
+    
+    local cmp=$(compare_semver "$src_version" "$CURRENT_VERSION")
+    if [ "$cmp" -eq 0 ] && [ "$FORCE" = false ]; then
+        log_success "AI Skill Framework is already up to date (v$CURRENT_VERSION)."
+        exit 0
+    fi
+    if [ "$cmp" -lt 0 ] && [ "$FORCE" = false ]; then
+        log_error "Repository version ($src_version) is older than installed version ($CURRENT_VERSION). Use --force to downgrade."
+        exit 1
+    fi
+    
+    copy_diff_item() {
+        local src=$1
+        local dest=$2
+        if [ ! -e "$dest" ] || ! diff -r "$src" "$dest" >/dev/null 2>&1; then
+            log_info "Updating: $dest"
+            rm -rf "$dest"
+            cp -r "$src" "$dest"
+        fi
+    }
+    
+    # Merge AGENTS.md block
+    if [ -f "$SCRIPT_DIR/AGENTS.md" ] && [ ! -f "$SRC_INSTALL_TARGET/AGENTS.md" ]; then
+        cp "$SCRIPT_DIR/AGENTS.md" "$SRC_INSTALL_TARGET/AGENTS.md"
+    fi
+    
+    copy_diff_item "$SCRIPT_DIR/AI_RULES.md" "$SRC_INSTALL_TARGET/AI_RULES.md"
+    copy_diff_item "$SCRIPT_DIR/SKILLS.md" "$SRC_INSTALL_TARGET/SKILLS.md"
+    copy_diff_item "$SCRIPT_DIR/agents" "$SRC_INSTALL_TARGET/agents"
+    copy_diff_item "$SCRIPT_DIR/runtime" "$SRC_INSTALL_TARGET/runtime"
+    mkdir -p "$SRC_INSTALL_TARGET/docs"
+    copy_diff_item "$SCRIPT_DIR/docs/release-guide.md" "$SRC_INSTALL_TARGET/docs/release-guide.md"
+    
+    # Copy active skills
+    local src_skills=$(python3 -c "import json, sys; print(' '.join([s.get('name') if isinstance(s, dict) else str(s) for s in json.load(open(sys.argv[1])).get('skills', [])]))" "$SCRIPT_DIR/MANIFEST.json" 2>/dev/null || echo "")
+    for skill in $src_skills; do
+        copy_diff_item "$SCRIPT_DIR/skills/$skill" "$SRC_INSTALL_TARGET/skills/$skill"
+    done
+    
+    # Copy templates
+    if [ -d "$SCRIPT_DIR/templates" ]; then
+        mkdir -p "$SRC_INSTALL_TARGET/templates"
+        cp -r "$SCRIPT_DIR/templates/"* "$SRC_INSTALL_TARGET/templates/" 2>/dev/null || true
+    fi
+    
+    # Update local manifest.json
     python3 -c "
 import json, sys
-try:
-    with open(sys.argv[1], 'r', encoding='utf-8') as f:
-        data = json.load(f)
-    skills = data.get('skills', [])
-    names = []
-    for s in skills:
-        if isinstance(s, dict):
-            names.append(s.get('name'))
+data = json.load(open(sys.argv[1]))
+data['release_channel'] = sys.argv[3]
+json.dump(data, open(sys.argv[2], 'w'), indent=2, ensure_ascii=False)
+" "$SCRIPT_DIR/MANIFEST.json" "$TARGET_MANIFEST" "$RELEASE_CHANNEL"
+    
+    log_success "AI Skill Framework has been successfully updated locally to v$src_version!"
+}
+
+# 3. Fetch online manifest
+BASE_URL="https://raw.githubusercontent.com/kyleit/AI-Agent-Workflow/main"
+MANIFEST_URL="$BASE_URL/releases/manifest.json"
+if [ "$RELEASE_CHANNEL" = "beta" ]; then
+    MANIFEST_URL="$BASE_URL/releases/manifest-beta.json"
+elif [ "$RELEASE_CHANNEL" = "alpha" ]; then
+    MANIFEST_URL="$BASE_URL/releases/manifest-alpha.json"
+fi
+
+log_info "Fetching online manifest from $MANIFEST_URL..."
+HTTP_CODE=0
+MANIFEST_CONTENT=""
+
+if command -v curl &> /dev/null; then
+    MANIFEST_CONTENT=$(curl -sSL -w "%{http_code}" -o tmp_manifest.json "$MANIFEST_URL" || echo "000")
+    HTTP_CODE="${MANIFEST_CONTENT: -3}"
+    MANIFEST_CONTENT="${MANIFEST_CONTENT%???}"
+    if [ "$HTTP_CODE" -eq 200 ] && [ -f tmp_manifest.json ]; then
+        MANIFEST_CONTENT=$(cat tmp_manifest.json)
+        rm -f tmp_manifest.json
+    else
+        rm -f tmp_manifest.json
+        HTTP_CODE=0
+    fi
+elif command -v wget &> /dev/null; then
+    if wget -q -O tmp_manifest.json "$MANIFEST_URL"; then
+        HTTP_CODE=200
+        MANIFEST_CONTENT=$(cat tmp_manifest.json)
+        rm -f tmp_manifest.json
+    fi
+fi
+
+if [ "$HTTP_CODE" -ne 200 ]; then
+    log_warn "Failed to connect to the update server. HTTP status: $HTTP_CODE"
+    if [ -f "$SCRIPT_DIR/MANIFEST.json" ]; then
+        run_local_sync
+        exit 0
+    else
+        log_error "Offline and no local repository source found. Cannot update."
+        exit 1
+    fi
+fi
+
+# Parse target version using Python
+TARGET_VERSION=$(python3 -c "
+import json, sys
+data = json.loads(sys.argv[1])
+channel = sys.argv[2]
+ver = data.get('latest_' + channel)
+if not ver:
+    releases = data.get('releases', [])
+    matched = []
+    for r in releases:
+        c = r.get('channel', 'stable')
+        is_ok = False
+        if channel == 'alpha':
+            is_ok = True
+        elif channel == 'beta':
+            if c in ('stable', 'beta') or '-rc.' in r.get('version', ''):
+                is_ok = True
         else:
-            names.append(str(s))
-    print(' '.join(filter(None, names)))
-except Exception:
-    pass
-" "$file"
-}
+            if c == 'stable':
+                is_ok = True
+        if is_ok:
+            matched.append(r)
+    if matched:
+        def semver_key(r):
+            v = r.get('version', '').lstrip('v')
+            parts = v.split('-')
+            main = [int(x) if x.isdigit() else x for x in parts[0].split('.')]
+            pre = parts[1] if len(parts) > 1 else 'z'
+            return (main, pre)
+        matched.sort(key=semver_key, reverse=True)
+        ver = matched[0].get('version')
+print(ver or '')
+" "$MANIFEST_CONTENT" "$RELEASE_CHANNEL")
 
-SRC_INSTALL_TARGET=$(get_manifest_val "installation_target" "$SCRIPT_DIR/MANIFEST.json")
-SRC_VERSION=$(get_manifest_val "version" "$SCRIPT_DIR/MANIFEST.json")
-SRC_SKILL_DIR=$(get_manifest_val "skill_directory" "$SCRIPT_DIR/MANIFEST.json")
-SRC_TEMPLATE_DIR=$(get_manifest_val "template_directory" "$SCRIPT_DIR/MANIFEST.json")
-
-# Verify current directory has target installation
-is_git_worktree() {
-  git rev-parse --is-inside-work-tree >/dev/null 2>&1
-}
-
-get_git_root() {
-  git rev-parse --show-toplevel 2>/dev/null
-}
-
-IS_GIT_REPO=false
-PROJECT_ROOT="."
-
-if command -v git &> /dev/null && is_git_worktree; then
-    IS_GIT_REPO=true
-    PROJECT_ROOT="$(get_git_root)"
-elif [ -d ".git" ] || [ -f ".git" ]; then
-    IS_GIT_REPO=true
-    PROJECT_ROOT="."
-fi
-
-if [ "$IS_GIT_REPO" = true ]; then
-    cd "$PROJECT_ROOT" || exit 1
-fi
-
-TARGET_MANIFEST="$SRC_INSTALL_TARGET/MANIFEST.json"
-if [ ! -f "$TARGET_MANIFEST" ]; then
-    log_error "No active installation found at $SRC_INSTALL_TARGET/MANIFEST.json"
-    log_error "Please run install.sh first to set up the framework."
+if [ -z "$TARGET_VERSION" ]; then
+    log_error "Could not find a valid release version for channel '$RELEASE_CHANNEL' in manifest."
     exit 1
 fi
 
-TARGET_VERSION=$(get_manifest_val "version" "$TARGET_MANIFEST")
-log_info "Detected Installed Version: v$TARGET_VERSION"
-log_info "Available Repository Version: v$SRC_VERSION"
+DOWNLOAD_URL=$(python3 -c "
+import json, sys
+data = json.loads(sys.argv[1])
+version = sys.argv[2]
+for r in data.get('releases', []):
+    if r.get('version') == version:
+        print(r.get('download_url', ''))
+        break
+" "$MANIFEST_CONTENT" "$TARGET_VERSION")
 
-# Version comparison
-if [ "$SRC_VERSION" = "$TARGET_VERSION" ] && [ "$FORCE" = false ]; then
-    log_success "AI Skill Framework is already up to date (v$TARGET_VERSION)."
+EXPECTED_HASH=$(python3 -c "
+import json, sys
+data = json.loads(sys.argv[1])
+version = sys.argv[2]
+for r in data.get('releases', []):
+    if r.get('version') == version:
+        print(r.get('sha256', ''))
+        break
+" "$MANIFEST_CONTENT" "$TARGET_VERSION")
+
+if [ -z "$DOWNLOAD_URL" ]; then
+    log_error "Could not find download URL for version $TARGET_VERSION in manifest."
+    exit 1
+fi
+
+log_info "Available Online Version: v$TARGET_VERSION"
+
+# Version check
+CMP=$(compare_semver "$TARGET_VERSION" "$CURRENT_VERSION")
+if [ "$CMP" -eq 0 ] && [ "$FORCE" = false ]; then
+    log_success "AI Skill Framework is already up to date (v$CURRENT_VERSION)."
     exit 0
 fi
-
-# Function to check version newer (simple string/integer comparison)
-# Returns 0 if newer, 1 otherwise
-version_gt() {
-    test "$(echo "$@" | tr " " "\n" | sort -rV | head -n 1)" == "$1";
-}
-
-if ! version_gt "$SRC_VERSION" "$TARGET_VERSION" && [ "$FORCE" = false ]; then
-    log_warn "Installed version v$TARGET_VERSION is newer than source version v$SRC_VERSION."
-    log_warn "Use --force to downgrade."
+if [ "$CMP" -lt 0 ] && [ "$FORCE" = false ]; then
+    log_error "Remote version ($TARGET_VERSION) is older than current version ($CURRENT_VERSION). Downgrade blocked. Use --force to downgrade."
     exit 1
 fi
 
-log_info "Synchronizing installation..."
+# Download ZIP package
+log_info "Downloading release v$TARGET_VERSION from $DOWNLOAD_URL..."
+TEMP_ZIP="/tmp/ai-agent-workflow-update.zip"
+if [ ! -d "/tmp" ]; then
+    TEMP_ZIP="$SCRIPT_DIR/ai-agent-workflow-update.zip"
+fi
+rm -f "$TEMP_ZIP"
 
-# Calculate changes in skills
-SRC_SKILLS=$(get_skills_list "$SCRIPT_DIR/MANIFEST.json")
-TARGET_SKILLS=$(get_skills_list "$TARGET_MANIFEST")
+if command -v curl &> /dev/null; then
+    curl -sSL -o "$TEMP_ZIP" "$DOWNLOAD_URL"
+elif command -v wget &> /dev/null; then
+    wget -q -O "$TEMP_ZIP" "$DOWNLOAD_URL"
+fi
 
-NEW_SKILLS=""
-UPDATED_SKILLS=""
-REMOVED_SKILLS=""
+if [ ! -f "$TEMP_ZIP" ]; then
+    log_error "Failed to download ZIP package from $DOWNLOAD_URL"
+    exit 1
+fi
 
-for skill in $SRC_SKILLS; do
-    if echo "$TARGET_SKILLS" | grep -q "^$skill$"; then
-        UPDATED_SKILLS="$UPDATED_SKILLS $skill"
-    else
-        NEW_SKILLS="$NEW_SKILLS $skill"
+# Verify Checksum
+log_info "Verifying checksum..."
+if command -v sha256sum &> /dev/null; then
+    CALCULATED_HASH=$(sha256sum "$TEMP_ZIP" | cut -d' ' -f1)
+elif command -v shasum &> /dev/null; then
+    CALCULATED_HASH=$(shasum -a 256 "$TEMP_ZIP" | cut -d' ' -f1)
+else
+    CALCULATED_HASH=$(python3 -c "
+import hashlib, sys
+h = hashlib.sha256()
+with open(sys.argv[1], 'rb') as f:
+    for chunk in iter(lambda: f.read(65536), b''):
+        h.update(chunk)
+print(h.hexdigest())
+" "$TEMP_ZIP")
+fi
+
+CLEAN_EXPECTED_HASH=$(echo "$EXPECTED_HASH" | tr '[:upper:]' '[:lower:]' | tr -d '[:space:]')
+CLEAN_CALCULATED_HASH=$(echo "$CALCULATED_HASH" | tr '[:upper:]' '[:lower:]' | tr -d '[:space:]')
+
+if [ "$CLEAN_CALCULATED_HASH" != "$CLEAN_EXPECTED_HASH" ]; then
+    log_error "Checksum verification failed!"
+    log_error "Expected SHA256: $CLEAN_EXPECTED_HASH"
+    log_error "Actual SHA256:   $CLEAN_CALCULATED_HASH"
+    rm -f "$TEMP_ZIP"
+    exit 1
+fi
+log_success "Checksum verified successfully."
+
+# Backup configurations
+log_info "Backing up local configurations..."
+BACKUP_TEMP_DIR="$SCRIPT_DIR/.agents_backup_temp"
+rm -rf "$BACKUP_TEMP_DIR"
+mkdir -p "$BACKUP_TEMP_DIR"
+
+FILES_TO_BACKUP=(
+    ".session.json"
+    "state"
+    "config"
+    "memory.config.json"
+    "obsidian.config.json"
+    "project.config.json"
+    "workflow.config.json"
+    "release.config.json"
+)
+
+for item in "${FILES_TO_BACKUP[@]}"; do
+    src_path="$SRC_INSTALL_TARGET/$item"
+    if [ -e "$src_path" ]; then
+        cp -R "$src_path" "$BACKUP_TEMP_DIR/$item"
     fi
 done
 
-for skill in $TARGET_SKILLS; do
-    if ! echo "$SRC_SKILLS" | grep -q "^$skill$"; then
-        REMOVED_SKILLS="$REMOVED_SKILLS $skill"
-    fi
-done
-
-# Perform copy updates
-copy_diff_item() {
-    local src=$1
-    local dest=$2
-    
-    # Simple copy if different or doesn't exist
-    if [ ! -e "$dest" ] || ! diff -r "$src" "$dest" >/dev/null 2>&1; then
-        log_info "Updating: $dest"
-        rm -rf "$dest"
-        cp -r "$src" "$dest"
-    fi
-}
-
-merge_agents_block() {
-    local file_path=$1
-    local src_agents=$2
-    
-    local block_content='<!-- AIWF:RULES:BEGIN -->
-# AI Engineering Workflow Agents
-
-Every AI agent working inside this project **MUST** follow the AI Workflow Framework.
-
-## Primary Workflow
-
-Before executing any task:
-
-1. Load and follow all policies defined in `AI_RULES.md` (the single source of truth).
-2. Load the workflow resources from:
-
-   * `.agents/skills/`
-   * `.agents/runtime/`
-   * `.agents/templates/`
-3. Use the matching workflow Skill whenever one exists.
-4. Respect runtime checkpoints and resume rules.
-5. Never bypass approval gates or other framework policies.
-
-## Global Policies
-
-The following policies are defined in `AI_RULES.md` and apply to every task:
-
-1. Approval Gate Policy
-2. Git Workflow Policy
-3. Memory First Policy
-4. RAG Policy
-5. Artifact Policy
-6. Versioning Policy
-7. Documentation Policy
-8. Testing Policy
-9. Release Policy
-10. Workflow Phase Separation Policy
-11. Absolute Path Prohibition Policy
-
-`AI_RULES.md` is the **single source of truth** for all shared framework behavior. If any instruction conflicts with another document, follow `AI_RULES.md`.
-
-GitHub Repository: https://github.com/kyleit/AI-Agent-Workflow
-
-<!-- AIWF:RULES:END -->'
-
-    if [ ! -f "$file_path" ]; then
-        log_info "Creating: $file_path (copying template)"
-        cp "$src_agents" "$file_path"
+# Safe extraction
+log_info "Extracting update package..."
+try_unzip() {
+    if [ -d "$SRC_INSTALL_TARGET" ]; then
+        rm -rf "$SRC_INSTALL_TARGET"/*
     else
-        log_info "Updating managed block in $file_path"
+        mkdir -p "$SRC_INSTALL_TARGET"
+    fi
+
+    if command -v unzip &> /dev/null; then
+        unzip -q -o "$TEMP_ZIP" -d "$SRC_INSTALL_TARGET"
+    else
         python3 -c "
-import sys, re
-file_path = sys.argv[1]
-block = sys.argv[2]
-with open(file_path, 'r', encoding='utf-8') as f:
-    content = f.read()
+import zipfile, sys
+with zipfile.ZipFile(sys.argv[1], 'r') as zip_ref:
+    zip_ref.extractall(sys.argv[2])
+" "$TEMP_ZIP" "$SRC_INSTALL_TARGET"
+    fi
 
-begin = '<!-- AIWF:RULES:BEGIN -->'
-end = '<!-- AIWF:RULES:END -->'
-has_begin = begin in content
-has_end = end in content
-
-if has_begin and has_end:
-    new_content = re.sub(re.escape(begin) + r'.*?' + re.escape(end), block, content, flags=re.DOTALL)
-elif has_begin or has_end:
-    clean = content.replace(begin, '').replace(end, '').strip()
-    new_content = (clean + '\n\n' + block) if clean else block
-else:
-    trimmed = content.strip()
-    new_content = block if not trimmed else trimmed + '\n\n' + block
-
-with open(file_path, 'w', encoding='utf-8') as f:
-    f.write(new_content)
-" "$file_path" "$block_content"
+    # Unpack nested directory
+    local nested_count=$(ls -1 "$SRC_INSTALL_TARGET" | wc -l | tr -d '[:space:]')
+    if [ "$nested_count" -eq 1 ] && [ -d "$SRC_INSTALL_TARGET"/* ]; then
+        local nested_dir=$(echo "$SRC_INSTALL_TARGET"/*)
+        log_info "Unpacking nested folder: $(basename "$nested_dir")"
+        mv "$nested_dir"/* "$SRC_INSTALL_TARGET"/ 2>/dev/null || true
+        mv "$nested_dir"/.* "$SRC_INSTALL_TARGET"/ 2>/dev/null || true
+        rm -rf "$nested_dir"
     fi
 }
 
-# Copy changed runtime files
-merge_agents_block "$SRC_INSTALL_TARGET/AGENTS.md" "$SCRIPT_DIR/AGENTS.md"
-copy_diff_item "$SCRIPT_DIR/AI_RULES.md" "$SRC_INSTALL_TARGET/AI_RULES.md"
-copy_diff_item "$SCRIPT_DIR/SKILLS.md" "$SRC_INSTALL_TARGET/SKILLS.md"
-copy_diff_item "$SCRIPT_DIR/agents" "$SRC_INSTALL_TARGET/agents"
-copy_diff_item "$SCRIPT_DIR/runtime" "$SRC_INSTALL_TARGET/runtime"
-mkdir -p "$SRC_INSTALL_TARGET/docs"
-copy_diff_item "$SCRIPT_DIR/docs/release-guide.md" "$SRC_INSTALL_TARGET/docs/release-guide.md"
-copy_diff_item "$SCRIPT_DIR/MANIFEST.json" "$SRC_INSTALL_TARGET/MANIFEST.json"
-
-# Ensure .gitignore exists in target and ignores logs
-ensure_gitignore() {
-    local gitignore_file="$SRC_INSTALL_TARGET/.gitignore"
-    if [ ! -f "$gitignore_file" ]; then
-        log_info "Creating: $gitignore_file"
-        cat << 'EOF' > "$gitignore_file"
-.session.json
-state/
-runtime/*.db
-runtime/*.db-journal
-runtime/*.db-wal
-runtime/env_cache.json
-runtime/logs/
-EOF
-    else
-        if ! grep -Fxq "runtime/logs/" "$gitignore_file" && ! grep -Fxq "runtime/logs" "$gitignore_file"; then
-            log_info "Adding runtime/logs/ to $gitignore_file"
-            echo "runtime/logs/" >> "$gitignore_file"
-        fi
+if ! try_unzip; then
+    log_error "Failed to extract ZIP update. Reverting changes..."
+    if [ -d "$BACKUP_TEMP_DIR" ]; then
+        mkdir -p "$SRC_INSTALL_TARGET"
+        cp -R "$BACKUP_TEMP_DIR"/* "$SRC_INSTALL_TARGET"/ 2>/dev/null || true
+        cp -R "$BACKUP_TEMP_DIR"/.* "$SRC_INSTALL_TARGET"/ 2>/dev/null || true
+        log_info "Rollback completed. Original configuration restored."
     fi
-}
-ensure_gitignore
-
-# Initialize a clean .session.json if missing, or upgrade if it is in the old flat format
-SESSION_FILE="$SRC_INSTALL_TARGET/.session.json"
-if [ ! -f "$SESSION_FILE" ] || ! grep -q '"workspace": {' "$SESSION_FILE"; then
-    log_info "Creating or upgrading .session.json to the new nested format..."
-    cat << 'EOF' > "$SESSION_FILE"
-{
-  "workspace": {
-    "path": ".",
-    "valid": true
-  },
-  "git": {
-    "is_git_repository": true,
-    "branch": "main",
-    "working_tree": "clean",
-    "default_branch": "main",
-    "latest_tag": "none"
-  },
-  "work_item": {
-    "type": "N/A",
-    "id": "N/A",
-    "title": "Awaiting active task selection..."
-  },
-  "version": {
-    "version": "1.0.0",
-    "source": "MANIFEST.json"
-  },
-  "memory": {
-    "status": "MISSING",
-    "last_updated": ""
-  },
-  "rag": {
-    "connected": false,
-    "provider": "none"
-  },
-  "checkpoint": 1,
-  "current_skill": "initialize-workflow",
-  "current_step": "Awaiting initial command",
-  "context_health": "healthy"
-}
-EOF
+    rm -f "$TEMP_ZIP"
+    rm -rf "$BACKUP_TEMP_DIR"
+    exit 1
 fi
 
-# Update active skills
-for skill in $SRC_SKILLS; do
-    copy_diff_item "$SCRIPT_DIR/$SRC_SKILL_DIR/$skill" "$SRC_INSTALL_TARGET/$SRC_SKILL_DIR/$skill"
-done
-
-# Update templates
-if [ -d "$SCRIPT_DIR/$SRC_TEMPLATE_DIR" ]; then
-    mkdir -p "$SRC_INSTALL_TARGET/$SRC_TEMPLATE_DIR"
-    cp -r "$SCRIPT_DIR/$SRC_TEMPLATE_DIR/"* "$SRC_INSTALL_TARGET/$SRC_TEMPLATE_DIR/" 2>/dev/null || true
+# Restore configurations
+log_info "Restoring configurations..."
+if [ -d "$BACKUP_TEMP_DIR" ]; then
+    cp -R "$BACKUP_TEMP_DIR"/* "$SRC_INSTALL_TARGET"/ 2>/dev/null || true
+    cp -R "$BACKUP_TEMP_DIR"/.* "$SRC_INSTALL_TARGET"/ 2>/dev/null || true
+    rm -rf "$BACKUP_TEMP_DIR"
 fi
 
-# Print report summary
-log_success "AI Skill Framework has been successfully updated to v$SRC_VERSION!"
+# Update version in target manifest
+if [ -f "$TARGET_MANIFEST" ]; then
+    python3 -c "
+import json, sys
+path = sys.argv[1]
+ver = sys.argv[2]
+channel = sys.argv[3]
+try:
+    with open(path, 'r', encoding='utf-8') as f:
+        data = json.load(f)
+    data['version'] = ver
+    data['release_channel'] = channel
+    with open(path, 'w', encoding='utf-8') as f:
+        json.dump(data, f, indent=2, ensure_ascii=False)
+except Exception as e:
+    print('Warn: failed to update target manifest version:', e)
+" "$TARGET_MANIFEST" "$TARGET_VERSION" "$RELEASE_CHANNEL"
+fi
+
+rm -f "$TEMP_ZIP"
+log_success "AI Skill Framework has been successfully updated online to v$TARGET_VERSION!"
 echo "--------------------------------------------------"
-echo "Upgrade Summary:"
-if [ -n "$NEW_SKILLS" ]; then
-    echo "  New Skills:     $NEW_SKILLS"
-fi
-if [ -n "$UPDATED_SKILLS" ]; then
-    echo "  Updated Skills: $UPDATED_SKILLS"
-fi
-if [ -n "$REMOVED_SKILLS" ]; then
-    echo -e "  \033[1;33m[DEPRECATED]\033[0m Legacy skills found in installation target (safe deletion recommended):"
-    for rskill in $REMOVED_SKILLS; do
-        echo "    - $SRC_INSTALL_TARGET/$SRC_SKILL_DIR/$rskill"
-    done
-fi
-echo "--------------------------------------------------"
-log_info "Run project-memory-update to sync changes with Project Memory."
+log_info "Run doctor.sh to confirm workspace integrity."

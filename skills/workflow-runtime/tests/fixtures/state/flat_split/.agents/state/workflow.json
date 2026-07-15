@@ -1,8 +1,0 @@
-{
-  "current_skill": "blueprint-to-implementation",
-  "checkpoint": 5,
-  "feature_id": "FEAT-048",
-  "phase": "implementation",
-  "_source": "flat_split",
-  "_note": "Flat split state: all files in .agents/state/ root, no subdirectories"
-}

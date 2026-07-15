@@ -118,6 +118,68 @@ class ReleaseGate:
                 f"All phases must complete before release."
             )
 
+        # Condition 9: Manual Gate 3 Release Approval and Tag/Channel Validation
+        import json
+        manifest_path = os.path.join(self._workspace_root or ".", ".agents", "MANIFEST.json")
+        if not os.path.exists(manifest_path):
+            manifest_path = os.path.join(self._workspace_root or ".", "MANIFEST.json")
+            
+        version = "0.0.0"
+        if os.path.exists(manifest_path):
+            try:
+                with open(manifest_path, "r", encoding="utf-8") as f:
+                    manifest_data = json.load(f)
+                version = manifest_data.get("version", "0.0.0")
+            except Exception:
+                pass
+                
+        tag = f"v{version}" if not version.startswith("v") else version
+        
+        is_alpha = bool(re.match(r"^v\d+\.\d+\.\d+-alpha\.\d+$", tag))
+        is_beta = bool(re.match(r"^v\d+\.\d+\.\d+-beta\.\d+$", tag))
+        is_rc = bool(re.match(r"^v\d+\.\d+\.\d+-rc\.\d+$", tag))
+        is_stable = bool(re.match(r"^v\d+\.\d+\.\d+$", tag))
+        
+        if not (is_alpha or is_beta or is_rc or is_stable):
+            failures.append(f"Release version tag '{tag}' does not comply with SemVer 2.0.0 format rules.")
+        
+        from state_store import get_state_store
+        try:
+            store = get_state_store()
+            approvals = store.get("approvals") or {}
+            release_app = approvals.get("release", {}) or approvals.get("gate3", {})
+            feature_id = ledger.get("feature_id", "UNKNOWN")
+            
+            if is_alpha:
+                if not release_app.get("approved"):
+                    failures.append("Alpha release requires Maintainer Approval. Missing manual Gate 3 Release Approval in approvals.json.")
+            elif is_beta or is_rc:
+                if not release_app.get("approved"):
+                    failures.append("Beta/RC release requires Tester & Architect Approval. Missing manual Gate 3 Release Approval in approvals.json.")
+                
+                # Check Architecture Compliance Score
+                arch_paths = [
+                    os.path.join(self._workspace_root or ".", "docs", "verification", f"{feature_id}_architecture_verify.md"),
+                    os.path.join(self._workspace_root or ".", "docs", "reviews", f"{feature_id}_architecture_verify.md")
+                ]
+                arch_path = next((p for p in arch_paths if os.path.exists(p)), None)
+                if arch_path:
+                    try:
+                        with open(arch_path, "r", encoding="utf-8") as f:
+                            arch_content = f.read()
+                        score_match = re.search(r"Architecture Compliance Score\s*:\s*(\d+)", arch_content, re.IGNORECASE)
+                        if score_match:
+                            score = int(score_match.group(1))
+                            if score < 95:
+                                failures.append(f"Architecture Compliance Score is {score}/100, which is below the required 95/100 for Beta/RC.")
+                    except Exception:
+                        pass
+            elif is_stable:
+                if not release_app.get("approved"):
+                    failures.append("Stable release requires Final Release Approval Gate (Release Manager & Stakeholder Approval). Missing manual Gate 3 Release Approval in approvals.json.")
+        except Exception:
+            pass
+
         if failures:
             reason = (
                 f"Release blocked for {ledger.get('feature_id', 'UNKNOWN')}:\n"

@@ -602,3 +602,45 @@ class PatchIntegrationQueue:
         if "OVERLAP_CONFLICT" in patch_content:
             overlaps.append("src/core/scheduler.py")
         return overlaps
+
+
+class ParallelWriteOverlapException(Exception):
+    pass
+
+
+class ParallelWriteValidator:
+    def __init__(self, workspace_root: str = "."):
+        self.workspace_root = workspace_root
+
+    def validate_parallel_execution(self, packages: list) -> bool:
+        write_sets = []
+        for pkg in packages:
+            wset = set()
+            for path in pkg.get("write_set", []):
+                norm = os.path.normpath(path).replace('\\', '/')
+                wset.add(norm)
+            write_sets.append(wset)
+            
+        for i in range(len(write_sets)):
+            for j in range(i + 1, len(write_sets)):
+                if write_sets[i] & write_sets[j]:
+                    return False
+        return True
+
+    def check_global_file_conflicts(self, packages: list) -> bool:
+        try:
+            from dag_planner import GLOBAL_FILES
+        except ImportError:
+            GLOBAL_FILES = frozenset([
+                "package.json", "package-lock.json", "pnpm-lock.yaml", "yarn.lock",
+                "go.mod", "go.sum", "pyproject.toml", "requirements.txt", "requirements-dev.txt",
+                ".agents/.session.json", ".agents/state/dashboard.json", ".agents/runtime/workers.json",
+                ".agents/runtime/file-locks.json", ".agents/runtime/implementation-ledger.json",
+            ])
+            
+        for pkg in packages:
+            for path in pkg.get("write_set", []):
+                basename = os.path.basename(path)
+                if basename in GLOBAL_FILES or path in GLOBAL_FILES:
+                    return True
+        return False

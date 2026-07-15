@@ -83,7 +83,7 @@ Review the implementation, verify builds, resolve compilation and linting issues
 5.  **Unit Tests Execution**: Run unit tests corresponding to the stack:
     - **Go**: `go test ./...`
     - **Node**: `npm test` or `vitest run`
-    - **Python**: `pytest`
+    - **Python**: `python skills/workflow-runtime/scripts/workflow_runtime.py test affected` (or explicit blueprint test lists)
     - **Rust**: `cargo test`
 6.  **Fix Compilation & Runtime Errors**: If any checks fail, analyze stderr, locate the bugs, and apply minimal fixes.
 7.  **Logging & Error Handling**: Improve logging visibility, format, and ensure proper try-catch/error propagation.

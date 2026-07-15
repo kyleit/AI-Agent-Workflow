@@ -5,6 +5,16 @@ All notable changes to this project will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [6.17.0-alpha.1] - 2026-07-15
+
+### Added
+- **Release Channels (FEAT-407)**:
+  - Triển khai cơ chế phân kênh phát hành (stable, beta, alpha).
+  - Cập nhật update.ps1 và update.sh để nhận phiên bản từ CDN manifest.
+  - Tự động lọc CHANGELOG và đóng gói skills tương ứng kênh.
+- **Post-Release Lifecycle (FEAT-408)**:
+  - Tích hợp kỹ năng quản lý vòng đời sau phát hành 10 bước tự động.
+
 ## [6.16.0] - 2026-07-13
 
 ### Added

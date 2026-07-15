@@ -1,7 +1,7 @@
 {
   "name": "ai-skill-framework",
   "description": "A reusable collection of engineering skills for AI coding agents to manage SDLC lifecycle",
-  "version": "6.16.0",
+  "version": "6.17.0-alpha.1",
   "min_ai_platform_version": "1.0.0",
   "author": {
     "name": "Kyle Dang",
@@ -708,5 +708,6 @@
       "skill-self-verification",
       "vir-verify"
     ]
-  }
+  },
+  "release_channel": "develop"
 }
