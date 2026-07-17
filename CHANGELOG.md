@@ -5,6 +5,14 @@ All notable changes to this project will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [6.17.0] - 2026-07-17
+
+### Added
+- **Architecture Review Skill**:
+  - Triển khai Skill mới `architecture-review` để thực hiện đánh giá kiến trúc thiết kế hệ thống trước khi tiếp tục giai đoạn Blueprint.
+- **Post-Release Lifecycle Skill**:
+  - Triển khai Skill mới `post-release-lifecycle` đại diện cho quy trình kiểm định, giám sát và vận hành 10 bước nghiêm ngặt sau phát hành.
+
 ## [6.17.0-alpha.2] - 2026-07-17
 
 ### Added

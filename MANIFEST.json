@@ -1,7 +1,7 @@
 {
   "name": "ai-skill-framework",
   "description": "A reusable collection of engineering skills for AI coding agents to manage SDLC lifecycle",
-  "version": "6.17.0-alpha.2",
+  "version": "6.17.0",
   "min_ai_platform_version": "1.0.0",
   "author": {
     "name": "Kyle Dang",
@@ -812,6 +812,51 @@
       ],
       "phase": "verification",
       "execution_mode": "sequential"
+    },
+    {
+      "name": "architecture-review",
+      "command": "audit-arch",
+      "aliases": [
+        "arch-review",
+        "check-arch"
+      ],
+      "category": "architecture",
+      "tags": [
+        "architecture",
+        "design",
+        "review",
+        "compliance"
+      ],
+      "owner_agent": "reviewer",
+      "specialist_agents": [
+        "qa-reviewer",
+        "diagnostics-specialist"
+      ],
+      "phase": "blueprint",
+      "execution_mode": "sequential"
+    },
+    {
+      "name": "post-release-lifecycle",
+      "command": "post-release",
+      "aliases": [
+        "post-ship",
+        "post-lifecycle"
+      ],
+      "category": "review",
+      "tags": [
+        "release",
+        "post-release",
+        "operational",
+        "monitoring",
+        "maintenance"
+      ],
+      "owner_agent": "release-manager",
+      "specialist_agents": [
+        "infrastructure-developer",
+        "devops-developer"
+      ],
+      "phase": "verification",
+      "execution_mode": "sequential"
     }
   ],
   "templates": [
@@ -843,7 +888,8 @@
       "blueprint-to-implementation",
       "frontend-visual-debug",
       "implementation-to-release",
-      "vir-investigate"
+      "vir-investigate",
+      "post-release-lifecycle"
     ],
     "memory": [
       "project-memory-bootstrap",
@@ -858,7 +904,8 @@
       "project-discovery"
     ],
     "architecture": [
-      "create-adr"
+      "create-adr",
+      "architecture-review"
     ],
     "runtime": [
       "initialize-workflow",
