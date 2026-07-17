@@ -857,6 +857,27 @@
       ],
       "phase": "verification",
       "execution_mode": "sequential"
+    },
+    {
+      "name": "workflow-coordinator",
+      "command": "tick",
+      "aliases": [
+        "coordinate",
+        "dispatch"
+      ],
+      "category": "workflow",
+      "tags": [
+        "orchestrator",
+        "workflow",
+        "runtime",
+        "stateless"
+      ],
+      "owner_agent": "release-manager",
+      "specialist_agents": [
+        "workflow-auditor"
+      ],
+      "phase": "orchestration",
+      "execution_mode": "sequential"
     }
   ],
   "templates": [
@@ -889,7 +910,8 @@
       "frontend-visual-debug",
       "implementation-to-release",
       "vir-investigate",
-      "post-release-lifecycle"
+      "post-release-lifecycle",
+      "workflow-coordinator"
     ],
     "memory": [
       "project-memory-bootstrap",
