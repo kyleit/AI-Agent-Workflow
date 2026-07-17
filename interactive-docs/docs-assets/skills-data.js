@@ -259,6 +259,96 @@ const skillsData = [
     input: "Verified visual evidence hoặc lesson outcome.",
     output: "Memory update notes, baseline references hoặc learning artifacts.",
     pitfall: "Chỉ cập nhật memory khi có kết quả đã xác minh; không lưu giả thuyết chưa kiểm chứng như fact."
+  },
+  {
+    name: "project-memory-bootstrap",
+    command: "/memory-init",
+    category: "memory",
+    checkpoint: "N/A",
+    purpose: "Phân tích toàn diện dự án lần đầu tiên và tạo ra đầy đủ các lớp Project Memory trong thư mục .agents/memory/ theo kiến trúc Script-First.",
+    input: "Thư mục gốc dự án (workspace), cấu hình memory.config.json",
+    output: "Các file Project Memory bao gồm .agents/memory/project-summary.md và .agents/memory/memory-state.json",
+    pitfall: "Không chạy bootstrap nếu memory đã tồn tại và đang hoạt động tốt; tránh quét toàn bộ workspace lặp đi lặp lại."
+  },
+  {
+    name: "project-rag-search",
+    command: "/memory-search",
+    category: "memory",
+    checkpoint: "N/A",
+    purpose: "Cung cấp khả năng tìm kiếm ngữ nghĩa nhanh chóng cho tri thức dự án phục vụ các kỹ năng AI khác theo kiến trúc Script-First.",
+    input: "Câu truy vấn tìm kiếm bằng ngôn ngữ tự nhiên",
+    output: "Danh sách các đoạn văn bản tri thức liên quan nhất kèm theo nguồn và điểm số tương đồng (similarity scores)",
+    pitfall: "Tránh lạm dụng tìm kiếm RAG khi tri thức mục tiêu đã có sẵn trong Project Memory cục bộ được cache."
+  },
+  {
+    name: "skill-self-verification",
+    command: "/verify-skill",
+    category: "quality",
+    checkpoint: "N/A",
+    purpose: "Tự động hóa kiểm thử chấp nhận hành vi (BAT) để đánh giá luồng tương tác, trải nghiệm người dùng (UX) và giá trị của các kỹ năng mới/sửa đổi trước khi phát hành.",
+    input: "Tên kỹ năng cần kiểm thử, tham số cấu hình BAT, các kịch bản kiểm thử giả lập",
+    output: "Báo cáo kết quả Behavioral Acceptance Testing (BAT), so sánh diff mã nguồn và đánh giá UX quantitative",
+    pitfall: "Tránh chạy tự động không có mục tiêu hoặc bỏ qua các approval gates thật sự được mock trong quá trình chạy."
+  },
+  {
+    name: "python-development",
+    command: "/python-dev",
+    category: "implementation",
+    checkpoint: "N/A",
+    purpose: "Hướng dẫn các tác vụ phát triển Python bao gồm quản lý gói, kiểm thử, định dạng mã và kiểm tra lỗi (linting).",
+    input: "Yêu cầu sửa đổi/viết mã Python, mã nguồn hiện tại, tài liệu blueprint",
+    output: "Mã nguồn Python chất lượng cao đã qua định dạng, kiểm thử và linting đầy đủ",
+    pitfall: "Tránh chạy pip install global khi chưa xác nhận virtualenv; tránh bỏ qua pytest warnings."
+  },
+  {
+    name: "python-patterns",
+    command: "/python-patterns",
+    category: "architecture",
+    checkpoint: "N/A",
+    purpose: "Hướng dẫn áp dụng các mẫu thiết kế (design patterns) Python, quyết định kiến trúc, nguyên lý OOP và các thực hành viết code sạch (clean code).",
+    input: "Yêu cầu thiết kế kiến trúc, blueprint kỹ thuật, sơ đồ cấu trúc",
+    output: "Bản phác thảo thiết kế kiến trúc, đề xuất mẫu thiết kế phù hợp và code mẫu chuẩn hóa",
+    pitfall: "Tránh lạm dụng các mẫu thiết kế phức tạp (over-engineering) cho các tác vụ đơn giản; giữ cấu trúc tối giản và dễ bảo trì."
+  },
+  {
+    name: "go-development",
+    command: "/go-dev",
+    category: "implementation",
+    checkpoint: "N/A",
+    purpose: "Hướng dẫn các tác vụ phát triển Go bao gồm modules, build, test, lint và cấu trúc dịch vụ cơ bản.",
+    input: "Yêu cầu sửa đổi/viết mã nguồn Go, tài liệu blueprint kỹ thuật",
+    output: "Mã nguồn Go idiomatic, đã build và chạy test/lint thành công",
+    pitfall: "Tránh bỏ qua xử lý lỗi tường minh (if err != nil); không sử dụng package global bừa bãi."
+  },
+  {
+    name: "golang-pro",
+    command: "/golang-pro",
+    category: "implementation",
+    checkpoint: "N/A",
+    purpose: "Hướng dẫn lập trình Go nâng cao bao gồm lập trình đồng thời (goroutines, channels), đo kiểm hiệu năng (profiling), gRPC, generics và kiến trúc microservices.",
+    input: "Yêu cầu tối ưu hóa hiệu năng, xử lý concurrency, gRPC API design",
+    output: "Mã nguồn Go tối ưu, không có race condition, gRPC files, profiling data",
+    pitfall: "Cảnh giác với goroutine leaks do thiếu hủy context; sử dụng mutex/channel không cẩn thận gây deadlock."
+  },
+  {
+    name: "csharp-dotnet-pro",
+    command: "/csharp-dotnet",
+    category: "implementation",
+    checkpoint: "N/A",
+    purpose: "Hướng dẫn phát triển C# và .NET nâng cao bao gồm .NET 8/9, ASP.NET Core, EF Core, LINQ, async/await, xUnit/NUnit, Clean Architecture và Unity C#.",
+    input: "Yêu cầu sửa đổi/viết mã C#/.NET, cấu hình dự án, tài liệu blueprint",
+    output: "Mã nguồn C#/.NET chất lượng cao, các file project cập nhật, các unit tests tương thích",
+    pitfall: "Cảnh giác với blocking async calls (.Result hoặc .Wait()); không giải phóng đúng tài nguyên dùng IDisposable."
+  },
+  {
+    name: "web-design-guidelines",
+    command: "/web-audit",
+    category: "quality",
+    checkpoint: "N/A",
+    purpose: "Đánh giá mã nguồn giao diện web (UI) và tính tuân thủ các Hướng dẫn Giao diện Web (Web Interface Guidelines), khả năng truy cập (accessibility) và trải nghiệm người dùng (UX).",
+    input: "Đường dẫn file/thư mục UI cần đánh giá, tài liệu thiết kế",
+    output: "Báo cáo audit chi tiết chỉ ra các vi phạm UI/UX, đề xuất cải tiến và giải pháp khắc phục",
+    pitfall: "Tránh tự ý sửa đổi code giao diện trước khi người dùng đồng ý với báo cáo audit; không áp dụng các quy chuẩn quá cứng nhắc làm mất đi tính độc đáo của thiết kế."
   }
 ];
 

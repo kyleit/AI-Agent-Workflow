@@ -10,10 +10,6 @@ tags:
   - lifecycle
   - engineering
 version: 4.1.0
-author:
-  name: Kyle Dang
-  email: kyleit@klexpress.net
-  website: https://www.klexpress.net
 license: MIT
 repository: https://gitlab.com/hngan.it/ai-workflow-skills
 created_at: 2026-07-03
@@ -40,6 +36,14 @@ runtime_requirements:
 This Skill is the **central coordinator** of the entire AI Coding Platform. It acts as a **Project Manager** to determine the current phase, verify Quality Gates, check Blueprint approvals, perform raw request classification, and recommend the single correct next Skill to run.
 
 It does NOT perform any engineering work, code modification, or file writing.
+
+---
+
+## 🔒 WORKFLOW RUNTIME & INITIALIZATION CHECK
+
+This Skill interfaces with the centralized Python CLI Runtime Engine:
+- **Validate Checkpoint**: Run `python skills/workflow-runtime/scripts/workflow_runtime.py validate --checkpoint "optional"` before taking any action.
+- **Progress Tracking**: Update status and log progress using `workflow_runtime.py` when integrated in a workflow session.
 
 ---
 

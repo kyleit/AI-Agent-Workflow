@@ -10,10 +10,6 @@ tags:
   - bootstrap
   - environment
 version: 2.5.0
-author:
-  name: Kyle Dang
-  email: kyleit@klexpress.net
-  website: https://www.klexpress.net
 license: MIT
 repository: https://gitlab.com/hngan.it/ai-workflow-skills
 created_at: 2026-07-03
@@ -430,6 +426,108 @@ docker run -d \
 sleep 3
 curl -s http://localhost:6333/healthz
 ```
+
+If not running and Docker is NOT available:
+```
+Qdrant can be run standalone as a pre-compiled binary if Docker is not installed/running.
+Please download the latest release for your platform from:
+https://api.github.com/repos/qdrant/qdrant/releases/latest
+
+Once downloaded and extracted, start the standalone server:
+```bash
+./qdrant
+```
+Verify it is running:
+```bash
+curl -s http://localhost:6333/healthz
+```
+
+##### Automated Background Installation (All Platforms):
+Alternatively, you can run the helper scripts provided in the repository to automatically download, install, launch Qdrant hidden in the background, and register it to start at user/system startup:
+
+- **Windows**:
+  ```powershell
+  powershell -ExecutionPolicy Bypass -File tools/setup_qdrant_windows.ps1
+  ```
+- **Linux**:
+  ```bash
+  bash tools/setup_qdrant_linux.sh
+  ```
+- **macOS**:
+  ```bash
+  bash tools/setup_qdrant_macos.sh
+  ```
+
+
+To configure Qdrant to automatically start with the operating system as a service:
+
+##### Windows (Task Scheduler)
+Create a Windows Scheduled Task to launch the binary silently at system startup:
+```powershell
+Register-ScheduledTask -TaskName "QdrantService" `
+  -Trigger (New-ScheduledTaskTrigger -AtStartup) `
+  -Action (New-ScheduledTaskAction -Execute "C:\path\to\qdrant.exe" -WorkingDirectory "C:\path\to\") `
+  -Principal (New-ScheduledTaskPrincipal -UserId "SYSTEM" -LogonType ServiceAccount)
+```
+
+##### Linux (systemd)
+1. Copy the `qdrant` binary to `/usr/local/bin/qdrant`.
+2. Create `/etc/systemd/system/qdrant.service` with:
+```ini
+[Unit]
+Description=Qdrant Vector Database
+After=network.target
+
+[Service]
+Type=simple
+ExecStart=/usr/local/bin/qdrant
+Restart=always
+RestartSec=5
+LimitNOFILE=65535
+
+[Install]
+WantedBy=multi-user.target
+```
+3. Enable and start the service:
+```bash
+sudo systemctl daemon-reload
+sudo systemctl enable qdrant
+sudo systemctl start qdrant
+```
+
+##### macOS (launchd)
+1. Copy the `qdrant` binary to `/usr/local/bin/qdrant`.
+2. Create `~/Library/LaunchAgents/co.qdrant.plist` with:
+```xml
+<?xml version="1.0" encoding="UTF-8"?>
+<!DOCTYPE plist PUBLIC "-//Apple//DTD PLIST 1.0//EN" "http://www.apple.com/DTDs/PropertyList-1.0.dtd">
+<plist version="1.0">
+<dict>
+    <key>Label</key>
+    <string>co.qdrant</string>
+    <key>ProgramArguments</key>
+    <array>
+        <string>/usr/local/bin/qdrant</string>
+    </array>
+    <key>RunAtLoad</key>
+    <true/>
+    <key>KeepAlive</key>
+    <true/>
+</dict>
+</plist>
+```
+3. Load the launch agent:
+```bash
+launchctl load ~/Library/LaunchAgents/co.qdrant.plist
+```
+
+
+> [!IMPORTANT]
+> **Embedding Model Download Warning**:
+> When Qdrant is integrated with local embedding pipelines (such as FastEmbed or Python's `sentence-transformers`), starting the database or initializing the collection for the first time will trigger a download of the configured embedding model.
+> - This model download (e.g., BGE, Nomic) is typically hundreds of megabytes to several gigabytes and can take a significant amount of time depending on network speed.
+> - If the download is interrupted or fails, the vector collection cannot be initialized and Qdrant will be unusable for semantic search.
+> - **Verification Action**: Always verify that the model has finished downloading. Monitor Qdrant or execution logs and confirm that the collection initialization has succeeded.
 
 After starting, check if configured collection exists:
 ```bash

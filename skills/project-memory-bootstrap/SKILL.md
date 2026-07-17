@@ -9,6 +9,10 @@ tags:
   - bootstrap
   - initialization
 version: 2.5.0
+license: MIT
+repository: https://gitlab.com/hngan.it/ai-workflow-skills
+created_at: 2026-07-15
+updated_at: 2026-07-15
 description: Perform a full first-run analysis of the project and generate complete Project Memory. Script-First Architecture.
 runtime_requirements:
   rules: required
@@ -29,12 +33,30 @@ runtime_requirements:
 ## Purpose
 Perform a complete, first-time analysis of the current project and generate all Project Memory layers under `.agents/memory/`.
 
+---
+
+## 🔒 WORKFLOW RUNTIME & INITIALIZATION CHECK
+
+This Skill interfaces with the centralized Python CLI Runtime Engine:
+- **Validate Checkpoint**: Run `python skills/workflow-runtime/scripts/workflow_runtime.py validate --checkpoint "optional"` before taking any action.
+- **Progress Tracking**: Update status and log progress using `workflow_runtime.py` when integrated in a workflow session.
+
+---
+
+## 🔒 GLOBAL POLICY REFERENCES
+
+This Skill strictly adheres to the global policies defined in [AI_RULES.md](../../AI_RULES.md):
+- **Approval Gate Policy** (Section 1) - Seek explicit confirmation before modifying code or creating files.
+- **Memory First Policy** (Section 3) - Consult project summary/memory before source files or user questions.
+- **RAG Policy** (Section 4) - Follow retrieval sequence levels.
+- **Artifact Policy** (Section 5) - Strictly follow path boundaries and naming formats.
+
+---
 ## Script Invocation
 Execute the Python CLI command:
 ```bash
-python3 runtime/scripts/project_memory/cli.py bootstrap
+python3 .agents/runtime/scripts/project_memory/cli.py bootstrap
 ```
-*(Nếu chạy trong thư mục phân phối, sử dụng: `python3 .agents/runtime/scripts/project_memory/cli.py bootstrap`)*
 
 ## Expected Output
 The script returns a structured JSON payload:

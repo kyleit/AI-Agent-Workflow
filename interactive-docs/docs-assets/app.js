@@ -265,11 +265,12 @@ const simStepsData = {
     {
       title: "Implementation từ Blueprint",
       cli: "python skills/workflow-runtime/scripts/workflow_runtime.py start --skill \"blueprint-to-implementation\" --command \"implement\" --checkpoint 6 --step \"Implement approved blueprint\"",
-      agentAction: "Chỉ sửa các file có trong blueprint đã duyệt. Các thay đổi ngoài scope hoặc refactor không liên quan bị chặn.",
+      agentAction: "Chỉ sửa các file có trong blueprint đã duyệt. Hệ thống tự động gợi ý và định tuyến đến các kỹ năng ngôn ngữ chuyên biệt (Python, Go, C#/.NET) hoặc UI/accessibility dựa trên tech stack được mô tả trong Blueprint.",
       gate: "proceed",
       terminal: [
         { type: "prompt", text: "$ python skills/workflow-runtime/scripts/workflow_runtime.py start --skill \"blueprint-to-implementation\" --command \"implement\" --checkpoint 6 --step \"Implement approved blueprint\"" },
-        { type: "output", text: "Applying scoped file changes from blueprint." },
+        { type: "output", text: "Blueprint stack detected: python/go/csharp/ui. Routing helper skills." },
+        { type: "output", text: "Applying scoped file changes using language/UI helper skills." },
         { type: "success", text: "Implementation phase complete." }
       ]
     },
@@ -356,11 +357,11 @@ const simStepsData = {
     {
       title: "Pha 3: Implement scoped files",
       cli: "python skills/workflow-runtime/scripts/workflow_runtime.py step --step \"Implementation Phase\"",
-      agentAction: "Chỉ sửa file đã liệt kê trong blueprint. Ví dụ với docs site: index.html, app.js, skills-data.js và CSS nếu có overflow.",
+      agentAction: "Chỉ sửa file đã liệt kê trong blueprint. Ở pha này, quick-feature tự động gọi và áp dụng các kỹ năng ngôn ngữ (Python, Go, C#) hoặc UI tương ứng sau khi được duyệt Blueprint.",
       gate: "proceed",
       terminal: [
         { type: "prompt", text: "$ python skills/workflow-runtime/scripts/workflow_runtime.py step --step \"Implementation Phase\"" },
-        { type: "output", text: "Applying approved docs-site changes only." },
+        { type: "output", text: "Applying approved docs-site changes using language/UI skills after blueprint approval." },
         { type: "success", text: "Scoped implementation complete." }
       ]
     },

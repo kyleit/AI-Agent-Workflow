@@ -10,10 +10,6 @@ tags:
   - quality
   - compliance
 version: 1.0.0
-author:
-  name: Kyle Dang
-  email: kyleit@klexpress.net
-  website: https://www.klexpress.net
 license: MIT
 repository: https://gitlab.com/hngan.it/ai-workflow-skills
 created_at: 2026-07-04
@@ -108,21 +104,46 @@ status: [PASS | FAIL]
 [Brief description of the verification activities and audit outcome]
 
 ## 2. Verification Checklist
-| Quality Gate Item | Status | Verification Details |
-| :--- | :---: | :--- |
-| **Acceptance Criteria** | [PASS | FAIL] | [Notes on validation tests] |
-| **Blueprint Compliance** | [PASS | FAIL] | [Check file layouts and interfaces] |
-| **Coding Standards** | [PASS | FAIL] | [Check naming, error checks, formatting] |
-| **Security Audits** | [PASS | FAIL] | [Input sanitization, permissions check] |
-| **Performance Check** | [PASS | FAIL] | [No resource leaks, fast DB queries] |
-| **Tests Coverage** | [PASS | FAIL] | [Existing test validation] |
-| **Runtime Validation Pipeline** | [PASS | FAIL] | [Verify build, start, ready, smoke test, and graceful shutdown] |
-| **DDD / Clean Architecture** | [PASS | FAIL] | [Verify Architecture Compliance Score >= 95/100, no Critical Violations. Check docs/verification/FEAT-XXX_architecture_verify.md] |
-| **Documentation & Changelog**| [PASS | FAIL] | [Verify changelog readiness] |
+Giai đoạn phải đáp ứng toàn bộ các tiêu chí kiểm duyệt dưới đây (đặc biệt là tiêu chí đường dẫn tương đối):
 
-## 3. Go / No-Go Recommendation
+| # | Tiêu chí đánh giá | Trạng thái | Điều kiện đạt & Ghi chú |
+|---|---|:---:|---|
+| 1 | Tương thích đường dẫn | [ ] PASS | 100% đường dẫn trong mã nguồn, script, kết quả và tài liệu là đường dẫn tương đối hoặc đã được làm sạch. Không có URL tệp tuyệt đối, đường dẫn ổ đĩa, đường dẫn tuyệt đối của macOS hoặc Linux, mã xác thực hoặc log chứa đường dẫn tuyệt đối. |
+| 2 | Build và chạy runtime thật | [ ] PASS | App, service, UI, CLI hoặc worker build lại thành công, runtime thật mở được, surface tích hợp thật sẵn sàng, và không còn tiến trình treo sau kiểm thử. |
+| 3 | Kiểm thử runtime thật | [ ] PASS | Kiểm thử gọi vào runtime đang chạy qua surface thật phù hợp như IPC, API, UI, CLI, SDK, job queue hoặc service, không chỉ kiểm thử đơn vị hoặc phản chiếu. Luồng thành công chính, luồng lỗi hợp lệ, luồng hồi quy và dọn dẹp đều đạt. |
+| 4 | Đầy đủ chức năng | [ ] PASS | Giai đoạn triển khai đủ lệnh hoặc API bắt buộc, không có phần giữ chỗ chưa hoàn thiện, không bỏ sót hành vi cũ quan trọng. |
+| 5 | Dễ đọc và dễ bảo trì | [ ] PASS | Mã nguồn, script và kết quả rõ ràng, có cấu trúc, đặt tên dễ hiểu, ít trùng lặp và không lan phạm vi ngoài giai đoạn. |
+| 6 | Tuân thủ rule, Memory/RAG và skill trong project | [ ] PASS | Người điều phối và tác nhân đã đọc rule trong project, ưu tiên Memory First/RAG First bằng `./.agents/skills/project-rag-search` khi cần ngữ cảnh, chọn skill phù hợp từ `./.agents/skills`, đọc hướng dẫn skill trước khi làm, ghi rule/skill trong prompt/báo cáo và không tạo bản rule hoặc skill trùng lặp ở nơi khác. |
+| 7 | An toàn dữ liệu và dọn dẹp | [ ] PASS | Kiểm thử chụp nhanh và khôi phục cấu hình, không tạo rác ở Màn hình nền hoặc thư mục tạm, không lộ mã xác thực hoặc bí mật, không để lại tiến trình app hoặc kiểm thử. |
+| 8 | Tuân thủ tài liệu & Truy vết | [ ] PASS | Bắt buộc chạy và đánh giá điểm chất lượng tài liệu đạt từ 95/100 điểm trở lên bằng cách sử dụng skill [document-compliance-assessment](file:///Volumes/Kyle/AgentsProject/.agents/skills/document-compliance-assessment/SKILL.md) và đính kèm báo cáo Document Compliance Report. |
+
+## 3. Điều kiện bắt buộc đánh FAIL (NO-GO)
+Giai đoạn phải bị đánh FAIL (NO-GO) nếu gặp bất kỳ lỗi nào dưới đây (báo cáo đánh giá bị vô hiệu):
+1. Có đường dẫn tuyệt đối thật trong mã nguồn, script, kết quả hoặc tài liệu thuộc phạm vi giai đoạn.
+2. Build thất bại.
+3. Ứng dụng không mở được.
+4. Surface tích hợp thật của runtime không sẵn sàng (ví dụ: IPC token/pipe, API endpoint, UI route, CLI command, SDK entrypoint hoặc service health).
+5. Ca kiểm thử runtime chính thất bại.
+6. Kiểm thử chỉ là kiểm thử đơn vị hoặc phản chiếu (reflection) mà chưa gọi vào runtime thật.
+7. Có tiến trình app hoặc kiểm thử còn treo sau khi kiểm thử kết thúc.
+8. Kết quả chứa mã xác thực, bí mật hoặc dữ liệu chưa được làm sạch.
+9. Có luồng tự ý tắt app, service hoặc runtime trong khi luồng điều phối chính chưa cho phép.
+10. Chưa đủ bằng chứng thực tế nhưng báo cáo đạt.
+11. Bỏ qua các skill phù hợp sẵn có trong `./.agents/skills` mà không có lý do được chấp nhận.
+12. Tự ý copy hoặc tạo bản sao skill, prompt hoặc workflow mới ở thư mục khác khi project đã có skill tương ứng.
+13. Bỏ qua rule của project hoặc không chứng minh đã đọc rule bắt buộc.
+14. Tạo rule song song làm lệch hướng `PROJECT_RULES.md`, `./.agents/AGENTS.md` hoặc `./.agents/AI_RULES.md`.
+15. Quét mã nguồn hoặc hỏi thiết kế trước khi tra cứu Project Memory và dùng `./.agents/skills/project-rag-search` khi cần ngữ cảnh.
+
+## Đánh giá tuân thủ tài liệu (Document Compliance Report)
+*(Bắt buộc hoàn thành đánh giá tài liệu bằng skill `document-compliance-assessment` trước khi đề xuất Go)*
+
+- **Documentation Traceability Score**: <diem>/100
+- **Trạng thái**: [ĐẠT | KHÔNG ĐẠT]
+
+## 4. Go / No-Go Recommendation
 - **Recommendation**: [GO | NO-GO]
-- **Justification**: [Summary of reasons why this code should or should not proceed to production release. Must have Architecture Score >= 95/100 to Go]
+- **Justification**: [Summary of reasons why this code should or should not proceed to production release. Must satisfy all checklist items to Go]
 
 ## 4. Remaining Risks
 - **Risk**: [Risk] → **Mitigation**: [Mitigation]

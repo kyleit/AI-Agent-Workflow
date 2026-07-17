@@ -5,6 +5,14 @@ All notable changes to this project will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [6.17.0-alpha.2] - 2026-07-17
+
+### Added
+- **Document Compliance Assessment Skill**:
+  - Triển khai Skill mới `document-compliance-assessment` để đánh giá điểm tuân thủ tài liệu và truy vết (Documentation Traceability Score) dựa trên quy tắc điều phối hệ thống.
+  - Tích hợp kiểm duyệt chất lượng tài liệu vào Skill `debug-to-verify` thông qua bảng checklist và mẫu báo cáo Document Compliance Report mới.
+  - Cập nhật công cụ đóng gói release `tools/export.js` để tự động xóa sạch thông tin tác giả khỏi các tệp tin `SKILL.md` khi xuất bản sang `public_export`.
+
 ## [6.16.0] - 2026-07-13
 
 ### Added

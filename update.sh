@@ -180,6 +180,10 @@ copy_diff_item() {
     local src=$1
     local dest=$2
     
+    if [ ! -e "$src" ]; then
+        return 0
+    fi
+    
     # Simple copy if different or doesn't exist
     if [ ! -e "$dest" ] || ! diff -r "$src" "$dest" >/dev/null 2>&1; then
         log_info "Updating: $dest"
@@ -192,47 +196,6 @@ merge_agents_block() {
     local file_path=$1
     local src_agents=$2
     
-    local block_content='<!-- AIWF:RULES:BEGIN -->
-# AI Engineering Workflow Agents
-
-Every AI agent working inside this project **MUST** follow the AI Workflow Framework.
-
-## Primary Workflow
-
-Before executing any task:
-
-1. Load and follow all policies defined in `AI_RULES.md` (the single source of truth).
-2. Load the workflow resources from:
-
-   * `.agents/skills/`
-   * `.agents/runtime/`
-   * `.agents/templates/`
-3. Use the matching workflow Skill whenever one exists.
-4. Respect runtime checkpoints and resume rules.
-5. Never bypass approval gates or other framework policies.
-
-## Global Policies
-
-The following policies are defined in `AI_RULES.md` and apply to every task:
-
-1. Approval Gate Policy
-2. Git Workflow Policy
-3. Memory First Policy
-4. RAG Policy
-5. Artifact Policy
-6. Versioning Policy
-7. Documentation Policy
-8. Testing Policy
-9. Release Policy
-10. Workflow Phase Separation Policy
-11. Absolute Path Prohibition Policy
-
-`AI_RULES.md` is the **single source of truth** for all shared framework behavior. If any instruction conflicts with another document, follow `AI_RULES.md`.
-
-GitHub Repository: https://github.com/kyleit/AI-Agent-Workflow
-
-<!-- AIWF:RULES:END -->'
-
     if [ ! -f "$file_path" ]; then
         log_info "Creating: $file_path (copying template)"
         cp "$src_agents" "$file_path"
@@ -241,12 +204,23 @@ GitHub Repository: https://github.com/kyleit/AI-Agent-Workflow
         python3 -c "
 import sys, re
 file_path = sys.argv[1]
-block = sys.argv[2]
-with open(file_path, 'r', encoding='utf-8') as f:
-    content = f.read()
+src_path = sys.argv[2]
 
 begin = '<!-- AIWF:RULES:BEGIN -->'
 end = '<!-- AIWF:RULES:END -->'
+
+with open(src_path, 'r', encoding='utf-8') as f:
+    src_content = f.read()
+
+match = re.search(re.escape(begin) + r'.*?' + re.escape(end), src_content, flags=re.DOTALL)
+if not match:
+    block = src_content
+else:
+    block = match.group(0)
+
+with open(file_path, 'r', encoding='utf-8') as f:
+    content = f.read()
+
 has_begin = begin in content
 has_end = end in content
 
@@ -261,11 +235,12 @@ else:
 
 with open(file_path, 'w', encoding='utf-8') as f:
     f.write(new_content)
-" "$file_path" "$block_content"
+" "$file_path" "$src_agents"
     fi
 }
 
 # Copy changed runtime files
+mkdir -p "$SRC_INSTALL_TARGET"
 merge_agents_block "$SRC_INSTALL_TARGET/AGENTS.md" "$SCRIPT_DIR/AGENTS.md"
 copy_diff_item "$SCRIPT_DIR/AI_RULES.md" "$SRC_INSTALL_TARGET/AI_RULES.md"
 copy_diff_item "$SCRIPT_DIR/SKILLS.md" "$SRC_INSTALL_TARGET/SKILLS.md"

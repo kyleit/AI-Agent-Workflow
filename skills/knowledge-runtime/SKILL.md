@@ -12,10 +12,6 @@ tags:
   - cache
   - search
 version: 1.0.0
-author:
-  name: Kyle Dang
-  email: kyleit@klexpress.net
-  website: https://www.klexpress.net
 license: MIT
 repository: https://gitlab.com/hngan.it/ai-workflow-skills
 created_at: 2026-07-09
@@ -37,8 +33,22 @@ runtime_requirements:
 
 # Knowledge Runtime Skill
 
-## 1. Purpose
+## Purpose
 Thư viện tri thức hợp nhất giúp các đại lý/kỹ năng trong AIWF truy cập, tìm kiếm, lưu trữ thông tin dự án qua một cổng duy nhất, ngăn việc đọc file hoặc kết nối các provider thô trực tiếp.
+
+## 🔒 WORKFLOW RUNTIME & INITIALIZATION CHECK
+
+This Skill interfaces with the centralized Python CLI Runtime Engine:
+- **Validate Checkpoint**: Run `python skills/workflow-runtime/scripts/workflow_runtime.py validate --checkpoint "optional"` before taking any action.
+- **Progress Tracking**: Update status and log progress using `workflow_runtime.py` when integrated in a workflow session.
+
+## 🔒 GLOBAL POLICY REFERENCES
+
+This Skill strictly adheres to the global policies defined in [AI_RULES.md](../../AI_RULES.md):
+- **Approval Gate Policy** (Section 1) - Seek explicit confirmation before modifying code or creating files.
+- **Memory First Policy** (Section 3) - Consult project summary/memory before source files or user questions.
+- **RAG Policy** (Section 4) - Follow retrieval sequence levels.
+- **Artifact Policy** (Section 5) - Strictly follow path boundaries and naming formats.
 
 ## 2. Public APIs
 Gói `knowledge_runtime` cung cấp các API công khai sau:
@@ -62,7 +72,7 @@ Cấu hình nhà cung cấp tri thức hỗ trợ hai cấp độ thông qua `pr
         "obsidian": {
           "enabled": true,
           "mode": "file-sync",
-          "vault_root": "/Users/user/Obsidian/Vault",
+          "vault_root": "/path/to/Obsidian/Vault",
           "project_folder_pattern": "AIWF-Knowledge-{project_slug}",
           "create_if_missing": true,
           "sync_structure": true

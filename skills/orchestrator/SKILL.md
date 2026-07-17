@@ -1,5 +1,5 @@
 ---
-name: orchestrator
+name: orchestrator [DEPRECATED]
 command: orchestrate
 aliases:
   - orchestrator
@@ -11,7 +11,11 @@ tags:
   - workflow
   - runtime
 version: 1.0.0
-description: Top-level autonomous execution orchestrator and single entry point of the framework.
+license: MIT
+repository: https://gitlab.com/hngan.it/ai-workflow-skills
+created_at: 2026-07-15
+updated_at: 2026-07-15
+description: (DEPRECATED) Legacy autonomous execution orchestrator. Use workflow-coordinator instead.
 runtime_requirements:
   rules: required
   state: required
@@ -26,7 +30,37 @@ runtime_requirements:
   usage: cached
 ---
 
-# Skill: orchestrator
+# Skill: orchestrator [DEPRECATED]
+
+> [!WARNING]
+> This skill is **DEPRECATED**. Please use the new `workflow-coordinator` skill instead.
+> Legacy commands `orchestrator` and `orchestrate` are shimmed and routed internally to `workflow-coordinator`.
+
+---
+
+## Purpose
+
+(DEPRECATED) Legacy autonomous execution orchestrator. Use workflow-coordinator instead.
+
+---
+
+## 🔒 WORKFLOW RUNTIME & INITIALIZATION CHECK
+
+This Skill interfaces with the centralized Python CLI Runtime Engine:
+- **Validate Checkpoint**: Run `python skills/workflow-runtime/scripts/workflow_runtime.py validate --checkpoint "optional"` before taking any action.
+- **Progress Tracking**: Update status and log progress using `workflow_runtime.py` when integrated in a workflow session.
+
+---
+
+## 🔒 GLOBAL POLICY REFERENCES
+
+This Skill strictly adheres to the global policies defined in [AI_RULES.md](../../AI_RULES.md):
+- **Approval Gate Policy** (Section 1) - Seek explicit confirmation before modifying code or creating files.
+- **Memory First Policy** (Section 3) - Consult project summary/memory before source files or user questions.
+- **RAG Policy** (Section 4) - Follow retrieval sequence levels.
+- **Artifact Policy** (Section 5) - Strictly follow path boundaries and naming formats.
+
+---
 
 ## Overview
 The Orchestrator is the single entry point for all framework workflows. It automatically analyzes user intent, builds the execution DAG, handles file locking, runs tasks sequentially, and manages runtime updates, rendering manual skill selection obsolete.

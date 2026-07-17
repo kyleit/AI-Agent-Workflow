@@ -1769,8 +1769,17 @@ def do_suggest(args):
     session["suggestion_gate"] = suggestion
     update_context_health(session)
     save_session_atomic(session)
-    if not args.choose:
-        print(f"Suggestion gate updated (active={suggestion['active']}, status={suggestion['status']}).")
+    
+    # Format and output JSON suggestion per FEAT-404 blueprint
+    output_dict = {
+        "suggested_next_skill": orchestrator_state.get("recommended_skill") or session.get("workflow", {}).get("suggested_next_skill") or "",
+        "suggested_next_command": orchestrator_state.get("recommended_command") or session.get("workflow", {}).get("suggested_next_command") or "",
+        "reason": orchestrator_state.get("reason") or (
+            "Blueprint approved. Proceeding to implementation." if session.get("blueprint", {}).get("approved") else "Provide new instruction."
+        ),
+        "expected_input": session.get("blueprint", {}).get("path") or ""
+    }
+    print(json.dumps(output_dict, indent=2, ensure_ascii=False))
 
 def do_choice(args) -> None:
     session = load_session()
@@ -5332,7 +5341,7 @@ def main():
     rel_exec = release_sub.add_parser("execute")
     _ = rel_exec.add_argument("--approve", action="store_true")
     
-    orchestrator_p = subparsers.add_parser("orchestrator")
+    orchestrator_p = subparsers.add_parser("orchestrator", aliases=["orchestrate"])
     _ = orchestrator_p.add_argument("--work-item", type=str, help="Work item ID")
     orchestrator_sub = orchestrator_p.add_subparsers(dest="subaction", required=True)
     
@@ -5567,12 +5576,13 @@ def main():
         "test": do_test_action,
         "update-source": do_update_source,
         "orchestrator": do_orchestrator,
+        "orchestrate": do_orchestrator,
         "runtime": do_runtime_action,
         "workflow": do_workflow,
         "session": do_session_command
     }
     
-    modifying_actions = ["init", "start", "step", "complete", "fail", "blueprint", "suggest", "compact", "task", "deps", "execution", "analysis-agent", "choice", "input", "active-workflow", "resume", "discover", "classify", "memory", "env", "debug", "verify", "release", "state", "provider", "knowledge", "orchestrator", "workflow", "session"]
+    modifying_actions = ["init", "start", "step", "complete", "fail", "blueprint", "suggest", "compact", "task", "deps", "execution", "analysis-agent", "choice", "input", "active-workflow", "resume", "discover", "classify", "memory", "env", "debug", "verify", "release", "state", "provider", "knowledge", "orchestrator", "orchestrate", "workflow", "session"]
     if args.action in modifying_actions:
         with SessionLock():
             cmds[args.action](args)

@@ -10,10 +10,6 @@ tags:
   - code
   - generation
 version: 3.2.0
-author:
-  name: Kyle Dang
-  email: kyleit@klexpress.net
-  website: https://www.klexpress.net
 license: MIT
 repository: https://gitlab.com/hngan.it/ai-workflow-skills
 created_at: 2026-07-03
@@ -34,6 +30,10 @@ runtime_requirements:
 ---
 
 # Skill: Blueprint to Implementation (Blueprint-Driven Guardrails)
+
+## Purpose
+
+Enforces Blueprint validation as the sole inputs for implementation, upgraded to support v3.2 JSON blueprints.
 
 ---
 
@@ -78,6 +78,15 @@ Prior to generating any source code, modifying existing files, or conducting any
 - **STOP immediately**.
 - Print the warning: `❌ Implementation aborted: No approved Technical Design Blueprint found. Please generate and get user approval for the blueprint file under docs/designs/ before proceeding.`
 - Halt all file generation and modifications.
+
+---
+
+## 🔒 LANGUAGE SKILL ROUTING MATRIX
+
+When implementing, implementation agents must check the project language and load the corresponding helper skills:
+- **Python**: For `*.py`, FastAPI, Django, Flask, pytest -> load `python-development`; use `python-patterns` for framework/architecture decisions.
+- **Go**: For `*.go`, `go.mod`, Go services -> load `go-development`; use `golang-pro` for goroutines, channels, gRPC, generics, performance, microservices.
+- **C#**: For `*.cs`, `*.csproj`, `*.sln`, ASP.NET Core, EF Core, LINQ, Unity C# -> load `csharp-dotnet-pro`.
 
 ---
 

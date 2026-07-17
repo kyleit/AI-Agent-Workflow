@@ -9,10 +9,6 @@ tags:
   - hotfix
   - quick
 version: 3.2.0
-author:
-  name: Kyle Dang
-  email: kyleit@klexpress.net
-  website: https://www.klexpress.net
 license: MIT
 repository: https://gitlab.com/hngan.it/ai-workflow-skills
 created_at: 2026-07-03
@@ -33,6 +29,10 @@ runtime_requirements:
 ---
 
 # Skill: quick-fix (Three-Phase Workflow with Blueprint-Driven Execution)
+
+## Purpose
+
+Enforces a three-stage workflow (Specification, Blueprint, and Implementation) for quick fixes, upgraded with v3.2 Mini Spec quality standards and rich planning sections.
 
 ---
 

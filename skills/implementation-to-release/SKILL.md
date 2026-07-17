@@ -10,10 +10,6 @@ tags:
   - versioning
   - publish
 version: 3.0.0
-author:
-  name: Kyle Dang
-  email: kyleit@klexpress.net
-  website: https://www.klexpress.net
 license: MIT
 repository: https://gitlab.com/hngan.it/ai-workflow-skills
 created_at: 2026-07-03
@@ -34,6 +30,10 @@ runtime_requirements:
 ---
 
 # Skill: Implementation to Release (Explicit & Blueprint-Validated)
+
+## Purpose
+
+Enforces explicit user-driven releases and requires blueprint validation before any release activities.
 
 ---
 

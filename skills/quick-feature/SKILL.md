@@ -10,10 +10,6 @@ tags:
   - quick
   - minor
 version: 3.3.0
-author:
-  name: Kyle Dang
-  email: kyleit@klexpress.net
-  website: https://www.klexpress.net
 license: MIT
 repository: https://gitlab.com/hngan.it/ai-workflow-skills
 created_at: 2026-07-03
@@ -34,6 +30,10 @@ runtime_requirements:
 ---
 
 # Skill: quick-feature (Three-Phase Workflow with Blueprint-Driven Execution)
+
+## Purpose
+
+Enforces a three-stage workflow (Specification, Blueprint, and Implementation) for quick features, upgraded with v3.2 Mini Spec quality standards and rich planning sections.
 
 ---
 
