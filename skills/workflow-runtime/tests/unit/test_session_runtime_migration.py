@@ -99,8 +99,6 @@ def test_init_does_not_spawn_daemon(setup_mock_workspace):
     assert "READY" in output
     assert "Runtime:" in output
     assert "SESSION_MODE" in output
-    assert "Resident Orchestrator:" in output
-    assert "DISABLED" in output
     assert "Workflow Supervisor:" in output
     assert "READY" in output
     

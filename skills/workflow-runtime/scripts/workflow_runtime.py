@@ -540,8 +540,6 @@ def do_init(args):
     print("READY")
     print("\nRuntime:")
     print("SESSION_MODE")
-    print("\nResident Orchestrator:")
-    print("DISABLED")
     print("\nWorkflow Supervisor:")
     print("READY")
     
