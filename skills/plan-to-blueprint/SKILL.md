@@ -11,6 +11,7 @@ tags:
   - architecture
 version: 3.2.0
 license: MIT
+repository: https://gitlab.com/hngan.it/ai-workflow-skills
 created_at: 2026-07-03
 updated_at: 2026-07-09
 description: Generate a production-grade Technical Blueprint (Markdown & JSON) from an approved Implementation Plan using a Memory-First strategy and the FEAT-XXX Feature ID format.
@@ -25,7 +26,8 @@ runtime_requirements:
   environment: none
   version: cached
   provider: optional
-  usage: cached---
+  usage: cached
+---
 
 # Skill: Plan to Blueprint (FEAT-XXX format)
 
@@ -139,12 +141,36 @@ Every module the blueprint designs MUST be assigned to exactly one of these laye
 
 Dependencies point inward only: Interface/Infrastructure → Application → Domain, never the reverse. State this explicitly per module in Section 3, and reflect it in the Section 2 folder structure using whichever layering convention fits the target language/framework — e.g. `internal/domain|application|infrastructure|interfaces` (Go), `domain|application|infrastructure|api` (Python/FastAPI), `Domain/Application/Infrastructure/Api` (C#/.NET), `src/domain|application|infrastructure|presentation` (TS/Node), or Android/iOS package-per-layer conventions. If the target codebase already has an established layering convention, follow it instead of inventing a new one — check it first (Step 2/3).
 
-### 5b. Mandatory: near-code depth
-"Do NOT implement business logic" (see Constraints) means the blueprint must stop short of final, compilable production code — it does NOT mean staying abstract. For every class/module in Section 3 and every function in Section 4/11, the blueprint must include:
-- Complete type/struct/class field definitions (every field, its type, and its purpose) — not just a class name.
-- Complete method signatures: every parameter with its type and validation rule, and the exact return type(s)/error type(s) — not `def method_name(...)`.
-- A numbered, step-by-step, pseudocode-level description of each non-trivial method's body (branches, loop conditions, error paths, exact calls made to which other module/method) — detailed enough that an implementer transcribes it into working code without having to make design decisions of their own.
-File-by-file and line-level detail is the bar: if a reader could not tell, from the blueprint alone, which file to open and roughly which lines to write, the blueprint is not detailed enough yet.
+### 5b. Mandatory: near-code depth, written as literal code — not prose describing code
+"Do NOT implement business logic" (see Constraints) means the blueprint must stop short of final, compilable production code — it does NOT mean staying abstract, and it does NOT mean describing the code in prose bullet points instead of writing it. **The standard is literal, fenced, real-syntax code blocks in the target language — this is the single most load-bearing rule in this section, added after a real corrective pass where a blueprint written as prose bullets ("- **Fields**: `x: type`...") had to be entirely rewritten as actual code.** For every class/struct/component/module in Section 3 and every function in Section 4/11:
+
+- Write a real fenced code block in the target language (` ```go `, ` ```python `, ` ```csharp `, ` ```svelte `, ` ```js `/`ts`, etc.) containing: the real package/import/namespace declaration; the real type/struct/class/component declaration with **every field given its own one-line doc comment directly above or beside it** (`// field is ... ` / `# field is ...` / JSDoc `/** ... */`, whichever the language's own convention is); and the real method/function signature — every parameter typed, the exact return/error type(s) — followed by a body. The body is either a stub that compiles (e.g. Go's `{ return nil, nil }`, Python's `pass`, a Svelte handler's `{}`) or, when the method is non-trivial, the body **is itself the numbered algorithm, given as line comments inside or immediately above the function** (`// 1. validate X`, `// 2. if Y, return err`, `// 3. call service.Z(...)`) — never as a separate prose bullet list living below/outside the code block.
+- **Anti-pattern — do NOT do this**:
+  ```markdown
+  - **Fields**: `name: Name`, `payload: interface{}`, `requestedAt: time.Time`
+  - **Public Methods**: `NewCommand(name, payload) (*Command, error)` — validates name is non-empty, returns ErrEmptyCommandName if not.
+  ```
+- **Correct pattern — do this instead** (real Go shown; apply the equivalent real syntax for whatever language this blueprint targets):
+  ```go
+  package command
+
+  // Name is a dot-namespaced IPC command identifier, e.g. "app.ping".
+  type Name string
+
+  // Command is the domain value object for one command invocation request.
+  type Command struct {
+      name        Name          // dot-namespaced command identifier
+      payload     interface{}   // arbitrary JSON-serializable request body; nil if none
+      requestedAt time.Time     // construction time, for latency measurement
+  }
+
+  // NewCommand constructs a Command, validating name is non-empty.
+  // 1. Trim whitespace from name; if empty, return ErrEmptyCommandName.
+  // 2. Construct and return &Command{name, payload, time.Now()}.
+  func NewCommand(name Name, payload interface{}) (*Command, error) { return nil, nil }
+  ```
+- This applies identically to every language — a Svelte component's `<script>` block with real `export let propName = default; // doc comment` prop declarations and real `function handlerName(args) { // 1. ...\n // 2. ... }` handlers is the exact same standard as the Go example above, just in Svelte/JS syntax. A Python class needs a real `class Foo:` with typed `__init__` params and real (if stubbed) method bodies with docstrings/comments carrying the numbered steps. There is no language this rule doesn't apply to.
+- File-by-file and line-level detail is the bar: if a reader could not tell, from the blueprint's own code blocks alone, which file to open and roughly which lines to write, the blueprint is not detailed enough yet — and if the detail exists only as prose describing what the code should contain rather than as the code itself, it does not meet this bar regardless of how thorough the prose is.
 
 ### 5c. File splitting is allowed and expected at this depth
 Given the depth required by 5b, a single `phase-blueprint.md` will often become too large. This is expected — split it into multiple companion files within the **same phase folder**, for example:
@@ -195,27 +221,21 @@ Must show the DDD/Clean Architecture layer each new directory belongs to (Domain
 ```
 
 ## 3. Complete Class & Module Design
-For each class/module, state its **Layer** (Domain/Application/Infrastructure/Interface) explicitly. Per §5b, method signatures must be complete (every parameter typed, every return/error type stated) and non-trivial method bodies must carry a numbered, step-by-step pseudocode description — not a one-line abstract summary.
-- **Class / Module Name**: `...`
-  - **Layer**: `[Domain | Application | Infrastructure | Interface]`
-  - **Responsibilities**: [...]
-  - **Fields** (struct/class fields, if any): `field_name type — purpose`
-  - **Constructor Parameters**: `param_name: type` (full list, with what each is used for)
-  - **Public Methods**: full signature in the target language's real syntax — every parameter named and typed, every return/error type stated (e.g. Go: `func (s *Service) MethodName(param1 Type1) (Result, error)`; Python: `def method_name(self, param1: Type1) -> Result`; C#: `public Result MethodName(Type1 param1)`; TS: `methodName(param1: Type1): Result`) (Visibility: public)
-    1. [Step 1 of the method body — validate/branch/call...]
-    2. [Step 2 — ...]
-    3. [Error path — under what condition, what is returned]
-  - **Internal/Private Methods**: same full-signature + step-by-step depth as above (Visibility: internal/private)
-  - **Dependencies**: [other modules/ports this depends on, and which layer they're in]
-  - **Extension Points**: [How subclasses/implementations can extend this]
+For each class/module, state its **Layer** (Domain/Application/Infrastructure/Interface) in one line, then give the class/struct/component itself as a **real fenced code block** per §5b — not the bullet-list shape below (that shape is shown here only to enumerate what the code block must contain; do not render it as prose):
+
+- **Class / Module Name**: `...` — **Layer**: `[Domain | Application | Infrastructure | Interface]`
+  - The fenced code block (§5b) must contain: the real package/import/namespace line; the struct/class/component declaration with every field typed and doc-commented inline; the constructor/factory signature; every public method's full real signature (every parameter typed, exact return/error type) with its body either a compiling stub or the numbered algorithm as line comments inside the body; every internal/private method at the same depth.
+  - **Dependencies** (prose, outside the code block): [other modules/ports this depends on, and which layer they're in]
+  - **Extension Points** (prose, outside the code block): [How subclasses/implementations can extend this]
+
+Narrative fields (Responsibilities, Dependencies, Extension Points) stay as prose around the code block — only the class/struct/component/method definitions themselves must be literal code, per §5b's anti-pattern/correct-pattern example.
 
 ## 4. Detailed Interface Contracts
-- **API Signature**: `def api_name(param1: type) -> return_type`
-  - **Parameters**: `param1` (validation rules, defaults)
-  - **Return Types**: `return_type` description
-  - **Exceptions**: `ExceptionName` thrown under Z conditions
-  - **Validation Rules**: [...]
-  - **Compatibility Notes**: [...]
+Same rule as §3: give the interface/API itself as a real fenced code block (the real signature, typed params, exact return/exception types — per §5b), then prose notes around it:
+- The code block: full real signature in the target language, e.g. `def api_name(param1: Type1, param2: Type2 = default) -> ReturnType:` (Python) or the equivalent real syntax for whatever language this blueprint targets.
+- **Validation Rules** (prose, outside the code block): [...]
+- **Exceptions** (prose or inline in the code block's own doc-comment, per §5b): `ExceptionName` thrown under Z conditions
+- **Compatibility Notes** (prose): [...]
 
 ## 5. Configuration Schema
 - **Current Schema**: [...]
