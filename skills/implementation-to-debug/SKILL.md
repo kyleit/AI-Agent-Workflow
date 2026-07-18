@@ -10,12 +10,7 @@ tags:
   - testing
   - verification
 version: 1.0.0
-author:
-  name: Kyle Dang
-  email: kyleit@klexpress.net
-  website: https://www.klexpress.net
 license: MIT
-repository: https://gitlab.com/hngan.it/ai-workflow-skills
 created_at: 2026-07-04
 updated_at: 2026-07-04
 description: Review the implementation. Identify and resolve problems before verification.
@@ -30,8 +25,7 @@ runtime_requirements:
   environment: cached
   version: cached
   provider: optional
-  usage: cached
----
+  usage: cached---
 
 # Skill: implementation-to-debug
 
@@ -102,13 +96,16 @@ Step 2: Run compiler, build, linter, tests, and runtime validation pipeline
 Step 3: Resolve any errors or test failures
         ↓
 Step 4: Generate Debug Report at docs/debug/FEAT-XXX_debug.md
+        (or docs/debug/FEAT-XXX_phase-NN-<phase-slug>_debug.md when debugging one phase of a
+        multi-phase feature — matches the real, already-used filename convention; do NOT nest
+        phases into subfolders here, unlike docs/blueprints/)
         ↓
 Step 5: Update session checkpoint to 7 & output heartbeat
 ```
 
 ---
 
-## Output Report Format: `docs/debug/FEAT-XXX_debug.md`
+## Output Report Format: `docs/debug/FEAT-XXX_debug.md` (or `..._phase-NN-<phase-slug>_debug.md` — see Workflow Sequence Step 4)
 
 Generate the debug report using this Markdown template:
 
@@ -157,7 +154,7 @@ Status:
 Completed
 
 Report Generated:
-docs/debug/FEAT-XXX_debug.md
+docs/debug/FEAT-XXX_debug.md (or ..._phase-NN-<phase-slug>_debug.md)
 
 Debug Status:
 [PASS | FAIL]

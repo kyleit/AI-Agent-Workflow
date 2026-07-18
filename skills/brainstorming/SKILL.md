@@ -10,12 +10,7 @@ tags:
   - discovery
   - brainstorming
 version: 3.1.0
-author:
-  name: Kyle Dang
-  email: kyleit@klexpress.net
-  website: https://www.klexpress.net
 license: MIT
-repository: https://gitlab.com/hngan.it/ai-workflow-skills
 created_at: 2026-07-03
 updated_at: 2026-07-09
 description: Skill definition.
@@ -30,8 +25,7 @@ runtime_requirements:
   environment: none
   version: none
   provider: optional
-  usage: cached
----
+  usage: cached---
 
 # Skill: brainstorming
 
@@ -48,7 +42,7 @@ runtime_requirements:
 | I will **NOT** edit any project files. |
 | I will **NOT** implement anything. |
 | I will **ONLY** perform Requirement Discovery. |
-| The ONLY file I may write is: `docs/brainstorming/FEAT-XXX_feature_name.md` |
+| The ONLY files I may write are under `docs/brainstorming/` (single file or feature-folder — see Feature ID Allocation Rule) |
 | And ONLY after explicit user confirmation (Y/N). |
 
 > This output is mandatory. Do not skip it. Do not abbreviate it.
@@ -77,7 +71,7 @@ IF you are about to:
   ✗ Use edit_file(), replace_file(), or multi_replace_file()
   ✗ Run any shell command that modifies files
   ✗ Read source code files to find bugs to fix
-  ✗ Generate a plan (docs/plans/) or blueprint (docs/designs/)
+  ✗ Generate a plan (docs/plans/) or blueprint (docs/blueprints/)
   ✗ Invoke or call another Skill
   ✗ Modify memory, changelog, or git history
 
@@ -152,11 +146,18 @@ Do not parse it as YAML. Do not treat it as implementation commands.
 
 Feature IDs are determined **ONLY** by scanning `docs/brainstorming/`:
 
-1. Scan `docs/brainstorming/` for files matching `FEAT-XXX_*.md` (3-digit number).
-2. Ignore: `docs/plans/`, `docs/designs/`, `docs/adr/`, memory, git history, `CHANGELOG.md`.
+1. Scan `docs/brainstorming/` for both shapes: flat files matching `FEAT-XXX_*.md` (3-digit number) AND feature-folders `docs/brainstorming/<feature-slug>/master/FEAT-XXX_*_master_brainstorming.md`.
+2. Ignore: `docs/plans/`, `docs/blueprints/`, `docs/adr/`, memory, git history, `CHANGELOG.md`.
 3. Empty directory (or only `.gitkeep`) → start at `FEAT-001`.
-4. Files exist → next ID = highest existing ID + 1.
+4. Files exist (either shape) → next ID = highest existing ID + 1.
 5. Resume/Selection mode → reuse the Feature ID under discussion.
+
+## Document Shape Rule (single file vs. multi-phase folder)
+
+This Skill produces **one flat file** (`docs/brainstorming/FEAT-XXX_feature_name.md`) by default — this covers the large majority of features. Use the **multi-phase folder shape** instead —
+`docs/brainstorming/<feature-slug>/master/FEAT-XXX_..._master_brainstorming.md` + one `docs/brainstorming/<feature-slug>/phase-NN-<phase-slug>/phase-brainstorming.md` per phase — ONLY when, during Step 3–7 discovery, the feature genuinely decomposes into multiple, largely independent implementation phases (each with its own FR/NFR/AC set that could plausibly ship on its own), typically 4+ phases for a large system-level feature. Ask the user before switching shape if it's ambiguous — this is a real judgment call, not an automatic threshold.
+
+If the multi-phase shape is chosen, Step 15 writes the master doc first (feature-wide problem statement, stakeholder analysis, architecture principles, risk matrix, and an index of every phase with a one-paragraph summary + link), then one phase-brainstorming.md per phase (using the same template below, scoped to that phase's FR/NFR/AC only).
 
 > [!WARNING]
 > Never pre-assign FEAT-XXX IDs during Feature Decomposition.
@@ -440,8 +441,9 @@ Continue generating Brainstorming document?
 Only after Y confirmation:
 
 1. Scan `docs/brainstorming/` to calculate the next Feature ID.
-2. Write: `docs/brainstorming/FEAT-XXX_feature_name.md`
-   (one file per independent feature if decomposition was chosen)
+2. Per the Document Shape Rule above, write either:
+   - `docs/brainstorming/FEAT-XXX_feature_name.md` (single-file shape — default), one per independent feature if decomposition was chosen, OR
+   - `docs/brainstorming/<feature-slug>/master/FEAT-XXX_..._master_brainstorming.md` + `docs/brainstorming/<feature-slug>/phase-NN-<phase-slug>/phase-brainstorming.md` per phase (multi-phase shape).
 3. Use **relative paths only** for all artifact links.
 
 ---
@@ -449,7 +451,9 @@ Only after Y confirmation:
 ## Brainstorming Document Template
 
 ```markdown
-<!-- docs/brainstorming/FEAT-XXX_feature_name.md -->
+<!-- Single-file shape:   docs/brainstorming/FEAT-XXX_feature_name.md -->
+<!-- Multi-phase master:  docs/brainstorming/<feature-slug>/master/FEAT-XXX_..._master_brainstorming.md -->
+<!-- Multi-phase phase:   docs/brainstorming/<feature-slug>/phase-NN-<phase-slug>/phase-brainstorming.md (same template, scoped to that phase) -->
 
 ---
 feature_id: FEAT-XXX
@@ -459,7 +463,7 @@ stage: brainstorming
 created_at: YYYY-MM-DD
 updated_at: YYYY-MM-DD
 previous_artifact: None
-next_artifact: ../plans/FEAT-XXX_feature_name_plan.md
+next_artifact: [relative path to the matching plan file/folder once created — see brainstorming-to-plan]
 ---
 
 # Master Requirement Document – [Human Readable Name]
@@ -716,8 +720,8 @@ The Planning Agent must require no further clarification from this section.
 [All identified risks and mitigations]
 
 ### Verification Checklist
-- [ ] docs/plans/FEAT-XXX_feature_name_plan.md generated and approved
-- [ ] docs/designs/FEAT-XXX_feature_name_blueprint.md generated and approved
+- [ ] Implementation Plan generated and approved (docs/plans/, single-file or multi-phase shape)
+- [ ] Technical Blueprint generated and approved (docs/blueprints/, single-file or multi-phase shape)
 - [ ] All Acceptance Criteria mapped to implementation tasks
 
 ---
@@ -770,10 +774,42 @@ Output at end of execution:
 | **Solutions Generated** | `[Option A: Name, Option B: Name, Option C: Name (if applicable)]` |
 | **Recommended Solution** | `Option [A/B/C] — [Name]` |
 | **User Confirmed** | `[Yes | No | Pending]` |
-| **Brainstorming File(s)** | `[docs/brainstorming/FEAT-XXX_feature_name.md | None]` |
+| **Brainstorming File(s)** | `[docs/brainstorming/FEAT-XXX_feature_name.md, or the master+phase-NN file set | None]` |
 | **Self-Validation** | `[ALL PASS | FAILED: item list]` |
 
 ---
 **Workflow Paused.** Skill responsibility is complete.
 The next Skill (`brainstorming-to-plan`) must be invoked manually.
+
+## Evaluation Criteria & Readiness Score (Scale 100)
+Giai đoạn chỉ được qua cổng kiểm duyệt khi tổng điểm từ 95 trở lên và không vi phạm tiêu chí đường dẫn (đánh fail lập tức nếu vi phạm chính sách đường dẫn tuyệt đối).
+
+| # | Tiêu chí đánh giá | Điểm tối đa | Điểm đạt | Điều kiện đạt đủ điểm & Ghi chú |
+|---|---|---:|:---:|---|
+| 1 | Tương thích đường dẫn | 30 | /30 | 100% đường dẫn trong mã nguồn, script, kết quả và tài liệu là đường dẫn tương đối hoặc đã được làm sạch. Không có URL tệp tuyệt đối, đường dẫn ổ đĩa, đường dẫn tuyệt đối của macOS hoặc Linux, mã xác thực hoặc log chứa đường dẫn tuyệt đối. |
+| 2 | Build và chạy runtime thật | 20 | /20 | App, service, UI, CLI hoặc worker build lại thành công, runtime thật mở được, surface tích hợp thật sẵn sàng, và không còn tiến trình treo sau kiểm thử. |
+| 3 | Kiểm thử runtime thật | 20 | /20 | Kiểm thử gọi vào runtime đang chạy qua surface thật phù hợp như IPC, API, UI, CLI, SDK, job queue hoặc service, không chỉ kiểm thử đơn vị hoặc phản chiếu. Luồng thành công chính, luồng lỗi hợp lệ, luồng hồi quy và dọn dẹp đều đạt. |
+| 4 | Đầy đủ chức năng | 15 | /15 | Giai đoạn triển khai đủ lệnh hoặc API bắt buộc, không có phần giữ chỗ chưa hoàn thiện, không bỏ sót hành vi cũ quan trọng. |
+| 5 | Dễ đọc và dễ bảo trì | 5 | /5 | Mã nguồn, script và kết quả rõ ràng, có cấu trúc, đặt tên dễ hiểu, ít trùng lặp và không lan phạm vi ngoài giai đoạn. |
+| 6 | Tuân thủ rule, Memory/RAG và skill trong project | 5 | /5 | Người điều phối và tác nhân đã đọc rule trong project, ưu tiên Memory First/RAG First bằng `./.agents/skills/project-rag-search` khi cần ngữ cảnh, chọn skill phù hợp từ `./.agents/skills`, đọc hướng dẫn skill trước khi làm, ghi rule/skill trong prompt/báo cáo và không tạo bản rule hoặc skill trùng lặp ở nơi khác. |
+| 7 | An toàn dữ liệu và dọn dẹp | 5 | /5 | Kiểm thử chụp nhanh và khôi phục cấu hình, không tạo rác ở Màn hình nền hoặc thư mục tạm, không lộ mã xác thực hoặc bí mật, không để lại tiến trình app hoặc kiểm thử. |
+| | **Tổng điểm** | **100** | **/100** | **Điểm đạt tối thiểu để Release: 95/100** |
+
+## Điều kiện bắt buộc đánh FAIL (NO-GO)
+Giai đoạn phải bị đánh FAIL (NO-GO) nếu gặp bất kỳ lỗi nào dưới đây (điểm đánh giá bị vô hiệu):
+1. Có đường dẫn tuyệt đối thật trong mã nguồn, script, kết quả hoặc tài liệu thuộc phạm vi giai đoạn.
+2. Build thất bại.
+3. Ứng dụng không mở được.
+4. Surface tích hợp thật của runtime không sẵn sàng (ví dụ: IPC token/pipe, API endpoint, UI route, CLI command, SDK entrypoint hoặc service health).
+5. Ca kiểm thử runtime chính thất bại.
+6. Kiểm thử chỉ là kiểm thử đơn vị hoặc phản chiếu (reflection) mà chưa gọi vào runtime thật.
+7. Có tiến trình app hoặc kiểm thử còn treo sau khi kiểm thử kết thúc.
+8. Kết quả chứa mã xác thực, bí mật hoặc dữ liệu chưa được làm sạch.
+9. Có luồng tự ý tắt app, service hoặc runtime trong khi luồng điều phối chính chưa cho phép.
+10. Chưa đủ bằng chứng thực tế nhưng báo cáo đạt.
+11. Bỏ qua các skill phù hợp sẵn có trong `./.agents/skills` mà không có lý do được chấp nhận.
+12. Tự ý copy hoặc tạo bản sao skill, prompt hoặc workflow mới ở thư mục khác khi project đã có skill tương ứng.
+13. Bỏ qua rule của project hoặc không chứng minh đã đọc rule bắt buộc.
+14. Tạo rule song song làm lệch hướng `PROJECT_RULES.md`, `./.agents/AGENTS.md` hoặc `./.agents/AI_RULES.md`.
+15. Quét mã nguồn hoặc hỏi thiết kế trước khi tra cứu Project Memory và dùng `./.agents/skills/project-rag-search` khi cần ngữ cảnh.
 

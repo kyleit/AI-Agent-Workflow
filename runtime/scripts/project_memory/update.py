@@ -1,4 +1,8 @@
 # update.py
+try:
+    from sentence_transformers import SentenceTransformer
+except ImportError:
+    SentenceTransformer = None
 import os
 import json
 import re
@@ -190,13 +194,71 @@ def run_update(force_full: bool = False) -> dict:
             except Exception as e:
                 log_warn(f"Failed to update known-problems.md: {e}")
                 
-        # 6. Sinh vector-sync-plan.json
+        # 5.5. Phân mảnh các tài liệu markdown thay đổi
+        for file in changed_files:
+            if file.endswith(".md") and (file.startswith(".agents/memory/") or file.startswith("docs/")):
+                full_path = os.path.join(os.getcwd(), file)
+                if os.path.exists(full_path):
+                    try:
+                        with open(full_path, "r", encoding="utf-8") as f:
+                            md_content = f.read()
+                        if md_content.strip():
+                            chunks = chunk_markdown_file(file, md_content)
+                            for c in chunks:
+                                upsert_chunks.append({
+                                    "id": c["id"],
+                                    "text": c["text"],
+                                    "metadata": c["metadata"]
+                                })
+                    except Exception as e:
+                        log_warn(f"Failed to chunk markdown file {file}: {e}")
+                
+        # 6. Sinh vector-sync-plan.json và đồng bộ trực tiếp lên Qdrant nếu sử dụng local Qdrant
         if upsert_chunks:
+            coll_name = config.get("vector_collection", "ai-skill-framework")
             write_vector_sync_plan(
                 paths["vector_sync_plan"],
-                config.get("vector_collection", "ai-skill-framework"),
+                coll_name,
                 upsert_chunks
             )
+            
+            if config.get("vector_provider") == "qdrant" and SentenceTransformer is not None:
+                try:
+                    log_info("> Syncing new vectors directly to Qdrant...")
+                    import urllib.request
+                    import uuid
+                    import traceback
+                    
+                    model = SentenceTransformer('all-MiniLM-L6-v2')
+                    points_to_sync = []
+                    
+                    for chunk in upsert_chunks:
+                        txt = chunk["text"]
+                        vector = model.encode(txt).tolist()
+                        chunk_uuid = str(uuid.uuid5(uuid.NAMESPACE_DNS, chunk["id"]))
+                        points_to_sync.append({
+                            "id": chunk_uuid,
+                            "vector": vector,
+                            "payload": {
+                                "path": chunk.get("metadata", {}).get("file", "unknown.md"),
+                                "content": txt
+                            }
+                        })
+                    
+                    # Cập nhật lên cả 3 collections để giữ tính đồng bộ trong local workspace
+                    for c_name in [coll_name, "ai-skill-framework", "knowledge"]:
+                        target_url = f"http://localhost:6333/collections/{c_name}/points"
+                        req = urllib.request.Request(
+                            target_url,
+                            data=json.dumps({"points": points_to_sync}).encode('utf-8'),
+                            headers={"Content-Type": "application/json"},
+                            method="PUT"
+                        )
+                        with urllib.request.urlopen(req, timeout=10.0) as resp:
+                            pass
+                    log_success(f"Successfully synced {len(points_to_sync)} vectors directly to all Qdrant collections.")
+                except Exception as ex:
+                    log_warn(f"Direct Qdrant sync failed: {ex}\n{traceback.format_exc()}")
             
         # 7. Cập nhật memory-state.json
         current_hash = get_latest_commit_hash()

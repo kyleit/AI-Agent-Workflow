@@ -119,15 +119,19 @@ class WorkflowEntryGateway:
         workflow_id = self.extract_workflow_id(request_text)
         if workflow_id == "FEAT-AUTO":
             max_num = 0
-            for d in ["docs/brainstorming", "docs/designs", "docs/plans", "docs/verification"]:
+            for d in ["docs/brainstorming", "docs/blueprints", "docs/plans", "docs/verification"]:
                 d_path = os.path.join(self.workspace_root, d)
                 if os.path.exists(d_path):
-                    for f in os.listdir(d_path):
-                        match = re.search(r"FEAT-(\d+)", f)
-                        if match:
-                            num = int(match.group(1))
-                            if num > max_num:
-                                max_num = num
+                    # os.walk (not os.listdir) because a feature may use the multi-phase
+                    # folder shape (docs/<stage>/<feature-slug>/master/FEAT-XXX_..._master_*.md),
+                    # where the FEAT-XXX number is nested, not in the top-level directory name.
+                    for _root, _dirs, files in os.walk(d_path):
+                        for f in files:
+                            match = re.search(r"FEAT-(\d+)", f)
+                            if match:
+                                num = int(match.group(1))
+                                if num > max_num:
+                                    max_num = num
             feat_id = max_num + 1 if max_num > 0 else 313
             workflow_id = f"FEAT-{feat_id:03d}"
             

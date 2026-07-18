@@ -9,12 +9,7 @@ tags:
   - hotfix
   - quick
 version: 3.2.0
-author:
-  name: Kyle Dang
-  email: kyleit@klexpress.net
-  website: https://www.klexpress.net
 license: MIT
-repository: https://gitlab.com/hngan.it/ai-workflow-skills
 created_at: 2026-07-03
 updated_at: 2026-07-09
 description: Enforces a three-stage workflow (Specification, Blueprint, and Implementation) for quick fixes, upgraded with v3.2 Mini Spec quality standards and rich planning sections.
@@ -29,10 +24,13 @@ runtime_requirements:
   environment: none
   version: cached
   provider: optional
-  usage: cached
----
+  usage: cached---
 
 # Skill: quick-fix (Three-Phase Workflow with Blueprint-Driven Execution)
+
+## Purpose
+
+Enforces a three-stage workflow (Specification, Blueprint, and Implementation) for quick fixes, upgraded with v3.2 Mini Spec quality standards and rich planning sections.
 
 ---
 
@@ -58,7 +56,7 @@ This Skill MUST interface with the centralized Python CLI Runtime Engine:
 | **Phase 3 (Implementation)**: Implement code only after explicit Blueprint approval. |
 | NO SOURCE CODE will be modified during Phase 1 or Phase 2. |
 | Specification path: `docs/issues/FIX-XXX_issue_name.md` |
-| Design Blueprint path: `docs/designs/FIX-XXX_issue_name_blueprint.md` |
+| Design Blueprint path: `docs/blueprints/FIX-XXX_issue_name_blueprint.md` |
 
 ---
 
@@ -79,7 +77,7 @@ This Skill MUST strictly adhere to the global policies defined in [AI_RULES.md](
 
 ## Capability Boundary & Guardrails
 
-- **No Premature Implementation**: No source code may be created, deleted, or modified before a Technical Design Blueprint is generated under `docs/designs/` and explicitly approved by the user.
+- **No Premature Implementation**: No source code may be created, deleted, or modified before a Technical Design Blueprint is generated under `docs/blueprints/` and explicitly approved by the user.
 - **Validation of Blueprint**: Before code generation, verify that the Blueprint exists, has status `approved` in the session or was explicitly approved by the user in the prompt logs.
 - **No Refactoring**: Implement ONLY the minimal changes described in the approved Blueprint. Do NOT introduce unrelated cleanups, structural refactoring, or database redesigns.
 - **No Downstream Auto-Execution**: Do NOT execute Git commands (commit, push) automatically. Release must only occur if explicitly requested by the user.
@@ -131,12 +129,12 @@ Step 6:  User Approval Gate (Phase 1: Spec Approval)
           - Present the Specification (docs/issues/FIX-XXX_issue_name.md) to the user in chat.
           - [STOP] Wait for the user's explicit chat response to proceed. DO NOT run any more tools.
          ↓
-Step 7:  Generate Technical Design Blueprint (docs/designs/FIX-XXX_issue_name_blueprint.md)
+Step 7:  Generate Technical Design Blueprint (docs/blueprints/FIX-XXX_issue_name_blueprint.md)
           ↓
 Step 8:  User Approval Gate (Phase 2: Blueprint Approval)
           - Run python CLI to register blueprint.
           - **CRITICAL**: The AGENT MUST STOP CALLING TOOLS IMMEDIATELY AND END TURN.
-          - Present the Technical Design Blueprint (docs/designs/FIX-XXX_issue_name_blueprint.md) to the user in chat.
+          - Present the Technical Design Blueprint (docs/blueprints/FIX-XXX_issue_name_blueprint.md) to the user in chat.
           - [STOP] Wait for the user's explicit chat response to proceed. DO NOT run any more tools.
           - Once approved, run python CLI to mark blueprint approved.
          ↓
@@ -341,12 +339,12 @@ Bản thiết kế kỹ thuật (Technical Design Blueprint) ở Phase 2 bắt b
 
 ### Step 7: Generate Technical Design Blueprint
 
-Create the Design Blueprint under `docs/designs/FIX-XXX_issue_name_blueprint.md`.
+Create the Design Blueprint under `docs/blueprints/FIX-XXX_issue_name_blueprint.md`.
 
 Use this template:
 
 ```markdown
-<!-- File path: docs/designs/FIX-XXX_issue_name_blueprint.md -->
+<!-- File path: docs/blueprints/FIX-XXX_issue_name_blueprint.md -->
 ---
 artifact_type: blueprint
 issue_id: FIX-XXX
@@ -393,10 +391,10 @@ Complete directory layout after modifications:
 ### Step 8: User Approval Gate (Blueprint)
 
 1. Register the blueprint via CLI:
-   `python skills/workflow-runtime/scripts/workflow_runtime.py blueprint --path docs/designs/FIX-XXX_issue_name_blueprint.md`
+   `python skills/workflow-runtime/scripts/workflow_runtime.py blueprint --path docs/blueprints/FIX-XXX_issue_name_blueprint.md`
 2. Ask: `Approve Blueprint?` using the CLI `prompt select` command or the `ask_question` tool, and STOP.
 3. Once the choice is resolved as approved (Yes), run:
-   `python skills/workflow-runtime/scripts/workflow_runtime.py blueprint --path docs/designs/FIX-XXX_issue_name_blueprint.md --approve`
+   `python skills/workflow-runtime/scripts/workflow_runtime.py blueprint --path docs/blueprints/FIX-XXX_issue_name_blueprint.md --approve`
    **Do NOT prompt for confirmation again in the chat text.**
 
 ---

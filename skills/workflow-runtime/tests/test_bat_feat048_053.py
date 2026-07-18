@@ -565,11 +565,11 @@ class TestFEAT053_IntegrationStress(unittest.TestCase):
             logger.emit("VerifyPassed", {"feature_id": "FEAT-BAT-E2E"})
 
             # Step 5: Tạo debug/verify reports đúng theo đường dẫn ReleaseGate yêu cầu
-            # ReleaseGate dùng: docs/debug/{feature_id}_debug.md và docs/reviews/{feature_id}_verify.md
+            # ReleaseGate dùng: docs/debug/{feature_id}_debug.md và docs/verification/{feature_id}_verify.md
             os.makedirs(os.path.join(tmpdir, "docs", "debug"), exist_ok=True)
-            os.makedirs(os.path.join(tmpdir, "docs", "reviews"), exist_ok=True)
+            os.makedirs(os.path.join(tmpdir, "docs", "verification"), exist_ok=True)
             debug_report = os.path.join(tmpdir, "docs/debug/FEAT-BAT-E2E_debug.md")
-            verify_report = os.path.join(tmpdir, "docs/reviews/FEAT-BAT-E2E_verify.md")
+            verify_report = os.path.join(tmpdir, "docs/verification/FEAT-BAT-E2E_verify.md")
             with open(debug_report, "w") as f:
                 f.write("status: PASS\n")
             with open(verify_report, "w") as f:

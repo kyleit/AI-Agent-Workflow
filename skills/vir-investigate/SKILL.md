@@ -9,11 +9,7 @@ tags:
   - cognitive
   - rca
 version: 1.0.0
-author:
-  name: Kyle Dang
-  email: kyleit@klexpress.net
 license: MIT
-repository: https://gitlab.com/hngan.it/ai-workflow-skills
 created_at: 2026-07-12
 updated_at: 2026-07-12
 description: Cognitive investigation skill for Root Cause Analysis (RCA), contradictions detection, and self-doubt evaluations.
@@ -28,8 +24,7 @@ runtime_requirements:
   environment: none
   version: none
   provider: optional
-  usage: none
----
+  usage: none---
 
 # VIR Investigate Skill Specification
 

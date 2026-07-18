@@ -183,14 +183,14 @@
         "confidence_minimum": 0.95
       },
       "input_contract": "Approved plan",
-      "output_contract": "Technical Blueprint docs/designs/FEAT-XXX_*.md",
+      "output_contract": "Technical Blueprint docs/blueprints/FEAT-XXX_*.md",
       "permissions": {
         "mode": "scoped-write"
       },
       "write_mode": "single-writer",
       "ownership_scope": {
         "include": [
-          "docs/designs/**"
+          "docs/blueprints/**"
         ]
       },
       "allowed_reads": [
@@ -198,7 +198,7 @@
         "RAG Indexes"
       ],
       "allowed_writes": [
-        "docs/designs/"
+        "docs/blueprints/"
       ],
       "forbidden_actions": [
         "Bypassing test suite",

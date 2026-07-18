@@ -251,13 +251,13 @@ def validate_artifact_placement(path: str, active_skill: str) -> bool:
         return normalized_path.startswith("docs/plans/")
         
     if active_skill == "blueprint":
-        return normalized_path.startswith("docs/designs/")
+        return normalized_path.startswith("docs/blueprints/")
         
     if active_skill in ["quick-feature", "quick-fix"]:
         if "plan" in normalized_path:
             return normalized_path.startswith("docs/plans/")
         if "blueprint" in normalized_path or "design" in normalized_path:
-            return normalized_path.startswith("docs/designs/")
+            return normalized_path.startswith("docs/blueprints/")
         if "brainstorm" in normalized_path:
             return normalized_path.startswith("docs/brainstorming/")
             

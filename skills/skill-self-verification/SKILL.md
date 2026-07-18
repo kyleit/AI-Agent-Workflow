@@ -23,8 +23,7 @@ runtime_requirements:
   environment: cached
   version: none
   provider: optional
-  usage: none
----
+  usage: none---
 
 # Skill: skill-self-verification (Behavioral Acceptance Testing)
 

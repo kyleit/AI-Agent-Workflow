@@ -86,7 +86,7 @@ def build_context_bundle(conversation_id: str, original_tokens: int) -> dict:
     
     # Check cache for core files
     rules_cache = get_or_create_cache("AI_RULES.md")
-    blueprint_cache = get_or_create_cache("docs/designs/FEAT-039_smart_context_rebuilder_blueprint.md")
+    blueprint_cache = get_or_create_cache("docs/blueprints/FEAT-039_smart_context_rebuilder_blueprint.md")
     
     cache_hits = 0
     cache_misses = 0

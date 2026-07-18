@@ -26,21 +26,23 @@ def validate_blueprint_file(filepath: str, workflow_prefix: str = None) -> dict:
     normalized = filepath.replace("\\", "/")
     
     # Path constraint checks
-    if not normalized.startswith("docs/designs/"):
+    if not normalized.startswith("docs/blueprints/"):
         return {
             "status": "failure",
             "command": "validate blueprint",
-            "summary": "Blueprint file must be located under docs/designs/ directory.",
+            "summary": "Blueprint file must be located under docs/blueprints/ directory.",
             "warnings": [],
             "files_read": [filepath],
             "files_written": []
         }
-        
-    if not normalized.endswith("_blueprint.md"):
+
+    # Single-file/master shape uses "_blueprint.md" (e.g. FEAT-XXX_slug_blueprint.md);
+    # multi-phase shape uses "phase-blueprint.md" (hyphen before "blueprint").
+    if not (normalized.endswith("_blueprint.md") or normalized.endswith("-blueprint.md")):
         return {
             "status": "failure",
             "command": "validate blueprint",
-            "summary": "Blueprint filename must end with '_blueprint.md'.",
+            "summary": "Blueprint filename must end with '_blueprint.md' or 'phase-blueprint.md'.",
             "warnings": [],
             "files_read": [filepath],
             "files_written": []

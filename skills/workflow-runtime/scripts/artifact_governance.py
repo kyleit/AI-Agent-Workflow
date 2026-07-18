@@ -6,12 +6,12 @@ from typing import Dict, Any, List
 # Predefined standard storage policy mappings
 APPROVED_MAPPINGS: Dict[str, str] = {
     "brainstorming": "docs/brainstorming",
-    "planning": "docs/planning",
-    "architecture": "docs/architecture",
+    "planning": "docs/plans",
+    "architecture": "docs/architecture-reviews",
     "blueprint": "docs/blueprints",
     "implementation": "docs/implementation",
     "verification": "docs/verification",
-    "release": "docs/release",
+    "release": "docs/releases",
     "report": "docs/reports",
     "operations": "docs/operations"
 }

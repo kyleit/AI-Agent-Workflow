@@ -2167,12 +2167,13 @@ def do_active_workflow(args) -> None:
             sys.exit(1)
             
         norm_path = bp_path.replace("\\", "/")
-        if not norm_path.startswith("docs/designs/"):
-            print(f"Error: Blueprint file must be located under docs/designs/.", file=sys.stderr)
+        if not norm_path.startswith("docs/blueprints/"):
+            print(f"Error: Blueprint file must be located under docs/blueprints/.", file=sys.stderr)
             sys.exit(1)
-            
-        if not bp_path.endswith("_blueprint.md"):
-            print(f"Error: Blueprint file name must end with _blueprint.md.", file=sys.stderr)
+
+        # Single-file/master shape uses "_blueprint.md"; multi-phase shape uses "phase-blueprint.md".
+        if not (bp_path.endswith("_blueprint.md") or bp_path.endswith("-blueprint.md")):
+            print(f"Error: Blueprint file name must end with _blueprint.md or phase-blueprint.md.", file=sys.stderr)
             sys.exit(1)
             
         basename = os.path.basename(bp_path)
@@ -4172,7 +4173,7 @@ def do_provider_action(args):
     elif args.subaction == "add":
         name = args.name
         if name == "obsidian":
-            vault_root = input("Enter vault_root [/Volumes/Kyle/Knowledge]: ").strip() or "/Volumes/Kyle/Knowledge"
+            vault_root = input("Enter vault_root (absolute path to your Obsidian vault): ").strip()
             pattern = input("Enter project_folder_pattern [AIWF-Knowledge-{project_slug}]: ").strip() or "AIWF-Knowledge-{project_slug}"
             mode = input("Enter mode (file-sync | rest | readonly | bidirectional) [file-sync]: ").strip() or "file-sync"
             create_if_missing_in = input("Create if missing? (y/n) [y]: ").strip().lower() or "y"

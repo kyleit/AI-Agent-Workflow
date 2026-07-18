@@ -13,9 +13,9 @@ class TestArtifactGovernance(unittest.TestCase):
         
         # Create standard structure
         for folder in [
-            "docs/brainstorming", "docs/planning", "docs/architecture", 
+            "docs/brainstorming", "docs/plans", "docs/architecture-reviews", 
             "docs/blueprints", "docs/implementation", "docs/verification", 
-            "docs/release", "docs/reports", "docs/operations",
+            "docs/releases", "docs/reports", "docs/operations",
             ".agents/state", ".agents/config"
         ]:
             os.makedirs(os.path.join(self.workspace_root, folder), exist_ok=True)
@@ -29,7 +29,7 @@ class TestArtifactGovernance(unittest.TestCase):
                     "skill": "planning",
                     "agent": "planning-agent",
                     "next": "Gate1_PlanApproval",
-                    "evidence": ["docs/planning/FEAT-123_plan.md"]
+                    "evidence": ["docs/plans/FEAT-123_plan.md"]
                 }
             }, f)
 
@@ -40,7 +40,7 @@ class TestArtifactGovernance(unittest.TestCase):
     def test_validate_artifact_path_success(self):
         # Valid planning path
         res = ArtifactGovernance.validate_artifact_path(
-            "docs/planning/FEAT-123_plan.md", "planning", self.workspace_root
+            "docs/plans/FEAT-123_plan.md", "planning", self.workspace_root
         )
         self.assertEqual(res["status"], "success")
         self.assertEqual(res["code"], "OK")
@@ -70,7 +70,7 @@ class TestArtifactGovernance(unittest.TestCase):
     def test_validate_artifact_path_filename_convention(self):
         # Invalid planning filename format
         res = ArtifactGovernance.validate_artifact_path(
-            "docs/planning/invalid_name.md", "planning", self.workspace_root
+            "docs/plans/invalid_name.md", "planning", self.workspace_root
         )
         self.assertEqual(res["status"], "failure")
         self.assertEqual(res["code"], "FILENAME_CONVENTION_VIOLATION")
@@ -105,12 +105,12 @@ class TestArtifactGovernance(unittest.TestCase):
         # If we provide a path that is in correct folder, let's see:
         # validate_artifact_path does not enforce file liveness if we only check path (unless missing_path check)
         # Let's create the valid file in correct folder
-        valid_path = os.path.join(self.workspace_root, "docs/planning/FEAT-123_plan.md")
+        valid_path = os.path.join(self.workspace_root, "docs/plans/FEAT-123_plan.md")
         with open(valid_path, "w") as f:
             f.write("PLAN APPROVED")
             
         # Run step with valid plan file
-        state = supervisor.run_supervisor_step({"plan_file": "docs/planning/FEAT-123_plan.md"})
+        state = supervisor.run_supervisor_step({"plan_file": "docs/plans/FEAT-123_plan.md"})
         self.assertEqual(state, "Gate1_PlanApproval")  # Advanced successfully!
 
 if __name__ == "__main__":

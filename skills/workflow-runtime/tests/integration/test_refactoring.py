@@ -180,7 +180,7 @@ class TestRefactoringEngine(unittest.TestCase):
             "--command", "fix",
             "--artifact-id", "FIX-001",
             "--spec-path", "docs/specs/FIX-001.md",
-            "--blueprint-path", "docs/designs/FIX-001_blueprint.md",
+            "--blueprint-path", "docs/blueprints/FIX-001_blueprint.md",
             "--waiting-for", "spec_approval"
         ])
         self.assertEqual(res.returncode, 0)
@@ -265,7 +265,7 @@ class TestRefactoringEngine(unittest.TestCase):
 
     def test_s3_1_validate_blueprint_success(self):
         # Scenario 3.1: validate-blueprint succeeds with valid file
-        bp_dir = "docs/designs"
+        bp_dir = "docs/blueprints"
         os.makedirs(bp_dir, exist_ok=True)
         bp_path = os.path.join(bp_dir, "FIX-123_blueprint.md")
         
@@ -301,7 +301,7 @@ This is rollback plan.
 
     def test_s3_2_validate_blueprint_missing_section(self):
         # Scenario 3.2: validate-blueprint fails if header is missing
-        bp_dir = "docs/designs"
+        bp_dir = "docs/blueprints"
         os.makedirs(bp_dir, exist_ok=True)
         bp_path = os.path.join(bp_dir, "FIX-124_blueprint.md")
         
@@ -326,7 +326,7 @@ This is scope.
 
     def test_s3_3_validate_blueprint_mismatched_prefix(self):
         # Scenario 3.3: validate-blueprint fails on prefix mismatch
-        bp_dir = "docs/designs"
+        bp_dir = "docs/blueprints"
         os.makedirs(bp_dir, exist_ok=True)
         bp_path = os.path.join(bp_dir, "FEAT-125_blueprint.md")
         

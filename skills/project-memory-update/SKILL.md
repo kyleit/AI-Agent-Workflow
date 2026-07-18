@@ -22,8 +22,7 @@ runtime_requirements:
   environment: cached
   version: cached
   provider: optional
-  usage: none
----
+  usage: none---
 
 # Skill: Project Memory Update (Script-First)
 
@@ -33,9 +32,9 @@ Perform an incremental update of Project Memory based on files changed since the
 ## Script Invocation
 Execute the Python CLI command:
 ```bash
-python3 runtime/scripts/project_memory/cli.py update
+python3 .agents/runtime/scripts/project_memory/cli.py update
 ```
-*(Nếu muốn chạy full rebuild: `python3 runtime/scripts/project_memory/cli.py update --full`)*
+*(Nếu muốn chạy full rebuild: `python3 .agents/runtime/scripts/project_memory/cli.py update --full`)*
 
 ## Expected Output
 The script returns a structured JSON payload:

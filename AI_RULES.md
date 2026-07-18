@@ -78,7 +78,7 @@ Retrieval-Augmented Generation searches must follow a strict priority ordering.
     *   **Level 1**: Project Memory (`project-summary.md`, area and module documents under `memory_root`).
     *   **Level 2**: Discovery & Specifications (`docs/brainstorming/`, `docs/issues/`, `docs/quick/`).
     *   **Level 3**: Implementation Plans (`docs/plans/`).
-    *   **Level 4**: Technical Blueprints (`docs/designs/`).
+    *   **Level 4**: Technical Blueprints (`docs/blueprints/`).
     *   **Level 5**: Architectural Decision Records (`docs/adr/`).
     *   **Level 6**: Targeted source code inspection (only for files identified in Levels 1–5).
 *   **Chunk Selection & Fallback**:
@@ -97,7 +97,7 @@ The documentation architecture enforces strict separation of concerns.
     | :--- | :--- | :--- |
     | `docs/brainstorming/` | Requirements Discovery (Standard Features) | `FEAT-XXX_slug.md` |
     | `docs/plans/` | Implementation Plans | `FEAT-XXX_slug_plan.md` |
-    | `docs/designs/` | Technical Blueprints | `FEAT-XXX_slug_blueprint.md` |
+    | `docs/blueprints/` | Technical Blueprints | `FEAT-XXX_slug_blueprint.md` |
     | `docs/issues/` | Bug Fix Specifications (Quick-Fix) | `FIX-XXX_slug.md` |
     | `docs/quick/` | Quick Feature Specifications | `QUICK-XXX_slug.md` |
     | `docs/adr/` | Architectural Decision Records | `ADR-XXX_slug.md` |
@@ -199,7 +199,7 @@ To eliminate duplicated information, reduce token usage, and maintain clear sepa
     *   Focusses entirely on project management, scope, deliverables, and risk mitigation.
     *   **Strict Constraints**: Planning documents must **NEVER** describe code implementations, define classes, define functions or interfaces, define database tables/schemas/SQL, define directory or folder layouts, or generate pseudo-code.
     *   The document must remain understandable by both technical and non-technical stakeholders.
-*   **Technical Design Blueprint Phase (`docs/designs/`)**:
+*   **Technical Design Blueprint Phase (`docs/blueprints/`)**:
     *   Acts as the **single source of technical truth** and the **Implementation Contract** for code changes.
     *   **Strict Quality Constraints**: The Design Blueprint must contain complete technical decisions and specs. It is strictly forbidden to use placeholders (`...`, `etc.`, `TBD`, `to be decided`, `future work`) or generic instructions (`modify related files`, `update existing logic`). Every single affected file, API contract, and algorithm must be explicitly defined and documented.
     *   Owns all technical specifications, including: architecture layouts, sequence and interaction flows (e.g., Mermaid diagrams), class and method signatures (with types), database schemas and migration scripts, folder structures, error handling, security validations, and test strategies.
@@ -295,10 +295,9 @@ To keep the VS Code Visualizer Dashboard synchronized in real-time with minimum 
 This is a mandatory global policy. The following rules are absolute and cannot be bypassed:
 
 *   **Rule 1: No Code Modification Without Blueprint**: No Skill may create, delete, or modify source code unless there is a Technical Design Blueprint document. Triaging or implementing changes directly from brainstorming, planning, feature specifications, fix specifications, quick specifications, or user conversation text is strictly forbidden. The Technical Design Blueprint is the ONLY legal input for code generation and modification.
-*   **Rule 2: Valid Blueprint Path**: A Blueprint must exist under the `docs/designs/` directory. Valid file paths must match:
-    - `docs/designs/FEAT-XXX_slug_blueprint.md`
-    - `docs/designs/FIX-XXX_slug_blueprint.md`
-    - `docs/designs/QUICK-XXX_slug_blueprint.md`
+*   **Rule 2: Valid Blueprint Path**: A Blueprint must exist under the `docs/blueprints/` directory. Valid file paths match one of:
+    - Single-file shape: `docs/blueprints/FEAT-XXX_slug_blueprint.md`, `docs/blueprints/FIX-XXX_slug_blueprint.md`, `docs/blueprints/QUICK-XXX_slug_blueprint.md`
+    - Multi-phase folder shape (large FEAT-XXX features only): `docs/blueprints/<feature-slug>/master/FEAT-XXX_..._master_blueprint.md` + `docs/blueprints/<feature-slug>/phase-NN-<phase-slug>/phase-blueprint.md` (each optionally split into companion files per that phase's own indexing rules)
 *   **Rule 3: Explicit User Approval**: The Blueprint must be explicitly approved by the user. Accepted approval keywords are: `Y`, `Yes`, `Proceed`, `Continue` (case-insensitive). The AI must never assume blueprint approval.
 *   **Rule 4: Stop Condition**: If no approved Blueprint exists, the AI must IMMEDIATELY STOP, explain the requirement, recommend generating or approving the Blueprint, and wait for input.
 *   **Rule 5: Override Priority**: This policy overrides all implementation-capable Skills. No exceptions.
@@ -564,7 +563,7 @@ To enforce standard software engineering processes and prevent bypasses, all ope
 4. **Artifact Enforcement**:
    Every skill must generate its required artifacts under the approved docs/ directories:
    - Discovery/Brainstorming: `docs/brainstorming/FEAT-xxx.md` (or `docs/brainstorming/FIX-xxx.md`)
-   - Planning: `docs/planning/FEAT-xxx_plan.md`
+   - Planning: `docs/plans/FEAT-xxx_plan.md`
    - Design/Blueprint: `docs/blueprints/FEAT-xxx_blueprint.md`
    - Technical Reports: `docs/reports/FEAT-xxx_report.md`
    Creating workflow artifacts in project root is strictly forbidden. If a required artifact is missing or stored in an invalid location, the workflow status is set to `BLOCKED`.
@@ -620,8 +619,8 @@ To enforce standard software engineering processes and prevent bypasses, all ope
    
    Approved mappings:
    - **Brainstorming**: `docs/brainstorming/`
-   - **Planning**: `docs/planning/`
-   - **Architecture**: `docs/architecture/`
+   - **Planning**: `docs/plans/`
+   - **Architecture**: `docs/architecture-reviews/`
    - **Blueprints**: `docs/blueprints/`
    - **Implementation**: `docs/implementation/`
    - **Verification**: `docs/verification/`

@@ -10,12 +10,7 @@ tags:
   - workflow
   - scoping
 version: 3.2.0
-author:
-  name: Kyle Dang
-  email: kyleit@klexpress.net
-  website: https://www.klexpress.net
 license: MIT
-repository: https://gitlab.com/hngan.it/ai-workflow-skills
 created_at: 2026-07-03
 updated_at: 2026-07-09
 description: Convert a structured master brainstorming document into a formal Execution Plan (Markdown & JSON) using a Memory-First strategy and the FEAT-XXX Feature ID format.
@@ -30,8 +25,7 @@ runtime_requirements:
   environment: none
   version: cached
   provider: optional
-  usage: cached
----
+  usage: cached---
 
 # Skill: Planning Prompt → Implementation Plan (FEAT-XXX format)
 
@@ -60,8 +54,13 @@ Your responsibility is to produce a production-ready Implementation Plan with th
 ## Input
 
 ```yaml
-prompt_file: docs/brainstorm/FEAT-XXX_feature_slug.md
-# Path to the brainstorming/requirement discovery file containing the planning prompt
+# Structure-mirroring rule (applies in ANY project): a feature's brainstorming input may be either
+#   (a) a single flat file:   docs/brainstorming/FEAT-XXX_feature_slug.md
+#   (b) a multi-phase folder: docs/brainstorming/<feature-slug>/master/FEAT-XXX_..._master_brainstorming.md
+#                              + docs/brainstorming/<feature-slug>/phase-NN-<phase-slug>/phase-brainstorming.md
+# Detect which shape exists for this feature and mirror that same shape for the plan output.
+prompt_file: docs/brainstorming/FEAT-XXX_feature_slug.md   # or the (b) folder form above
+# Path to the brainstorming/requirement discovery file(s) containing the planning prompt
 
 workspace: auto
 
@@ -71,7 +70,7 @@ framework: auto
 
 architecture: auto
 
-output_path: docs/plans/auto
+output_path: docs/plans/   # mirrors prompt_file's shape — see Step 1
 ```
 
 ---
@@ -105,11 +104,12 @@ Runs under the Multi-Agent Workflow. Respect agent ownership and handoff rules d
 # Workflow
 
 ## Step 1 — Read Master Requirement Document
-Read the brainstorming file at:
-```
-docs/brainstorming/FEAT-XXX_feature_slug.md
-```
-Extract the **Feature ID**, **Feature Name**, **MoSCoW Prioritization**, and the **Planning Prompt** section from it.
+First detect the shape of this feature's brainstorming input: a single flat `docs/brainstorming/FEAT-XXX_feature_slug.md`, or a `docs/brainstorming/<feature-slug>/master/` + `phase-NN-<phase-slug>/` folder tree.
+
+- **Single-file shape**: read that one file. Produce one plan for the whole feature (Step 5/Output Rules, single-file branch).
+- **Multi-phase folder shape**: read `master/FEAT-XXX_..._master_brainstorming.md` first, then every `phase-NN-<phase-slug>/phase-brainstorming.md` in phase order. Produce one Implementation Plan **per phase** plus one master plan indexing all phases (Step 5/Output Rules, multi-phase branch), mirroring the same phase breakdown — never re-decompose the feature into a different phase split than the brainstorming stage already chose.
+
+Either way, extract the **Feature ID**, **Feature Name**, **MoSCoW Prioritization**, and the **Planning Prompt** section(s).
 
 ---
 
@@ -132,7 +132,9 @@ Inspect only files explicitly referenced by memory or RAG.
 Generate the plan document. It must contain the YAML metadata header and the plan sections. Planner MUST directly use the MoSCoW prioritization defined in the brainstorming document to group requirements into implementation phases (e.g., all 'Must' requirements must be placed in Phase 1, 'Should' in Phase 2, etc.) without re-analyzing architecture or scope:
 
 ```markdown
-<!-- File path: docs/plans/FEAT-XXX_feature_slug_plan.md -->
+<!-- File path (single-file shape):  docs/plans/FEAT-XXX_feature_slug_plan.md -->
+<!-- File path (multi-phase shape): docs/plans/<feature-slug>/phase-NN-<phase-slug>/phase-plan.md -->
+<!-- File path (multi-phase master): docs/plans/<feature-slug>/master/FEAT-XXX_..._master_plan.md -->
 
 ---
 feature_id: FEAT-XXX
@@ -141,8 +143,8 @@ status: reviewed
 stage: planning
 created_at: [YYYY-MM-DD]
 updated_at: [YYYY-MM-DD]
-previous_artifact: ../brainstorming/FEAT-XXX_feature_slug.md
-next_artifact: ../designs/FEAT-XXX_feature_slug_blueprint.md
+previous_artifact: [relative path to the matching brainstorming file/folder — mirror the shape from Step 1]
+next_artifact: [relative path to the matching blueprint file/folder once created — see plan-to-blueprint, docs/blueprints/]
 ---
 
 # FEAT-XXX: [Human Readable Name]
@@ -203,7 +205,7 @@ Cung cấp định hướng cho pha Blueprint thiết kế chi tiết:
 | Task 1.1 | Yes | Yes | No | No | Yes | Yes | No |
 
 ## 10. Artifact Production Plan
-- **Phase 1 Artifacts**: docs/designs/FEAT-XXX_blueprint.md
+- **Phase 1 Artifacts**: docs/blueprints/FEAT-XXX_blueprint.md (or the matching phase-blueprint.md under docs/blueprints/<feature-slug>/)
 - **Phase 2 Artifacts**: docs/adr/ADR-XXX.md, docs/releases/Release_Notes.md
 
 ## 11. Token & Execution Optimization
@@ -220,13 +222,24 @@ Cung cấp định hướng cho pha Blueprint thiết kế chi tiết:
 
 # Output Rules
 
-Create exactly two files:
+Mirror whichever shape Step 1 detected for this feature:
+
+**Single-file shape** — create exactly two files:
 1. `docs/plans/FEAT-XXX_feature_slug_plan.md`
 2. `docs/plans/FEAT-XXX_feature_slug_plan.json`
 
-First line of the Markdown file must be:
+**Multi-phase folder shape** — for each phase, create:
+1. `docs/plans/<feature-slug>/phase-NN-<phase-slug>/phase-plan.md`
+2. `docs/plans/<feature-slug>/phase-NN-<phase-slug>/phase-plan.json`
+
+Plus one master plan indexing every phase:
+1. `docs/plans/<feature-slug>/master/FEAT-XXX_..._master_plan.md`
+2. `docs/plans/<feature-slug>/master/FEAT-XXX_..._master_plan.json`
+
+First line of every Markdown file must be its own real path, e.g.:
 ```html
 <!-- File path: docs/plans/FEAT-XXX_feature_slug_plan.md -->
+<!-- or: docs/plans/<feature-slug>/phase-NN-<phase-slug>/phase-plan.md -->
 ```
 
 The JSON file must conform to this schema:
@@ -267,7 +280,7 @@ The JSON file must conform to this schema:
       "mapped_tasks": ["Task 1.1"]
     }
   ],
-  "artifacts": ["docs/designs/FEAT-XXX_blueprint.md"]
+  "artifacts": ["docs/blueprints/FEAT-XXX_blueprint.md"]
 }
 ```
 
@@ -287,7 +300,7 @@ The JSON file must conform to this schema:
 # IDE Skill Hardening & Boundary Rules
 
 ## 1. Single Responsibility
-Convert a master brainstorming planning prompt into a formal Implementation Plan. Once `docs/plans/FEAT-XXX_feature_slug_plan.md` is generated, STOP.
+Convert a master brainstorming planning prompt into a formal Implementation Plan. Once the plan output (single file, or every phase's `phase-plan.md` + master index for the multi-phase shape) is generated under `docs/plans/`, STOP.
 
 ## 2. Never Execute Next Phase
 Do NOT invoke `plan-to-blueprint` or any other Skill.
@@ -322,10 +335,44 @@ Source Files Inspected:
 [list or "None — answered from memory"]
 
 Generated Output:
-docs/plans/FEAT-XXX_feature_slug_plan.md
+[Single-file shape: docs/plans/FEAT-XXX_feature_slug_plan.md (+ .json)]
+[Multi-phase shape: docs/plans/<feature-slug>/master/FEAT-XXX_..._master_plan.md (+ .json)
+ + docs/plans/<feature-slug>/phase-NN-<phase-slug>/phase-plan.md (+ .json)]
 
 Recommended Next Skill:
 plan-to-blueprint
 
 Workflow Paused.
 ```
+
+## Evaluation Criteria & Readiness Score (Scale 100)
+Giai đoạn chỉ được qua cổng kiểm duyệt khi tổng điểm từ 95 trở lên và không vi phạm tiêu chí đường dẫn (đánh fail lập tức nếu vi phạm chính sách đường dẫn tuyệt đối).
+
+| # | Tiêu chí đánh giá | Điểm tối đa | Điểm đạt | Điều kiện đạt đủ điểm & Ghi chú |
+|---|---|---:|:---:|---|
+| 1 | Tương thích đường dẫn | 30 | /30 | 100% đường dẫn trong mã nguồn, script, kết quả và tài liệu là đường dẫn tương đối hoặc đã được làm sạch. Không có URL tệp tuyệt đối, đường dẫn ổ đĩa, đường dẫn tuyệt đối của macOS hoặc Linux, mã xác thực hoặc log chứa đường dẫn tuyệt đối. |
+| 2 | Build và chạy runtime thật | 20 | /20 | App, service, UI, CLI hoặc worker build lại thành công, runtime thật mở được, surface tích hợp thật sẵn sàng, và không còn tiến trình treo sau kiểm thử. |
+| 3 | Kiểm thử runtime thật | 20 | /20 | Kiểm thử gọi vào runtime đang chạy qua surface thật phù hợp như IPC, API, UI, CLI, SDK, job queue hoặc service, không chỉ kiểm thử đơn vị hoặc phản chiếu. Luồng thành công chính, luồng lỗi hợp lệ, luồng hồi quy và dọn dẹp đều đạt. |
+| 4 | Đầy đủ chức năng | 15 | /15 | Giai đoạn triển khai đủ lệnh hoặc API bắt buộc, không có phần giữ chỗ chưa hoàn thiện, không bỏ sót hành vi cũ quan trọng. |
+| 5 | Dễ đọc và dễ bảo trì | 5 | /5 | Mã nguồn, script và kết quả rõ ràng, có cấu trúc, đặt tên dễ hiểu, ít trùng lặp và không lan phạm vi ngoài giai đoạn. |
+| 6 | Tuân thủ rule, Memory/RAG và skill trong project | 5 | /5 | Người điều phối và tác nhân đã đọc rule trong project, ưu tiên Memory First/RAG First bằng `./.agents/skills/project-rag-search` khi cần ngữ cảnh, chọn skill phù hợp từ `./.agents/skills`, đọc hướng dẫn skill trước khi làm, ghi rule/skill trong prompt/báo cáo và không tạo bản rule hoặc skill trùng lặp ở nơi khác. |
+| 7 | An toàn dữ liệu và dọn dẹp | 5 | /5 | Kiểm thử chụp nhanh và khôi phục cấu hình, không tạo rác ở Màn hình nền hoặc thư mục tạm, không lộ mã xác thực hoặc bí mật, không để lại tiến trình app hoặc kiểm thử. |
+| | **Tổng điểm** | **100** | **/100** | **Điểm đạt tối thiểu để Release: 95/100** |
+
+## Điều kiện bắt buộc đánh FAIL (NO-GO)
+Giai đoạn phải bị đánh FAIL (NO-GO) nếu gặp bất kỳ lỗi nào dưới đây (điểm đánh giá bị vô hiệu):
+1. Có đường dẫn tuyệt đối thật trong mã nguồn, script, kết quả hoặc tài liệu thuộc phạm vi giai đoạn.
+2. Build thất bại.
+3. Ứng dụng không mở được.
+4. Surface tích hợp thật của runtime không sẵn sàng (ví dụ: IPC token/pipe, API endpoint, UI route, CLI command, SDK entrypoint hoặc service health).
+5. Ca kiểm thử runtime chính thất bại.
+6. Kiểm thử chỉ là kiểm thử đơn vị hoặc phản chiếu (reflection) mà chưa gọi vào runtime thật.
+7. Có tiến trình app hoặc kiểm thử còn treo sau khi kiểm thử kết thúc.
+8. Kết quả chứa mã xác thực, bí mật hoặc dữ liệu chưa được làm sạch.
+9. Có luồng tự ý tắt app, service hoặc runtime trong khi luồng điều phối chính chưa cho phép.
+10. Chưa đủ bằng chứng thực tế nhưng báo cáo đạt.
+11. Bỏ qua các skill phù hợp sẵn có trong `./.agents/skills` mà không có lý do được chấp nhận.
+12. Tự ý copy hoặc tạo bản sao skill, prompt hoặc workflow mới ở thư mục khác khi project đã có skill tương ứng.
+13. Bỏ qua rule của project hoặc không chứng minh đã đọc rule bắt buộc.
+14. Tạo rule song song làm lệch hướng `PROJECT_RULES.md`, `./.agents/AGENTS.md` hoặc `./.agents/AI_RULES.md`.
+15. Quét mã nguồn hoặc hỏi thiết kế trước khi tra cứu Project Memory và dùng `./.agents/skills/project-rag-search` khi cần ngữ cảnh.
