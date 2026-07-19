@@ -637,3 +637,16 @@ To enforce standard software engineering processes and prevent bypasses, all ope
 
 3. **Supervisor Blocking**:
    Workflow Supervisor must verify artifact paths and naming before phase transitions. Any violation will set status to `BLOCKED` with reason `Artifact governance violation`.
+
+---
+
+## Section 29: Telegram Continuous Listener Policy
+
+1. **Auto-Start on Initialization**:
+   Whenever a new workflow session is initialized (running `init` / `start` of the `initialize-workflow` skill), the Agent MUST check for the presence of the `notify-telegram` skill and automatically start the Telegram background listener script (`listen.sh`) in the background.
+
+2. **Non-blocking Execution**:
+   The listener process MUST be executed asynchronously (non-blocking daemon process) to avoid stalling the initialization CLI or workflow sequence.
+
+3. **Message Integration**:
+   Messages received via Telegram (logged to `scratch/telegram-inbox.json`) must be processed within the active session by the running Agent, preventing duplicate parallel CLI session invocations.
