@@ -548,7 +548,21 @@ def do_init(args):
             os.makedirs("scratch", exist_ok=True)
             inbox_file = os.path.join("scratch", "telegram-inbox.json")
             offset_file = os.path.join("scratch", "telegram-offset.txt")
-            cmd = ["bash", target_script, inbox_file, offset_file, "999999", "25"]
+            
+            # Locate bash.exe on Windows to guarantee execution
+            bash_bin = "bash"
+            if platform.system() == "Windows":
+                paths = [
+                    os.path.join(os.environ.get("PROGRAMFILES", "C:\\Program Files"), "Git", "bin", "bash.exe"),
+                    os.path.join(os.environ.get("PROGRAMFILES(X86)", "C:\\Program Files (x86)"), "Git", "bin", "bash.exe"),
+                    os.path.join(os.path.expanduser("~"), "AppData", "Local", "Programs", "Git", "bin", "bash.exe")
+                ]
+                for p in paths:
+                    if os.path.exists(p):
+                        bash_bin = p
+                        break
+            
+            cmd = [bash_bin, target_script, inbox_file, offset_file, "999999", "25"]
             
             kwargs = {}
             if platform.system() == "Windows":
@@ -560,8 +574,8 @@ def do_init(args):
             # Start background process safely
             subprocess.Popen(cmd, close_fds=True, **kwargs)
             print("✨ [SYSTEM]: Auto-started Telegram background listener.")
-    except Exception:
-        pass
+    except Exception as ex:
+        print(f"Warning: Failed to auto-start Telegram listener: {ex}")
 
     # Output status matching Final Acceptance Criteria
     print("Workspace:")

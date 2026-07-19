@@ -172,22 +172,11 @@ print(max_id + 1)
     echo "MESSAGE_RECEIVED: ${MSG}" > "${INBOX_FILE}"
     # Ack immediately so Ba knows it landed and won't re-send.
     ACK_FILE="${INBOX_FILE}.ack.txt"
-    printf '%s' "✅ Đã nhận! Đang đánh thức Claude Agent để xử lý lệnh của Ba..." > "${ACK_FILE}"
+    printf '%s' "✅ Đã nhận, đang chuyển tiếp cho Agent..." > "${ACK_FILE}"
     curl -s -X POST "${API}/sendMessage" \
       --data-urlencode "chat_id=${TELEGRAM_CHAT_ID}" \
       --data-urlencode "text@${ACK_FILE}" > /dev/null
     rm -f "${ACK_FILE}"
-
-    # Đánh thức Claude Agent dậy xử lý lệnh
-    CLAUDE_CMD="claude"
-    if ! command -v claude &> /dev/null; then
-      if [ -f "/mnt/c/Users/Kyle/AppData/Roaming/npm/claude" ]; then
-        CLAUDE_CMD="/mnt/c/Users/Kyle/AppData/Roaming/npm/claude"
-      fi
-    fi
-
-    # Khởi chạy Claude Agent ngầm xử lý prompt
-    "$CLAUDE_CMD" -p "Ba vừa gửi lệnh qua Telegram: \"${MSG}\". Hãy thực hiện yêu cầu này của Ba, gửi phản hồi chi tiết kết quả (hoặc báo cáo) ngược lại Telegram cho Ba, rồi kết thúc session." < /dev/null
     exit 0
   fi
 done
