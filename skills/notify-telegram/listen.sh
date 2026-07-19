@@ -82,6 +82,15 @@ fi
 
 export PYTHONIOENCODING=utf-8
 
+# Discover project name from MANIFEST.json for project-scoped messaging
+PROJECT_ROOT="$(dirname "$AGENTS_DIR")"
+MANIFEST_FILE="${PROJECT_ROOT}/MANIFEST.json"
+PROJECT_NAME="default"
+if [ -f "${MANIFEST_FILE}" ]; then
+  PROJECT_NAME=$($PYTHON_CMD -c "import json; print(json.load(open('${MANIFEST_FILE}'))['name'])" 2>/dev/null || echo "default")
+fi
+PROJECT_NAME_LOWER=$(echo "${PROJECT_NAME}" | tr '[:upper:]' '[:lower:]')
+
 API="https://api.telegram.org/bot${TELEGRAM_BOT_TOKEN}"
 
 if [ -f "${OFFSET_STATE_FILE}" ]; then
@@ -169,10 +178,40 @@ print(max_id + 1)
   if [ -f "${RAW_FILE}" ]; then
     MSG=$(cat "${RAW_FILE}")
     rm -f "${RAW_FILE}"
-    echo "MESSAGE_RECEIVED: ${MSG}" > "${INBOX_FILE}"
-    # Ack immediately so Ba knows it landed and won't re-send.
+    
+    # Check if message targets this project specifically
+    MSG_LOWER=$(echo "${MSG}" | tr '[:upper:]' '[:lower:]')
+    IS_FOR_THIS_PROJECT=false
+    CLEAN_MSG=""
+    
+    if [[ "${MSG_LOWER}" == "${PROJECT_NAME_LOWER}"* ]]; then
+      IS_FOR_THIS_PROJECT=true
+      CLEAN_MSG=$(echo "${MSG}" | cut -d' ' -f2-)
+    elif [[ "${MSG_LOWER}" == "["${PROJECT_NAME_LOWER}"]"* ]]; then
+      IS_FOR_THIS_PROJECT=true
+      CLEAN_MSG=$(echo "${MSG}" | cut -d']' -f2- | sed -e 's/^[[:space:]]*//')
+    elif [[ "${MSG_LOWER}" == "${PROJECT_NAME_LOWER}:"* ]]; then
+      IS_FOR_THIS_PROJECT=true
+      CLEAN_MSG=$(echo "${MSG}" | cut -d':' -f2- | sed -e 's/^[[:space:]]*//')
+    fi
+    
+    if [ "${IS_FOR_THIS_PROJECT}" = "false" ]; then
+      # If message targets another project explicitly, skip it
+      if [[ "${MSG}" =~ ^\[([a-zA-Z0-9_-]+)\] ]] || [[ "${MSG}" =~ ^([a-zA-Z0-9_-]+): ]]; then
+        echo "Message is targeted at another project. Skipping."
+        continue
+      fi
+      # If no project name was specified, fallback as broadcast/global command
+      IS_FOR_THIS_PROJECT=true
+      CLEAN_MSG="${MSG}"
+    fi
+    
+    # Save clean message without project prefix to inbox
+    echo "MESSAGE_RECEIVED: ${CLEAN_MSG}" > "${INBOX_FILE}"
+    
+    # Ack back showing which project picked up the command
     ACK_FILE="${INBOX_FILE}.ack.txt"
-    printf '%s' "✅ Đã nhận, đang chuyển tiếp cho Agent..." > "${ACK_FILE}"
+    printf '%s' "✅ [${PROJECT_NAME}] Đã nhận, đang chuyển tiếp cho Agent..." > "${ACK_FILE}"
     curl -s -X POST "${API}/sendMessage" \
       --data-urlencode "chat_id=${TELEGRAM_CHAT_ID}" \
       --data-urlencode "text@${ACK_FILE}" > /dev/null
