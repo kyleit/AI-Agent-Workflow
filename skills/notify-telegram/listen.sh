@@ -97,9 +97,10 @@ PID_FILE="${PROJECT_ROOT}/scratch/telegram-listener.pid"
 mkdir -p "${PROJECT_ROOT}/scratch"
 if [ -f "${PID_FILE}" ]; then
   OLD_PID=$(cat "${PID_FILE}")
-  if kill -0 "${OLD_PID}" 2>/dev/null; then
-    echo "Telegram listener is already running with PID ${OLD_PID} for project ${PROJECT_NAME}. Exiting."
-    exit 0
+  if [ "${OLD_PID}" != "$$" ] && kill -0 "${OLD_PID}" 2>/dev/null; then
+    echo "Found old Telegram listener with PID ${OLD_PID} for project ${PROJECT_NAME}. Killing it to establish new session."
+    kill -15 "${OLD_PID}" 2>/dev/null || kill -9 "${OLD_PID}" 2>/dev/null
+    sleep 1
   fi
 fi
 echo "$$" > "${PID_FILE}"
