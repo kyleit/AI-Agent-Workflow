@@ -34,3 +34,8 @@ artifacts/adaptive-agent-team/stale_write_evidence.json
 artifacts/full-access-autonomous-delivery/
 
 qdrant_storage
+
+# Telegram Bot Credentials
+.agents/config/.env.telegram-notify
+.agents/config/.env*
+*.env*
