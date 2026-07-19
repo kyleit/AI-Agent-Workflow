@@ -5,6 +5,16 @@ All notable changes to this project will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [6.18.2] - 2026-07-19
+
+### Fixed
+- **Tự động khởi chạy Telegram Inbox Monitor (FIX-411)**:
+  - Tự động chạy tiến trình nền `monitor_listener.py` khi chạy lệnh `init` khởi động workflow, giải quyết vấn đề nhận lệnh Telegram trên các cuộc hội thoại mới.
+  - Tương thích tốt với môi trường Windows (`CREATE_NO_WINDOW`) và Unix (`start_new_session=True`), chạy không chặn (non-blocking) và ẩn log.
+  - Cập nhật tài liệu kỹ năng `initialize-workflow` để loại bỏ hướng dẫn chạy script `listen.sh` cũ.
+- **Quy tắc Kiểm thử Giới hạn Phạm vi (Targeted Testing)**:
+  - Bổ sung quy định kiểm thử mới vào `AGENTS.md`, yêu cầu Agent chỉ chạy các test case liên quan trực tiếp đến thành phần chỉnh sửa để tiết kiệm tài nguyên.
+
 ## [6.16.0] - 2026-07-13
 
 ### Added

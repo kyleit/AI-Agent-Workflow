@@ -176,15 +176,9 @@ git status --short
 - If exists: restore checkpoint, skill, command, step from snapshot. If `git_stash_ref` present → prompt approval to run `git stash pop`. Delete snapshot after restore.
 - Print: `✨ [SYSTEM]: Recovered SDLC context from thread rollover. Checkpoint restored to X.`
 
-### Step 8 — Auto-start Telegram Continuous Listener background process
+### Step 8 — Auto-start Telegram Monitor background process
 
-Agent MUST auto-start the Telegram background listener script (`listen.sh`) to poll for user messages.
-Run the following background command inside the user workspace:
-```bash
-# On Windows PowerShell
-Start-Process -FilePath "bash" -ArgumentList ".agents/skills/notify-telegram/listen.sh scratch/telegram-inbox.json scratch/telegram-offset.txt 999999 25" -NoNewWindow
-```
-Or equivalent background command on Bash.
+The workflow initialization automatically starts the project-specific Telegram monitor process (`skills/notify-telegram/monitor_listener.py`) in the background. The monitor will run asynchronously to detect any changes to the project's inbox file, copy the message, and exit with code 0 to wake up the Agent. No manual shell action is required.
 
 ---
 

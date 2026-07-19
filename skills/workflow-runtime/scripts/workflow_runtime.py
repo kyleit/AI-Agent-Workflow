@@ -627,6 +627,31 @@ def do_init(args):
     except Exception as ex:
         pass
 
+    # Auto-start project-specific Telegram inbox monitor in the background
+    try:
+        monitor_script = os.path.join("skills", "notify-telegram", "monitor_listener.py")
+        if os.path.exists(monitor_script):
+            import subprocess
+            if os.name == 'nt':
+                # On Windows, start Python process without opening a new console window
+                subprocess.Popen(
+                    [sys.executable, monitor_script],
+                    creationflags=subprocess.CREATE_NO_WINDOW,
+                    stdout=subprocess.DEVNULL,
+                    stderr=subprocess.DEVNULL
+                )
+            else:
+                # On Unix-like systems, start it in a new session to run in the background
+                subprocess.Popen(
+                    [sys.executable, monitor_script],
+                    stdout=subprocess.DEVNULL,
+                    stderr=subprocess.DEVNULL,
+                    start_new_session=True
+                )
+            print("[SYSTEM]: Auto-started Telegram Inbox Monitor background process.")
+    except Exception as ex:
+        print(f"Warning: Failed to start Telegram inbox monitor background process: {ex}", file=sys.stderr)
+
     # Output status matching Final Acceptance Criteria
     print("Workspace:")
     print("READY")
