@@ -36,6 +36,33 @@ def send_message(text: str) -> bool:
         print("Error: Bot token or chat ID not found in config", file=sys.stderr)
         return False
         
+    # Try to resolve project-specific chat_id from projects.json registry
+    try:
+        import platform
+        import json
+        from pathlib import Path
+        system = platform.system()
+        reg_dir = Path.home() / ".config" / "aiwf"
+        if system == "Windows":
+            appdata = os.environ.get("APPDATA")
+            if appdata:
+                reg_dir = Path(appdata) / "aiwf"
+        elif system == "Darwin":
+            reg_dir = Path.home() / "Library" / "Application Support" / "aiwf"
+        
+        reg_path = reg_dir / "projects.json"
+        if reg_path.exists():
+            with open(reg_path, "r", encoding="utf-8") as f:
+                registry = json.load(f)
+            curr_abs = str(Path(".").resolve()).lower()
+            for p in registry.get("projects", []):
+                if str(Path(p["path"]).resolve()).lower() == curr_abs:
+                    if p.get("telegram_chat_id"):
+                        chat_id = p["telegram_chat_id"]
+                        break
+    except Exception:
+        pass
+        
     url = f"https://api.telegram.org/bot{token}/sendMessage"
     data = urllib.parse.urlencode({
         "chat_id": chat_id,

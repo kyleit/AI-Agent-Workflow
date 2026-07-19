@@ -9,6 +9,22 @@ import re
 from pathlib import Path
 from datetime import datetime
 
+try:
+    sys.stdout.reconfigure(encoding='utf-8')
+    sys.stderr.reconfigure(encoding='utf-8')
+except Exception:
+    pass
+
+if sys.platform == "win32":
+    py_dir = os.path.dirname(sys.executable)
+    if py_dir not in os.environ.get("PATH", ""):
+        os.environ["PATH"] = py_dir + os.pathsep + os.environ.get("PATH", "")
+    try:
+        os.add_dll_directory(py_dir)
+    except Exception:
+        pass
+
+
 def get_global_aiwf_dir() -> Path:
     """Return the global .aiwf directory path in the user's home folder."""
     d = Path.home() / ".aiwf"
@@ -112,6 +128,23 @@ def send_telegram_ack(token: str, chat_id: str, text: str, proxy: str = None) ->
     except Exception as e:
         print(f"[WARN] Failed to send Telegram ack: {e}", file=sys.stderr)
 
+def send_telegram_reaction(token: str, chat_id: str, message_id: int, emoji: str, proxy: str = None) -> None:
+    """Add reaction to a message on Telegram."""
+    url = f"https://api.telegram.org/bot{token}/setMessageReaction"
+    data = urllib.parse.urlencode({
+        "chat_id": chat_id,
+        "message_id": message_id,
+        "reaction": json.dumps([{"type": "emoji", "emoji": emoji}])
+    }).encode("utf-8")
+    req = urllib.request.Request(url, data=data, method="POST")
+    req.add_header("Content-Type", "application/x-www-form-urlencoded")
+    try:
+        with get_opener(proxy).open(req, timeout=10) as resp:
+            resp.read()
+    except Exception as e:
+        print(f"[WARN] Failed to send Telegram reaction: {e}", file=sys.stderr)
+
+
 def download_telegram_file(token: str, file_id: str, dest_path: Path, proxy: str = None) -> bool:
     """Download a file from Telegram servers using file_id."""
     url = f"https://api.telegram.org/bot{token}/getFile?file_id={file_id}"
@@ -143,7 +176,8 @@ def route_update(token: str, update: dict, proxy: str = None) -> None:
     chat = msg.get("chat", {})
     chat_id = str(chat.get("id", ""))
     chat_title = chat.get("title") or chat.get("username") or chat.get("first_name") or "Unknown Chat"
-    chat_type = chat.get("type", "")
+    print(f"[DAEMON] Received update_id={update.get('update_id')} from chat_id={chat_id} ({chat_title}): {msg.get('text', msg.get('caption', '[media]'))}", flush=True)
+    chat_type = msg.get("chat", {}).get("type", "")
     
     # Store group details if it's a group/supergroup
     if chat_type in ["group", "supergroup"]:
@@ -192,6 +226,11 @@ def route_update(token: str, update: dict, proxy: str = None) -> None:
         # No project mapped, ignore
         return
         
+    # React with 👀 emoji to acknowledge receipt silently
+    message_id = msg.get("message_id")
+    if message_id:
+        send_telegram_reaction(token, chat_id, message_id, "👀", proxy)
+
     # Standardize target directories
     project_slug = target_project["name"].replace("-", "_").lower()
     project_inbox_dir = get_global_aiwf_dir() / project_slug
@@ -214,8 +253,8 @@ def route_update(token: str, update: dict, proxy: str = None) -> None:
         photo_dir = project_inbox_dir / "photos"
         photo_path = photo_dir / filename
         
-        # Immediate Telegram ack
-        send_telegram_ack(token, chat_id, f"✅ [{target_project['name']}] Đang tải ảnh...", proxy)
+        # Immediate Telegram ack (disabled to avoid spam, see 2026-07-19 rules)
+        # send_telegram_ack(token, chat_id, f"✅ [{target_project['name']}] Đang tải ảnh...", proxy)
         
         if download_telegram_file(token, file_id, photo_path, proxy):
             # Format text as backward compatible raw output
@@ -231,7 +270,7 @@ def route_update(token: str, update: dict, proxy: str = None) -> None:
         file_dir = project_inbox_dir / "files"
         file_path = file_dir / f"{update_id}_{orig_name}"
         
-        send_telegram_ack(token, chat_id, f"✅ [{target_project['name']}] Đang tải tệp tin...", proxy)
+        # send_telegram_ack(token, chat_id, f"✅ [{target_project['name']}] Đang tải tệp tin...", proxy)
         
         if download_telegram_file(token, file_id, file_path, proxy):
             inbox_payload = f"FILE_RECEIVED: {file_path.resolve()}"
@@ -251,8 +290,8 @@ def route_update(token: str, update: dict, proxy: str = None) -> None:
                 f.write(inbox_payload + "\n")
             os.replace(tmp_inbox, inbox_file)
             
-            # Send success ack
-            send_telegram_ack(token, chat_id, f"✅ [{target_project['name']}] Đã nhận, đang chuyển tiếp cho Agent...", proxy)
+            # Send success ack (disabled to avoid spam)
+            # send_telegram_ack(token, chat_id, f"✅ [{target_project['name']}] Đã nhận, đang chuyển tiếp cho Agent...", proxy)
         except Exception as e:
             print(f"[WARN] Failed to write project inbox: {e}", file=sys.stderr)
 
@@ -261,9 +300,19 @@ def set_bot_menu_commands(token: str, proxy: str = None) -> None:
     registry = load_projects_registry()
     commands = []
     seen = set()
-    for p in registry.get("projects", []):
+    
+    current_name = os.path.basename(os.path.abspath(".")).lower()
+    projects = registry.get("projects", [])
+    active_projects = [p for p in projects if p.get("status") == "active"]
+    active_projects.sort(key=lambda p: p.get("name", "").lower() != current_name)
+    other_projects = [p for p in projects if p.get("status") != "active"]
+    
+    for p in active_projects + other_projects:
+        if len(commands) >= 95:
+            break
         name = p["name"].lower()
-        cmd_name = re.sub(r"[^a-z0-9_]", "_", name.replace("-", "_"))[:32].strip("_")
+        cmd_name = re.sub(r"[^a-z0-9_]", "_", name.replace("-", "_"))
+        cmd_name = re.sub(r"_+", "_", cmd_name)[:32].strip("_")
         # Strict Telegram command validation: must start with letter, lowercase, no consecutive underscores
         if cmd_name and re.match(r"^[a-z][a-z0-9_]*$", cmd_name) and len(cmd_name) <= 32:
             # Filter out temporary test directory names
@@ -301,7 +350,7 @@ def run_polling_loop() -> None:
         sys.exit(1)
         
     # Sync dynamic commands
-    set_bot_menu_commands(token, proxy)
+    # set_bot_menu_commands(token, proxy)
     
     offset_file = get_global_aiwf_dir() / "telegram-offset.txt"
     offset = 0

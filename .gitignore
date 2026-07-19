@@ -8,6 +8,7 @@ __pycache__/
 *.tmp
 *.bak
 .agents/.session.json
+.agents/.session.json.lock
 .agents/state/
 .agents/runtime/*.db
 .agents/runtime/*.db-journal

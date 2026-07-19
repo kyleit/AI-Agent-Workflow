@@ -5,6 +5,22 @@ import time
 import json
 from pathlib import Path
 
+try:
+    sys.stdout.reconfigure(encoding='utf-8')
+    sys.stderr.reconfigure(encoding='utf-8')
+except Exception:
+    pass
+
+if sys.platform == "win32":
+    py_dir = os.path.dirname(sys.executable)
+    if py_dir not in os.environ.get("PATH", ""):
+        os.environ["PATH"] = py_dir + os.pathsep + os.environ.get("PATH", "")
+    try:
+        os.add_dll_directory(py_dir)
+    except Exception:
+        pass
+
+
 # Resolve project name and slug aligned with projects.json
 project_name = os.path.basename(os.path.abspath("."))
 try:
@@ -43,12 +59,7 @@ time.sleep(1)
 # Get initial state of the global inbox file
 last_mtime = 0
 last_size = 0
-if global_inbox.exists():
-    try:
-        last_mtime = global_inbox.stat().st_mtime
-        last_size = global_inbox.stat().st_size
-    except Exception:
-        pass
+
 
 while True:
     if global_inbox.exists():
@@ -75,9 +86,6 @@ while True:
                     global_inbox.unlink()
                 except Exception:
                     pass
-                    
-                print("Local inbox updated. Waking up Agent.", flush=True)
-                sys.exit(0)
         except Exception as e:
             print(f"Error checking global inbox: {e}", file=sys.stderr)
             

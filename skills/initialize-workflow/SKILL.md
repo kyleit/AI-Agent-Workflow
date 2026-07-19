@@ -176,11 +176,13 @@ git status --short
 - If exists: restore checkpoint, skill, command, step from snapshot. If `git_stash_ref` present → prompt approval to run `git stash pop`. Delete snapshot after restore.
 - Print: `✨ [SYSTEM]: Recovered SDLC context from thread rollover. Checkpoint restored to X.`
 
-### Step 8 — Auto-start Telegram Monitor background process
+### Step 8 — Auto-start Telegram Monitor and 10s Polling Loop
 
-The workflow initialization automatically starts the project-specific Telegram monitor process (`skills/notify-telegram/monitor_listener.py`) in the background. The monitor will run asynchronously to detect any changes to the project's inbox file, copy the message, and exit with code 0 to wake up the Agent. No manual shell action is required.
+- The workflow initialization automatically starts the project-specific Telegram monitor process (`skills/notify-telegram/monitor_listener.py`) in the background. The monitor will run asynchronously to detect any changes to the project's inbox file and copy the message.
+- At the end of the initialization step, the Agent MUST call the `schedule` tool to schedule a 10-second background timer to start the self-perpetuating polling loop: `schedule(DurationSeconds="10", Prompt="🤖 [SYSTEM TIMER]: 10s check")`. This ensures that even in a new conversation session, the Telegram continuous interaction is automatically armed.
 
 ---
+
 
 ## ⛔ Removed Operations (FEAT-050)
 

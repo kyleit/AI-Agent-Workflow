@@ -338,6 +338,33 @@ def send_telegram_startup_message(conversation_id: str) -> None:
     if not token or not chat_id:
         return
         
+    # Try to resolve project-specific chat_id from projects.json registry
+    try:
+        import platform
+        import json
+        from pathlib import Path
+        system = platform.system()
+        reg_dir = Path.home() / ".config" / "aiwf"
+        if system == "Windows":
+            appdata = os.environ.get("APPDATA")
+            if appdata:
+                reg_dir = Path(appdata) / "aiwf"
+        elif system == "Darwin":
+            reg_dir = Path.home() / "Library" / "Application Support" / "aiwf"
+        
+        reg_path = reg_dir / "projects.json"
+        if reg_path.exists():
+            with open(reg_path, "r", encoding="utf-8") as f:
+                registry = json.load(f)
+            curr_abs = str(Path(".").resolve()).lower()
+            for p in registry.get("projects", []):
+                if str(Path(p["path"]).resolve()).lower() == curr_abs:
+                    if p.get("telegram_chat_id"):
+                        chat_id = p["telegram_chat_id"]
+                        break
+    except Exception:
+        pass
+        
     project_name = "default"
     manifest_path = "MANIFEST.json"
     if os.path.exists(manifest_path):
@@ -373,28 +400,8 @@ def send_telegram_startup_message(conversation_id: str) -> None:
     try:
         with opener.open(req, timeout=15) as response:
             response.read()
-            
-        # Register command dynamically on Telegram Bot API
-        import re
-        project_command = project_name.lower().replace("-", "_")
-        project_command = re.sub(r'[^a-z0-9_]', '_', project_command)[:32].strip("_")
-        
-        if project_command:
-            cmd_url = f"https://api.telegram.org/bot{token}/setMyCommands"
-            cmd_data = json.dumps({
-                "commands": [
-                    {
-                        "command": project_command,
-                        "description": f"Gửi lệnh tới dự án {project_name}"
-                    }
-                ]
-            }).encode("utf-8")
-            cmd_req = urllib.request.Request(cmd_url, data=cmd_data, method="POST")
-            cmd_req.add_header("Content-Type", "application/json")
-            with opener.open(cmd_req, timeout=10) as resp:
-                resp.read()
     except Exception as e:
-        print(f"Warning: Failed to send Telegram startup notification or set commands: {e}", file=sys.stderr)
+        print(f"Warning: Failed to send Telegram startup notification: {e}", file=sys.stderr)
 
 
 def do_init(args):
@@ -698,6 +705,12 @@ def do_init(args):
     try:
         with open(runtime_path, "w", encoding="utf-8") as f:
             json.dump(runtime_data, f, indent=2)
+    except Exception:
+        pass
+
+    try:
+        conversation_id = os.environ.get("AIWF_CONVERSATION_ID") or session.get("conversation_id") or "CONV-DEFAULT"
+        send_telegram_startup_message(conversation_id)
     except Exception:
         pass
 
