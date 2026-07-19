@@ -400,6 +400,7 @@ def send_telegram_startup_message(conversation_id: str) -> None:
 def do_init(args):
     import json
     import subprocess
+    from session import write_project_permissions_atomic
     has_project_args = (
         getattr(args, "name", None) is not None or
         getattr(args, "path", None) is not None or
@@ -434,8 +435,29 @@ def do_init(args):
             config_path = os.path.join(target_path, ".agents", "project.config.json")
             with open(config_path, "w", encoding="utf-8") as f:
                 json.dump(default_config, f, indent=2)
-            from session import write_project_permissions_atomic
-            write_project_permissions_atomic("sandbox")
+            config = {
+                "schema_version": "1.0.0",
+                "initialized": True,
+                "mode": "sandbox",
+                "config_revision": 1,
+                "initialized_at": datetime.now().astimezone().isoformat(),
+                "updated_at": datetime.now().astimezone().isoformat(),
+                "updated_by": "user",
+                "source": "cli",
+                "permissions": {
+                    "default_mode": "sandbox",
+                    "autonomous_delivery": False,
+                    "auto_continue_internal_phases": False,
+                    "stop_at_release_approval": True,
+                    "require_separate_git_approval": True,
+                    "require_separate_release_approval": True,
+                    "require_separate_deploy_approval": True,
+                    "max_retries_per_task": 3,
+                    "max_replans_per_work_item": 2,
+                    "max_agent_reassignments_per_task": 2
+                }
+            }
+            write_project_permissions_atomic(config)
         else:
             import init_wizard
             sys.exit(init_wizard.handle_init(args))
@@ -455,7 +477,6 @@ def do_init(args):
                 user_confirm = ""
             mode = "sandbox"
             
-        from session import write_project_permissions_atomic
         config = {
             "schema_version": "1.0.0",
             "initialized": True,
