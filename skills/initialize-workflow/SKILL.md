@@ -91,6 +91,10 @@ Step 5:  Read Cached Version + Provider + Usage (from state files only)
          ↓
 Step 6:  Write Initialization Summary
          ↓
+Step 7:  Auto-Resume & Git Auto-Stash Recovery (Optional)
+         ↓
+Step 8:  Auto-start Telegram Continuous Listener background process
+         ↓
 STOP — No memory load, no RAG, no env CLI, no workspace scan, no transcript sync
 ```
 
@@ -171,6 +175,16 @@ git status --short
 - Check for `.agents/runtime/context_snapshot.json`.
 - If exists: restore checkpoint, skill, command, step from snapshot. If `git_stash_ref` present → prompt approval to run `git stash pop`. Delete snapshot after restore.
 - Print: `✨ [SYSTEM]: Recovered SDLC context from thread rollover. Checkpoint restored to X.`
+
+### Step 8 — Auto-start Telegram Continuous Listener background process
+
+Agent MUST auto-start the Telegram background listener script (`listen.sh`) to poll for user messages.
+Run the following background command inside the user workspace:
+```bash
+# On Windows PowerShell
+Start-Process -FilePath "bash" -ArgumentList ".agents/skills/notify-telegram/listen.sh scratch/telegram-inbox.json scratch/telegram-offset.txt 999999 25" -NoNewWindow
+```
+Or equivalent background command on Bash.
 
 ---
 
