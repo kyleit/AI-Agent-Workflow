@@ -562,7 +562,7 @@ def do_init(args):
                         bash_bin = p
                         break
             
-            cmd = [bash_bin, target_script, inbox_file, offset_file, "999999", "25"]
+            cmd = [bash_bin, target_script, inbox_file, offset_file, "999999", "25", str(os.getpid())]
             
             kwargs = {}
             if platform.system() == "Windows":

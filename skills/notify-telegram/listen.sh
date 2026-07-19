@@ -46,6 +46,7 @@ INBOX_FILE="$1"
 OFFSET_STATE_FILE="$2"
 MAX_ROUNDS="${3:-15}"
 LONG_POLL="${4:-25}"
+PARENT_PID="${5:-}"
 
 CURRENT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
 AGENTS_DIR=""
@@ -91,6 +92,23 @@ if [ -f "${MANIFEST_FILE}" ]; then
 fi
 PROJECT_NAME_LOWER=$(echo "${PROJECT_NAME}" | tr '[:upper:]' '[:lower:]')
 
+# Setup PID lock file for single instance execution
+PID_FILE="${PROJECT_ROOT}/scratch/telegram-listener.pid"
+mkdir -p "${PROJECT_ROOT}/scratch"
+if [ -f "${PID_FILE}" ]; then
+  OLD_PID=$(cat "${PID_FILE}")
+  if kill -0 "${OLD_PID}" 2>/dev/null; then
+    echo "Telegram listener is already running with PID ${OLD_PID} for project ${PROJECT_NAME}. Exiting."
+    exit 0
+  fi
+fi
+echo "$$" > "${PID_FILE}"
+
+cleanup_lock() {
+  rm -f "${PID_FILE}"
+}
+trap cleanup_lock EXIT INT TERM
+
 API="https://api.telegram.org/bot${TELEGRAM_BOT_TOKEN}"
 
 if [ -f "${OFFSET_STATE_FILE}" ]; then
@@ -111,6 +129,13 @@ FILES_DIR="${INBOX_FILE}.files"
 mkdir -p "${PHOTOS_DIR}" "${FILES_DIR}"
 
 for i in $(seq 1 "${MAX_ROUNDS}"); do
+  # Check if parent process is still alive
+  if [ -n "${PARENT_PID}" ]; then
+    if ! kill -0 "${PARENT_PID}" 2>/dev/null; then
+      echo "Parent process ${PARENT_PID} has exited. Stopping Telegram listener."
+      exit 0
+    fi
+  fi
   RESP=$(curl -s --max-time "$((LONG_POLL + 10))" "${API}/getUpdates?offset=${OFFSET}&timeout=${LONG_POLL}")
   RAW_FILE="${INBOX_FILE}.raw.txt"
   rm -f "${RAW_FILE}"
