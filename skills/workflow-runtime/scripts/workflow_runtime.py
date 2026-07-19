@@ -548,6 +548,22 @@ def do_init(args):
             os.makedirs("scratch", exist_ok=True)
             inbox_file = os.path.join("scratch", "telegram-inbox.json")
             offset_file = os.path.join("scratch", "telegram-offset.txt")
+            pid_file = os.path.join("scratch", "telegram-listener.pid")
+            
+            # Kill old listener instance if exists using native process management
+            if os.path.exists(pid_file):
+                try:
+                    with open(pid_file, "r", encoding="utf-8") as f:
+                        old_pid = int(f.read().strip())
+                    if old_pid:
+                        if platform.system() == "Windows":
+                            subprocess.run(["taskkill", "/F", "/PID", str(old_pid)], 
+                                           stdout=subprocess.DEVNULL, stderr=subprocess.DEVNULL)
+                        else:
+                            import signal
+                            os.kill(old_pid, signal.SIGKILL)
+                except Exception:
+                    pass
             
             # Locate bash.exe on Windows to guarantee execution
             bash_bin = "bash"
@@ -572,7 +588,12 @@ def do_init(args):
                 kwargs["creationflags"] = 0x08000000 # CREATE_NO_WINDOW
             
             # Start background process safely
-            subprocess.Popen(cmd, close_fds=True, **kwargs)
+            proc = subprocess.Popen(cmd, close_fds=True, **kwargs)
+            
+            # Record the actual native PID of the new listener process
+            with open(pid_file, "w", encoding="utf-8") as f:
+                f.write(str(proc.pid))
+                
             print("✨ [SYSTEM]: Auto-started Telegram background listener.")
     except Exception as ex:
         print(f"Warning: Failed to auto-start Telegram listener: {ex}")
