@@ -461,7 +461,7 @@ To minimize token consumption, eliminate LLM logic errors, and ensure repeatable
 To prevent the leakage of user directory structures, usernames, and system details when project files and changes are pushed to remote Git repositories:
 1. **No Absolute Paths**: All AI agents and CLI scripts are strictly prohibited from generating, writing, or placing absolute file paths (e.g., `/Users/username/...`, `C:\Users\username\...`, or `file:///path/to/user/...`) in any project files, documents, configuration files, prompt responses, source code, or tests.
 2. **Mandatory Relative Paths**: All references to files, folders, and resources must use project-relative paths (e.g., `./skills/...`, `docs/plans/...`, or `.agents/workflow.config.json`).
-3. **Markdown Links**: Fenced markdown links and file pointers must use relative URLs/paths instead of absolute URLs/schemes pointing to the local filesystem (unless using relative links like `[link](file://./relative_path)` or generic references).
+3. **Markdown Links**: Tất cả các liên kết tài liệu Markdown trỏ tới tệp tin hoặc thư mục BẮT BUỘC phải luôn luôn sử dụng đường dẫn tương đối (relative paths) bắt đầu từ thư mục gốc của dự án (ví dụ: `[session.py](skills/workflow-runtime/scripts/session.py)`). Tuyệt đối nghiêm cấm việc sử dụng đường dẫn tuyệt đối hoặc định dạng giao thức tuyệt đối cục bộ như `file:///e:/...` hay `file:///C:/...` trong các tài liệu.
 4. **Scope of Application**: This rule applies universally to all Skills, docs, issues, plans, designs, code comments, tests, and CLI outputs.
 
 ---
@@ -650,3 +650,6 @@ To enforce standard software engineering processes and prevent bypasses, all ope
 
 3. **Message Integration**:
    Messages received via Telegram (logged to `scratch/telegram-inbox.json`) must be processed within the active session by the running Agent, preventing duplicate parallel CLI session invocations.
+
+4. **Bidirectional Command Execution & Messaging**:
+   Bất kỳ khi nào bắt đầu một lượt làm việc (Turn), Agent BẮT BUỘC phải kiểm tra tệp tin `scratch/telegram-inbox.json`. Nếu có lệnh/tin nhắn từ Ba gửi đến, Agent phải xử lý nó như một yêu cầu hướng dẫn trực tiếp từ người dùng. Sau khi thực thi xong hoặc khi chạm đến các chốt phê duyệt cần dừng lại hỏi Ba, Agent BẮT BUỘC phải gửi tóm tắt hoạt động và nội dung câu hỏi về Telegram của Ba qua sendMessage API (sử dụng mẫu và các helper script trong kỹ năng `notify-telegram`), sau đó khởi chạy lại tiến trình lắng nghe `listen.sh` để đảm bảo chu trình liên tục được vũ trang.

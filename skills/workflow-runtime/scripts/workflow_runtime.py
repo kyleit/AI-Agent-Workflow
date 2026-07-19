@@ -307,8 +307,94 @@ def update_context_health(session: dict) -> None:
     except Exception:
         pass
 
+def send_telegram_startup_message(conversation_id: str) -> None:
+    env_path = os.path.join(".agents", "config", ".env.telegram-notify")
+    if not os.path.exists(env_path):
+        return
+    
+    token = None
+    chat_id = None
+    proxy = None
+    try:
+        with open(env_path, "r", encoding="utf-8") as f:
+            for line in f:
+                line = line.strip()
+                if not line or line.startswith("#"):
+                    continue
+                if "=" in line:
+                    k, v = line.split("=", 1)
+                    k = k.strip()
+                    v = v.strip().strip('"').strip("'")
+                    if k == "TELEGRAM_BOT_TOKEN":
+                        token = v
+                    elif k == "TELEGRAM_CHAT_ID":
+                        chat_id = v
+                    elif k == "TELEGRAM_PROXY":
+                        proxy = v
+    except Exception as e:
+        print(f"Warning: Failed to parse .env.telegram-notify: {e}", file=sys.stderr)
+        return
+        
+    if not token or not chat_id:
+        return
+        
+    project_name = "default"
+    manifest_path = "MANIFEST.json"
+    if os.path.exists(manifest_path):
+        try:
+            with open(manifest_path, "r", encoding="utf-8") as f:
+                manifest_data = json.load(f)
+                project_name = manifest_data.get("name", "default")
+        except Exception:
+            pass
 
-
+    message = f"🤖 [{project_name}] Khởi động thành công và sẵn sàng nhận lệnh.\nConversation ID: {conversation_id}"
+    
+    import urllib.request
+    import urllib.parse
+    
+    url = f"https://api.telegram.org/bot{token}/sendMessage"
+    data = urllib.parse.urlencode({
+        "chat_id": chat_id,
+        "text": message
+    }).encode("utf-8")
+    
+    req = urllib.request.Request(url, data=data, method="POST")
+    req.add_header("Content-Type", "application/x-www-form-urlencoded")
+    
+    opener = urllib.request.build_opener()
+    if proxy:
+        proxy_handler = urllib.request.ProxyHandler({
+            "http": proxy,
+            "https": proxy
+        })
+        opener.add_handler(proxy_handler)
+        
+    try:
+        with opener.open(req, timeout=15) as response:
+            response.read()
+            
+        # Register command dynamically on Telegram Bot API
+        import re
+        project_command = project_name.lower().replace("-", "_")
+        project_command = re.sub(r'[^a-z0-9_]', '_', project_command)[:32].strip("_")
+        
+        if project_command:
+            cmd_url = f"https://api.telegram.org/bot{token}/setMyCommands"
+            cmd_data = json.dumps({
+                "commands": [
+                    {
+                        "command": project_command,
+                        "description": f"Gửi lệnh tới dự án {project_name}"
+                    }
+                ]
+            }).encode("utf-8")
+            cmd_req = urllib.request.Request(cmd_url, data=cmd_data, method="POST")
+            cmd_req.add_header("Content-Type", "application/json")
+            with opener.open(cmd_req, timeout=10) as resp:
+                resp.read()
+    except Exception as e:
+        print(f"Warning: Failed to send Telegram startup notification or set commands: {e}", file=sys.stderr)
 
 
 def do_init(args):
@@ -535,68 +621,11 @@ def do_init(args):
     session["runtime_mode"] = runtime_mode
     save_session_atomic(session)
 
-    # Auto-start Telegram background listener if configured
+    # Using global Shared Telegram Daemon instead of starting per-project background listeners
     try:
-        import platform
-        target_script = ""
-        if os.path.exists(os.path.join(".agents", "skills", "notify-telegram", "listen.sh")):
-            target_script = os.path.join(".agents", "skills", "notify-telegram", "listen.sh")
-        elif os.path.exists(os.path.join("skills", "notify-telegram", "listen.sh")):
-            target_script = os.path.join("skills", "notify-telegram", "listen.sh")
-            
-        if target_script:
-            os.makedirs("scratch", exist_ok=True)
-            inbox_file = os.path.join("scratch", "telegram-inbox.json")
-            offset_file = os.path.join("scratch", "telegram-offset.txt")
-            pid_file = os.path.join("scratch", "telegram-listener.pid")
-            
-            # Kill old listener instance if exists using native process management
-            if os.path.exists(pid_file):
-                try:
-                    with open(pid_file, "r", encoding="utf-8") as f:
-                        old_pid = int(f.read().strip())
-                    if old_pid:
-                        if platform.system() == "Windows":
-                            subprocess.run(["taskkill", "/F", "/PID", str(old_pid)], 
-                                           stdout=subprocess.DEVNULL, stderr=subprocess.DEVNULL)
-                        else:
-                            import signal
-                            os.kill(old_pid, signal.SIGKILL)
-                except Exception:
-                    pass
-            
-            # Locate bash.exe on Windows to guarantee execution
-            bash_bin = "bash"
-            if platform.system() == "Windows":
-                paths = [
-                    os.path.join(os.environ.get("PROGRAMFILES", "C:\\Program Files"), "Git", "bin", "bash.exe"),
-                    os.path.join(os.environ.get("PROGRAMFILES(X86)", "C:\\Program Files (x86)"), "Git", "bin", "bash.exe"),
-                    os.path.join(os.path.expanduser("~"), "AppData", "Local", "Programs", "Git", "bin", "bash.exe")
-                ]
-                for p in paths:
-                    if os.path.exists(p):
-                        bash_bin = p
-                        break
-            
-            cmd = [bash_bin, target_script, inbox_file, offset_file, "999999", "25", str(os.getpid())]
-            
-            kwargs = {}
-            if platform.system() == "Windows":
-                startupinfo = subprocess.STARTUPINFO()
-                startupinfo.dwFlags |= subprocess.STARTF_USESHOWWINDOW
-                kwargs["startupinfo"] = startupinfo
-                kwargs["creationflags"] = 0x08000000 # CREATE_NO_WINDOW
-            
-            # Start background process safely
-            proc = subprocess.Popen(cmd, close_fds=True, **kwargs)
-            
-            # Record the actual native PID of the new listener process
-            with open(pid_file, "w", encoding="utf-8") as f:
-                f.write(str(proc.pid))
-                
-            print("✨ [SYSTEM]: Auto-started Telegram background listener.")
+        print("[SYSTEM]: Using global Shared Telegram Daemon. Please run 'aiwf telegram start' to manage the listener daemon.")
     except Exception as ex:
-        print(f"Warning: Failed to auto-start Telegram listener: {ex}")
+        pass
 
     # Output status matching Final Acceptance Criteria
     print("Workspace:")
@@ -4531,6 +4560,162 @@ def do_provider_action(args):
             print(f"[ERROR] Failed to read permissions: {e}")
         return
 
+def do_telegram(args):
+    import subprocess
+    import platform
+    subaction = getattr(args, "subaction", None)
+    
+    daemon_script = os.path.join(os.path.dirname(__file__), "telegram_daemon.py")
+    log_file = os.path.expanduser("~/.aiwf/telegram-listener.log")
+    pid_file = os.path.expanduser("~/.aiwf/telegram-daemon.pid")
+    
+    if subaction == "start":
+        # Check if already running
+        running = False
+        if os.path.exists(pid_file):
+            try:
+                with open(pid_file, "r", encoding="utf-8") as f:
+                    pid = int(f.read().strip())
+                if os.name == "nt":
+                    res = subprocess.run(["tasklist", "/FI", f"PID eq {pid}"], stdout=subprocess.PIPE, stderr=subprocess.PIPE, text=True)
+                    if str(pid) in res.stdout:
+                        running = True
+                else:
+                    os.kill(pid, 0)
+                    running = True
+            except Exception:
+                pass
+                
+        if running:
+            print(f"[SYSTEM]: Shared Telegram Daemon is already running (PID: {pid}).")
+            return
+            
+        os.makedirs(os.path.expanduser("~/.aiwf"), exist_ok=True)
+        log_out = open(log_file, "a", encoding="utf-8")
+        
+        if os.name == "nt":
+            proc = subprocess.Popen(
+                [sys.executable, daemon_script, "daemon"],
+                stdout=log_out,
+                stderr=log_out,
+                creationflags=0x08000000
+            )
+        else:
+            proc = subprocess.Popen(
+                [sys.executable, daemon_script, "daemon"],
+                stdout=log_out,
+                stderr=log_out,
+                preexec_fn=os.setpgrp
+            )
+            
+        with open(pid_file, "w", encoding="utf-8") as f:
+            f.write(str(proc.pid))
+            
+        print(f"[SYSTEM]: Shared Telegram Daemon started in background with PID: {proc.pid}.")
+        
+    elif subaction == "stop":
+        if os.path.exists(pid_file):
+            try:
+                with open(pid_file, "r", encoding="utf-8") as f:
+                    pid = int(f.read().strip())
+                if os.name == "nt":
+                    subprocess.run(["taskkill", "/F", "/PID", str(pid)], stdout=subprocess.DEVNULL, stderr=subprocess.DEVNULL)
+                else:
+                    import signal
+                    os.kill(pid, signal.SIGTERM)
+                print(f"[SYSTEM]: Shared Telegram Daemon (PID: {pid}) stopped.")
+            except Exception as e:
+                print(f"[ERROR]: Failed to stop daemon: {e}")
+            finally:
+                try:
+                    os.remove(pid_file)
+                except Exception:
+                    pass
+        else:
+            print("[SYSTEM]: No running daemon found (missing PID file).")
+            
+    elif subaction == "status":
+        running = False
+        pid = None
+        if os.path.exists(pid_file):
+            try:
+                with open(pid_file, "r", encoding="utf-8") as f:
+                    pid = int(f.read().strip())
+                if os.name == "nt":
+                    res = subprocess.run(["tasklist", "/FI", f"PID eq {pid}"], stdout=subprocess.PIPE, stderr=subprocess.PIPE, text=True)
+                    if str(pid) in res.stdout:
+                        running = True
+                else:
+                    os.kill(pid, 0)
+                    running = True
+            except Exception:
+                pass
+                
+        if running:
+            print(f"[SYSTEM]: Shared Telegram Daemon is ACTIVE (PID: {pid}).")
+        else:
+            print("[SYSTEM]: Shared Telegram Daemon is INACTIVE.")
+            
+    elif subaction == "link":
+        disc_path = os.path.expanduser("~/.aiwf/discovered_groups.json")
+        groups = {}
+        if os.path.exists(disc_path):
+            try:
+                with open(disc_path, "r", encoding="utf-8") as f:
+                    groups = json.load(f)
+            except Exception:
+                pass
+                
+        if not groups:
+            print("[SYSTEM] Chua phat hien nhom Telegram nao. Hay dam bao ban da add Bot vao Group va gui tin nhan truoc.")
+            return
+            
+        curr_path = os.path.abspath(".")
+        
+        print("\n--- Danh sach nhom Telegram da phat hien ---")
+        options_list = list(groups.items())
+        for idx, (gid, title) in enumerate(options_list, 1):
+            print(f"{idx}. {title} (ID: {gid})")
+        print(f"{len(options_list) + 1}. Thoat")
+        
+        try:
+            ans = input(f"Chon nhom muon lien ket voi du an '{os.path.basename(curr_path)}' (1-{len(options_list) + 1}): ").strip()
+            if not ans:
+                print("Da huy.")
+                return
+            choice_idx = int(ans) - 1
+            if 0 <= choice_idx < len(options_list):
+                target_gid, target_title = options_list[choice_idx]
+                import aiwf_registry
+                if aiwf_registry.update_project_telegram_chat_id(curr_path, target_gid):
+                    print(f"[SYSTEM] Lien ket thanh cong du an '{os.path.basename(curr_path)}' voi Group '{target_title}' ({target_gid}).")
+                    
+                    # Sync dynamic Bot commands after linking
+                    cfg = {}
+                    cfg_path = os.path.expanduser("~/.aiwf/.env.telegram-notify")
+                    if os.path.exists(cfg_path):
+                        with open(cfg_path, "r", encoding="utf-8") as f:
+                            for line in f:
+                                if "=" in line:
+                                    k, v = line.split("=", 1)
+                                    if k.strip() == "TELEGRAM_BOT_TOKEN":
+                                        cfg["token"] = v.strip().strip('"').strip("'")
+                                    elif k.strip() == "TELEGRAM_PROXY":
+                                        cfg["proxy"] = v.strip().strip('"').strip("'")
+                    if cfg.get("token"):
+                        try:
+                            sys.path.insert(0, os.path.dirname(os.path.abspath(__file__)))
+                            import telegram_daemon
+                            telegram_daemon.set_bot_menu_commands(cfg["token"], cfg.get("proxy"))
+                        except Exception as e:
+                            print(f"[WARN] Failed to sync Bot commands: {e}")
+                else:
+                    print(f"[ERROR] Du an '{os.path.basename(curr_path)}' chua duoc dang ky trong he thong. Hay chay 'aiwf registry register' truoc.")
+            else:
+                print("Da huy.")
+        except Exception as ex:
+            print(f"Loi: {ex}")
+
 def do_registry(args):
     import aiwf_registry
     if args.subaction == "register":
@@ -5561,6 +5746,13 @@ def main():
     _ = ups_p.add_argument("--yes", action="store_true")
     _ = ups_p.add_argument("--allow-dirty", action="store_true")
     
+    telegram_p = subparsers.add_parser("telegram", help="Global Telegram Shared Daemon & link options")
+    telegram_sub = telegram_p.add_subparsers(dest="subaction", required=True)
+    _ = telegram_sub.add_parser("start")
+    _ = telegram_sub.add_parser("stop")
+    _ = telegram_sub.add_parser("status")
+    _ = telegram_sub.add_parser("link")
+
     api_server_p = subparsers.add_parser("api-server", help="Start stable Observability API Server")
     _ = api_server_p.add_argument("--port", type=int, default=31000)
     _ = api_server_p.add_argument("--host", type=str, default="localhost")
@@ -5631,6 +5823,7 @@ def main():
         "rules": do_rules_action,
         "state": do_state_action,
         "registry": do_registry,
+        "telegram": do_telegram,
         "update": do_update,
         "provider": do_provider_action,
         "status": do_status_action,
@@ -5644,7 +5837,7 @@ def main():
         "session": do_session_command
     }
     
-    modifying_actions = ["init", "start", "step", "complete", "fail", "blueprint", "suggest", "compact", "task", "deps", "execution", "analysis-agent", "choice", "input", "active-workflow", "resume", "discover", "classify", "memory", "env", "debug", "verify", "release", "state", "provider", "knowledge", "orchestrator", "orchestrate", "workflow", "session"]
+    modifying_actions = ["init", "start", "step", "complete", "fail", "blueprint", "suggest", "compact", "task", "deps", "execution", "analysis-agent", "choice", "input", "active-workflow", "resume", "discover", "classify", "memory", "env", "debug", "verify", "release", "state", "provider", "knowledge", "orchestrator", "orchestrate", "workflow", "session", "telegram"]
     if args.action in modifying_actions:
         with SessionLock():
             cmds[args.action](args)
