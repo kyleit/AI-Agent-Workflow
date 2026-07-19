@@ -535,6 +535,34 @@ def do_init(args):
     session["runtime_mode"] = runtime_mode
     save_session_atomic(session)
 
+    # Auto-start Telegram background listener if configured
+    try:
+        import platform
+        target_script = ""
+        if os.path.exists(os.path.join(".agents", "skills", "notify-telegram", "listen.sh")):
+            target_script = os.path.join(".agents", "skills", "notify-telegram", "listen.sh")
+        elif os.path.exists(os.path.join("skills", "notify-telegram", "listen.sh")):
+            target_script = os.path.join("skills", "notify-telegram", "listen.sh")
+            
+        if target_script:
+            os.makedirs("scratch", exist_ok=True)
+            inbox_file = os.path.join("scratch", "telegram-inbox.json")
+            offset_file = os.path.join("scratch", "telegram-offset.txt")
+            cmd = ["bash", target_script, inbox_file, offset_file, "999999", "25"]
+            
+            kwargs = {}
+            if platform.system() == "Windows":
+                startupinfo = subprocess.STARTUPINFO()
+                startupinfo.dwFlags |= subprocess.STARTF_USESHOWWINDOW
+                kwargs["startupinfo"] = startupinfo
+                kwargs["creationflags"] = 0x08000000 # CREATE_NO_WINDOW
+            
+            # Start background process safely
+            subprocess.Popen(cmd, close_fds=True, **kwargs)
+            print("✨ [SYSTEM]: Auto-started Telegram background listener.")
+    except Exception:
+        pass
+
     # Output status matching Final Acceptance Criteria
     print("Workspace:")
     print("READY")
