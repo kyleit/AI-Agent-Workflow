@@ -119,30 +119,63 @@ class WorkflowEntryGateway:
         workflow_id = self.extract_workflow_id(request_text)
         if workflow_id == "FEAT-AUTO":
             max_num = 0
-            for d in ["docs/brainstorming", "docs/designs", "docs/plans", "docs/verification"]:
+            for d in ["docs/brainstorming", "docs/blueprints", "docs/plans", "docs/verification"]:
                 d_path = os.path.join(self.workspace_root, d)
                 if os.path.exists(d_path):
-                    for f in os.listdir(d_path):
-                        match = re.search(r"FEAT-(\d+)", f)
-                        if match:
-                            num = int(match.group(1))
-                            if num > max_num:
-                                max_num = num
-            feat_id = max_num + 1 if max_num > 0 else 313
+                    # os.walk (not os.listdir) because a feature may use the multi-phase
+                    # folder shape (docs/<stage>/<feature-slug>/master/FEAT-XXX_..._master_*.md),
+                    # where the FEAT-XXX number is nested, not in the top-level directory name.
+                    for _root, _dirs, files in os.walk(d_path):
+                        for f in files:
+                            match = re.search(r"FEAT-(\d+)", f)
+                            if match:
+                                num = int(match.group(1))
+                                if num > max_num:
+                                    max_num = num
+            feat_id = max_num + 1 if max_num > 0 else 312
             workflow_id = f"FEAT-{feat_id:03d}"
             
         # Run coordinator tick
         coord = WorkflowCoordinator(self.workspace_root)
         coord_res = coord.run_tick(request_text, workflow_id)
+        entry_phase = "brainstorming"
         
         # If success or safety gate violation, update runtime/context states
         # Emit events for backward compatibility
-        emit_event("workflow.created", {"request_id": req_id, "workflow_id": workflow_id, "intent": intent, "status": "CREATED", "next_phase": coord_res.get("active_phase") or "brainstorming", "source": source or "system", "session_id": session_id or "default_session"})
+        emit_event("workflow.created", {"request_id": req_id, "workflow_id": workflow_id, "intent": intent, "status": "CREATED", "next_phase": entry_phase, "source": source or "system", "session_id": session_id or "default_session"})
         emit_event("workflow.started", {"request_id": req_id, "workflow_id": workflow_id})
-        emit_event("workflow.phase.started", {"request_id": req_id, "workflow_id": workflow_id, "phase": coord_res.get("active_phase") or "brainstorming"})
+        emit_event("workflow.phase.started", {"request_id": req_id, "workflow_id": workflow_id, "phase": entry_phase})
         
         # Update context.json & runtime.json for compatibility
-        state_dir = os.path.join(self.workspace_root, ".agents", "state")
+        if self.workspace_root in ("", "."):
+            state_dir = os.path.join(".agents", "state")
+        else:
+            state_dir = os.path.join(self.workspace_root, ".agents", "state")
+        os.makedirs(state_dir, exist_ok=True)
+        next_skill_info = coord_res.get("suggested_next_skill_metadata") or {}
+        wf_path = os.path.join(state_dir, "workflow.json")
+        wf_data = {}
+        if os.path.exists(wf_path):
+            try:
+                with open(wf_path, "r", encoding="utf-8") as f:
+                    wf_data = json.load(f)
+            except Exception:
+                pass
+        wf_data.update({
+            "active_workflow": workflow_id,
+            "active_phase": entry_phase,
+            "checkpoint": coord_res.get("checkpoint") or 1,
+            "status": "in_progress",
+            "work_item": {
+                "type": "FEAT" if workflow_id.startswith("FEAT") else "QUICK",
+                "id": workflow_id,
+                "title": request_text
+            },
+            "suggested_next_skill": next_skill_info.get("skill") or "brainstorming",
+            "suggested_next_command": next_skill_info.get("command") or "brainstorm"
+        })
+        with open(wf_path, "w", encoding="utf-8") as f:
+            json.dump(wf_data, f, indent=2, ensure_ascii=False)
         
         ctx_path = os.path.join(state_dir, "context.json")
         ctx_data = {}
@@ -155,8 +188,11 @@ class WorkflowEntryGateway:
         ctx_data.update({
             "work_item_id": workflow_id,
             "workflow_id": workflow_id,
-            "phase": coord_res.get("active_phase") or "brainstorming",
-            "checkpoint": coord_res.get("checkpoint") or 1
+            "phase": entry_phase,
+            "checkpoint": coord_res.get("checkpoint") or 1,
+            "authorization": {
+                "allowed_phases": ["discovery", "brainstorming", "planning", "blueprint", "implementation", "debug", "verification"]
+            }
         })
         with open(ctx_path, "w", encoding="utf-8") as f:
             json.dump(ctx_data, f, indent=2, ensure_ascii=False)
@@ -169,7 +205,6 @@ class WorkflowEntryGateway:
                     rt_data = json.load(f)
             except Exception:
                 pass
-        next_skill_info = coord_res.get("suggested_next_skill_metadata") or {}
         rt_data.update({
             "status": "in_progress" if coord_res.get("status") == "success" else "waiting_input",
             "current_skill": next_skill_info.get("skill") or "brainstorming",
@@ -188,7 +223,7 @@ class WorkflowEntryGateway:
             "workflow_id": workflow_id,
             "workflow": "standard-development",
             "execution_mode": "workflow",
-            "current_phase": coord_res.get("active_phase") or "brainstorming",
+            "current_phase": entry_phase,
             "next_skill": next_skill_info.get("skill") or "brainstorming",
             "source": source or "system",
             "session_id": session_id or "default_session"

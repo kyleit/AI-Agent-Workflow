@@ -11,7 +11,6 @@ tags:
   - scoping
 version: 3.2.0
 license: MIT
-repository: https://gitlab.com/hngan.it/ai-workflow-skills
 created_at: 2026-07-03
 updated_at: 2026-07-09
 description: Convert a structured master brainstorming document into a formal Execution Plan (Markdown & JSON) using a Memory-First strategy and the FEAT-XXX Feature ID format.
@@ -26,8 +25,7 @@ runtime_requirements:
   environment: none
   version: cached
   provider: optional
-  usage: cached
----
+  usage: cached---
 
 # Skill: Planning Prompt → Implementation Plan (FEAT-XXX format)
 
@@ -56,8 +54,13 @@ Your responsibility is to produce a production-ready Implementation Plan with th
 ## Input
 
 ```yaml
-prompt_file: docs/brainstorm/FEAT-XXX_feature_slug.md
-# Path to the brainstorming/requirement discovery file containing the planning prompt
+# Structure-mirroring rule (applies in ANY project): a feature's brainstorming input may be either
+#   (a) a single flat file:   docs/brainstorming/FEAT-XXX_feature_slug.md
+#   (b) a multi-phase folder: docs/brainstorming/<feature-slug>/master/FEAT-XXX_..._master_brainstorming.md
+#                              + docs/brainstorming/<feature-slug>/phase-NN-<phase-slug>/phase-brainstorming.md
+# Detect which shape exists for this feature and mirror that same shape for the plan output.
+prompt_file: docs/brainstorming/FEAT-XXX_feature_slug.md   # or the (b) folder form above
+# Path to the brainstorming/requirement discovery file(s) containing the planning prompt
 
 workspace: auto
 
@@ -67,7 +70,7 @@ framework: auto
 
 architecture: auto
 
-output_path: docs/plans/auto
+output_path: docs/plans/   # mirrors prompt_file's shape — see Step 1
 ```
 
 ---
@@ -101,11 +104,12 @@ Runs under the Multi-Agent Workflow. Respect agent ownership and handoff rules d
 # Workflow
 
 ## Step 1 — Read Master Requirement Document
-Read the brainstorming file at:
-```
-docs/brainstorming/FEAT-XXX_feature_slug.md
-```
-Extract the **Feature ID**, **Feature Name**, **MoSCoW Prioritization**, and the **Planning Prompt** section from it.
+First detect the shape of this feature's brainstorming input: a single flat `docs/brainstorming/FEAT-XXX_feature_slug.md`, or a `docs/brainstorming/<feature-slug>/master/` + `phase-NN-<phase-slug>/` folder tree.
+
+- **Single-file shape**: read that one file. Produce one plan for the whole feature (Step 5/Output Rules, single-file branch).
+- **Multi-phase folder shape**: read `master/FEAT-XXX_..._master_brainstorming.md` first, then every `phase-NN-<phase-slug>/phase-brainstorming.md` in phase order. Produce one Implementation Plan **per phase** plus one master plan indexing all phases (Step 5/Output Rules, multi-phase branch), mirroring the same phase breakdown — never re-decompose the feature into a different phase split than the brainstorming stage already chose.
+
+Either way, extract the **Feature ID**, **Feature Name**, **MoSCoW Prioritization**, and the **Planning Prompt** section(s).
 
 ---
 
@@ -128,7 +132,9 @@ Inspect only files explicitly referenced by memory or RAG.
 Generate the plan document. It must contain the YAML metadata header and the plan sections. Planner MUST directly use the MoSCoW prioritization defined in the brainstorming document to group requirements into implementation phases (e.g., all 'Must' requirements must be placed in Phase 1, 'Should' in Phase 2, etc.) without re-analyzing architecture or scope:
 
 ```markdown
-<!-- File path: docs/plans/FEAT-XXX_feature_slug_plan.md -->
+<!-- File path (single-file shape):  docs/plans/FEAT-XXX_feature_slug_plan.md -->
+<!-- File path (multi-phase shape): docs/plans/<feature-slug>/phase-NN-<phase-slug>/phase-plan.md -->
+<!-- File path (multi-phase master): docs/plans/<feature-slug>/master/FEAT-XXX_..._master_plan.md -->
 
 ---
 feature_id: FEAT-XXX
@@ -137,8 +143,8 @@ status: reviewed
 stage: planning
 created_at: [YYYY-MM-DD]
 updated_at: [YYYY-MM-DD]
-previous_artifact: ../brainstorming/FEAT-XXX_feature_slug.md
-next_artifact: ../designs/FEAT-XXX_feature_slug_blueprint.md
+previous_artifact: [relative path to the matching brainstorming file/folder — mirror the shape from Step 1]
+next_artifact: [relative path to the matching blueprint file/folder once created — see plan-to-blueprint, docs/blueprints/]
 ---
 
 # FEAT-XXX: [Human Readable Name]
@@ -199,7 +205,7 @@ Cung cấp định hướng cho pha Blueprint thiết kế chi tiết:
 | Task 1.1 | Yes | Yes | No | No | Yes | Yes | No |
 
 ## 10. Artifact Production Plan
-- **Phase 1 Artifacts**: docs/designs/FEAT-XXX_blueprint.md
+- **Phase 1 Artifacts**: docs/blueprints/FEAT-XXX_blueprint.md (or the matching phase-blueprint.md under docs/blueprints/<feature-slug>/)
 - **Phase 2 Artifacts**: docs/adr/ADR-XXX.md, docs/releases/Release_Notes.md
 
 ## 11. Token & Execution Optimization
@@ -216,13 +222,24 @@ Cung cấp định hướng cho pha Blueprint thiết kế chi tiết:
 
 # Output Rules
 
-Create exactly two files:
+Mirror whichever shape Step 1 detected for this feature:
+
+**Single-file shape** — create exactly two files:
 1. `docs/plans/FEAT-XXX_feature_slug_plan.md`
 2. `docs/plans/FEAT-XXX_feature_slug_plan.json`
 
-First line of the Markdown file must be:
+**Multi-phase folder shape** — for each phase, create:
+1. `docs/plans/<feature-slug>/phase-NN-<phase-slug>/phase-plan.md`
+2. `docs/plans/<feature-slug>/phase-NN-<phase-slug>/phase-plan.json`
+
+Plus one master plan indexing every phase:
+1. `docs/plans/<feature-slug>/master/FEAT-XXX_..._master_plan.md`
+2. `docs/plans/<feature-slug>/master/FEAT-XXX_..._master_plan.json`
+
+First line of every Markdown file must be its own real path, e.g.:
 ```html
 <!-- File path: docs/plans/FEAT-XXX_feature_slug_plan.md -->
+<!-- or: docs/plans/<feature-slug>/phase-NN-<phase-slug>/phase-plan.md -->
 ```
 
 The JSON file must conform to this schema:
@@ -263,7 +280,7 @@ The JSON file must conform to this schema:
       "mapped_tasks": ["Task 1.1"]
     }
   ],
-  "artifacts": ["docs/designs/FEAT-XXX_blueprint.md"]
+  "artifacts": ["docs/blueprints/FEAT-XXX_blueprint.md"]
 }
 ```
 
@@ -283,7 +300,7 @@ The JSON file must conform to this schema:
 # IDE Skill Hardening & Boundary Rules
 
 ## 1. Single Responsibility
-Convert a master brainstorming planning prompt into a formal Implementation Plan. Once `docs/plans/FEAT-XXX_feature_slug_plan.md` is generated, STOP.
+Convert a master brainstorming planning prompt into a formal Implementation Plan. Once the plan output (single file, or every phase's `phase-plan.md` + master index for the multi-phase shape) is generated under `docs/plans/`, STOP.
 
 ## 2. Never Execute Next Phase
 Do NOT invoke `plan-to-blueprint` or any other Skill.
@@ -318,7 +335,9 @@ Source Files Inspected:
 [list or "None — answered from memory"]
 
 Generated Output:
-docs/plans/FEAT-XXX_feature_slug_plan.md
+[Single-file shape: docs/plans/FEAT-XXX_feature_slug_plan.md (+ .json)]
+[Multi-phase shape: docs/plans/<feature-slug>/master/FEAT-XXX_..._master_plan.md (+ .json)
+ + docs/plans/<feature-slug>/phase-NN-<phase-slug>/phase-plan.md (+ .json)]
 
 Recommended Next Skill:
 plan-to-blueprint

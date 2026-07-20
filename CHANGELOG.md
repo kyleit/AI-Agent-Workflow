@@ -5,21 +5,33 @@ All notable changes to this project will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
-## [6.17.0] - 2026-07-17
+## [6.18.3] - 2026-07-20
 
-### Added
-- **Architecture Review Skill**:
-  - Triển khai Skill mới `architecture-review` để thực hiện đánh giá kiến trúc thiết kế hệ thống trước khi tiếp tục giai đoạn Blueprint.
-- **Post-Release Lifecycle Skill**:
-  - Triển khai Skill mới `post-release-lifecycle` đại diện cho quy trình kiểm định, giám sát và vận hành 10 bước nghiêm ngặt sau phát hành.
+### Fixed
+- **Sửa lỗi Telegram Listener Daemon & Thêm Quy tắc Phản hồi (FIX-410)**:
+  - Tách tiến trình `listen.sh` thành daemon độc lập bằng cách truyền Parent PID rỗng.
+  - Khắc phục lỗi mã hóa Unicode trên hệ điều hành Windows (loại bỏ ký tự emoji `✨`).
+  - Gửi thông báo khởi tạo thành công kèm `Conversation ID` hiện hành qua Telegram API.
+  - Tự động đăng ký các câu lệnh chính thức của Telegram qua api `setMyCommands`.
+  - Khắc phục các xung đột liên quan đến Windows PID trên Git Bash/MSYS và bắt lỗi crash `curl`.
+- **Cập nhật chính sách đường dẫn tương đối (Relative Path Policy)**:
+  - Yêu cầu bắt buộc mọi tài liệu Markdown (`docs/`) và quy tắc chung (`AI_RULES.md`) phải sử dụng định dạng đường dẫn tương đối thay vì dùng link tuyệt đối (`file:///`).
 
-## [6.17.0-alpha.2] - 2026-07-17
+### Added (Visualizer Extension v1.0.46)
+- **Tăng cường Extension API & Sidebar controller (QUICK-033 / FEAT-409)**:
+  - Đăng ký các lệnh VS Code chính thức `visualizer.getSessionData` và `ai-skill-workflow-visualizer.getSessionData` để xuất trạng thái session hiện tại.
+  - Sửa lỗi null check an toàn cho tab stats của Test Coordinator.
+  - Bổ sung bộ điều khiển Sidebar Toggle lưu trạng thái mở rộng/thu gọn vào LocalStorage.
 
-### Added
-- **Document Compliance Assessment Skill**:
-  - Triển khai Skill mới `document-compliance-assessment` để đánh giá điểm tuân thủ tài liệu và truy vết (Documentation Traceability Score) dựa trên quy tắc điều phối hệ thống.
-  - Tích hợp kiểm duyệt chất lượng tài liệu vào Skill `debug-to-verify` thông qua bảng checklist và mẫu báo cáo Document Compliance Report mới.
-  - Cập nhật công cụ đóng gói release `tools/export.js` để tự động xóa sạch thông tin tác giả khỏi các tệp tin `SKILL.md` khi xuất bản sang `public_export`.
+## [6.18.2] - 2026-07-19
+
+### Fixed
+- **Tự động khởi chạy Telegram Inbox Monitor (FIX-411)**:
+  - Tự động chạy tiến trình nền `monitor_listener.py` khi chạy lệnh `init` khởi động workflow, giải quyết vấn đề nhận lệnh Telegram trên các cuộc hội thoại mới.
+  - Tương thích tốt với môi trường Windows (`CREATE_NO_WINDOW`) và Unix (`start_new_session=True`), chạy không chặn (non-blocking) và ẩn log.
+  - Cập nhật tài liệu kỹ năng `initialize-workflow` để loại bỏ hướng dẫn chạy script `listen.sh` cũ.
+- **Quy tắc Kiểm thử Giới hạn Phạm vi (Targeted Testing)**:
+  - Bổ sung quy định kiểm thử mới vào `AGENTS.md`, yêu cầu Agent chỉ chạy các test case liên quan trực tiếp đến thành phần chỉnh sửa để tiết kiệm tài nguyên.
 
 ## [6.16.0] - 2026-07-13
 
@@ -92,8 +104,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Fixed
 - **OS File Locking & Process Resiliency (FEAT-051 / Multi-Agent Safety)**:
-  - Khôi phục công cụ an toàn ghi đa tác nhân [safe_multi_agent_writes.py](file:///e:/AgentsProject/skills/workflow-runtime/scripts/safe_multi_agent_writes.py) và các tệp kiểm thử đi kèm.
-  - Sửa đổi cơ chế khóa `OSFileLock` trong [session.py](file:///e:/AgentsProject/skills/workflow-runtime/scripts/session.py) để cô lập cờ bypass lock chỉ kích hoạt trong môi trường kiểm thử pytest (`PYTEST_CURRENT_TEST`), đảm bảo lock vật lý luôn hoạt động trên production.
+  - Khôi phục công cụ an toàn ghi đa tác nhân [safe_multi_agent_writes.py](skills/workflow-runtime/scripts/safe_multi_agent_writes.py) và các tệp kiểm thử đi kèm.
+  - Sửa đổi cơ chế khóa `OSFileLock` trong [session.py](skills/workflow-runtime/scripts/session.py) để cô lập cờ bypass lock chỉ kích hoạt trong môi trường kiểm thử pytest (`PYTEST_CURRENT_TEST`), đảm bảo lock vật lý luôn hoạt động trên production.
   - Bổ sung cơ chế khóa tiến trình `OSFileLock` cho `LeaseManager` trong `safe_multi_agent_writes.py` nhằm loại bỏ rủi ro tranh chấp ghi file đĩa đồng thời trên Windows.
   - Bổ sung cơ chế thử lại (atomic replace retry loop) tối đa 5 lần cho `write_json_atomic` tăng cường khả năng phục hồi lỗi khóa tệp Windows.
   - Dọn dẹp triệt để các tiến trình mồ côi (zombie python tasks) giúp tái tạo môi trường làm việc sạch.
@@ -103,8 +115,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Fixed
 - **Incident Recovery & Hardening (FEAT-118)**:
-  - Khắc phục sự cố tràn tiến trình Python gây OOM bằng cách tối ưu hóa kết nối SQLite trong [db.py](file:///e:/AgentsProject/skills/workflow-runtime/scripts/db.py) (tránh truy vấn khóa độc quyền ghi khi đọc dữ liệu).
-  - Tích hợp kiểm tra PID kết hợp `process_create_time` qua `psutil` trong [workflow_runtime.py](file:///e:/AgentsProject/skills/workflow-runtime/scripts/workflow_runtime.py) nhằm loại bỏ lỗi nhận diện sai tiến trình trùng lặp PID trên Windows.
+  - Khắc phục sự cố tràn tiến trình Python gây OOM bằng cách tối ưu hóa kết nối SQLite trong [db.py](skills/workflow-runtime/scripts/db.py) (tránh truy vấn khóa độc quyền ghi khi đọc dữ liệu).
+  - Tích hợp kiểm tra PID kết hợp `process_create_time` qua `psutil` trong [workflow_runtime.py](skills/workflow-runtime/scripts/workflow_runtime.py) nhằm loại bỏ lỗi nhận diện sai tiến trình trùng lặp PID trên Windows.
   - Áp dụng cơ chế nhóm Windows Job Object để tự động dọn dẹp các tiến trình con khi tiến trình cha daemon bị kết thúc.
   - Tự động bỏ qua (bypass) các cổng phê duyệt trung gian (`blueprint_approval`) khi kích hoạt chế độ tự động `autonomous_delivery`, ngoại trừ cổng kiểm soát phát hành (`release_approval`).
   - Hoàn thiện lập lịch thông minh Adaptive Team Planner và giới hạn tài nguyên tính toán cho `RuntimeScheduler`.
@@ -116,7 +128,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   - Triển khai cờ khởi chạy CLI `--autonomous` cho phép tự động bypass các cổng phê duyệt thủ công trung gian đối với các hành động thông thường (normal writes/compiles/tests).
   - Tích hợp tính năng tự động ghi nhận thuộc tính `autonomous_delivery` và tính toán động `progress_percentage` trong pha lưu trữ phân tách Pure Split State.
   - Tích hợp nhãn trạng thái `⚡ AUTONOMOUS DELIVERY` động và thanh tiến độ thực thi trực quan trên Visualizer Sidebar.
-  - Bổ sung quy tắc theo dõi và thông báo tiến độ kiểm thử chạy ngầm (background tests) mỗi 5% tiến trình vào chính sách kiểm thử [AI_RULES.md](file:///e:/AgentsProject/AI_RULES.md).
+  - Bổ sung quy tắc theo dõi và thông báo tiến độ kiểm thử chạy ngầm (background tests) mỗi 5% tiến trình vào chính sách kiểm thử [AI_RULES.md](AI_RULES.md).
 
 ## [6.12.0] - 2026-07-12
 

@@ -11,7 +11,6 @@ tags:
   - publish
 version: 3.0.0
 license: MIT
-repository: https://gitlab.com/hngan.it/ai-workflow-skills
 created_at: 2026-07-03
 updated_at: 2026-07-06
 description: Enforces explicit user-driven releases and requires blueprint validation before any release activities.
@@ -26,8 +25,7 @@ runtime_requirements:
   environment: cached
   version: cached
   provider: optional
-  usage: cached
----
+  usage: cached---
 
 # Skill: Implementation to Release (Explicit & Blueprint-Validated)
 
@@ -68,7 +66,7 @@ This Skill MUST strictly adhere to the global policies defined in [AI_RULES.md](
 Prior to running any release activities, the AI must strictly execute the following validations:
 
 1. **Verify Explicit Release Request**: The AI must verify that the user has explicitly requested a Release (e.g. via keywords like `/release`, `release`, `create release`, `publish release`, `bump version`, `commit and push`, or `tag this version`). Any automatic progression to this Skill without a clear user request is strictly prohibited.
-2. **Verify Blueprint Approval**: Confirm that a Technical Design Blueprint exists for this work under `docs/designs/` and that its status is marked as `"approved": true` in the active workflow session data.
+2. **Verify Blueprint Approval**: Confirm that a Technical Design Blueprint exists for this work under `docs/blueprints/` and that its status is marked as `"approved": true` in the active workflow session data.
 3. **Verify Quality Gates**: Ensure all quality gates are met:
    - Debug Gate: `docs/debug/FEAT-XXX_debug.md` has `status: PASS`.
    - Verification Gate: `docs/verification/FEAT-XXX_verify.md` has `status: PASS`.

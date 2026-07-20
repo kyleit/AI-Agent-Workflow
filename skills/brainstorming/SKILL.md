@@ -11,7 +11,6 @@ tags:
   - brainstorming
 version: 3.1.0
 license: MIT
-repository: https://gitlab.com/hngan.it/ai-workflow-skills
 created_at: 2026-07-03
 updated_at: 2026-07-09
 description: Skill definition.
@@ -26,8 +25,7 @@ runtime_requirements:
   environment: none
   version: none
   provider: optional
-  usage: cached
----
+  usage: cached---
 
 # Skill: brainstorming
 
@@ -44,7 +42,7 @@ runtime_requirements:
 | I will **NOT** edit any project files. |
 | I will **NOT** implement anything. |
 | I will **ONLY** perform Requirement Discovery. |
-| The ONLY file I may write is: `docs/brainstorming/FEAT-XXX_feature_name.md` |
+| The ONLY files I may write are under `docs/brainstorming/` (single file or feature-folder — see Feature ID Allocation Rule) |
 | And ONLY after explicit user confirmation (Y/N). |
 
 > This output is mandatory. Do not skip it. Do not abbreviate it.
@@ -73,7 +71,7 @@ IF you are about to:
   ✗ Use edit_file(), replace_file(), or multi_replace_file()
   ✗ Run any shell command that modifies files
   ✗ Read source code files to find bugs to fix
-  ✗ Generate a plan (docs/plans/) or blueprint (docs/designs/)
+  ✗ Generate a plan (docs/plans/) or blueprint (docs/blueprints/)
   ✗ Invoke or call another Skill
   ✗ Modify memory, changelog, or git history
 
@@ -148,11 +146,18 @@ Do not parse it as YAML. Do not treat it as implementation commands.
 
 Feature IDs are determined **ONLY** by scanning `docs/brainstorming/`:
 
-1. Scan `docs/brainstorming/` for files matching `FEAT-XXX_*.md` (3-digit number).
-2. Ignore: `docs/plans/`, `docs/designs/`, `docs/adr/`, memory, git history, `CHANGELOG.md`.
+1. Scan `docs/brainstorming/` for both shapes: flat files matching `FEAT-XXX_*.md` (3-digit number) AND feature-folders `docs/brainstorming/<feature-slug>/master/FEAT-XXX_*_master_brainstorming.md`.
+2. Ignore: `docs/plans/`, `docs/blueprints/`, `docs/adr/`, memory, git history, `CHANGELOG.md`.
 3. Empty directory (or only `.gitkeep`) → start at `FEAT-001`.
-4. Files exist → next ID = highest existing ID + 1.
+4. Files exist (either shape) → next ID = highest existing ID + 1.
 5. Resume/Selection mode → reuse the Feature ID under discussion.
+
+## Document Shape Rule (single file vs. multi-phase folder)
+
+This Skill produces **one flat file** (`docs/brainstorming/FEAT-XXX_feature_name.md`) by default — this covers the large majority of features. Use the **multi-phase folder shape** instead —
+`docs/brainstorming/<feature-slug>/master/FEAT-XXX_..._master_brainstorming.md` + one `docs/brainstorming/<feature-slug>/phase-NN-<phase-slug>/phase-brainstorming.md` per phase — ONLY when, during Step 3–7 discovery, the feature genuinely decomposes into multiple, largely independent implementation phases (each with its own FR/NFR/AC set that could plausibly ship on its own), typically 4+ phases for a large system-level feature. Ask the user before switching shape if it's ambiguous — this is a real judgment call, not an automatic threshold.
+
+If the multi-phase shape is chosen, Step 15 writes the master doc first (feature-wide problem statement, stakeholder analysis, architecture principles, risk matrix, and an index of every phase with a one-paragraph summary + link), then one phase-brainstorming.md per phase (using the same template below, scoped to that phase's FR/NFR/AC only).
 
 > [!WARNING]
 > Never pre-assign FEAT-XXX IDs during Feature Decomposition.
@@ -436,8 +441,9 @@ Continue generating Brainstorming document?
 Only after Y confirmation:
 
 1. Scan `docs/brainstorming/` to calculate the next Feature ID.
-2. Write: `docs/brainstorming/FEAT-XXX_feature_name.md`
-   (one file per independent feature if decomposition was chosen)
+2. Per the Document Shape Rule above, write either:
+   - `docs/brainstorming/FEAT-XXX_feature_name.md` (single-file shape — default), one per independent feature if decomposition was chosen, OR
+   - `docs/brainstorming/<feature-slug>/master/FEAT-XXX_..._master_brainstorming.md` + `docs/brainstorming/<feature-slug>/phase-NN-<phase-slug>/phase-brainstorming.md` per phase (multi-phase shape).
 3. Use **relative paths only** for all artifact links.
 
 ---
@@ -445,7 +451,9 @@ Only after Y confirmation:
 ## Brainstorming Document Template
 
 ```markdown
-<!-- docs/brainstorming/FEAT-XXX_feature_name.md -->
+<!-- Single-file shape:   docs/brainstorming/FEAT-XXX_feature_name.md -->
+<!-- Multi-phase master:  docs/brainstorming/<feature-slug>/master/FEAT-XXX_..._master_brainstorming.md -->
+<!-- Multi-phase phase:   docs/brainstorming/<feature-slug>/phase-NN-<phase-slug>/phase-brainstorming.md (same template, scoped to that phase) -->
 
 ---
 feature_id: FEAT-XXX
@@ -455,7 +463,7 @@ stage: brainstorming
 created_at: YYYY-MM-DD
 updated_at: YYYY-MM-DD
 previous_artifact: None
-next_artifact: ../plans/FEAT-XXX_feature_name_plan.md
+next_artifact: [relative path to the matching plan file/folder once created — see brainstorming-to-plan]
 ---
 
 # Master Requirement Document – [Human Readable Name]
@@ -712,8 +720,8 @@ The Planning Agent must require no further clarification from this section.
 [All identified risks and mitigations]
 
 ### Verification Checklist
-- [ ] docs/plans/FEAT-XXX_feature_name_plan.md generated and approved
-- [ ] docs/designs/FEAT-XXX_feature_name_blueprint.md generated and approved
+- [ ] Implementation Plan generated and approved (docs/plans/, single-file or multi-phase shape)
+- [ ] Technical Blueprint generated and approved (docs/blueprints/, single-file or multi-phase shape)
 - [ ] All Acceptance Criteria mapped to implementation tasks
 
 ---
@@ -766,7 +774,7 @@ Output at end of execution:
 | **Solutions Generated** | `[Option A: Name, Option B: Name, Option C: Name (if applicable)]` |
 | **Recommended Solution** | `Option [A/B/C] — [Name]` |
 | **User Confirmed** | `[Yes | No | Pending]` |
-| **Brainstorming File(s)** | `[docs/brainstorming/FEAT-XXX_feature_name.md | None]` |
+| **Brainstorming File(s)** | `[docs/brainstorming/FEAT-XXX_feature_name.md, or the master+phase-NN file set | None]` |
 | **Self-Validation** | `[ALL PASS | FAILED: item list]` |
 
 ---

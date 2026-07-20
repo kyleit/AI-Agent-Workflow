@@ -91,7 +91,8 @@ class ImplementationLedger:
         from 'implementation_packages' or 'tasks' are wrapped in synthetic Phase 1.
         
         Args:
-            blueprint_json: Loaded JSON from docs/designs/FEAT-XXX_blueprint.json
+            blueprint_json: Loaded JSON from docs/blueprints/FEAT-XXX_blueprint.json
+                (or docs/blueprints/<feature-slug>/phase-NN-<phase-slug>/phase-blueprint.json)
         
         Returns:
             Ledger dict (also saved to disk).

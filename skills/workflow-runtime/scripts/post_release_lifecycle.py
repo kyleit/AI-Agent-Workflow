@@ -11,7 +11,7 @@ class PostReleaseLifecycleAutomator:
         self,
         release_version: str,
         git_commit: str,
-        output_dir: str = "docs/reviews"
+        output_dir: str = "docs/verification"
     ) -> None:
         self.release_version = release_version
         self.git_commit = git_commit
@@ -154,7 +154,7 @@ if __name__ == "__main__":
         
     version = sys.argv[1]
     commit = sys.argv[2]
-    out_dir = sys.argv[3] if len(sys.argv) > 3 else "docs/reviews"
+    out_dir = sys.argv[3] if len(sys.argv) > 3 else "docs/verification"
     
     automator = PostReleaseLifecycleAutomator(version, commit, out_dir)
     reports = automator.run_all_phases()

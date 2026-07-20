@@ -13,7 +13,6 @@ tags:
   - maintenance
 version: 1.0.0
 license: MIT
-repository: https://gitlab.com/hngan.it/ai-workflow-skills
 created_at: 2026-07-17
 updated_at: 2026-07-17
 description: Thực hiện quy trình vận hành và kiểm tra 10 bước nghiêm ngặt sau khi phát hành phiên bản.
@@ -24,8 +23,7 @@ runtime_requirements:
   git: cached
   memory: cached
   rag: cached
-  workspace_scan: none
----
+  workspace_scan: none---
 
 # Skill: Post-Release Lifecycle
 
@@ -54,34 +52,34 @@ python skills/workflow-runtime/scripts/post_release_lifecycle.py <version> <comm
 ```
 
 ### Bước 2: Tạo báo cáo Post-Release Validation Report
-Hệ thống tự động xuất tệp tin `docs/reviews/post_release_validation_report.md` chứa kết quả chạy thử nghiệm và cấu hình.
+Hệ thống tự động xuất tệp tin `docs/verification/post_release_validation_report.md` chứa kết quả chạy thử nghiệm và cấu hình.
 
 ### Bước 3: Thiết lập Production Monitoring
 Kích hoạt các tác vụ giám sát nền (cron job/health checker) để giám sát tài nguyên và lỗi.
 
 ### Bước 4: Tạo báo cáo Production Monitoring Report
-Xuất tệp tin `docs/reviews/production_monitoring_report.md` ghi nhận xu hướng sử dụng tài nguyên (CPU/RAM) và tỷ lệ lỗi.
+Xuất tệp tin `docs/verification/production_monitoring_report.md` ghi nhận xu hướng sử dụng tài nguyên (CPU/RAM) và tỷ lệ lỗi.
 
 ### Bước 5: Thực hiện Maintenance Transition
 Thực hiện dọn dẹp hệ thống, vacuum cơ sở dữ liệu SQLite và kiểm tra zombie process.
 
 ### Bước 6: Tạo báo cáo Maintenance Status Report
-Xuất tệp tin `docs/reviews/maintenance_status_report.md` liệt kê các giới hạn vận hành hiện tại và các lỗi ngoại lệ phát hiện.
+Xuất tệp tin `docs/verification/maintenance_status_report.md` liệt kê các giới hạn vận hành hiện tại và các lỗi ngoại lệ phát hiện.
 
 ### Bước 7: Đánh giá Runtime Governance
 Kiểm tra tính bảo mật, cấu hình quyền hạn và phân loại mức độ thay đổi của phiên bản vừa release.
-* Báo cáo ghi nhận tại `docs/reviews/runtime_governance_report.md`.
+* Báo cáo ghi nhận tại `docs/verification/runtime_governance_report.md`.
 
 ### Bước 8: Phân tích Cải tiến Liên tục (Continuous Improvement)
-Nhận diện các điểm nghẽn hiệu năng phát sinh trong phiên bản mới và lưu báo cáo cải tiến tại `docs/reviews/continuous_improvement_report.md`.
+Nhận diện các điểm nghẽn hiệu năng phát sinh trong phiên bản mới và lưu báo cáo cải tiến tại `docs/verification/continuous_improvement_report.md`.
 
 ### Bước 9: Đánh giá độ trưởng thành vận hành (Operational Maturity Assessment)
 Chấm điểm các thước đo vận hành gồm: Reliability, Security, và Observability.
 * Yêu cầu đạt mức điểm tối thiểu 95/100 điểm tổng thể.
-* Báo cáo ghi nhận tại `docs/reviews/operational_maturity_assessment.md`.
+* Báo cáo ghi nhận tại `docs/verification/operational_maturity_assessment.md`.
 
 ### Bước 10: Xây dựng Runtime Roadmap
-Thiết lập lộ trình phát triển và các thứ tự ưu tiên của các tính năng tiếp theo tại `docs/reviews/runtime_roadmap.md`.
+Thiết lập lộ trình phát triển và các thứ tự ưu tiên của các tính năng tiếp theo tại `docs/verification/runtime_roadmap.md`.
 
 ---
 

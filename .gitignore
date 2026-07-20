@@ -8,6 +8,7 @@ __pycache__/
 *.tmp
 *.bak
 .agents/.session.json
+.agents/.session.json.lock
 .agents/state/
 .agents/runtime/*.db
 .agents/runtime/*.db-journal
@@ -34,3 +35,8 @@ artifacts/adaptive-agent-team/stale_write_evidence.json
 artifacts/full-access-autonomous-delivery/
 
 qdrant_storage
+
+# Telegram Bot Credentials
+.agents/config/.env.telegram-notify
+.agents/config/.env*
+*.env*

@@ -45,7 +45,7 @@ class ScaffoldPlanner:
                 "docs",
                 "docs/brainstorming",
                 "docs/plans",
-                "docs/designs",
+                "docs/blueprints",
                 "docs/adr",
                 "docs/issues",
                 "docs/quick",

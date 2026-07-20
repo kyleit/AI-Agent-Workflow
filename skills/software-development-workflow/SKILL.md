@@ -11,7 +11,6 @@ tags:
   - engineering
 version: 4.1.0
 license: MIT
-repository: https://gitlab.com/hngan.it/ai-workflow-skills
 created_at: 2026-07-03
 updated_at: 2026-07-06
 description: Pure Workflow Orchestrator. Evaluates checkpoints and ensures Blueprint execution and manual Release gates.
@@ -26,8 +25,7 @@ runtime_requirements:
   environment: cached
   version: cached
   provider: optional
-  usage: cached
----
+  usage: cached---
 
 # Skill: Software Development Workflow Orchestrator (Blueprint-Driven & Explicit Release)
 
@@ -63,7 +61,7 @@ Feature-Centric SDLC (Enforcing Blueprint-Driven Development)
                              Skill: brainstorming
     2. Planning          ──> docs/plans/FEAT-XXX_<feature_name>_plan.md
                              Skill: brainstorming-to-plan
-    3. Design            ──> docs/designs/FEAT-XXX_<feature_name>_blueprint.md
+    3. Design            ──> docs/blueprints/FEAT-XXX_<feature_name>_blueprint.md
                              Skill: plan-to-blueprint
     [Optional] ADR       ──> docs/adr/ADR-XXX_<short_title>.md
                              Skill: create-adr
@@ -84,7 +82,7 @@ Feature-Centric SDLC (Enforcing Blueprint-Driven Development)
     1. Fix Specification ──> docs/issues/FIX-XXX_<issue_name>.md
                              Skill: quick-fix
     2. Spec Approval     ──> Seek User Y/N Confirmation
-    3. Technical Design  ──> docs/designs/FIX-XXX_<issue_name>_blueprint.md
+    3. Technical Design  ──> docs/blueprints/FIX-XXX_<issue_name>_blueprint.md
                              Skill: quick-fix
     4. Design Approval   ──> Seek User Y/N Confirmation for Blueprint
     5. Implementation    ──> apply minimal hotfix & verify builds
@@ -99,7 +97,7 @@ Feature-Centric SDLC (Enforcing Blueprint-Driven Development)
     1. Feature Spec      ──> docs/quick/QUICK-XXX_<feature_name>.md
                              Skill: quick-feature
     2. Spec Approval     ──> Seek User Y/N Confirmation
-    3. Technical Design  ──> docs/designs/QUICK-XXX_<feature_name>_blueprint.md
+    3. Technical Design  ──> docs/blueprints/QUICK-XXX_<feature_name>_blueprint.md
                              Skill: quick-feature
     4. Design Approval   ──> Seek User Y/N Confirmation for Blueprint
     5. Implementation    ──> apply minimal feature code & verify
@@ -279,7 +277,7 @@ Read the selected option. Call `suggest --choose <option_index>`. Then dispatch 
 ### 3.2 — Trace Feature Lifecycle Status
 
 #### Case C: Design Blueprint Missing
-If the plan `docs/plans/FEAT-XXX_<feature_name>_plan.md` exists but the technical blueprint `docs/designs/FEAT-XXX_<feature_name>_blueprint.md` does NOT:
+If the plan `docs/plans/FEAT-XXX_<feature_name>_plan.md` exists but the technical blueprint `docs/blueprints/FEAT-XXX_<feature_name>_blueprint.md` does NOT:
 * **Recommend next Skill**: `plan-to-blueprint`
 * Stop.
 
@@ -288,11 +286,11 @@ If the technical blueprint exists but `blueprint.approved` is NOT marked as `tru
 * **STOP**. Explain that the Blueprint is pending approval.
 * **Recommend next action**: Emit a blueprint approval choice:
   ```bash
-  python skills/workflow-runtime/scripts/workflow_runtime.py choice create --id "blueprint_approval" --title "Blueprint Design Approval" --desc "Do you approve the Design Blueprint docs/designs/FEAT-XXX_<feature_name>_blueprint.md?" --type approval
+  python skills/workflow-runtime/scripts/workflow_runtime.py choice create --id "blueprint_approval" --title "Blueprint Design Approval" --desc "Do you approve the Design Blueprint docs/blueprints/FEAT-XXX_<feature_name>_blueprint.md?" --type approval
   python skills/workflow-runtime/scripts/workflow_runtime.py choice wait --id "blueprint_approval"
   ```
   Wait for response. If approved, run:
-  `python skills/workflow-runtime/scripts/workflow_runtime.py blueprint --path docs/designs/FEAT-XXX_<feature_name>_blueprint.md --approve`
+  `python skills/workflow-runtime/scripts/workflow_runtime.py blueprint --path docs/blueprints/FEAT-XXX_<feature_name>_blueprint.md --approve`
 * Stop.
 
 #### Case E: Implementation Incomplete

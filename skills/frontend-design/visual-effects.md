@@ -49,7 +49,6 @@ Key Properties:
 - Low contrast situations
 - Accessibility-critical content
 - Performance-constrained devices
-
 ---
 
 ## 2. Neomorphism Principles

@@ -12,7 +12,6 @@ tags:
   - framework-selection
 version: 1.0.0
 license: MIT
-repository: https://gitlab.com/hngan.it/ai-workflow-skills
 created_at: 2026-07-15
 updated_at: 2026-07-15
 description: Guides python design patterns, architecture decisions, OOP principles, and clean code practices.
@@ -27,8 +26,7 @@ runtime_requirements:
   environment: none
   version: cached
   provider: optional
-  usage: cached
----
+  usage: cached---
 
 # Skill: python-patterns (Python Architecture Patterns)
 
@@ -47,7 +45,7 @@ Adheres strictly to the policies defined in `AI_RULES.md`:
 ## 4. Public APIs / Trigger Contract
 - **Commands**: `python-patterns`
 - **Aliases**: `python-architecture`, `python-design`
-- **File Patterns**: `docs/designs/*.md`, `docs/designs/*.json`, Python structure files.
+- **File Patterns**: `docs/blueprints/**/*.md`, `docs/blueprints/**/*.json`, Python structure files.
 
 ## 5. Workflow Integration
 Invoked automatically when planning architectural designs or during discovery to match frameworks and design paradigms.

@@ -273,9 +273,9 @@ Frontend/Desktop Visual Debug           Skipped (Backend Only)
   language: "auto"
   tech_stack: "auto"
   architecture: "auto"
-  output_path: "docs/designs/auto"
+  output_path: "docs/blueprints/auto"
   ```
-* **Output**: Technical design blueprint under `docs/designs/FEAT-XXX_<feature_name>_blueprint.md` containing an ADR assessment.
+* **Output**: Technical design blueprint under `docs/blueprints/FEAT-XXX_<feature_name>_blueprint.md` containing an ADR assessment.
 * **Capability Boundary**: Only writes technical blueprints. Does not modify application source code or write ADR files directly.
 * **Recommended Next Skill**: `create-adr` (if ADR Required = Yes) or `blueprint-to-implementation` (if ADR Required = No).
 * **Example Invocation**:
@@ -297,7 +297,7 @@ Frontend/Desktop Visual Debug           Skipped (Backend Only)
   ```yaml
   title: "Decide on cache strategy for Playwright assets"
   related_feature: "docs/brainstorm/FEAT-001_local_cache.md"
-  design_file: "docs/designs/FEAT-001_local_cache_blueprint.md"
+  design_file: "docs/blueprints/FEAT-001_local_cache_blueprint.md"
   ```
 * **Output**: Writes the ADR file to `docs/adr/ADR-XXX_short_title.md` (where `XXX` is independent of Feature ID).
 * **Capability Boundary**: Only writes to `docs/adr/`.
@@ -320,7 +320,7 @@ Frontend/Desktop Visual Debug           Skipped (Backend Only)
 * **Input**:
   ```yaml
   phase: "auto"
-  design_file: "docs/designs/FEAT-XXX_<feature_name>_blueprint.md"
+  design_file: "docs/blueprints/FEAT-XXX_<feature_name>_blueprint.md"
   workspace: "auto"
   language: "auto"
   tech_stack: "auto"
@@ -334,7 +334,7 @@ Frontend/Desktop Visual Debug           Skipped (Backend Only)
 * **Recommended Next Skill**: `project-memory-update` (to sync code changes), followed by `implementation-to-release`.
 * **Example Invocation**:
   ```bash
-  /implement design_file="docs/designs/FEAT-001_local_cache_blueprint.md"
+  /implement design_file="docs/blueprints/FEAT-001_local_cache_blueprint.md"
   ```
 * **Current Status**: Refactored (FEAT-XXX format & ADR Validation).
 * **Dependencies**: Requires an approved Technical Blueprint and matching accepted ADR if requested.
@@ -781,7 +781,7 @@ Frontend/Desktop Visual Debug           Skipped (Backend Only)
   6. Apply precise styling/markup bug fixes and generate `docs/verification/FEAT-XXX_visual_debug.md`.
 * **Input**:
   ```yaml
-  design_file: "docs/designs/FEAT-XXX_blueprint.md"
+  design_file: "docs/blueprints/FEAT-XXX_blueprint.md"
   debug_report: "docs/debug/FEAT-XXX_debug.md"
   ```
 * **Output**: A Visual Debug Report under `docs/verification/FEAT-XXX_visual_debug.md`.

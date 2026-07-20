@@ -10,7 +10,6 @@ tags:
   - lightweight
 version: 3.0.0
 license: MIT
-repository: https://gitlab.com/hngan.it/ai-workflow-skills
 created_at: 2026-07-03
 updated_at: 2026-07-11
 description: Lightweight runtime initializer for the AI Engineering Workflow. Loads mandatory guardrails, reads cached git/state/approval/dashboard context only. Does NOT load full memory, RAG, workspace scan, environment CLI checks, or transcript sync.
@@ -25,8 +24,7 @@ runtime_requirements:
   environment: cached
   version: cached
   provider: optional
-  usage: cached
----
+  usage: cached---
 
 # Skill: initialize-workflow (Lightweight Runtime Initialization)
 
@@ -92,6 +90,10 @@ Step 4:  Read Cached State + Approvals
 Step 5:  Read Cached Version + Provider + Usage (from state files only)
          ↓
 Step 6:  Write Initialization Summary
+         ↓
+Step 7:  Auto-Resume & Git Auto-Stash Recovery (Optional)
+         ↓
+Step 8:  Auto-start Telegram Continuous Listener background process
          ↓
 STOP — No memory load, no RAG, no env CLI, no workspace scan, no transcript sync
 ```
@@ -174,7 +176,13 @@ git status --short
 - If exists: restore checkpoint, skill, command, step from snapshot. If `git_stash_ref` present → prompt approval to run `git stash pop`. Delete snapshot after restore.
 - Print: `✨ [SYSTEM]: Recovered SDLC context from thread rollover. Checkpoint restored to X.`
 
+### Step 8 — Auto-start Telegram Monitor and 10s Polling Loop
+
+- The workflow initialization automatically starts the project-specific Telegram monitor process (`skills/notify-telegram/monitor_listener.py`) in the background. The monitor will run asynchronously to detect any changes to the project's inbox file and copy the message.
+- At the end of the initialization step, the Agent MUST call the `schedule` tool to schedule a 10-second background timer to start the self-perpetuating polling loop: `schedule(DurationSeconds="10", Prompt="🤖 [SYSTEM TIMER]: 10s check")`. This ensures that even in a new conversation session, the Telegram continuous interaction is automatically armed.
+
 ---
+
 
 ## ⛔ Removed Operations (FEAT-050)
 

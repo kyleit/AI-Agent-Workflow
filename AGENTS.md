@@ -60,7 +60,11 @@ The framework divides agents into **Core Phase Owners** and **Specialist Assista
 - **Release**: Version Manager, Release Validator, Package Builder, ChangeLog Manager, Publisher.
 
 ## Product-Oriented Public Export Changelog Rule
-- **Quy tắc viết Changelog cho Public Export**: Sau khi hoàn thành xuất bản mã nguồn bằng lệnh `make export` (hoặc các lệnh tương tự sang thư mục `public_export`), Agent **BẮT BUỘC** phải tạo/cập nhật tệp `CHANGELOG.md` riêng cho kho xuất bản công khai nằm trong thư mục `public_export/CHANGELOG.md`. Nội dung của tệp Changelog này phải được viết lại hoàn toàn dựa trên Changelog của dự án chính, định hướng theo góc nhìn sản phẩm (Product-oriented) thay vì góc nhìn kỹ thuật chi tiết, dễ hiểu đối với người dùng cuối, và **chỉ** ghi nhận các thay đổi thực sự có mặt trong mã nguồn xuất bản công khai.
+- **Product-Oriented Public Export Changelog Rule**: Upon completing source code publication via `make export` (or equivalent export commands to the `public_export` directory), the Agent **MUST** create or update a dedicated `CHANGELOG.md` file specifically for the public repository located at `public_export/CHANGELOG.md`. The content of this public changelog must be written entirely from a product-oriented perspective instead of containing low-level technical git details, making it easy to comprehend for end-users, and it **MUST ONLY** document changes that are actually present in the public export codebase.
+
+## IDE Planning Mode Override Rules (IDE Planning Mode Override Rules)
+- Whenever the user (Ba) requests code modifications, new source code additions, UI design changes, or creating/editing files, technical documents, or scripts in the project directory (including files in `extensions/` or `skills/` like `workflow-coordinator`, `brainstorming`, etc.), the Agent **MUST NOT** use the IDE's built-in Planning Mode (e.g., creating `implementation_plan.md` directly) to execute or bypass the workflow.
+- The Agent **MUST** refuse direct implementation and instruct the user (Ba) to trigger the formal orchestration process by running the command of the corresponding skill (such as `quick-feature`, `quick-fix`, `workflow-coordinator`, `brainstorming`, etc.) to initialize a Work Item, write a Mini Spec, write a Technical Design Blueprint, or create standard architectural design documents.
 
 GitHub Repository: https://github.com/kyleit/AI-Agent-Workflow
 <!-- AIWF:RULES:END -->

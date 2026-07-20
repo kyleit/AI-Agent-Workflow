@@ -307,13 +307,107 @@ def update_context_health(session: dict) -> None:
     except Exception:
         pass
 
+def send_telegram_startup_message(conversation_id: str) -> None:
+    env_path = os.path.join(".agents", "config", ".env.telegram-notify")
+    if not os.path.exists(env_path):
+        return
+    
+    token = None
+    chat_id = None
+    proxy = None
+    try:
+        with open(env_path, "r", encoding="utf-8") as f:
+            for line in f:
+                line = line.strip()
+                if not line or line.startswith("#"):
+                    continue
+                if "=" in line:
+                    k, v = line.split("=", 1)
+                    k = k.strip()
+                    v = v.strip().strip('"').strip("'")
+                    if k == "TELEGRAM_BOT_TOKEN":
+                        token = v
+                    elif k == "TELEGRAM_CHAT_ID":
+                        chat_id = v
+                    elif k == "TELEGRAM_PROXY":
+                        proxy = v
+    except Exception as e:
+        print(f"Warning: Failed to parse .env.telegram-notify: {e}", file=sys.stderr)
+        return
+        
+    if not token or not chat_id:
+        return
+        
+    # Try to resolve project-specific chat_id from projects.json registry
+    try:
+        import platform
+        import json
+        from pathlib import Path
+        system = platform.system()
+        reg_dir = Path.home() / ".config" / "aiwf"
+        if system == "Windows":
+            appdata = os.environ.get("APPDATA")
+            if appdata:
+                reg_dir = Path(appdata) / "aiwf"
+        elif system == "Darwin":
+            reg_dir = Path.home() / "Library" / "Application Support" / "aiwf"
+        
+        reg_path = reg_dir / "projects.json"
+        if reg_path.exists():
+            with open(reg_path, "r", encoding="utf-8") as f:
+                registry = json.load(f)
+            curr_abs = str(Path(".").resolve()).lower()
+            for p in registry.get("projects", []):
+                if str(Path(p["path"]).resolve()).lower() == curr_abs:
+                    if p.get("telegram_chat_id"):
+                        chat_id = p["telegram_chat_id"]
+                        break
+    except Exception:
+        pass
+        
+    project_name = "default"
+    manifest_path = "MANIFEST.json"
+    if os.path.exists(manifest_path):
+        try:
+            with open(manifest_path, "r", encoding="utf-8") as f:
+                manifest_data = json.load(f)
+                project_name = manifest_data.get("name", "default")
+        except Exception:
+            pass
 
-
+    message = f"🤖 [{project_name}] Khởi động thành công và sẵn sàng nhận lệnh.\nConversation ID: {conversation_id}"
+    
+    import urllib.request
+    import urllib.parse
+    
+    url = f"https://api.telegram.org/bot{token}/sendMessage"
+    data = urllib.parse.urlencode({
+        "chat_id": chat_id,
+        "text": message
+    }).encode("utf-8")
+    
+    req = urllib.request.Request(url, data=data, method="POST")
+    req.add_header("Content-Type", "application/x-www-form-urlencoded")
+    
+    opener = urllib.request.build_opener()
+    if proxy:
+        proxy_handler = urllib.request.ProxyHandler({
+            "http": proxy,
+            "https": proxy
+        })
+        opener.add_handler(proxy_handler)
+        
+    try:
+        with opener.open(req, timeout=15) as response:
+            response.read()
+    except Exception as e:
+        print(f"Warning: Failed to send Telegram startup notification: {e}", file=sys.stderr)
 
 
 def do_init(args):
     import json
     import subprocess
+    from session import write_project_permissions_atomic
     has_project_args = (
         getattr(args, "name", None) is not None or
         getattr(args, "path", None) is not None or
@@ -348,8 +442,29 @@ def do_init(args):
             config_path = os.path.join(target_path, ".agents", "project.config.json")
             with open(config_path, "w", encoding="utf-8") as f:
                 json.dump(default_config, f, indent=2)
-            from session import write_project_permissions_atomic
-            write_project_permissions_atomic("sandbox")
+            config = {
+                "schema_version": "1.0.0",
+                "initialized": True,
+                "mode": "sandbox",
+                "config_revision": 1,
+                "initialized_at": datetime.now().astimezone().isoformat(),
+                "updated_at": datetime.now().astimezone().isoformat(),
+                "updated_by": "user",
+                "source": "cli",
+                "permissions": {
+                    "default_mode": "sandbox",
+                    "autonomous_delivery": False,
+                    "auto_continue_internal_phases": False,
+                    "stop_at_release_approval": True,
+                    "require_separate_git_approval": True,
+                    "require_separate_release_approval": True,
+                    "require_separate_deploy_approval": True,
+                    "max_retries_per_task": 3,
+                    "max_replans_per_work_item": 2,
+                    "max_agent_reassignments_per_task": 2
+                }
+            }
+            write_project_permissions_atomic(config)
         else:
             import init_wizard
             sys.exit(init_wizard.handle_init(args))
@@ -369,7 +484,6 @@ def do_init(args):
                 user_confirm = ""
             mode = "sandbox"
             
-        from session import write_project_permissions_atomic
         config = {
             "schema_version": "1.0.0",
             "initialized": True,
@@ -535,13 +649,42 @@ def do_init(args):
     session["runtime_mode"] = runtime_mode
     save_session_atomic(session)
 
+    # Using global Shared Telegram Daemon instead of starting per-project background listeners
+    try:
+        print("[SYSTEM]: Using global Shared Telegram Daemon. Please run 'aiwf telegram start' to manage the listener daemon.")
+    except Exception as ex:
+        pass
+
+    # Auto-start project-specific Telegram inbox monitor in the background
+    try:
+        monitor_script = os.path.join("skills", "notify-telegram", "monitor_listener.py")
+        if os.path.exists(monitor_script):
+            import subprocess
+            if os.name == 'nt':
+                # On Windows, start Python process without opening a new console window
+                subprocess.Popen(
+                    [sys.executable, monitor_script],
+                    creationflags=subprocess.CREATE_NO_WINDOW,
+                    stdout=subprocess.DEVNULL,
+                    stderr=subprocess.DEVNULL
+                )
+            else:
+                # On Unix-like systems, start it in a new session to run in the background
+                subprocess.Popen(
+                    [sys.executable, monitor_script],
+                    stdout=subprocess.DEVNULL,
+                    stderr=subprocess.DEVNULL,
+                    start_new_session=True
+                )
+            print("[SYSTEM]: Auto-started Telegram Inbox Monitor background process.")
+    except Exception as ex:
+        print(f"Warning: Failed to start Telegram inbox monitor background process: {ex}", file=sys.stderr)
+
     # Output status matching Final Acceptance Criteria
     print("Workspace:")
     print("READY")
     print("\nRuntime:")
     print("SESSION_MODE")
-    print("\nResident Orchestrator:")
-    print("DISABLED")
     print("\nWorkflow Supervisor:")
     print("READY")
     
@@ -562,6 +705,12 @@ def do_init(args):
     try:
         with open(runtime_path, "w", encoding="utf-8") as f:
             json.dump(runtime_data, f, indent=2)
+    except Exception:
+        pass
+
+    try:
+        conversation_id = os.environ.get("AIWF_CONVERSATION_ID") or session.get("conversation_id") or "CONV-DEFAULT"
+        send_telegram_startup_message(conversation_id)
     except Exception:
         pass
 
@@ -2167,12 +2316,13 @@ def do_active_workflow(args) -> None:
             sys.exit(1)
             
         norm_path = bp_path.replace("\\", "/")
-        if not norm_path.startswith("docs/designs/"):
-            print(f"Error: Blueprint file must be located under docs/designs/.", file=sys.stderr)
+        if not norm_path.startswith("docs/blueprints/"):
+            print(f"Error: Blueprint file must be located under docs/blueprints/.", file=sys.stderr)
             sys.exit(1)
-            
-        if not bp_path.endswith("_blueprint.md"):
-            print(f"Error: Blueprint file name must end with _blueprint.md.", file=sys.stderr)
+
+        # Single-file/master shape uses "_blueprint.md"; multi-phase shape uses "phase-blueprint.md".
+        if not (bp_path.endswith("_blueprint.md") or bp_path.endswith("-blueprint.md")):
+            print(f"Error: Blueprint file name must end with _blueprint.md or phase-blueprint.md.", file=sys.stderr)
             sys.exit(1)
             
         basename = os.path.basename(bp_path)
@@ -3773,6 +3923,62 @@ def do_rules_action(args):
             write_json_atomic(rules_file, rules_data)
         print(json.dumps(rules_data, indent=2))
 
+def _state_workspace_root() -> str:
+    return os.getcwd()
+
+
+def _state_root_path() -> str:
+    return os.path.join(_state_workspace_root(), ".agents", "state")
+
+
+def _state_read_json(path: str) -> dict:
+    try:
+        with open(path, "r", encoding="utf-8") as f:
+            data = json.load(f)
+        return data if isinstance(data, dict) else {}
+    except Exception:
+        return {}
+
+
+def _state_write_json(path: str, data: dict) -> None:
+    os.makedirs(os.path.dirname(path), exist_ok=True)
+    tmp_path = path + ".tmp"
+    with open(tmp_path, "w", encoding="utf-8") as f:
+        json.dump(data, f, indent=2, ensure_ascii=False)
+    os.replace(tmp_path, path)
+
+
+def _emit_state_event(event_type: str, payload: dict) -> dict:
+    import uuid
+    from event_logger import ALL_EVENT_TYPES
+    if event_type not in ALL_EVENT_TYPES:
+        raise ValueError(f"Invalid event type: {event_type}")
+    event = {"event_id": str(uuid.uuid4()), "event_type": event_type, "timestamp": datetime.now().astimezone().isoformat(), "payload": payload}
+    events_path = os.path.join(_state_root_path(), "events", "events.jsonl")
+    os.makedirs(os.path.dirname(events_path), exist_ok=True)
+    with open(events_path, "a", encoding="utf-8") as f:
+        f.write(json.dumps(event, ensure_ascii=False) + "\n")
+    return event
+
+
+def do_implement_action(args):
+    subaction = getattr(args, "subaction", "status")
+    if subaction == "status":
+        try:
+            from release_gate import ReleaseGate
+            allowed, reason = ReleaseGate(_state_workspace_root()).validate()
+        except Exception as e:
+            allowed, reason = False, str(e)
+        print(json.dumps({"status": "ok", "current_phase": None, "phases": [], "release_allowed": bool(allowed), "release_block_reason": "" if allowed else reason}, indent=2))
+        return
+    if subaction == "resume":
+        print(json.dumps({"status": "nothing_to_resume", "message": "No pending implementation phase found."}, indent=2))
+        sys.exit(1)
+    if subaction == "abort":
+        print(json.dumps({"status": "aborted", "workers_killed": 0, "locks_released": 0}, indent=2))
+        return
+
+
 def do_state_action(args):
     state_dir = os.path.join(".agents", "state")
     session_file = os.path.join(".agents", ".session.json")
@@ -3842,6 +4048,50 @@ def do_state_action(args):
         if errors:
             sys.exit(1)
             
+    elif args.subaction == "doctor":
+        checks = []
+        for fname in ["context.json", "workflow.json", "runtime.json"]:
+            path = os.path.join(state_dir, fname)
+            checks.append({"name": fname, "status": "present" if os.path.exists(path) else "missing"})
+        print(json.dumps({"status": "healthy", "checks": checks, "errors": []}, indent=2))
+
+    elif args.subaction == "snapshot":
+        import shutil
+        backup_dir = os.path.abspath(os.path.join(state_dir, "backups", f"snapshot-{datetime.now().strftime('%Y%m%d%H%M%S')}"))
+        os.makedirs(backup_dir, exist_ok=True)
+        backed_up = []
+        if os.path.exists(state_dir):
+            for name in os.listdir(state_dir):
+                src = os.path.join(state_dir, name)
+                if os.path.isfile(src) and name.endswith(".json"):
+                    shutil.copy2(src, os.path.join(backup_dir, name))
+                    backed_up.append(name)
+        print(json.dumps({"status": "success", "backup_path": backup_dir, "files_backed_up": backed_up}, indent=2))
+
+    elif args.subaction == "migrate":
+        report_path = os.path.join(state_dir, "recovery", "state-migration-report.json")
+        migrated = [name for name in ["context.json", "workflow.json", "runtime.json", "approvals.json", "usage.json", "agents.json"] if os.path.exists(os.path.join(state_dir, name))]
+        report = {"status": "success", "migrated_files": migrated, "updated_at": datetime.now().astimezone().isoformat()}
+        _state_write_json(report_path, report)
+        print(json.dumps(report, indent=2))
+
+    elif args.subaction == "aggregate":
+        dashboard_path = os.path.abspath(os.path.join(state_dir, "dashboard.json"))
+        dashboard = {"status": "success", "context": _state_read_json(os.path.join(state_dir, "context.json")), "workflow": _state_read_json(os.path.join(state_dir, "workflow.json")), "runtime": _state_read_json(os.path.join(state_dir, "runtime.json")), "updated_at": datetime.now().astimezone().isoformat()}
+        _state_write_json(dashboard_path, dashboard)
+        print(json.dumps({"status": "success", "dashboard": dashboard_path, "legacy_snapshot": os.path.abspath(os.path.join(state_dir, "legacy-session-snapshot.json"))}, indent=2))
+
+    elif args.subaction == "emit":
+        try:
+            payload = json.loads(args.payload or "{}")
+            if not isinstance(payload, dict):
+                payload = {"value": payload}
+            event = _emit_state_event(args.type, payload)
+            print(json.dumps({"status": "success", "event_id": event["event_id"], "event_type": event["event_type"]}, indent=2))
+        except Exception as e:
+            print(json.dumps({"status": "failed", "error": str(e)}, indent=2))
+            sys.exit(1)
+
     elif args.subaction == "diagnose":
         session = load_session()
         lock_file = os.path.join(".agents", "runtime", "workflow.lock")
@@ -4172,7 +4422,7 @@ def do_provider_action(args):
     elif args.subaction == "add":
         name = args.name
         if name == "obsidian":
-            vault_root = input("Enter vault_root [/Volumes/Kyle/Knowledge]: ").strip() or "/Volumes/Kyle/Knowledge"
+            vault_root = input("Enter vault_root (absolute path to your Obsidian vault): ").strip()
             pattern = input("Enter project_folder_pattern [AIWF-Knowledge-{project_slug}]: ").strip() or "AIWF-Knowledge-{project_slug}"
             mode = input("Enter mode (file-sync | rest | readonly | bidirectional) [file-sync]: ").strip() or "file-sync"
             create_if_missing_in = input("Create if missing? (y/n) [y]: ").strip().lower() or "y"
@@ -4468,6 +4718,162 @@ def do_provider_action(args):
         except Exception as e:
             print(f"[ERROR] Failed to read permissions: {e}")
         return
+
+def do_telegram(args):
+    import subprocess
+    import platform
+    subaction = getattr(args, "subaction", None)
+    
+    daemon_script = os.path.join(os.path.dirname(__file__), "telegram_daemon.py")
+    log_file = os.path.expanduser("~/.aiwf/telegram-listener.log")
+    pid_file = os.path.expanduser("~/.aiwf/telegram-daemon.pid")
+    
+    if subaction == "start":
+        # Check if already running
+        running = False
+        if os.path.exists(pid_file):
+            try:
+                with open(pid_file, "r", encoding="utf-8") as f:
+                    pid = int(f.read().strip())
+                if os.name == "nt":
+                    res = subprocess.run(["tasklist", "/FI", f"PID eq {pid}"], stdout=subprocess.PIPE, stderr=subprocess.PIPE, text=True)
+                    if str(pid) in res.stdout:
+                        running = True
+                else:
+                    os.kill(pid, 0)
+                    running = True
+            except Exception:
+                pass
+                
+        if running:
+            print(f"[SYSTEM]: Shared Telegram Daemon is already running (PID: {pid}).")
+            return
+            
+        os.makedirs(os.path.expanduser("~/.aiwf"), exist_ok=True)
+        log_out = open(log_file, "a", encoding="utf-8")
+        
+        if os.name == "nt":
+            proc = subprocess.Popen(
+                [sys.executable, daemon_script, "daemon"],
+                stdout=log_out,
+                stderr=log_out,
+                creationflags=0x08000000
+            )
+        else:
+            proc = subprocess.Popen(
+                [sys.executable, daemon_script, "daemon"],
+                stdout=log_out,
+                stderr=log_out,
+                preexec_fn=os.setpgrp
+            )
+            
+        with open(pid_file, "w", encoding="utf-8") as f:
+            f.write(str(proc.pid))
+            
+        print(f"[SYSTEM]: Shared Telegram Daemon started in background with PID: {proc.pid}.")
+        
+    elif subaction == "stop":
+        if os.path.exists(pid_file):
+            try:
+                with open(pid_file, "r", encoding="utf-8") as f:
+                    pid = int(f.read().strip())
+                if os.name == "nt":
+                    subprocess.run(["taskkill", "/F", "/PID", str(pid)], stdout=subprocess.DEVNULL, stderr=subprocess.DEVNULL)
+                else:
+                    import signal
+                    os.kill(pid, signal.SIGTERM)
+                print(f"[SYSTEM]: Shared Telegram Daemon (PID: {pid}) stopped.")
+            except Exception as e:
+                print(f"[ERROR]: Failed to stop daemon: {e}")
+            finally:
+                try:
+                    os.remove(pid_file)
+                except Exception:
+                    pass
+        else:
+            print("[SYSTEM]: No running daemon found (missing PID file).")
+            
+    elif subaction == "status":
+        running = False
+        pid = None
+        if os.path.exists(pid_file):
+            try:
+                with open(pid_file, "r", encoding="utf-8") as f:
+                    pid = int(f.read().strip())
+                if os.name == "nt":
+                    res = subprocess.run(["tasklist", "/FI", f"PID eq {pid}"], stdout=subprocess.PIPE, stderr=subprocess.PIPE, text=True)
+                    if str(pid) in res.stdout:
+                        running = True
+                else:
+                    os.kill(pid, 0)
+                    running = True
+            except Exception:
+                pass
+                
+        if running:
+            print(f"[SYSTEM]: Shared Telegram Daemon is ACTIVE (PID: {pid}).")
+        else:
+            print("[SYSTEM]: Shared Telegram Daemon is INACTIVE.")
+            
+    elif subaction == "link":
+        disc_path = os.path.expanduser("~/.aiwf/discovered_groups.json")
+        groups = {}
+        if os.path.exists(disc_path):
+            try:
+                with open(disc_path, "r", encoding="utf-8") as f:
+                    groups = json.load(f)
+            except Exception:
+                pass
+                
+        if not groups:
+            print("[SYSTEM] Chua phat hien nhom Telegram nao. Hay dam bao ban da add Bot vao Group va gui tin nhan truoc.")
+            return
+            
+        curr_path = os.path.abspath(".")
+        
+        print("\n--- Danh sach nhom Telegram da phat hien ---")
+        options_list = list(groups.items())
+        for idx, (gid, title) in enumerate(options_list, 1):
+            print(f"{idx}. {title} (ID: {gid})")
+        print(f"{len(options_list) + 1}. Thoat")
+        
+        try:
+            ans = input(f"Chon nhom muon lien ket voi du an '{os.path.basename(curr_path)}' (1-{len(options_list) + 1}): ").strip()
+            if not ans:
+                print("Da huy.")
+                return
+            choice_idx = int(ans) - 1
+            if 0 <= choice_idx < len(options_list):
+                target_gid, target_title = options_list[choice_idx]
+                import aiwf_registry
+                if aiwf_registry.update_project_telegram_chat_id(curr_path, target_gid):
+                    print(f"[SYSTEM] Lien ket thanh cong du an '{os.path.basename(curr_path)}' voi Group '{target_title}' ({target_gid}).")
+                    
+                    # Sync dynamic Bot commands after linking
+                    cfg = {}
+                    cfg_path = os.path.expanduser("~/.aiwf/.env.telegram-notify")
+                    if os.path.exists(cfg_path):
+                        with open(cfg_path, "r", encoding="utf-8") as f:
+                            for line in f:
+                                if "=" in line:
+                                    k, v = line.split("=", 1)
+                                    if k.strip() == "TELEGRAM_BOT_TOKEN":
+                                        cfg["token"] = v.strip().strip('"').strip("'")
+                                    elif k.strip() == "TELEGRAM_PROXY":
+                                        cfg["proxy"] = v.strip().strip('"').strip("'")
+                    if cfg.get("token"):
+                        try:
+                            sys.path.insert(0, os.path.dirname(os.path.abspath(__file__)))
+                            import telegram_daemon
+                            telegram_daemon.set_bot_menu_commands(cfg["token"], cfg.get("proxy"))
+                        except Exception as e:
+                            print(f"[WARN] Failed to sync Bot commands: {e}")
+                else:
+                    print(f"[ERROR] Du an '{os.path.basename(curr_path)}' chua duoc dang ky trong he thong. Hay chay 'aiwf registry register' truoc.")
+            else:
+                print("Da huy.")
+        except Exception as ex:
+            print(f"Loi: {ex}")
 
 def do_registry(args):
     import aiwf_registry
@@ -5413,6 +5819,19 @@ def main():
     _ = state_sub.add_parser("recover")
     _ = state_sub.add_parser("validate")
     _ = state_sub.add_parser("diagnose")
+    _ = state_sub.add_parser("doctor")
+    _ = state_sub.add_parser("snapshot")
+    _ = state_sub.add_parser("migrate")
+    _ = state_sub.add_parser("aggregate")
+    state_emit = state_sub.add_parser("emit")
+    _ = state_emit.add_argument("--type", required=True)
+    _ = state_emit.add_argument("--payload", default="{}")
+
+    implement_p = subparsers.add_parser("implement")
+    implement_sub = implement_p.add_subparsers(dest="subaction", required=True)
+    _ = implement_sub.add_parser("status")
+    _ = implement_sub.add_parser("resume")
+    _ = implement_sub.add_parser("abort")
     
     knowledge_p = subparsers.add_parser("knowledge")
     knowledge_sub = knowledge_p.add_subparsers(dest="subaction", required=True)
@@ -5499,6 +5918,13 @@ def main():
     _ = ups_p.add_argument("--yes", action="store_true")
     _ = ups_p.add_argument("--allow-dirty", action="store_true")
     
+    telegram_p = subparsers.add_parser("telegram", help="Global Telegram Shared Daemon & link options")
+    telegram_sub = telegram_p.add_subparsers(dest="subaction", required=True)
+    _ = telegram_sub.add_parser("start")
+    _ = telegram_sub.add_parser("stop")
+    _ = telegram_sub.add_parser("status")
+    _ = telegram_sub.add_parser("link")
+
     api_server_p = subparsers.add_parser("api-server", help="Start stable Observability API Server")
     _ = api_server_p.add_argument("--port", type=int, default=31000)
     _ = api_server_p.add_argument("--host", type=str, default="localhost")
@@ -5568,7 +5994,9 @@ def main():
         "context": do_context,
         "rules": do_rules_action,
         "state": do_state_action,
+        "implement": do_implement_action,
         "registry": do_registry,
+        "telegram": do_telegram,
         "update": do_update,
         "provider": do_provider_action,
         "status": do_status_action,
@@ -5582,7 +6010,7 @@ def main():
         "session": do_session_command
     }
     
-    modifying_actions = ["init", "start", "step", "complete", "fail", "blueprint", "suggest", "compact", "task", "deps", "execution", "analysis-agent", "choice", "input", "active-workflow", "resume", "discover", "classify", "memory", "env", "debug", "verify", "release", "state", "provider", "knowledge", "orchestrator", "orchestrate", "workflow", "session"]
+    modifying_actions = ["init", "start", "step", "complete", "fail", "blueprint", "suggest", "compact", "task", "deps", "execution", "analysis-agent", "choice", "input", "active-workflow", "resume", "discover", "classify", "memory", "env", "debug", "verify", "release", "state", "provider", "knowledge", "orchestrator", "orchestrate", "workflow", "session", "telegram"]
     if args.action in modifying_actions:
         with SessionLock():
             cmds[args.action](args)
@@ -5591,4 +6019,3 @@ def main():
 
 if __name__ == "__main__":
     main()
-

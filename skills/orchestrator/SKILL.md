@@ -12,7 +12,6 @@ tags:
   - runtime
 version: 1.0.0
 license: MIT
-repository: https://gitlab.com/hngan.it/ai-workflow-skills
 created_at: 2026-07-15
 updated_at: 2026-07-15
 description: (DEPRECATED) Legacy autonomous execution orchestrator. Use workflow-coordinator instead.
@@ -27,8 +26,7 @@ runtime_requirements:
   environment: cached
   version: cached
   provider: optional
-  usage: cached
----
+  usage: cached---
 
 # Skill: orchestrator [DEPRECATED]
 
@@ -98,7 +96,7 @@ The Orchestrator is the single entry point for all framework workflows. It autom
 ## 🔒 Blueprint Enforcement & IDE Integration Guide
 1. **Quy tắc phối hợp giữa Antigravity IDE và Framework**:
    - Tệp `implementation_plan.md` (yêu cầu của Antigravity IDE) chỉ đóng vai trò là "cầu nối phê duyệt" với IDE để xin phép sửa đổi file.
-   - Nội dung của `implementation_plan.md` phải tuân thủ và khớp 100% với tệp Design Blueprint (`docs/designs/FEAT-XXX_*` hoặc `docs/designs/FIX-XXX_*`) trong dự án.
+   - Nội dung của `implementation_plan.md` phải tuân thủ và khớp 100% với tệp Design Blueprint (`docs/blueprints/FEAT-XXX_*` hoặc `docs/blueprints/FIX-XXX_*`) trong dự án.
    - Agent không được tự biên tự diễn giải pháp mới trong `implementation_plan.md` nếu chưa có Design Blueprint được đăng ký và phê duyệt hợp lệ qua CLI (`aiwf blueprint --approve`).
 2. **Chặn cứng Phase 6 (Implementation)**:
    - Nếu session có checkpoint < 5 (chưa phê duyệt Blueprint) và yêu cầu thuộc về một active feature/fix đang triển khai, Orchestrator cấm tuyệt đối đề xuất chạy Implementation. Phải hướng dẫn người dùng chạy Spec/Blueprint phase trước.

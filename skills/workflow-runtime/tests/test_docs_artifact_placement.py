@@ -13,10 +13,10 @@ class TestDocsArtifactPlacement(unittest.TestCase):
         
     def test_planning_docs_placement(self):
         self.assertTrue(validate_artifact_placement("docs/plans/FEAT-404_plan.md", "planning"))
-        self.assertFalse(validate_artifact_placement("docs/designs/FEAT-404_blueprint.md", "planning"))
+        self.assertFalse(validate_artifact_placement("docs/blueprints/FEAT-404_blueprint.md", "planning"))
         
     def test_blueprint_docs_placement(self):
-        self.assertTrue(validate_artifact_placement("docs/designs/FEAT-404_blueprint.md", "blueprint"))
+        self.assertTrue(validate_artifact_placement("docs/blueprints/FEAT-404_blueprint.md", "blueprint"))
         self.assertFalse(validate_artifact_placement("docs/plans/FEAT-404_plan.md", "blueprint"))
 
 if __name__ == "__main__":

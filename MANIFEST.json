@@ -1,7 +1,7 @@
 {
   "name": "ai-skill-framework",
   "description": "A reusable collection of engineering skills for AI coding agents to manage SDLC lifecycle",
-  "version": "6.17.0",
+  "version": "6.18.3",
   "min_ai_platform_version": "1.0.0",
   "author": {
     "name": "Kyle Dang",
@@ -645,239 +645,6 @@
       ],
       "phase": "verification",
       "execution_mode": "sequential"
-    },
-    {
-      "name": "python-development",
-      "command": "python-dev",
-      "aliases": [
-        "python",
-        "py"
-      ],
-      "category": "implementation",
-      "tags": [
-        "python",
-        "backend",
-        "testing",
-        "linting"
-      ],
-      "owner_agent": "coder",
-      "specialist_agents": [
-        "backend-developer",
-        "test-developer"
-      ],
-      "phase": "implementation",
-      "execution_mode": "sequential"
-    },
-    {
-      "name": "python-patterns",
-      "command": "python-patterns",
-      "aliases": [
-        "python-architecture",
-        "python-design"
-      ],
-      "category": "architecture",
-      "tags": [
-        "python",
-        "architecture",
-        "patterns",
-        "framework-selection"
-      ],
-      "owner_agent": "architect",
-      "specialist_agents": [
-        "backend-architect",
-        "api-architect"
-      ],
-      "phase": "blueprint",
-      "execution_mode": "sequential"
-    },
-    {
-      "name": "go-development",
-      "command": "go-dev",
-      "aliases": [
-        "golang",
-        "go"
-      ],
-      "category": "implementation",
-      "tags": [
-        "go",
-        "golang",
-        "backend",
-        "testing",
-        "linting"
-      ],
-      "owner_agent": "coder",
-      "specialist_agents": [
-        "backend-developer",
-        "test-developer"
-      ],
-      "phase": "implementation",
-      "execution_mode": "sequential"
-    },
-    {
-      "name": "golang-pro",
-      "command": "golang-pro",
-      "aliases": [
-        "go-pro",
-        "go-advanced"
-      ],
-      "category": "implementation",
-      "tags": [
-        "go",
-        "golang",
-        "concurrency",
-        "grpc",
-        "performance",
-        "microservices"
-      ],
-      "owner_agent": "coder",
-      "specialist_agents": [
-        "backend-developer",
-        "performance-planner",
-        "api-architect"
-      ],
-      "phase": "implementation",
-      "execution_mode": "sequential"
-    },
-    {
-      "name": "csharp-dotnet-pro",
-      "command": "csharp-dotnet",
-      "aliases": [
-        "csharp",
-        "dotnet",
-        "cs"
-      ],
-      "category": "implementation",
-      "tags": [
-        "csharp",
-        "dotnet",
-        "aspnet-core",
-        "ef-core",
-        "linq",
-        "unity"
-      ],
-      "owner_agent": "coder",
-      "specialist_agents": [
-        "backend-developer",
-        "api-architect",
-        "test-developer"
-      ],
-      "phase": "implementation",
-      "execution_mode": "sequential"
-    },
-    {
-      "name": "web-design-guidelines",
-      "command": "web-audit",
-      "aliases": [
-        "web-design-review",
-        "ui-audit",
-        "ux-audit",
-        "accessibility-audit"
-      ],
-      "category": "quality",
-      "tags": [
-        "web",
-        "ui",
-        "ux",
-        "accessibility",
-        "audit",
-        "frontend"
-      ],
-      "owner_agent": "reviewer",
-      "specialist_agents": [
-        "accessibility-reviewer",
-        "frontend-developer",
-        "qa-reviewer"
-      ],
-      "phase": "verification",
-      "execution_mode": "sequential"
-    },
-    {
-      "name": "document-compliance-assessment",
-      "command": "verify-doc",
-      "aliases": [
-        "doc-assess",
-        "check-doc"
-      ],
-      "category": "review",
-      "tags": [
-        "documentation",
-        "compliance",
-        "quality",
-        "audit"
-      ],
-      "owner_agent": "reviewer",
-      "specialist_agents": [
-        "qa-reviewer",
-        "documentation-writer"
-      ],
-      "phase": "verification",
-      "execution_mode": "sequential"
-    },
-    {
-      "name": "architecture-review",
-      "command": "audit-arch",
-      "aliases": [
-        "arch-review",
-        "check-arch"
-      ],
-      "category": "architecture",
-      "tags": [
-        "architecture",
-        "design",
-        "review",
-        "compliance"
-      ],
-      "owner_agent": "reviewer",
-      "specialist_agents": [
-        "qa-reviewer",
-        "diagnostics-specialist"
-      ],
-      "phase": "blueprint",
-      "execution_mode": "sequential"
-    },
-    {
-      "name": "post-release-lifecycle",
-      "command": "post-release",
-      "aliases": [
-        "post-ship",
-        "post-lifecycle"
-      ],
-      "category": "review",
-      "tags": [
-        "release",
-        "post-release",
-        "operational",
-        "monitoring",
-        "maintenance"
-      ],
-      "owner_agent": "release-manager",
-      "specialist_agents": [
-        "infrastructure-developer",
-        "devops-developer"
-      ],
-      "phase": "verification",
-      "execution_mode": "sequential"
-    },
-    {
-      "name": "workflow-coordinator",
-      "command": "tick",
-      "aliases": [
-        "coordinate",
-        "dispatch"
-      ],
-      "category": "workflow",
-      "tags": [
-        "orchestrator",
-        "workflow",
-        "runtime",
-        "stateless"
-      ],
-      "owner_agent": "release-manager",
-      "specialist_agents": [
-        "workflow-auditor"
-      ],
-      "phase": "orchestration",
-      "execution_mode": "sequential"
     }
   ],
   "templates": [
@@ -909,9 +676,7 @@
       "blueprint-to-implementation",
       "frontend-visual-debug",
       "implementation-to-release",
-      "vir-investigate",
-      "post-release-lifecycle",
-      "workflow-coordinator"
+      "vir-investigate"
     ],
     "memory": [
       "project-memory-bootstrap",
@@ -926,8 +691,7 @@
       "project-discovery"
     ],
     "architecture": [
-      "create-adr",
-      "architecture-review"
+      "create-adr"
     ],
     "runtime": [
       "initialize-workflow",
@@ -942,9 +706,7 @@
     ],
     "quality": [
       "skill-self-verification",
-      "vir-verify",
-      "web-design-guidelines",
-      "document-compliance-assessment"
+      "vir-verify"
     ]
   }
 }

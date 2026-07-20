@@ -11,7 +11,6 @@ tags:
   - compliance
 version: 1.0.0
 license: MIT
-repository: https://gitlab.com/hngan.it/ai-workflow-skills
 created_at: 2026-07-04
 updated_at: 2026-07-04
 description: Validate that the feature is production-ready. Enforce standards before release.
@@ -26,8 +25,7 @@ runtime_requirements:
   environment: cached
   version: cached
   provider: optional
-  usage: cached
----
+  usage: cached---
 
 # Skill: debug-to-verify
 
@@ -62,7 +60,7 @@ Perform a final qualitative and quantitative audit on the active feature impleme
 ## Responsibilities
 
 1. **Acceptance Criteria Verification**: Cross-reference implemented features against the original criteria defined in the project plan.
-2. **Blueprint Compliance**: Ensure file names, APIs, class signatures, and database schemas strictly align with the technical blueprint (`docs/designs/FEAT-XXX_*.md`).
+2. **Blueprint Compliance**: Ensure file names, APIs, class signatures, and database schemas strictly align with the technical blueprint under `docs/blueprints/` — either `docs/blueprints/FEAT-XXX_*_blueprint.md` (single-file shape) or `docs/blueprints/<feature-slug>/phase-NN-<phase-slug>/phase-blueprint.md` (+ its companion files) for the multi-phase shape (see `plan-to-blueprint`). Read every companion file linked from the phase index, not just the index itself.
 3. **Coding Standards Audit**: Ensure correct code styles, robust error handling, proper naming conventions, and clean syntax are met.
 4. **Security & Performance**: Review authentication checks, sanitize inputs, verify database indexes, and look for performance bottlenecks.
 5. **Documentation & Changelog**: Check if user docs, API docs, and `CHANGELOG.md` edits are ready for the release notes.
@@ -80,13 +78,16 @@ Step 2: Audit Acceptance Criteria & Blueprint compliance
 Step 3: Audit Documentation, Security, and Code Quality
         ↓
 Step 4: Generate Verification Report at docs/verification/FEAT-XXX_verify.md
+        (or docs/verification/FEAT-XXX_phase-NN-<phase-slug>_verify.md when verifying one phase
+        of a multi-phase feature — matches the real, already-used filename convention; do NOT
+        nest phases into subfolders here, unlike docs/blueprints/)
         ↓
 Step 5: Update session checkpoint to 9 & output heartbeat
 ```
 
 ---
 
-## Output Report Format: `docs/verification/FEAT-XXX_verify.md`
+## Output Report Format: `docs/verification/FEAT-XXX_verify.md` (or `..._phase-NN-<phase-slug>_verify.md` — see Workflow Sequence Step 4)
 
 Generate the verification report using this Markdown template:
 
@@ -115,7 +116,7 @@ Giai đoạn phải đáp ứng toàn bộ các tiêu chí kiểm duyệt dướ
 | 5 | Dễ đọc và dễ bảo trì | [ ] PASS | Mã nguồn, script và kết quả rõ ràng, có cấu trúc, đặt tên dễ hiểu, ít trùng lặp và không lan phạm vi ngoài giai đoạn. |
 | 6 | Tuân thủ rule, Memory/RAG và skill trong project | [ ] PASS | Người điều phối và tác nhân đã đọc rule trong project, ưu tiên Memory First/RAG First bằng `./.agents/skills/project-rag-search` khi cần ngữ cảnh, chọn skill phù hợp từ `./.agents/skills`, đọc hướng dẫn skill trước khi làm, ghi rule/skill trong prompt/báo cáo và không tạo bản rule hoặc skill trùng lặp ở nơi khác. |
 | 7 | An toàn dữ liệu và dọn dẹp | [ ] PASS | Kiểm thử chụp nhanh và khôi phục cấu hình, không tạo rác ở Màn hình nền hoặc thư mục tạm, không lộ mã xác thực hoặc bí mật, không để lại tiến trình app hoặc kiểm thử. |
-| 8 | Tuân thủ tài liệu & Truy vết | [ ] PASS | Bắt buộc chạy và đánh giá điểm chất lượng tài liệu đạt từ 95/100 điểm trở lên bằng cách sử dụng skill [document-compliance-assessment](file:///Volumes/Kyle/AgentsProject/.agents/skills/document-compliance-assessment/SKILL.md) và đính kèm báo cáo Document Compliance Report. |
+| 8 | Tuân thủ tài liệu & Truy vết | [ ] PASS | Bắt buộc chạy và đánh giá điểm chất lượng tài liệu đạt từ 95/100 điểm trở lên bằng cách sử dụng skill [document-compliance-assessment](../../.agents/skills/document-compliance-assessment/SKILL.md) và đính kèm báo cáo Document Compliance Report. |
 
 ## 3. Điều kiện bắt buộc đánh FAIL (NO-GO)
 Giai đoạn phải bị đánh FAIL (NO-GO) nếu gặp bất kỳ lỗi nào dưới đây (báo cáo đánh giá bị vô hiệu):
@@ -166,7 +167,7 @@ Status:
 Completed
 
 Report Generated:
-docs/verification/FEAT-XXX_verify.md
+docs/verification/FEAT-XXX_verify.md (or ..._phase-NN-<phase-slug>_verify.md)
 
 Verification Status:
 [PASS | FAIL]

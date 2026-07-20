@@ -986,7 +986,7 @@ class TestRuntimeEngine(unittest.TestCase):
             "version": {"version": "1.0.0", "source": "MANIFEST.json"},
             "checkpoint": 1,
             "blueprint": {
-                "path": "docs/designs/test_blueprint.md",
+                "path": "docs/blueprints/test_blueprint.md",
                 "exists": True,
                 "approved": False
             }

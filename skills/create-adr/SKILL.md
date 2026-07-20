@@ -10,7 +10,6 @@ tags:
   - decision
 version: 2.5.0
 license: MIT
-repository: https://gitlab.com/hngan.it/ai-workflow-skills
 created_at: 2026-07-03
 updated_at: 2026-07-03
 description: Create Architecture Decision Records (ADRs) only when explicitly invoked.
@@ -25,8 +24,7 @@ runtime_requirements:
   environment: none
   version: cached
   provider: optional
-  usage: none
----
+  usage: none---
 
 # Skill: Create Architecture Decision Record (ADR)
 
@@ -58,7 +56,7 @@ title: "Decide on cache strategy for Playwright assets"
 related_feature: "docs/brainstorm/FEAT-XXX_feature_slug.md"
 # Relative path to the related brainstorming or requirement discovery document
 
-design_file: "docs/designs/FEAT-XXX_feature_slug_blueprint.md"
+design_file: "docs/blueprints/FEAT-XXX_feature_slug_blueprint.md"
 # Relative path to the blueprint design (optional)
 ```
 
