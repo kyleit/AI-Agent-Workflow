@@ -210,9 +210,10 @@ require approval for every Python command. Use this order:
 
 ### Step 8 — Telegram Project Inbox Monitor
 
-- Initialization may start the project-specific Telegram monitor process
-  (`skills/notify-telegram/monitor_listener.py`) only when the shared Telegram daemon is already
-  active. If the daemon is inactive, do not start a listener and do not schedule idle polling.
+- During `initialize-workflow`, if the shared Telegram daemon is active, the agent MUST automatically
+  arm the project inbox monitor by calling the `schedule` tool with a 10-second timer:
+  `schedule(DurationSeconds="10", Prompt="Check project inbox .agents/inbox/inbox.json for new incoming Telegram messages and process them.")`
+- If the shared Telegram daemon is inactive, do not arm the listener and do not schedule idle polling.
 - The monitor watches the project-local `.agents/inbox/inbox.json` file so agents do not need to
   read Telegram inbox messages from outside the registered workspace.
 - If a background timer/check is used, it must be silent on idle. When `.agents/inbox/inbox.json`
@@ -221,7 +222,7 @@ require approval for every Python command. Use this order:
 - When the timer/check detects a new valid inbox JSON object, load the `notify-telegram` skill and
   process the event according to its Project Inbox Mode rules. If the event originated from
   Telegram, the final answer or completion status must be sent back to the event `chat_id` on
-  Telegram before the turn is considered complete.
+  Telegram before the turn is considered complete. Re-arm the 10-second `schedule` timer after processing.
 
 ---
 

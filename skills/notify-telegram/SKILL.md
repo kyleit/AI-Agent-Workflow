@@ -239,6 +239,10 @@ the global credentials and routes new updates into the registered project's loca
 daemon writes exactly one valid JSON object to `.agents/inbox/inbox.json` using an atomic
 `inbox.json.tmp` write followed by `os.replace`.
 
+During `initialize-workflow` (Step 8), if the shared Telegram daemon is active, the agent automatically
+arms the 10-second `schedule` monitor listener (`DurationSeconds="10"`) to check `.agents/inbox/inbox.json`
+continuously.
+
 Canonical inbox JSON shape:
 
 ```json

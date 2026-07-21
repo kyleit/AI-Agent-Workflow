@@ -174,6 +174,33 @@ def save_discovered_group(chat_id: str, chat_title: str) -> None:
     except Exception as e:
         print(f"[WARN] Failed to save discovered group: {e}", file=sys.stderr)
 
+def bind_telegram_chat_to_project(project_path: str, chat_id: str) -> None:
+    """Auto-bind telegram_chat_id to project in projects.json."""
+    reg_path = get_registry_dir() / "projects.json"
+    if not reg_path.exists():
+        return
+    try:
+        with open(reg_path, "r", encoding="utf-8") as f:
+            data = json.load(f)
+        modified = False
+        norm_target = str(Path(project_path).resolve())
+        for p in data.get("projects", []):
+            try:
+                p_norm = str(Path(p.get("path", "")).resolve())
+                if p_norm == norm_target:
+                    if p.get("telegram_chat_id") != str(chat_id):
+                        p["telegram_chat_id"] = str(chat_id)
+                        modified = True
+            except Exception:
+                pass
+        if modified:
+            tmp_path = reg_path.with_name("projects.json.tmp")
+            with open(tmp_path, "w", encoding="utf-8") as f:
+                json.dump(data, f, indent=2, ensure_ascii=False)
+            os.replace(tmp_path, reg_path)
+    except Exception as e:
+        print(f"[WARN] Failed to auto-bind Telegram chat_id to project: {e}", file=sys.stderr)
+
 def get_opener(proxy: str = None):
     """Build urllib opener with optional proxy support."""
     opener = urllib.request.build_opener()
@@ -336,6 +363,17 @@ def route_update(token: str, update: dict, proxy: str = None) -> None:
         if active_projects:
             target_project = active_projects[0]
             clean_msg = text
+
+    # 4. Fallback for group/supergroup: route to active project if unmapped
+    if not target_project and chat_type in ["group", "supergroup"]:
+        active_projects = [p for p in registry.get("projects", []) if p.get("status") == "active"]
+        if active_projects:
+            target_project = active_projects[0]
+            clean_msg = text
+            try:
+                bind_telegram_chat_to_project(target_project["path"], chat_id)
+            except Exception:
+                pass
             
     if not target_project:
         # No project mapped, ignore

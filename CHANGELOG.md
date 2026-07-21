@@ -5,6 +5,17 @@ All notable changes to this project will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [6.19.4] - 2026-07-21
+
+### Changed
+- **Telegram inbox workflow continuity**:
+  - Updated `initialize-workflow` so agents must arm the project inbox monitor with a 10-second schedule timer only when the shared Telegram daemon is active.
+  - Clarified `notify-telegram` project inbox guidance so the scheduled monitor continuously checks `.agents/inbox/inbox.json` without noisy idle replies.
+
+### Fixed
+- **Telegram group routing**:
+  - Added a fallback for unmapped Telegram groups so the daemon can route a group message to the active project and persist that chat binding for later messages.
+
 ## [6.19.3] - 2026-07-21
 
 ### Added
