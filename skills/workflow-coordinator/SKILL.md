@@ -72,6 +72,7 @@ Managed via `.agents/workflow.config.json` under `coordinator` block. Supports:
   `aiwf prompt select --question "Approve this Technical Design Blueprint for implementation?" --options "Continue|Cancel" --default "Cancel"`
 - Do not replace this final gate with plain chat approval text. If the runtime prompt bridge is unavailable, explicitly report that unavailability and remain stopped at Blueprint Approval.
 - Do not approve the Blueprint, inspect more files, run git/tests, or implement code until explicit approval evidence exists.
+- Blueprint Approval evidence must be scoped to the exact current work item. The approval record, Blueprint path/filename, and Blueprint frontmatter work item (`feature_id`, `issue_id`, `quick_id`, or `work_item_id`) must all match. Approval from another work item, stale active state, global state, full-access authorization, or autonomous delivery authorization must be rejected and the workflow must remain stopped at Blueprint Approval.
 - If a phase touches frontend design, UI/UX, layout, typography, color, animation, icons, visual hierarchy, frontend components, or design-system decisions, route the phase through `frontend-design` before the artifact is considered reviewable.
 
 ## Backward Compatibility

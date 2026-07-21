@@ -130,6 +130,13 @@ def prompt_select(question: str, options: list[str], default: str | None = None)
     Nếu không nhận được hoặc lỗi, trả về giá trị default.
     """
     import sys
+
+    question_lower = (question or "").lower()
+    strategic_approval_gate = (
+        "approve this technical design blueprint" in question_lower
+        or "blueprint approval" in question_lower
+        or "release approval" in question_lower
+    )
     
     # Check if permission mode is full_access and active
     try:
@@ -139,7 +146,7 @@ def prompt_select(question: str, options: list[str], default: str | None = None)
     except Exception:
         mode = "sandbox"
         
-    if mode == "full_access" and os.environ.get("TEST_PROMPT") != "1":
+    if mode == "full_access" and os.environ.get("TEST_PROMPT") != "1" and not strategic_approval_gate:
         # Check positive options
         positive_choices = ["yes", "y", "continue", "continue on current branch", "proceed", "agree"]
         chosen = None
@@ -257,5 +264,4 @@ def build_branch_selection_options(artifact_id: str, slug: str) -> dict:
         "options": [opt1, opt2, "Stop"],
         "warn_main": warn
     }
-
 

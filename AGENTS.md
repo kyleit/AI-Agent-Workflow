@@ -73,6 +73,7 @@ The framework divides agents into **Core Phase Owners** and **Specialist Assista
 - The Agent may stop before Blueprint only for real blockers: ambiguous workflow selection, missing required user information, readiness below threshold, or conflicting user requirements.
 - After the Technical Design Blueprint passes internal review, the Agent **MUST request Blueprint Approval through** `aiwf prompt select --question "Approve this Technical Design Blueprint for implementation?" --options "Continue|Cancel" --default "Cancel"`, then stop absolutely before implementation. A plain chat approval question is not valid unless the runtime prompt bridge is unavailable and that unavailability is explicitly reported.
 - At the final Blueprint Approval gate, the Agent MUST end the turn and MUST NOT mark the Blueprint approved, inspect more files, run git, run tests, or implement code until explicit approval evidence exists.
+- Blueprint Approval evidence MUST be scoped to the exact work item. The approval record, Blueprint path/filename, and Blueprint frontmatter work item id must match; stale approvals, approvals from another work item, full-access authorization, or autonomous delivery authorization MUST NOT unlock implementation.
 
 ## Semantic Feature Documentation Folder Rule
 - Every new FEAT/FIX/QUICK artifact must be created under a semantic feature family folder, for example `docs/features/visualizer/blueprints/FEAT-407_visualizer_automated_test_runner_blueprint.md`.

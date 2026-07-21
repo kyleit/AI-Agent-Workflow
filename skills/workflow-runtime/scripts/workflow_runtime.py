@@ -92,17 +92,17 @@ class RuntimeInputGate:
             "resume_token": token,
             "created_at": datetime.now().astimezone().isoformat()
         }
-        
+
         session = load_session()
         session["status"] = "waiting_input"
         session["pending_input"] = pending
-        
+
         log_line = f"> Runtime waiting for input on prompt '{prompt_id}'. Secure token generated."
         if "current_logs" in session:
             session["current_logs"].append(log_line)
         else:
             session["current_logs"] = [log_line]
-            
+
         save_session_atomic(session)
         return pending
 
@@ -110,27 +110,27 @@ class RuntimeInputGate:
     def submit_input(prompt_id: str, value: str, source: str, token: str) -> bool:
         if source and source.lower() == "ai":
             raise ForbiddenAISourceError("Input submission from AI sources is strictly forbidden.")
-            
+
         session = load_session()
         pending = session.get("pending_input")
         if not pending:
             print("No pending input waiting in session.")
             return False
-            
+
         if pending.get("input_id") != prompt_id:
             print(f"Prompt ID mismatch: expected {pending.get('input_id')}, got {prompt_id}.")
             return False
-            
+
         if pending.get("resume_token") != token:
             raise InvalidResumeTokenError("Security token mismatch. Access denied.")
-            
+
         session["status"] = "completed"
         session["pending_input"] = None
-        
+
         log_line = f"> Input for prompt '{prompt_id}' accepted from source '{source}'."
         if "current_logs" in session:
             session["current_logs"].append(log_line)
-            
+
         save_session_atomic(session)
         return True
 
@@ -138,10 +138,10 @@ def requires_approval(action_type: str, path: str = None) -> bool:
     mode = get_permission_mode()
     if mode == "unrestricted":
         return False
-        
+
     session = load_session()
     is_autonomous = session.get("autonomous_delivery", False)
-    
+
     # Hard-gated actions that ALWAYS require approval in full_access mode or autonomous mode
     release_actions = [
         "git_commit", "git_merge", "git_rebase", "git_tag", "git_push",
@@ -153,16 +153,16 @@ def requires_approval(action_type: str, path: str = None) -> bool:
         from utils import log_gate_resolution_event
         log_gate_resolution_event(f"Action: {action_type}", "BLOCKED_BY_RELEASE_BOUNDARY", "Blocked")
         return True
-        
+
     # Scope Protection Check
     auth = session.get("authorization", {})
     active_wi = os.environ.get("AIWF_ACTIVE_WORK_ITEM") or os.environ.get("AIWF_WORK_ITEM_ID")
-    
+
     if active_wi and auth.get("work_item_id") and auth.get("work_item_id") != active_wi:
         from utils import log_gate_resolution_event
         log_gate_resolution_event(f"Action: {action_type} for work item {active_wi}", "OUT_OF_SCOPE", "Blocked")
         return True
-        
+
     # Path boundary check
     if path:
         abs_path = os.path.abspath(path)
@@ -171,20 +171,20 @@ def requires_approval(action_type: str, path: str = None) -> bool:
             from utils import log_gate_resolution_event
             log_gate_resolution_event(f"Write to path: {path}", "OUT_OF_SCOPE", "Blocked")
             return True
-            
+
         basename = os.path.basename(abs_path)
         if basename in ["AI_RULES.md", "AGENTS.md"]:
             from utils import log_gate_resolution_event
             log_gate_resolution_event(f"Modify policy file: {path}", "BLOCKED_BY_RELEASE_BOUNDARY", "Blocked")
             return True
-            
+
     if is_autonomous:
         # Bypass other approvals in autonomous mode
         return False
-        
+
     if mode == "sandbox":
         return True
-        
+
     from utils import log_gate_resolution_event
     log_gate_resolution_event(f"Action: {action_type}", "AUTHORIZED_BY_FULL_ACCESS", "Allowed")
     return False
@@ -206,7 +206,7 @@ def update_context_health(session: dict) -> None:
             "options": [],
             "status": "idle"
         }
-        
+
     # Sync current system status to prevent false drift detection
     print("DEBUG: calling get_git_info...", flush=True)
     session["git"] = get_git_info()
@@ -216,7 +216,7 @@ def update_context_health(session: dict) -> None:
     session["memory"] = get_memory_info()
     print("DEBUG: calling get_rag_info...", flush=True)
     session["rag"] = get_rag_info()
-    
+
     # Inject Resident Orchestrator and Runtime Manager status details for Visualizer
     session["orchestrator_status"] = "DISABLED"
     session["runtime_manager_status"] = "DISABLED"
@@ -224,9 +224,9 @@ def update_context_health(session: dict) -> None:
     session["orchestrator_id"] = "main-orchestrator"
     session["attach_mode"] = "N/A"
     session["last_heartbeat"] = "N/A"
-    
+
     print("DEBUG: update_context_health complete.", flush=True)
-    
+
     # 2. Save it to DBs if conversation_id exists
     conv_id = session.get("conversation_id")
     if conv_id:
@@ -246,7 +246,7 @@ def update_context_health(session: dict) -> None:
             print("DEBUG: sync_request_history complete.", flush=True)
         except Exception as e:
             print(f"Warning: could not sync request history: {e}", file=sys.stderr)
-        
+
     # 3. Retrieve summaries from DBs
     print("DEBUG: calling get_workflow_summary...", flush=True)
     wf_summary = get_workflow_summary(
@@ -259,14 +259,14 @@ def update_context_health(session: dict) -> None:
         session["workflow_usage_summary"] = usage
     else:
         session["workflow_usage_summary"] = wf_summary
-        
+
     print("DEBUG: calling get_project_summary...", flush=True)
     session["project_usage_summary"] = get_project_summary(get_project_id())
     print("DEBUG: get_project_summary complete.", flush=True)
     print("DEBUG: calling get_global_summary...", flush=True)
     session["global_usage_summary"] = get_global_summary()
     print("DEBUG: get_global_summary complete.", flush=True)
-    
+
     try:
         from session import load_workflow_config
         config = load_workflow_config()
@@ -289,18 +289,18 @@ def update_context_health(session: dict) -> None:
             "critical_usd": 50.0
         }
     })
-    
+
     # 4. Populate backward-compatible context_usage object
     session["context_usage"] = {
         "total_tokens": usage.get("active_tokens", 0),
         "limit_tokens": usage.get("limit_tokens", 2000000),
         "percentage": usage.get("percentage", 0.0)
     }
-    
+
     # 5. Check drift
     drifted, msg = check_context_drift(session)
     session["context_health"] = "broken" if drifted else "healthy"
-    
+
     # 6. Generate Context Breakdown state
     try:
         from breakdown_engine import update_breakdown_file
@@ -312,7 +312,7 @@ def send_telegram_startup_message(conversation_id: str) -> None:
     env_path = os.path.join(".agents", "config", ".env.telegram-notify")
     if not os.path.exists(env_path):
         return
-    
+
     token = None
     chat_id = None
     proxy = None
@@ -335,10 +335,10 @@ def send_telegram_startup_message(conversation_id: str) -> None:
     except Exception as e:
         print(f"Warning: Failed to parse .env.telegram-notify: {e}", file=sys.stderr)
         return
-        
+
     if not token or not chat_id:
         return
-        
+
     # Try to resolve project-specific chat_id from projects.json registry
     try:
         import platform
@@ -352,7 +352,7 @@ def send_telegram_startup_message(conversation_id: str) -> None:
                 reg_dir = Path(appdata) / "aiwf"
         elif system == "Darwin":
             reg_dir = Path.home() / "Library" / "Application Support" / "aiwf"
-        
+
         reg_path = reg_dir / "projects.json"
         if reg_path.exists():
             with open(reg_path, "r", encoding="utf-8") as f:
@@ -365,7 +365,7 @@ def send_telegram_startup_message(conversation_id: str) -> None:
                         break
     except Exception:
         pass
-        
+
     project_name = "default"
     manifest_path = "MANIFEST.json"
     if os.path.exists(manifest_path):
@@ -377,19 +377,19 @@ def send_telegram_startup_message(conversation_id: str) -> None:
             pass
 
     message = f"🤖 [{project_name}] Khởi động thành công và sẵn sàng nhận lệnh.\nConversation ID: {conversation_id}"
-    
+
     import urllib.request
     import urllib.parse
-    
+
     url = f"https://api.telegram.org/bot{token}/sendMessage"
     data = urllib.parse.urlencode({
         "chat_id": chat_id,
         "text": message
     }).encode("utf-8")
-    
+
     req = urllib.request.Request(url, data=data, method="POST")
     req.add_header("Content-Type", "application/x-www-form-urlencoded")
-    
+
     opener = urllib.request.build_opener()
     if proxy:
         proxy_handler = urllib.request.ProxyHandler({
@@ -397,7 +397,7 @@ def send_telegram_startup_message(conversation_id: str) -> None:
             "https": proxy
         })
         opener.add_handler(proxy_handler)
-        
+
     try:
         with opener.open(req, timeout=15) as response:
             response.read()
@@ -484,7 +484,7 @@ def do_init(args):
             except Exception:
                 user_confirm = ""
             mode = "sandbox"
-            
+
         config = {
             "schema_version": "1.0.0",
             "initialized": True,
@@ -512,7 +512,7 @@ def do_init(args):
     new_fp = calculate_project_fingerprint(".")
     state_dir = os.path.join(".agents", "state")
     context_path = os.path.join(state_dir, "context.json")
-    
+
     use_cache = False
     session = {}
     if os.path.exists(context_path):
@@ -524,7 +524,7 @@ def do_init(args):
                 session = load_session()
         except Exception:
             pass
-            
+
     if not use_cache or not session:
         session = {
             "workspace": {"path": ".", "valid": True},
@@ -562,7 +562,7 @@ def do_init(args):
     else:
         session["current_logs"] = ["> Initialization completed successfully (loaded from cache)."]
         session["updated_at"] = datetime.now().astimezone().isoformat()
-    
+
     # Nạp tĩnh quyền từ permissions.json
     from session import load_project_permissions
     permissions = load_project_permissions()
@@ -570,16 +570,16 @@ def do_init(args):
         print("Error: Project permission mode has not been initialized.", file=sys.stderr)
         print("Please run 'python workflow_runtime.py permissions init' manually first.", file=sys.stderr)
         sys.exit(1)
-        
+
     mode = permissions.get("mode", "sandbox")
     session["permission_mode"] = mode
     session["permission_mode_selected_at"] = permissions.get("updated_at")
     session["permission_mode_selected_by"] = permissions.get("updated_by", "user")
-    
+
     update_context_health(session)
     save_session_atomic(session)
     print(f"Session initialized with permission_mode={mode}.")
-    
+
     # Load and validate runtime policy configuration
     from session import load_runtime_policy
     try:
@@ -587,15 +587,15 @@ def do_init(args):
     except Exception as e:
         print(f"Error loading/validating runtime policy: {e}", file=sys.stderr)
         sys.exit(1)
-    
+
     def register_client_attachment():
         import json
         from session import get_project_identity, load_config_section, DEFAULT_CLIENT_POLICY
         identity = get_project_identity(getattr(args, "path", None) or ".")
         workspace_id = identity["workspace_id"]
-        
+
         conversation_id = os.environ.get("AIWF_CONVERSATION_ID") or session.get("conversation_id") or "CONV-DEFAULT"
-        
+
         clients_path = os.path.join(".agents", "state", "clients.json")
         clients_data = {
             "workspace_id": workspace_id,
@@ -608,7 +608,7 @@ def do_init(args):
                     clients_data = json.load(f)
             except Exception:
                 pass
-                
+
         found = False
         for c in clients_data.setdefault("clients", []):
             if c.get("session_id") == conversation_id:
@@ -617,10 +617,10 @@ def do_init(args):
             else:
                 # Do NOT detach others as per instruction "ko detach nhưng cái khác"
                 c["status"] = "attached"
-                
+
         if not found:
             clients_data["clients"].append({"session_id": conversation_id, "status": "attached"})
-            
+
         os.makedirs(os.path.dirname(clients_path), exist_ok=True)
         with open(clients_path, "w", encoding="utf-8") as f:
             json.dump(clients_data, f, indent=2, ensure_ascii=False)
@@ -641,11 +641,11 @@ def do_init(args):
             "skills": "FAIL",
             "workflow_supervisor": "FAIL"
         }
-        
+
     if doctor_res.get("status") != "READY":
         print(f"Workspace validation failed! Doctor report: {json.dumps(doctor_res, indent=2)}", file=sys.stderr)
         sys.exit(1)
-        
+
     runtime_mode = doctor_res.get("runtime_mode", "session")
     session["runtime_mode"] = runtime_mode
     save_session_atomic(session)
@@ -694,7 +694,7 @@ def do_init(args):
     print("SESSION_MODE")
     print("\nWorkflow Supervisor:")
     print("READY")
-    
+
     # Update runtime.json status to completed
     state_dir = os.path.join(".agents", "state")
     runtime_path = os.path.join(state_dir, "runtime.json")
@@ -761,7 +761,7 @@ class WorkflowObservatoryHTTPHandler(http.server.BaseHTTPRequestHandler):
             store = get_state_store()
             workflow = cast(dict[str, Any], store.get("workflow") or {})
             context = cast(dict[str, Any], store.get("context") or {})
-            
+
             # Fallback to reading split state directory files
             if not workflow:
                 try:
@@ -911,7 +911,7 @@ def do_api_server(args: Any) -> None:
     port = getattr(args, "port", 31000) or 31000
     host = getattr(args, "host", "localhost") or "localhost"
     server_address = (host, port)
-    
+
     class HTTPServerV6(http.server.HTTPServer):
         allow_reuse_address = True
 
@@ -954,12 +954,12 @@ def do_validate(args):
     if not session:
         print("Error: session file missing.", file=sys.stderr)
         sys.exit(1)
-    
+
     update_context_health(session)
     if session["context_health"] == "broken":
         print("Error: Context health is broken (drift detected).", file=sys.stderr)
         sys.exit(1)
-        
+
     if args.checkpoint:
         curr = session.get("checkpoint", 1)
         if not validate_checkpoint_level(curr, args.checkpoint):
@@ -986,16 +986,17 @@ def do_start(args):
         print("Do not continue.", file=sys.stderr)
         sys.exit(1)
     print("DEBUG 4: lease acquired.", flush=True)
-    
+
     # Check blueprint approval before starting implementation
     is_impl = (args.skill == "blueprint-to-implementation") or (args.checkpoint is not None and args.checkpoint >= 6)
     if is_impl:
         bp = session.get("blueprint", {})
-        if not bp.get("approved"):
-            print("Error: Cannot start implementation. Technical Design Blueprint is not approved.", file=sys.stderr)
+        scope_ok, scope_reason = validate_blueprint_scope(bp, work_item_id)
+        if not bp.get("approved") or not scope_ok:
+            print(f"Error: Cannot start implementation. Technical Design Blueprint is not approved for {work_item_id}. {scope_reason}", file=sys.stderr)
             WorkflowLease.release()
             sys.exit(1)
-            
+
     session["status"] = "in_progress"
     if args.checkpoint is not None:
         session["checkpoint"] = args.checkpoint
@@ -1004,14 +1005,14 @@ def do_start(args):
     session["current_step"] = args.step
     session["autonomous_delivery"] = getattr(args, "autonomous", False)
     session["current_logs"] = [f"> Starting {args.skill}..."]
-    
+
     update_context_health(session)
     save_session_atomic(session)
-    
+
     # Log phase transition event
     from utils import log_phase_transition_event
     log_phase_transition_event("idle", args.skill, "success")
-    
+
     print(f"Skill {args.skill} started.")
 
 def do_step(args):
@@ -1049,14 +1050,14 @@ def do_complete(args):
     if "current_logs" not in session or not isinstance(session["current_logs"], list):
         session["current_logs"] = []
     session["current_logs"].append(f"> Completed successfully.")
-    
+
     update_context_health(session)
     save_session_atomic(session)
-    
+
     # Log phase transition event
     from utils import log_phase_transition_event
     log_phase_transition_event(session.get("current_skill", "unknown"), args.next_skill or "completed", "success")
-    
+
     # Clean temporary analysis agents
     analysis_file = os.path.join(".agents", "runtime", "analysis-agents.json")
     if os.path.exists(analysis_file):
@@ -1066,7 +1067,7 @@ def do_complete(args):
             pass
     # Sync session to clear analysis_agents list
     sync_analysis_agents_to_session()
-    
+
     print("Step completed.")
 
 def do_fail(args):
@@ -1099,39 +1100,39 @@ def do_usage(args):
     if not session:
         print("Error: session file missing.", file=sys.stderr)
         sys.exit(1)
-        
+
     if args.subaction == "sync":
         update_context_health(session)
         save_session_atomic(session)
         print("Usage database synchronized.")
-        
+
     elif args.subaction == "breakdown":
         update_context_health(session)
         from breakdown_engine import generate_breakdown
         bd = generate_breakdown(session, ".")
-        
+
         print("\n==================================================================================")
         print("ACTIVE CONTEXT BREAKDOWN DIAGNOSTICS")
         print("==================================================================================")
         print(f"{'Context Source':<30} | {'Tokens':<10} | {'Percentage':<10} | {'Loads':<6} | {'Last Loaded Time':<25}")
         print("-" * 90)
-        
+
         for item in bd.get("breakdown", []):
             token_str = f"{item['tokens']:,}"
             pct_str = f"{item['percentage']:.2f}%"
             print(f"{item['category']:<30} | {token_str:<10} | {pct_str:<10} | {item['loads']:<6} | {item['last_loaded']:<25}")
-            
+
         print("-" * 90)
         total_str = f"{bd.get('total_tokens', 0):,}"
         print(f"{'Total Active Context':<30} | {total_str:<10} | {'100.00%':<10} | {'':<6} | {'':<25}")
         print("==================================================================================\n")
-        
+
     elif args.subaction == "report":
         update_context_health(session)
         wf = session.get("workflow_usage_summary", {})
         proj = session.get("project_usage_summary", {})
         glob = session.get("global_usage_summary", {})
-        
+
         report = f"""# AI Workflow Usage Report
 
 ## Workflow Usage
@@ -1150,11 +1151,11 @@ def do_usage(args):
 - Estimated Cost: ${glob.get("estimated_cost_usd", 0.0):.4f} USD
 """
         print(report)
-        
+
     elif args.subaction == "diagnose":
         import sqlite3
         from db import PROJECT_DB, get_global_db_path
-        
+
         print("Database Diagnosis:")
         print(f"1. Project Database: {os.path.abspath(PROJECT_DB)}")
         if os.path.exists(PROJECT_DB):
@@ -1169,7 +1170,7 @@ def do_usage(args):
                 print(f"   Status: CORRUPTED ({e})")
         else:
             print("   Status: MISSING")
-            
+
         global_db = get_global_db_path()
         print(f"2. Global Database: {os.path.abspath(global_db)}")
         if os.path.exists(global_db):
@@ -1184,11 +1185,11 @@ def do_usage(args):
                 print(f"   Status: CORRUPTED ({e})")
         else:
             print("   Status: MISSING")
-            
+
     elif args.subaction == "export":
         import sqlite3
         from db import PROJECT_DB
-        
+
         data = []
         if os.path.exists(PROJECT_DB):
             try:
@@ -1201,7 +1202,7 @@ def do_usage(args):
             except Exception as e:
                 print(f"Error reading database: {e}", file=sys.stderr)
                 sys.exit(1)
-                
+
         json_str = json.dumps(data, indent=2)
         if args.out:
             try:
@@ -1213,22 +1214,22 @@ def do_usage(args):
                 sys.exit(1)
         else:
             print(json_str)
-            
+
     elif args.subaction == "requests":
         filters = {}
-        
+
         proj_filter = args.project
         if proj_filter == "current":
             proj_filter = get_project_id()
         if proj_filter:
             filters["project_id"] = proj_filter
-            
+
         wf_filter = args.workflow
         if wf_filter == "current":
             wf_filter = session.get("conversation_id")
         if wf_filter:
             filters["workflow_id"] = wf_filter
-            
+
         if args.skill:
             filters["skill_name"] = args.skill
         if args.model:
@@ -1241,21 +1242,21 @@ def do_usage(args):
             filters["start_time"] = args.start_time
         if args.end_time:
             filters["end_time"] = args.end_time
-            
+
         sort_by = "timestamp"
         desc = True
         limit = None
-        
+
         if args.top_cost:
             sort_by = "cost_usd"
             limit = args.top_cost
         elif args.top_input:
             sort_by = "input_tokens"
             limit = args.top_input
-            
+
         from db import get_provider_requests
         reqs = get_provider_requests(filters, sort_by=sort_by, desc=desc, limit=limit)
-        
+
         if args.format == "json":
             print(json.dumps(reqs, indent=2))
         else:
@@ -1267,18 +1268,18 @@ def do_usage(args):
                 tokens_str = f"{r['total_tokens']:,}"
                 duration_str = f"{r['duration']:.2f}s"
                 print(f"{r['request_id']:<36} | {r['skill_name']:<18} | {r['status']:<8} | {tokens_str:<8} | {cost_str:<10} | {duration_str:<8}")
-                
+
     elif args.subaction == "request":
         if not args.id:
             print("Error: --id is required for request subcommand.", file=sys.stderr)
             sys.exit(1)
-            
+
         from db import get_provider_request_detail
         r = get_provider_request_detail(args.id)
         if not r:
             print(f"Error: Request with ID '{args.id}' not found.", file=sys.stderr)
             sys.exit(1)
-            
+
         if args.format == "json":
             print(json.dumps(r, indent=2))
         else:
@@ -1298,7 +1299,7 @@ def do_usage(args):
             print(f"Cost:         ${r['cost_usd']:.6f} USD")
             print(f"Stats:        Tools={r['tool_call_count']}, Reads={r['workspace_read_count']}, Memory Hits={r['memory_hit_count']}, RAG Hits={r['rag_hit_count']}")
             print(f"Context:      {r['context_usage_percentage']:.2f}% (Limit={r['context_limit_tokens']:,})")
-            
+
             if r['context_breakdown_json']:
                 try:
                     cb = json.loads(r['context_breakdown_json'])
@@ -1309,14 +1310,14 @@ def do_usage(args):
                         print(f"{item['category']:<25} | {item['tokens']:<10,} | {item['percentage']:.1f}%")
                 except Exception:
                     pass
-            
+
     elif args.subaction == "diff":
         from db import get_provider_requests, get_provider_request_detail
         from diff_engine import calculate_diff
-        
+
         req_a = None
         req_b = None
-        
+
         if getattr(args, "latest", False):
             conv_id = session.get("conversation_id", "")
             reqs = get_provider_requests({"conversation_id": conv_id}, sort_by="timestamp", desc=True, limit=2)
@@ -1329,14 +1330,14 @@ def do_usage(args):
             if not args.id_a:
                 print("Error: --id-a is required for diff subcommand.", file=sys.stderr)
                 sys.exit(1)
-            
+
             req_b = get_provider_request_detail(args.id_b) if args.id_b else None
             req_a = get_provider_request_detail(args.id_a)
-            
+
             if not req_a:
                 print(f"Error: Request with ID '{args.id_a}' not found.", file=sys.stderr)
                 sys.exit(1)
-                
+
             if not req_b:
                 conv_id = req_a.get("conversation_id")
                 reqs = get_provider_requests({"conversation_id": conv_id}, sort_by="timestamp", desc=True)
@@ -1351,23 +1352,23 @@ def do_usage(args):
                 else:
                     req_b = req_a
                     req_a = None
-                    
+
         cb_a = {}
         if req_a and req_a.get("context_breakdown_json"):
             try:
                 cb_a = json.loads(req_a["context_breakdown_json"]) if isinstance(req_a["context_breakdown_json"], str) else req_a["context_breakdown_json"]
             except Exception:
                 cb_a = {}
-                
+
         cb_b = {}
         if req_b and req_b.get("context_breakdown_json"):
             try:
                 cb_b = json.loads(req_b["context_breakdown_json"]) if isinstance(req_b["context_breakdown_json"], str) else req_b["context_breakdown_json"]
             except Exception:
                 cb_b = {}
-                
+
         diff = calculate_diff(cb_a, cb_b)
-        
+
         if args.format == "json":
             print(json.dumps(diff, indent=2))
         else:
@@ -1417,7 +1418,7 @@ def do_usage(args):
                 }
                 save_insight_snapshot(snap)
                 snaps = [snap]
-                
+
         latest_snap = snaps[0] if snaps else {
             "efficiency_score": 100,
             "avg_tokens": 0,
@@ -1425,7 +1426,7 @@ def do_usage(args):
             "growth_trend": "stable",
             "insight_data": {"request_count": 0, "total_cost": 0.0, "total_tokens": 0}
         }
-        
+
         if args.format == "json":
             print(json.dumps(latest_snap, indent=2))
         else:
@@ -1454,7 +1455,7 @@ def do_usage(args):
             recs = generate_recommendations(reqs, conv_id)
             if recs:
                 save_recommendations(recs)
-                
+
         if args.format == "json":
             print(json.dumps(recs, indent=2))
         else:
@@ -1478,14 +1479,14 @@ def do_usage(args):
         if not args.accept and not args.ignore:
             from optimizer import calculate_roi, generate_benchmark_report, get_active_policy, set_active_policy, get_optimization_leaderboard
             conv_id = session.get("conversation_id", "")
-            
+
             from context import estimate_context_usage
             usage = estimate_context_usage()
             predicted_tokens = usage.get("total_tokens", 0)
             predicted_cost = usage.get("estimated_cost_usd", 0.0)
-            
+
             opt_sub = args.optimize_subaction
-            
+
             if opt_sub == "analyze":
                 res = calculate_roi(conv_id)
                 leaderboard = get_optimization_leaderboard()
@@ -1506,7 +1507,7 @@ def do_usage(args):
                     for idx, l in enumerate(leaderboard):
                         print(f"  {idx+1}. Skill: {l['skill']} | Saved: {l['tokens_saved']:,} tkn (${l['cost_saved']:.3f})")
                     print("==================================================================================\n")
-                    
+
             elif opt_sub == "benchmark":
                 res = generate_benchmark_report(predicted_tokens, predicted_cost)
                 if args.format == "json":
@@ -1521,7 +1522,7 @@ def do_usage(args):
                     print(f"Net Tokens Saved:      +{res['tokens_saved']:,} tokens")
                     print(f"Net Cost Saved:        ${res['cost_saved']:.4f} USD")
                     print("==================================================================================\n")
-                    
+
             elif opt_sub == "policies":
                 if args.policy:
                     set_active_policy(args.policy)
@@ -1537,14 +1538,14 @@ def do_usage(args):
                     print(f"Cache usage:            {'ENABLED' if policy['cache_enabled'] else 'DISABLED'}")
                     print(f"Compression Target:     {policy['compression_pct']}% savings")
                     print("==================================================================================\n")
-                    
+
             elif opt_sub == "history":
                 leaderboard = get_optimization_leaderboard()
                 if args.format == "json":
                     print(json.dumps(leaderboard, indent=2))
                 else:
                     print("Optimization history retrieved.")
-                    
+
             elif opt_sub == "report":
                 res = generate_benchmark_report(predicted_tokens, predicted_cost)
                 if args.format == "json":
@@ -1557,7 +1558,7 @@ def do_usage(args):
         success = False
         action_type = ""
         rec_id = ""
-        
+
         if args.accept:
             rec_id = args.accept
             success = update_recommendation_status(rec_id, "accepted")
@@ -1566,11 +1567,11 @@ def do_usage(args):
             rec_id = args.ignore
             success = update_recommendation_status(rec_id, "ignored")
             action_type = "ignored"
-            
+
         if not rec_id:
             print("Error: --accept <id> or --ignore <id> is required for optimize subcommand.", file=sys.stderr)
             sys.exit(1)
-            
+
         if success:
             print(json.dumps({"status": "success", "recommendation_id": rec_id, "action": action_type}))
         else:
@@ -1584,7 +1585,7 @@ def do_usage(args):
         if not events:
             sync_request_history(conv_id, session.get("project_id") or get_project_id(), session=session)
             events = get_timeline_events(conv_id)
-            
+
         if args.format == "json":
             print(json.dumps(events, indent=2))
         else:
@@ -1611,7 +1612,7 @@ def do_usage(args):
             from context import sync_request_history
             sync_request_history(conv_id, session.get("project_id") or get_project_id(), session=session)
             events = get_timeline_events(conv_id)
-            
+
         report = make_forecast(events)
         if args.format == "json":
             print(json.dumps(report, indent=2))
@@ -1629,13 +1630,13 @@ def do_usage(args):
     elif args.subaction == "budget":
         from budget_controller import evaluate_budget, get_budget_history, apply_optimization
         conv_id = session.get("conversation_id", "")
-        
+
         from context import estimate_context_usage
         usage = estimate_context_usage()
         predicted_tokens = usage.get("total_tokens", 0)
-        
+
         budget_sub = args.budget_subaction
-        
+
         if budget_sub == "status":
             result = evaluate_budget(conv_id, predicted_tokens)
             if args.format == "json":
@@ -1650,7 +1651,7 @@ def do_usage(args):
                 print("\nThresholds:")
                 for k, v in result["policy_thresholds"].items():
                     print(f"  - {k.replace('_', ' ').title()}: {v}%")
-                
+
                 print("\nRecommended Strategies:")
                 if not result["recommendations"]:
                     print("  None (Context usage is within budget).")
@@ -1658,7 +1659,7 @@ def do_usage(args):
                     for r in result["recommendations"]:
                         print(f"  - {r['name']} (Est. savings: +{r['tokens_saved']:,} tokens, Conf: {r['confidence']*100}%)")
                 print("==================================================================================\n")
-                
+
         elif budget_sub == "mode":
             from budget_controller import set_budget_mode, get_budget_mode
             if args.status in ["auto", "manual"]:
@@ -1687,7 +1688,7 @@ def do_usage(args):
                         print(f"  Status: {h['status'].upper()}")
                         print("-" * 90)
                 print("==================================================================================\n")
-                
+
         elif budget_sub == "optimize":
             if not args.strategy:
                 print("Error: --strategy <name> is required for budget optimize command.", file=sys.stderr)
@@ -1705,13 +1706,13 @@ def do_usage(args):
     elif args.subaction == "context":
         from context_rebuilder import build_context_bundle, get_rebuild_history, get_cache_statistics
         conv_id = session.get("conversation_id", "")
-        
+
         from context import estimate_context_usage
         usage = estimate_context_usage()
         predicted_tokens = usage.get("total_tokens", 0)
-        
+
         ctx_sub = args.context_subaction
-        
+
         if ctx_sub == "preview":
             res = build_context_bundle(conv_id, predicted_tokens)
             if args.format == "json":
@@ -1730,14 +1731,14 @@ def do_usage(args):
                 for s in res["skipped_sources"]:
                     print(f"  [-] {s}")
                 print("==================================================================================\n")
-                
+
         elif ctx_sub == "rebuild":
             res = build_context_bundle(conv_id, predicted_tokens)
             if args.format == "json":
                 print(json.dumps({"status": "rebuilt", "savings": res["tokens_saved"]}, indent=2))
             else:
                 print(f"Context bundle rebuilt successfully! Saved {res['tokens_saved']:,} tokens.")
-                
+
         elif ctx_sub == "cache":
             stats = get_cache_statistics()
             if args.format == "json":
@@ -1750,7 +1751,7 @@ def do_usage(args):
                 print(f"Cache Hits:            {stats['hits']}")
                 print(f"Cache Misses:          {stats['misses']}")
                 print("==================================================================================\n")
-                
+
         elif ctx_sub == "explain":
             res = build_context_bundle(conv_id, predicted_tokens)
             history = get_rebuild_history(conv_id)
@@ -1771,30 +1772,40 @@ def do_blueprint(args):
     if not session:
         print("Error: session file missing.", file=sys.stderr)
         sys.exit(1)
-        
+
     bp_path = args.path
     exists = os.path.exists(bp_path)
-    
+    work_item_id = session.get("work_item", {}).get("id", "")
+    bp_work_item_id = extract_work_item_id_from_text(bp_path)
+    if exists:
+        bp_work_item_id = bp_work_item_id or extract_work_item_id_from_artifact(bp_path)
+
     bp_data = {
         "path": bp_path,
         "exists": exists,
         "approved": False,
         "approved_at": "",
-        "approved_by": ""
+        "approved_by": "",
+        "work_item_id": bp_work_item_id or work_item_id
     }
-    
+
     if args.approve:
         if not exists:
             print(f"Error: Blueprint file does not exist at {bp_path}.", file=sys.stderr)
             sys.exit(1)
+        scope_ok, scope_reason = validate_blueprint_scope(bp_data, work_item_id)
+        if not scope_ok:
+            print(f"Error: Cannot approve blueprint for {work_item_id}. {scope_reason}", file=sys.stderr)
+            sys.exit(1)
         bp_data["approved"] = True
         bp_data["approved_at"] = datetime.now().astimezone().isoformat()
         bp_data["approved_by"] = "user"
-        
+        bp_data["approval_source"] = "runtime_blueprint_approve"
+
     session["blueprint"] = bp_data
     update_context_health(session)
     save_session_atomic(session)
-    
+
     if args.approve:
         print(f"Blueprint {bp_path} approved.")
     else:
@@ -1805,7 +1816,7 @@ def do_suggest(args):
     if not session:
         print("Error: session file missing.", file=sys.stderr)
         sys.exit(1)
-        
+
     suggestion = session.get("suggestion_gate", {
         "active": False,
         "raw_request": "",
@@ -1814,26 +1825,26 @@ def do_suggest(args):
         "options": [],
         "status": "idle"
     })
-    
+
     if args.request:
         suggestion["raw_request"] = args.request
         suggestion["active"] = True
         suggestion["status"] = "waiting_for_user_confirmation"
-        
+
     if args.classification:
         suggestion["classification"] = args.classification
-        
+
     if args.recommend:
         suggestion["recommended_skill"] = args.recommend
-        
+
     if args.options:
         suggestion["options"] = [o.strip() for o in args.options.split(",")]
-        
+
     if args.status:
         suggestion["status"] = args.status
         if args.status == "confirmed" or args.status == "idle" or args.status == "rejected":
             suggestion["active"] = False
-            
+
     if args.choose:
         choice = args.choose.strip().lower()
         if choice in ["y", "yes", "proceed", "continue"]:
@@ -1859,7 +1870,7 @@ def do_suggest(args):
             except ValueError:
                 print(f"Error: Invalid choice {choice}.", file=sys.stderr)
                 sys.exit(1)
-                
+
     if not args.choose and suggestion["active"]:
         from utils import is_stdin_ready
         if os.environ.get("TESTING") == "1" and not is_stdin_ready():
@@ -1899,7 +1910,7 @@ def do_suggest(args):
         "routing_status": "waiting_for_user",
         "reason": suggestion.get("reason", "")
     }
-    
+
     def map_cmd(skill_name):
         if not skill_name: return ""
         if skill_name == "quick-fix": return "fix"
@@ -1913,19 +1924,19 @@ def do_suggest(args):
         if skill_name == "debug-to-verify": return "verify"
         if skill_name == "implementation-to-release": return "release"
         return ""
-        
+
     orchestrator_state["recommended_command"] = map_cmd(orchestrator_state["recommended_skill"])
     if orchestrator_state["selected_skill"]:
         orchestrator_state["selected_command"] = map_cmd(orchestrator_state["selected_skill"])
         orchestrator_state["routing_status"] = "dispatched"
     elif not orchestrator_state["active"]:
         orchestrator_state["routing_status"] = "stopped"
-        
+
     session["orchestrator"] = orchestrator_state
     session["suggestion_gate"] = suggestion
     update_context_health(session)
     save_session_atomic(session)
-    
+
     # Format and output JSON suggestion per FEAT-404 blueprint
     output_dict = {
         "suggested_next_skill": orchestrator_state.get("recommended_skill") or session.get("workflow", {}).get("suggested_next_skill") or "",
@@ -1945,11 +1956,11 @@ def do_choice(args) -> None:
 
     runtime_dir = os.path.join(".agents", "runtime")
     os.makedirs(runtime_dir, exist_ok=True)
-    
+
     pending_path = os.path.join(runtime_dir, "pending-choice.json")
     response_path = os.path.join(runtime_dir, "choice-response.json")
     ui_capabilities_path = os.path.join(runtime_dir, "ui-capabilities.json")
-    
+
     if args.subaction == "create":
         raw_options = args.options.strip() if args.options else ""
         options = []
@@ -1964,7 +1975,7 @@ def do_choice(args) -> None:
                 opt = opt.strip()
                 if opt:
                     options.append({"id": opt, "label": opt})
-                    
+
         choice_type = args.type or "choice"
         choice_data = {
             "type": choice_type,
@@ -1975,7 +1986,7 @@ def do_choice(args) -> None:
             "allow_cancel": args.allow_cancel,
             "options": options
         }
-        
+
         tmp_path = pending_path + ".tmp"
         with open(tmp_path, "w", encoding="utf-8") as f:
             json.dump(choice_data, f, indent=2, ensure_ascii=False)
@@ -1983,9 +1994,9 @@ def do_choice(args) -> None:
             os.replace(tmp_path, pending_path)
         else:
             os.rename(tmp_path, pending_path)
-            
+
         print(f"Choice {args.id} created successfully.")
-        
+
     elif args.subaction == "wait":
         import time
         interactive_choice = False
@@ -1996,15 +2007,15 @@ def do_choice(args) -> None:
                     interactive_choice = caps.get("interactive_choice", False)
             except Exception:
                 pass
-                
+
         if os.environ.get("AIWF_INTERACTIVE_CHOICE") == "true":
             interactive_choice = True
-            
+
         timeout = args.timeout or 60
         start_time = time.time()
         choice_resolved = False
         selected_option = None
-        
+
         # Check Confidence Gate
         from confidence_gate import ConfidenceGate
         phase = None
@@ -2014,7 +2025,7 @@ def do_choice(args) -> None:
             phase = "brainstorm"
         elif "plan" in args.id:
             phase = "planning"
-            
+
         confidence_ok = True
         score = 100.0
         gaps = []
@@ -2025,9 +2036,11 @@ def do_choice(args) -> None:
 
         is_full_access = session.get("permission_mode") == "full_access" or session.get("autonomous_delivery") is True
 
+        protected_approval_gate = args.id in {"blueprint_approval", "release_approval"}
+
         if is_full_access:
-            if args.id == "release_approval":
-                # Release is the ONLY mandatory approval gate in full access
+            if protected_approval_gate:
+                # Strategic approval gates are never auto-approved in full access.
                 pass
             elif not confidence_ok:
                 print(f"\n[CONFIDENCE CHECK FAILED] Phase '{phase}' has confidence score {score}% (< 95%). Gaps detected:", file=sys.stderr)
@@ -2057,7 +2070,7 @@ def do_choice(args) -> None:
                             pass
                     selected_option = options[0]["id"] if options else "approve"
                 print(f"Autonomous delivery is active. Confidence score is {score}% (>=95%). Automatically resolving choice {args.id} to: {selected_option}")
-                
+
                 resp_payload = {
                     "id": args.id or "unknown",
                     "selected": selected_option,
@@ -2070,14 +2083,14 @@ def do_choice(args) -> None:
                     os.replace(tmp_resp, response_path)
                 else:
                     os.rename(tmp_resp, response_path)
-                    
+
                 if os.path.exists(pending_path):
                     try:
                         os.remove(pending_path)
                     except Exception:
                         pass
                 choice_resolved = True
-        
+
         if interactive_choice:
             print(f"Waiting for UI choice response for {args.id} (timeout={timeout}s)...")
             while time.time() - start_time < timeout:
@@ -2092,11 +2105,11 @@ def do_choice(args) -> None:
                     except Exception:
                         pass
                 time.sleep(0.5)
-                
+
         if not choice_resolved:
             if interactive_choice:
                 print("\nTimeout waiting for UI response. Switching to Text Fallback Mode...")
-            
+
             if os.path.exists(pending_path):
                 try:
                     with open(pending_path, "r", encoding="utf-8") as f:
@@ -2105,18 +2118,18 @@ def do_choice(args) -> None:
                     choice_data = {}
             else:
                 choice_data = {}
-                
+
             title = choice_data.get("title", args.id or "Choice Required")
             desc = choice_data.get("description", "")
             options = choice_data.get("options", [])
             choice_type = choice_data.get("type", "choice")
             allow_cancel = choice_data.get("allow_cancel", True)
-            
+
             print(f"\n=== {title} ===")
             if desc:
                 print(desc)
             print("-" * len(title))
-            
+
             option_ids = []
             if choice_type == "approval":
                 print("[Y] Yes / Continue")
@@ -2129,10 +2142,10 @@ def do_choice(args) -> None:
                     suffix = f" ({opt_desc})" if opt_desc else ""
                     print(f"{idx + 1}. {lbl}{suffix}")
                     option_ids.append(opt.get("id"))
-                    
+
             if allow_cancel and choice_type != "approval":
                 print("C. Cancel")
-                
+
             from utils import is_stdin_ready
             if not sys.stdin.isatty() and not is_stdin_ready():
                 # Auto-select default/first option or fail instead of hanging
@@ -2148,7 +2161,7 @@ def do_choice(args) -> None:
                     if not user_val:
                         continue
                     val_lower = user_val.lower()
-                
+
                     if val_lower == "c" or val_lower == "cancel":
                         if allow_cancel:
                             selected_option = "cancel"
@@ -2156,7 +2169,7 @@ def do_choice(args) -> None:
                         else:
                             print("Cancel is not allowed for this choice.")
                             continue
-                            
+
                     if choice_type == "approval":
                         if val_lower in ["y", "yes", "proceed", "continue"]:
                             selected_option = "approve"
@@ -2167,7 +2180,7 @@ def do_choice(args) -> None:
                         else:
                             print("Invalid selection. Please enter Y or N.")
                             continue
-                            
+
                     try:
                         idx = int(user_val) - 1
                         if 0 <= idx < len(options):
@@ -2175,7 +2188,7 @@ def do_choice(args) -> None:
                             break
                     except ValueError:
                         pass
-                        
+
                     matched = False
                     for opt in options:
                         if opt["id"].lower() == val_lower or opt["label"].lower() == val_lower:
@@ -2185,7 +2198,7 @@ def do_choice(args) -> None:
                     if matched:
                         break
                     print("Invalid selection. Please try again.")
-                
+
             resp_payload = {
                 "id": args.id or "unknown",
                 "selected": selected_option,
@@ -2198,15 +2211,15 @@ def do_choice(args) -> None:
                 os.replace(tmp_resp, response_path)
             else:
                 os.rename(tmp_resp, response_path)
-                
+
             if os.path.exists(pending_path):
                 try:
                     os.remove(pending_path)
                 except Exception:
                     pass
-                    
+
         print(f"Choice resolved: {selected_option}")
-        
+
     elif args.subaction == "read":
         if os.path.exists(response_path):
             try:
@@ -2218,7 +2231,7 @@ def do_choice(args) -> None:
             except Exception:
                 pass
         print("")
-        
+
     elif args.subaction == "clear":
         for p in [pending_path, response_path]:
             if os.path.exists(p):
@@ -2233,7 +2246,7 @@ def do_active_workflow(args) -> None:
     if not session:
         print("Error: session file missing.", file=sys.stderr)
         sys.exit(1)
-        
+
     if args.subaction == "get":
         aw = session.get("active_workflow", {})
         if isinstance(aw, str):
@@ -2241,7 +2254,7 @@ def do_active_workflow(args) -> None:
         elif not isinstance(aw, dict):
             aw = {}
         print(json.dumps(aw, ensure_ascii=False))
-        
+
     elif args.subaction == "set":
         aw = session.get("active_workflow", {})
         if not isinstance(aw, dict):
@@ -2260,14 +2273,14 @@ def do_active_workflow(args) -> None:
         session["active_workflow"] = aw
         save_session_atomic(session)
         print("Active workflow updated successfully.")
-        
+
     elif args.subaction == "clear":
         session["active_workflow"] = None
         session["active_phase"] = None
         session["waiting_for"] = None
         save_session_atomic(session)
         print("Active workflow cleared.")
-        
+
     elif args.subaction == "resume":
         aw = session.get("active_workflow", {})
         if isinstance(aw, str):
@@ -2277,11 +2290,11 @@ def do_active_workflow(args) -> None:
         if not aw:
             print("Error: No active workflow to resume.", file=sys.stderr)
             sys.exit(1)
-        
+
         session["current_skill"] = aw.get("skill")
         session["current_command"] = aw.get("command")
         session["status"] = "in_progress"
-        
+
         phase = aw.get("phase")
         if phase == "spec":
             session["checkpoint"] = 2
@@ -2298,10 +2311,10 @@ def do_active_workflow(args) -> None:
         elif phase == "implementation":
             session["checkpoint"] = 5
             session["current_step"] = "Implementing changes"
-            
+
         save_session_atomic(session)
         print(f"Resumed workflow: {aw.get('type')} (phase={phase})")
-        
+
     elif args.subaction == "set-waiting":
         aw = session.get("active_workflow", {})
         if not isinstance(aw, dict):
@@ -2311,17 +2324,17 @@ def do_active_workflow(args) -> None:
         session["active_workflow"] = aw
         save_session_atomic(session)
         print(f"Active workflow waiting_for updated to {val}.")
-        
+
     elif args.subaction == "validate-blueprint":
         if not args.path:
             print("Error: --path is required.", file=sys.stderr)
             sys.exit(1)
-        
+
         bp_path = args.path
         if not os.path.exists(bp_path):
             print(f"Error: Blueprint file does not exist at {bp_path}.", file=sys.stderr)
             sys.exit(1)
-            
+
         norm_path = bp_path.replace("\\", "/")
         if not norm_path.startswith("docs/blueprints/"):
             print(f"Error: Blueprint file must be located under docs/blueprints/.", file=sys.stderr)
@@ -2331,18 +2344,18 @@ def do_active_workflow(args) -> None:
         if not (bp_path.endswith("_blueprint.md") or bp_path.endswith("-blueprint.md")):
             print(f"Error: Blueprint file name must end with _blueprint.md or phase-blueprint.md.", file=sys.stderr)
             sys.exit(1)
-            
+
         basename = os.path.basename(bp_path)
         id_prefix = None
         for prefix in ["FIX", "QUICK", "FEAT"]:
             if basename.startswith(prefix + "-"):
                 id_prefix = prefix
                 break
-                
+
         if not id_prefix:
             print("Error: Blueprint filename must start with FIX-, QUICK-, or FEAT-.", file=sys.stderr)
             sys.exit(1)
-            
+
         if args.workflow:
             wf = args.workflow.lower()
             if wf == "quick-fix" and id_prefix != "FIX":
@@ -2354,18 +2367,18 @@ def do_active_workflow(args) -> None:
             elif wf in ["standard-feature", "blueprint-to-implementation"] and id_prefix != "FEAT":
                 print("Error: Standard feature workflow requires a FEAT- prefix.", file=sys.stderr)
                 sys.exit(1)
-                
+
         try:
             with open(bp_path, "r", encoding="utf-8") as f:
                 content = f.read()
         except IOError as e:
             print(f"Error reading blueprint file: {e}", file=sys.stderr)
             sys.exit(1)
-            
+
         if not content.strip().startswith("---"):
             print("Error: Blueprint file must contain YAML frontmatter.", file=sys.stderr)
             sys.exit(1)
-            
+
         required_headers = [
             "Summary",
             "Scope",
@@ -2375,25 +2388,25 @@ def do_active_workflow(args) -> None:
             "Validation Plan",
             "Rollback Plan"
         ]
-        
+
         import re
         missing = []
         for h in required_headers:
             pattern = r'^\s*#+\s+' + re.escape(h)
             if not re.search(pattern, content, re.MULTILINE | re.IGNORECASE):
                 missing.append(h)
-                
+
         if missing:
             print(f"Error: Blueprint is missing required sections: {', '.join(missing)}.", file=sys.stderr)
             sys.exit(1)
-            
+
         print("Blueprint validation passed.")
-        
+
     elif args.subaction == "get-branch":
         from utils import get_current_branch
         branch = get_current_branch()
         print(branch)
-        
+
     elif args.subaction == "suggest-branch":
         if not args.artifact_id or not args.slug:
             print("Error: --artifact-id and --slug are required.", file=sys.stderr)
@@ -2401,7 +2414,7 @@ def do_active_workflow(args) -> None:
         from utils import suggest_branch_name
         suggested = suggest_branch_name(args.artifact_id, args.slug)
         print(suggested)
-        
+
     elif args.subaction == "branch-options":
         if not args.artifact_id or not args.slug:
             print("Error: --artifact-id and --slug are required.", file=sys.stderr)
@@ -2417,7 +2430,7 @@ def do_permission(args: argparse.Namespace) -> None:  # type: ignore
         validate_permissions_data,
         get_project_permission_config_path
     )
-    
+
     # Handle show subaction
     if getattr(args, "subaction", None) == "show":
         config = load_project_permissions()
@@ -2426,7 +2439,7 @@ def do_permission(args: argparse.Namespace) -> None:  # type: ignore
             sys.exit(1)
         print(json.dumps(config, indent=2, ensure_ascii=False))
         return
-        
+
     # Handle validate subaction
     elif getattr(args, "subaction", None) == "validate":
         config = load_project_permissions()
@@ -2439,7 +2452,7 @@ def do_permission(args: argparse.Namespace) -> None:  # type: ignore
             sys.exit(1)
         print("Validation succeeded: permissions.json is valid.")
         return
-        
+
     # Handle init subaction
     elif getattr(args, "subaction", None) == "init":
         existing = load_project_permissions()
@@ -2447,9 +2460,9 @@ def do_permission(args: argparse.Namespace) -> None:  # type: ignore
             print(f"Error: permissions.json already exists with mode '{existing.get('mode')}' at {get_project_permission_config_path()}.", file=sys.stderr)
             print("Use 'change' subcommand to modify permission mode or use '--force' to re-initialize.", file=sys.stderr)
             sys.exit(1)
-            
+
         mode = getattr(args, "mode", None)
-        
+
         # Legacy config migration
         session = load_session()
         legacy_mode = session.get("permission_mode")
@@ -2462,7 +2475,7 @@ def do_permission(args: argparse.Namespace) -> None:  # type: ignore
         else:
             if legacy_mode and legacy_mode != mode:
                 print(f"Detected legacy permission mode '{legacy_mode}' in current session.")
-            
+
         config = {
             "schema_version": "1.0.0",
             "initialized": True,
@@ -2488,28 +2501,28 @@ def do_permission(args: argparse.Namespace) -> None:  # type: ignore
         write_project_permissions_atomic(config)
         print(f"Successfully initialized project permission mode to '{mode}' at {get_project_permission_config_path()}.")
         return
-        
+
     # Handle change subaction
     elif getattr(args, "subaction", None) == "change":
         existing = load_project_permissions()
         if not existing:
             print("Error: permissions.json has not been initialized. Run 'init' subcommand first.", file=sys.stderr)
             sys.exit(1)
-            
+
         old_mode = existing.get("mode")
         new_mode = getattr(args, "mode", "sandbox")
-        
+
         if old_mode == new_mode:
             print(f"Permission mode is already set to '{new_mode}'. No changes made.")
             return
-            
+
         # Privilege escalation check
         escalating = False
         if old_mode == "sandbox" and new_mode in ["full_access", "unrestricted"]:
             escalating = True
         elif old_mode == "full_access" and new_mode == "unrestricted":
             escalating = True
-            
+
         if escalating and not getattr(args, "force", False):
             sys.stdout.write(f"WARNING: Escalating permission mode from '{old_mode}' to '{new_mode}'.\n")
             sys.stdout.write("This allows AI agents to execute code or write files with higher privileges.\n")
@@ -2522,7 +2535,7 @@ def do_permission(args: argparse.Namespace) -> None:  # type: ignore
             if response not in ["y", "yes"]:
                 print("Permission change aborted by user.")
                 sys.exit(1)
-                
+
         revision = existing.get("config_revision", 1) + 1
         existing.update({
             "mode": new_mode,
@@ -2575,7 +2588,7 @@ def do_compact(_args: argparse.Namespace) -> None:  # type: ignore
     if not session:
         print("Error: session file missing.", file=sys.stderr)
         sys.exit(1)
-        
+
     # Run git stash to save local unstaged changes dynamically
     stash_ref = ""
     try:
@@ -2608,7 +2621,7 @@ def do_compact(_args: argparse.Namespace) -> None:  # type: ignore
                 parallel_allowed = plan_data.get("parallel_allowed", False)
         except Exception:
             pass
-            
+
     # Load parallel tasks details
     tasks_file = os.path.join(".agents", "runtime", "parallel-tasks.json")
     parallel_groups = []
@@ -2616,7 +2629,7 @@ def do_compact(_args: argparse.Namespace) -> None:  # type: ignore
     queued_agents = []
     blocked_agents = []
     waiting_dependencies = []
-    
+
     if os.path.exists(tasks_file):
         try:
             with open(tasks_file, "r", encoding="utf-8") as f:
@@ -2639,7 +2652,7 @@ def do_compact(_args: argparse.Namespace) -> None:  # type: ignore
     # Build snapshot data
     snapshot_file = os.path.join(".agents", "runtime", "context_snapshot.json")
     os.makedirs(os.path.dirname(snapshot_file), exist_ok=True)
-    
+
     snapshot = {
         "checkpoint": session.get("checkpoint", 1),
         "current_skill": session.get("current_skill", ""),
@@ -2660,7 +2673,7 @@ def do_compact(_args: argparse.Namespace) -> None:  # type: ignore
         "blocked_agents": blocked_agents,
         "waiting_dependencies": waiting_dependencies
     }
-    
+
     try:
         with open(snapshot_file, "w", encoding="utf-8") as f:
             json.dump(snapshot, f, indent=2, ensure_ascii=False)
@@ -2673,7 +2686,7 @@ def sync_execution_state_to_session() -> None:
     session = load_session()
     if not session:
         return
-        
+
     plan_file = os.path.join(".agents", "runtime", "execution-plan.json")
     if os.path.exists(plan_file):
         try:
@@ -2687,14 +2700,14 @@ def sync_execution_state_to_session() -> None:
                 session["approved"] = plan_data.get("approved", False)
         except Exception:
             pass
-            
+
     tasks_file = os.path.join(".agents", "runtime", "parallel-tasks.json")
     parallel_groups = []
     running_agents = []
     queued_agents = []
     blocked_agents = []
     waiting_dependencies = []
-    
+
     if os.path.exists(tasks_file):
         try:
             with open(tasks_file, "r", encoding="utf-8") as f:
@@ -2713,20 +2726,20 @@ def sync_execution_state_to_session() -> None:
                         blocked_agents.append(tid)
         except Exception:
             pass
-            
+
     session["parallel_groups"] = parallel_groups
     session["running_agents"] = running_agents
     session["queued_agents"] = queued_agents
     session["blocked_agents"] = blocked_agents
     session["waiting_dependencies"] = waiting_dependencies
-    
+
     save_session_atomic(session)
 
 
 def do_task(args: argparse.Namespace) -> None:
     tasks_file = os.path.join(".agents", "runtime", "parallel-tasks.json")
     os.makedirs(os.path.dirname(tasks_file), exist_ok=True)
-    
+
     tasks: dict[str, dict[str, object]] = {}
     if os.path.exists(tasks_file):
         try:
@@ -2735,7 +2748,7 @@ def do_task(args: argparse.Namespace) -> None:
                 tasks = cast(dict[str, dict[str, object]], data.get("tasks", {}))
         except Exception:
             pass
-            
+
     if args.subaction == "plan":
         plan_file = os.path.join(".agents", "runtime", "execution-plan.json")
         os.makedirs(os.path.dirname(plan_file), exist_ok=True)
@@ -2759,7 +2772,7 @@ def do_task(args: argparse.Namespace) -> None:
         with open(tasks_file, "w", encoding="utf-8") as f:
             json.dump({"tasks": tasks}, f, indent=2, ensure_ascii=False)
         print("Tasks planned successfully.")
-        
+
     elif args.subaction == "start":
         if not args.task_id:
             print("Error: task_id required.", file=sys.stderr)
@@ -2771,7 +2784,7 @@ def do_task(args: argparse.Namespace) -> None:
         with open(tasks_file, "w", encoding="utf-8") as f:
             json.dump({"tasks": tasks}, f, indent=2, ensure_ascii=False)
         print(f"Task {args.task_id} started.")
-        
+
     elif args.subaction == "complete":
         if not args.task_id:
             print("Error: task_id required.", file=sys.stderr)
@@ -2784,7 +2797,7 @@ def do_task(args: argparse.Namespace) -> None:
         with open(tasks_file, "w", encoding="utf-8") as f:
             json.dump({"tasks": tasks}, f, indent=2, ensure_ascii=False)
         print(f"Task {args.task_id} completed.")
-        
+
     elif args.subaction == "fail":
         if not args.task_id:
             print("Error: task_id required.", file=sys.stderr)
@@ -2796,21 +2809,21 @@ def do_task(args: argparse.Namespace) -> None:
         with open(tasks_file, "w", encoding="utf-8") as f:
             json.dump({"tasks": tasks}, f, indent=2, ensure_ascii=False)
         print(f"Task {args.task_id} failed.")
-        
+
     sync_execution_state_to_session()
 
 def do_session_command(args: argparse.Namespace) -> None:
     import json
     import os
     import sys
-    
+
     session_id = getattr(args, "session_id", None) or os.environ.get("ANTIGRAVITY_TRAJECTORY_ID") or "default_session"
     try:
         from session_bootstrap_guard import SessionBootstrapGuard # type: ignore
     except ImportError:
         from .session_bootstrap_guard import SessionBootstrapGuard
     guard = SessionBootstrapGuard(".", session_id)
-    
+
     if args.subaction == "status":
         initialized = guard.is_initialized()
         output = {
@@ -2819,7 +2832,7 @@ def do_session_command(args: argparse.Namespace) -> None:
             "workspace_ready": initialized
         }
         print(json.dumps(output, indent=2))
-        
+
     elif args.subaction == "initialize":
         success, err = guard.initialize_workspace()
         if success:
@@ -2838,7 +2851,7 @@ def do_session_command(args: argparse.Namespace) -> None:
             }
             print(json.dumps(output, indent=2))
             sys.exit(1)
-            
+
     elif args.subaction == "reset":
         guard.reset_session()
         print(f"Session {session_id} reset successfully.")
@@ -2849,48 +2862,48 @@ def do_workflow(args: argparse.Namespace) -> None:
     import sys
     import re
     from datetime import datetime
-    
+
     subaction = getattr(args, "subaction", None)
-    
+
     if subaction == "trace":
         from event_logger import get_logger
         logger = get_logger()
         events = logger.read_all()
-        
+
         target_req_id = getattr(args, "request_id", None)
-        
+
         # If request-id is not provided, find the latest request received event
         if not target_req_id:
             received_events = [e for e in events if e.get("event_type") == "workflow.request.received"]
             if received_events:
                 target_req_id = received_events[-1]["payload"].get("request_id")
-                
+
         if not target_req_id:
             print("No active workflow request found.", file=sys.stderr)
             sys.exit(1)
-            
+
         # Filter all events related to this request_id
         req_events = []
         for e in events:
             payload = e.get("payload", {})
             if payload.get("request_id") == target_req_id:
                 req_events.append(e)
-                
+
         if not req_events:
             print(f"Request ID '{target_req_id}' not found.", file=sys.stderr)
             sys.exit(1)
-            
+
         # Parse intent, workflow, current, skill, status
         intent = "unknown"
         workflow_id = "unknown"
         current_phase = "unknown"
         skill = "unknown"
         status = "RUNNING"
-        
+
         for e in req_events:
             etype = e.get("event_type")
             payload = e.get("payload", {})
-            
+
             if etype == "workflow.request.received":
                 intent = payload.get("intent", "unknown")
             elif etype == "workflow.started":
@@ -2901,7 +2914,7 @@ def do_workflow(args: argparse.Namespace) -> None:
                 skill = payload.get("skill", "unknown")
             elif etype == "workflow.completed":
                 status = "COMPLETED"
-                
+
         # Output format matching requested spec
         print(target_req_id)
         print()
@@ -2951,11 +2964,11 @@ def do_workflow(args: argparse.Namespace) -> None:
                 print(json.dumps(output, indent=2))
                 sys.exit(1)
             print("Session initialized", file=sys.stderr)
-            
+
         from workflow_entry_gateway import WorkflowEntryGateway
         gateway = WorkflowEntryGateway(".")
         res = gateway.handle_request(args.prompt)
-        
+
         # Auto-generate brainstorming artifact for routed workflows
         if res.get("status") == "ROUTED" and res.get("current_phase") == "brainstorming":
             workflow_id = res["workflow_id"]
@@ -2985,7 +2998,7 @@ next_artifact: ../plans/{workflow_id}_plan.md
                 "path": brainstorm_path,
                 "type": "brainstorming"
             })
-        
+
         # Output standard format requested by FEAT-313
         output = {
             "intent": res["intent"],
@@ -2994,7 +3007,7 @@ next_artifact: ../plans/{workflow_id}_plan.md
         }
         print(json.dumps(output, indent=2))
         return
-        
+
     elif subaction == "start":
         from event_logger import emit_event
         workflow_id = args.workflow_id
@@ -3003,7 +3016,7 @@ next_artifact: ../plans/{workflow_id}_plan.md
         })
         print(f"Workflow {workflow_id} started.")
         return
-        
+
     elif subaction == "status":
         state_dir = os.path.join(".agents", "state")
         wf_path = os.path.join(state_dir, "workflow.json")
@@ -3015,7 +3028,7 @@ next_artifact: ../plans/{workflow_id}_plan.md
             print("No active workflow state found.", file=sys.stderr)
             sys.exit(1)
         return
-        
+
     elif subaction == "follow":
         # Simply print runtime current step and logs
         state_dir = os.path.join(".agents", "state")
@@ -3029,12 +3042,12 @@ next_artifact: ../plans/{workflow_id}_plan.md
         else:
             print("No runtime state found.", file=sys.stderr)
         return
-        
+
     elif subaction == "agents":
         from autonomous_orchestrator import print_agents_extended
         print_agents_extended(args.workflow_id or "FEAT-111")
         return
-        
+
     elif subaction == "timeline":
         from event_logger import get_logger
         logger = get_logger()
@@ -3042,7 +3055,7 @@ next_artifact: ../plans/{workflow_id}_plan.md
         for e in events:
             print(f"[{e.get('timestamp')}] {e.get('event_type')}: {json.dumps(e.get('payload'))}")
         return
-        
+
     elif subaction == "cancel":
         state_dir = os.path.join(".agents", "state")
         wf_path = os.path.join(state_dir, "workflow.json")
@@ -3057,7 +3070,7 @@ next_artifact: ../plans/{workflow_id}_plan.md
         else:
             print("Workflow not found.", file=sys.stderr)
         return
-        
+
     elif subaction == "resume":
         do_resume_action(args)
         return
@@ -3067,7 +3080,7 @@ def do_lock(args: argparse.Namespace) -> None:
         status = WorkflowLease.inspect()
         print(json.dumps(status, indent=2))
         return
-        
+
     elif args.subaction == "recover":
         status = WorkflowLease.inspect()
         if not status["active"]:
@@ -3090,7 +3103,7 @@ def do_lock(args: argparse.Namespace) -> None:
 
     locks_file = os.path.join(".agents", "runtime", "file-locks.json")
     os.makedirs(os.path.dirname(locks_file), exist_ok=True)
-    
+
     locks: dict[str, dict[str, object]] = {}
     if os.path.exists(locks_file):
         try:
@@ -3099,32 +3112,32 @@ def do_lock(args: argparse.Namespace) -> None:
                 locks = cast(dict[str, dict[str, object]], data.get("locks", {}))
         except Exception:
             pass
-            
+
     if args.subaction == "acquire":
         if not args.task_id or not args.files:
             print("Error: task_id and files are required.", file=sys.stderr)
             sys.exit(1)
         files = [f.strip() for f in args.files.split(",")]
-        
+
         conflicting = []
         for file in files:
             if file in locks and locks[file].get("task_id") != args.task_id:
                 conflicting.append((file, locks[file].get("task_id")))
-                
+
         if conflicting:
             print(f"Error: lock acquisition failed. Files locked by other tasks: {conflicting}", file=sys.stderr)
             sys.exit(1)
-            
+
         for file in files:
             locks[file] = {
                 "task_id": args.task_id,
                 "acquired_at": datetime.now().astimezone().isoformat()
             }
-            
+
         with open(locks_file, "w", encoding="utf-8") as f:
             json.dump({"locks": locks}, f, indent=2, ensure_ascii=False)
         print(f"Locks acquired for task {args.task_id} on: {files}")
-        
+
     elif args.subaction == "release":
         if not args.task_id:
             print("Error: task_id is required.", file=sys.stderr)
@@ -3137,7 +3150,7 @@ def do_lock(args: argparse.Namespace) -> None:
         with open(locks_file, "w", encoding="utf-8") as f:
             json.dump({"locks": locks}, f, indent=2, ensure_ascii=False)
         print(f"Locks released for task {args.task_id}: {released}")
-        
+
     elif args.subaction == "list":
         print(json.dumps({"locks": locks}, indent=2))
 
@@ -3176,7 +3189,7 @@ def do_conflict(args: argparse.Namespace) -> None:
 def do_execution(args: argparse.Namespace) -> None:
     plan_file = os.path.join(".agents", "runtime", "execution-plan.json")
     os.makedirs(os.path.dirname(plan_file), exist_ok=True)
-    
+
     plan: dict[str, object] = {}
     if os.path.exists(plan_file):
         try:
@@ -3184,7 +3197,7 @@ def do_execution(args: argparse.Namespace) -> None:
                 plan = cast(dict[str, object], json.load(f))
         except Exception:
             pass
-            
+
     session = load_session()
     checkpoint = session.get("checkpoint", 1)
     parallel_allowed = False
@@ -3205,7 +3218,7 @@ def do_execution(args: argparse.Namespace) -> None:
         with open(plan_file, "w", encoding="utf-8") as f:
             json.dump(plan, f, indent=2, ensure_ascii=False)
         print(f"Recommended execution mode set to {rec_mode} (Reason: {rec_reason}).")
-        
+
     elif args.subaction == "mode":
         if not args.mode:
             print("Error: --mode is required.", file=sys.stderr)
@@ -3213,7 +3226,7 @@ def do_execution(args: argparse.Namespace) -> None:
         if args.mode == "parallel":
             print("Error: Parallel execution mode is disabled. Only sequential execution is supported.", file=sys.stderr)
             sys.exit(1)
-            
+
         plan["implementation_execution_mode"] = args.mode
         plan["execution_mode"] = args.mode
         if args.approve:
@@ -3221,7 +3234,7 @@ def do_execution(args: argparse.Namespace) -> None:
         with open(plan_file, "w", encoding="utf-8") as f:
             json.dump(plan, f, indent=2, ensure_ascii=False)
         print(f"Execution mode updated to {args.mode} (Approved: {plan.get('approved')}).")
-        
+
     elif args.subaction == "summary":
         summary_text = """================================================================================
 
@@ -3239,7 +3252,7 @@ state drift and write contamination.
         # New Execution Manager operations
         from execution_manager import ExecutionManager, ProcessRegistry
         ExecutionManager.start_scheduler()
-        
+
         if args.subaction == "submit":
             if not args.command:
                 print("Error: --command is required for submit.", file=sys.stderr)
@@ -3264,7 +3277,7 @@ state drift and write contamination.
             except Exception as e:
                 print(f"Error submitting execution: {e}", file=sys.stderr)
                 sys.exit(1)
-                
+
         elif args.subaction == "list":
             data = ProcessRegistry.read()
             print(f"{'EXECUTION ID':<18} | {'TASK ID':<10} | {'OWNER AGENT':<15} | {'PID':<6} | {'STATUS':<15} | {'COMMAND':<30}")
@@ -3272,7 +3285,7 @@ state drift and write contamination.
             for k, v in data.items():
                 cmd_sum = " ".join([v["command"]] + [str(a) for a in v.get("arguments", [])])[:30]
                 print(f"{v['execution_id']:<18} | {v.get('task_id', 'N/A'):<10} | {v.get('owner_agent_id', 'N/A'):<15} | {str(v.get('pid') or ''):<6} | {v['status']:<15} | {cmd_sum:<30}")
-                
+
         elif args.subaction == "read":
             if not args.id:
                 print("Error: --id is required for read.", file=sys.stderr)
@@ -3283,7 +3296,7 @@ state drift and write contamination.
                 print(f"Execution not found: {args.id}", file=sys.stderr)
                 sys.exit(1)
             print(json.dumps(item, indent=2))
-            
+
         elif args.subaction == "stream":
             if not args.id:
                 print("Error: --id is required for stream.", file=sys.stderr)
@@ -3293,7 +3306,7 @@ state drift and write contamination.
             if not item:
                 print(f"Execution not found: {args.id}", file=sys.stderr)
                 sys.exit(1)
-            
+
             stdout_path = item["stdout_artifact"]
             stderr_path = item["stderr_artifact"]
             print(f"Streaming logs for {args.id} (Ctrl+C to stop)...")
@@ -3304,7 +3317,7 @@ state drift and write contamination.
                     item_current = ProcessRegistry.read().get(args.id)
                     if not item_current:
                         break
-                    
+
                     if os.path.exists(stdout_path):
                         with open(stdout_path, "r", encoding="utf-8", errors="ignore") as f:
                             f.seek(out_pos)
@@ -3313,7 +3326,7 @@ state drift and write contamination.
                                 sys.stdout.write(chunk)
                                 sys.stdout.flush()
                             out_pos = f.tell()
-                    
+
                     if os.path.exists(stderr_path):
                         with open(stderr_path, "r", encoding="utf-8", errors="ignore") as f:
                             f.seek(err_pos)
@@ -3322,14 +3335,14 @@ state drift and write contamination.
                                 sys.stderr.write(chunk)
                                 sys.stderr.flush()
                             err_pos = f.tell()
-                    
+
                     if item_current["status"] in ["COMPLETED", "FAILED", "CANCELLED", "TIMED_OUT", "ORPHANED", "BLOCKED_INTERACTIVE"]:
                         break
                     import time
                     time.sleep(0.2)
             except KeyboardInterrupt:
                 print("\nStopped streaming logs.")
-                
+
         elif args.subaction == "cancel":
             if not args.id:
                 print("Error: --id is required for cancel.", file=sys.stderr)
@@ -3337,7 +3350,7 @@ state drift and write contamination.
             reason = args.reason or "Cancelled by user via CLI"
             ExecutionManager.cancel(args.id, reason)
             print(f"Cancellation requested for {args.id}.")
-            
+
         elif args.subaction == "kill":
             if not args.id:
                 print("Error: --id is required for kill.", file=sys.stderr)
@@ -3345,7 +3358,7 @@ state drift and write contamination.
             reason = args.reason or "Killed by user via CLI"
             ExecutionManager.kill(args.id, reason)
             print(f"Force killed {args.id}.")
-            
+
         elif args.subaction == "pause":
             if not args.id:
                 print("Error: --id is required for pause.", file=sys.stderr)
@@ -3356,7 +3369,7 @@ state drift and write contamination.
             except Exception as e:
                 print(f"Error pausing: {e}", file=sys.stderr)
                 sys.exit(1)
-                
+
         elif args.subaction == "resume":
             if not args.id:
                 print("Error: --id is required for resume.", file=sys.stderr)
@@ -3367,11 +3380,11 @@ state drift and write contamination.
             except Exception as e:
                 print(f"Error resuming: {e}", file=sys.stderr)
                 sys.exit(1)
-                
+
         elif args.subaction == "recover":
             recovered = ExecutionManager.recover()
             print(f"Orphan recovery completed. Recovered/reattached executions: {recovered}")
-            
+
         elif args.subaction == "capacity":
             cpu, total, avail = ExecutionManager.get_system_capacity()
             print(f"System Capacity Profile:")
@@ -3396,7 +3409,7 @@ def sync_analysis_agents_to_session() -> None:
 def do_analysis_agent(args) -> None:
     analysis_file = os.path.join(".agents", "runtime", "analysis-agents.json")
     os.makedirs(os.path.dirname(analysis_file), exist_ok=True)
-    
+
     data = {"phase": "unknown", "agents": []}
     if os.path.exists(analysis_file):
         try:
@@ -3404,7 +3417,7 @@ def do_analysis_agent(args) -> None:
                 data = json.load(f)
         except Exception:
             pass
-            
+
     session = load_session()
     current_skill = session.get("active_skill", "unknown")
     data["phase"] = current_skill
@@ -3413,7 +3426,7 @@ def do_analysis_agent(args) -> None:
         if not args.agent_id or not args.role:
             print("Error: --agent-id and --role are required.", file=sys.stderr)
             sys.exit(1)
-        
+
         recs = []
         if args.recommendations:
             try:
@@ -3428,7 +3441,7 @@ def do_analysis_agent(args) -> None:
             if a["agent_id"] == args.agent_id:
                 existing_agent = a
                 break
-        
+
         if existing_agent:
             existing_agent["role"] = args.role
             existing_agent["status"] = args.status or "completed"
@@ -3442,20 +3455,20 @@ def do_analysis_agent(args) -> None:
                 "summary": args.summary or "",
                 "recommendations": recs
             })
-            
+
         with open(analysis_file, "w", encoding="utf-8") as f:
             json.dump(data, f, indent=2, ensure_ascii=False)
         print(f"Analysis agent {args.agent_id} ({args.role}) added/updated.")
-        
+
     elif args.subaction == "list":
         print(json.dumps(data, indent=2, ensure_ascii=False))
-        
+
     elif args.subaction == "clear":
         data["agents"] = []
         with open(analysis_file, "w", encoding="utf-8") as f:
             json.dump(data, f, indent=2, ensure_ascii=False)
         print("Analysis agents cleared.")
-        
+
     elif args.subaction == "merge":
         print("Merging recommendations from analysis agents:")
         all_recs = []
@@ -3466,14 +3479,14 @@ def do_analysis_agent(args) -> None:
         print("Merged recommendations:")
         for idx, r in enumerate(all_recs):
             print(f"{idx+1}. {r}")
-            
+
     sync_analysis_agents_to_session()
 
 def do_routing(args) -> None:
     from agent_routing import load_routing_table, validate_routing
     manifest_path = "MANIFEST.json"
     agents_dir = "agents"
-    
+
     if args.subaction == "list":
         table = load_routing_table(manifest_path)
         print("| Skill | Owner | Specialist Agents | Phase | Execution Mode |")
@@ -3481,7 +3494,7 @@ def do_routing(args) -> None:
         for skill_name, info in sorted(table.items()):
             specs = ", ".join(info["specialist_agents"])
             print(f"| {skill_name} | {info['owner_agent']} | {specs} | {info['phase']} | {info['execution_mode']} |")
-            
+
     elif args.subaction == "validate":
         errors = validate_routing(manifest_path, agents_dir)
         if errors:
@@ -3546,9 +3559,9 @@ def do_orchestrator(args):
     import os
     import sys
     from datetime import datetime
-    
+
     state_dir = os.path.join(".agents", "state", "orchestrator")
-    
+
     def read_json_safe_local(file_path):
         if not os.path.exists(file_path):
             return {}
@@ -3557,7 +3570,7 @@ def do_orchestrator(args):
                 return json.load(f)
         except Exception:
             return {}
-            
+
     def write_json_atomic_local(file_path, data):
         temp_path = file_path + ".tmp"
         try:
@@ -3585,76 +3598,76 @@ def do_orchestrator(args):
     action = getattr(args, "action", None)
     task_id = getattr(args, "task_id", None)
     lock_id = getattr(args, "lock_id", None)
-    
+
     work_item = getattr(args, "work_item_id", None) or getattr(args, "work_item_opt", None) or getattr(args, "work_item", None) or "FEAT-111"
-    
+
     if subaction == "run":
         print("Warning: 'orchestrator run' is DEPRECATED. Redirecting internally to 'workflow submit'...", file=sys.stderr)
-        
+
         class ArgsMock(argparse.Namespace):
             def __init__(self, prompt):
                 super().__init__()
                 self.subaction = "submit"
                 self.prompt = prompt
-                
+
         mock_args = ArgsMock(prompt=f"Submitted via legacy orchestrator redirection for work_item={work_item}")
         do_workflow(mock_args)
         return
-        
+
     elif subaction in ["start", "stop", "restart", "attach", "detach"]:
         print("Error: resident daemon subactions are deprecated in session-based runtime.", file=sys.stderr)
         sys.exit(1)
-        
+
     elif subaction == "status":
         from autonomous_orchestrator import get_orchestrator_status
         get_orchestrator_status(work_item)
         return
-        
+
     elif subaction == "health":
         from autonomous_orchestrator import get_orchestrator_health
         get_orchestrator_health(work_item)
         return
-        
+
     elif subaction == "agents":
         from autonomous_orchestrator import print_agents_extended
         print_agents_extended(work_item)
         return
-        
+
     elif subaction == "tasks":
         from autonomous_orchestrator import print_tasks
         print_tasks(work_item)
         return
-        
+
     elif subaction == "queue":
         from autonomous_orchestrator import print_queue_extended
         print_queue_extended(work_item)
         return
-        
+
     elif subaction == "workflows":
         from autonomous_orchestrator import print_workflows_extended
         print_workflows_extended(work_item)
         return
-        
+
     elif subaction == "graph":
         from autonomous_orchestrator import render_graph_dag
         render_graph_dag(work_item)
         return
-        
+
     elif subaction == "locks":
         from autonomous_orchestrator import print_locks_extended
         print_locks_extended(work_item)
         return
-        
+
     elif subaction == "timeline":
         from autonomous_orchestrator import print_timeline_extended
         print_timeline_extended(work_item)
         return
-        
+
     elif subaction == "metrics":
         from autonomous_orchestrator import print_metrics_extended
         print_metrics_extended(work_item)
         return
-        
+
     elif subaction == "logs":
         from autonomous_orchestrator import print_logs_extended
         print_logs_extended(
@@ -3667,12 +3680,12 @@ def do_orchestrator(args):
             runtime=getattr(args, "runtime", False)
         )
         return
-        
+
     elif subaction == "defects":
         from autonomous_orchestrator import print_defects
         print_defects(work_item)
         return
-        
+
     elif subaction == "resume":
         obj_path = os.path.join(state_dir, "objective.json")
         obj = read_json_safe_local(obj_path)
@@ -3685,7 +3698,7 @@ def do_orchestrator(args):
             print(json.dumps({"status": "error", "summary": "Objective file not found."}))
             sys.exit(1)
         return
-        
+
     elif subaction == "cancel":
         obj_path = os.path.join(state_dir, "objective.json")
         obj = read_json_safe_local(obj_path)
@@ -3698,7 +3711,7 @@ def do_orchestrator(args):
             print(json.dumps({"status": "error", "summary": "Objective file not found."}))
             sys.exit(1)
         return
-        
+
     elif subaction == "action":
         action = args.action
         task_id = args.task_id
@@ -3715,12 +3728,12 @@ def do_orchestrator(args):
         else:
             print(json.dumps({"status": "error", "summary": "Objective file not found."}))
             sys.exit(1)
-            
+
     elif action == "retry":
         if not task_id:
             print(json.dumps({"status": "error", "summary": "Task ID required for retry."}))
             sys.exit(1)
-            
+
         tg_path = os.path.join(state_dir, "task_graph.json")
         tg = read_json_safe_local(tg_path)
         if tg and "tasks" in tg and task_id in tg["tasks"]:
@@ -3731,12 +3744,12 @@ def do_orchestrator(args):
         else:
             print(json.dumps({"status": "error", "summary": f"Task {task_id} not found."}))
             sys.exit(1)
-            
+
     elif action == "cancel":
         if not task_id:
             print(json.dumps({"status": "error", "summary": "Task ID required for cancel."}))
             sys.exit(1)
-            
+
         tg_path = os.path.join(state_dir, "task_graph.json")
         tg = read_json_safe_local(tg_path)
         if tg and "tasks" in tg and task_id in tg["tasks"]:
@@ -3747,12 +3760,12 @@ def do_orchestrator(args):
         else:
             print(json.dumps({"status": "error", "summary": f"Task {task_id} not found."}))
             sys.exit(1)
-            
+
     elif action == "release_lock":
         if not lock_id:
             print(json.dumps({"status": "error", "summary": "Lock ID required to release."}))
             sys.exit(1)
-            
+
         locks_path = os.path.join(state_dir, "locks.json")
         locks = read_json_safe_local(locks_path)
         if locks and "active" in locks and lock_id in locks["active"]:
@@ -3769,12 +3782,12 @@ def do_orchestrator(args):
         else:
             print(json.dumps({"status": "error", "summary": f"Lock {lock_id} not active."}))
             sys.exit(1)
-            
+
     elif action == "restore_checkpoint":
         if not task_id:
             print(json.dumps({"status": "error", "summary": "Checkpoint ID required to restore."}))
             sys.exit(1)
-            
+
         cp_path = os.path.join(state_dir, "checkpoints", f"checkpoint_{task_id}.json")
         if not os.path.exists(cp_path):
             cp_path = os.path.join(state_dir, "checkpoints", f"{task_id}.json")
@@ -3793,7 +3806,7 @@ def do_orchestrator(args):
                 if not cp_found:
                     print(json.dumps({"status": "error", "summary": f"Checkpoint {task_id} not found."}))
                     sys.exit(1)
-                    
+
         cp_data = read_json_safe_local(cp_path)
         if cp_data:
             if "objective" in cp_data:
@@ -3806,13 +3819,13 @@ def do_orchestrator(args):
                 write_json_atomic_local(os.path.join(state_dir, "agents.json"), cp_data["agents"])
             if "locks" in cp_data:
                 write_json_atomic_local(os.path.join(state_dir, "locks.json"), cp_data["locks"])
-                
+
             log_event_local("checkpoint_restored", f"State restored to checkpoint {task_id}.")
             print(json.dumps({"status": "success", "summary": f"Checkpoint {task_id} restored."}))
         else:
             print(json.dumps({"status": "error", "summary": "Failed to read checkpoint data."}))
             sys.exit(1)
-            
+
     else:
         print(json.dumps({"status": "error", "summary": f"Unknown action: {action}"}))
         sys.exit(1)
@@ -3846,7 +3859,7 @@ def do_memory_action(args):
         res = searcher.execute_search(args.query)
     else:
         res = {"status": "failure", "summary": "Invalid memory subaction."}
-    
+
     # Enforce standard return JSON
     result = {
         "status": res.get("status", "success"),
@@ -3891,7 +3904,7 @@ def do_release_action(args):
         res = run_release_execute(approve=args.approve)
     else:
         res = {"status": "failure", "summary": "Invalid release subaction."}
-        
+
     print(json.dumps(res, indent=2))
     if res["status"] != "success":
         sys.exit(1)
@@ -4000,14 +4013,14 @@ def do_implement_action(args):
 def do_state_action(args):
     state_dir = os.path.join(".agents", "state")
     session_file = os.path.join(".agents", ".session.json")
-    
+
     if args.subaction == "status":
         files = ["context.json", "workflow.json", "runtime.json", "approvals.json", "usage.json", "agents.json", "rules.json", "recovery.json"]
         present = [f for f in files if os.path.exists(os.path.join(state_dir, f))]
-        
+
         status = "healthy"
         synced = True
-        
+
         if len(present) < len(files) - 1:
             status = "uninitialized"
             synced = False
@@ -4019,14 +4032,14 @@ def do_state_action(args):
                         status = "out_of_sync"
                         synced = False
                         break
-        
+
         res = {
             "status": status,
             "state_files_present": present,
             "session_synced": synced
         }
         print(json.dumps(res, indent=2))
-        
+
     elif args.subaction == "recover":
         restored = []
         if os.path.exists(session_file):
@@ -4037,13 +4050,13 @@ def do_state_action(args):
                 restored = ["context.json", "workflow.json", "runtime.json", "approvals.json", "usage.json", "agents.json"]
             except Exception:
                 pass
-        
+
         res = {
             "status": "success" if restored else "failed",
             "recovered_files": restored
         }
         print(json.dumps(res, indent=2))
-        
+
     elif args.subaction == "validate":
         errors = []
         files = ["context.json", "workflow.json", "runtime.json", "approvals.json", "usage.json", "agents.json"]
@@ -4057,7 +4070,7 @@ def do_state_action(args):
                         json.load(file)
                 except Exception:
                     errors.append(f"Corrupted JSON in {f}")
-                    
+
         res = {
             "status": "success" if not errors else "failed",
             "errors": errors
@@ -4065,7 +4078,7 @@ def do_state_action(args):
         print(json.dumps(res, indent=2))
         if errors:
             sys.exit(1)
-            
+
     elif args.subaction == "doctor":
         checks = []
         for fname in ["context.json", "workflow.json", "runtime.json"]:
@@ -4125,9 +4138,9 @@ def do_state_action(args):
                 active_task = f"{lock_owner} ({lock_data.get('lock_owner', '')})"
             except Exception:
                 lock_owner = "Corrupted"
-        
+
         exec_mode = session.get("execution_mode", "sequential")
-        
+
         diagnostics = {
             "execution_mode": exec_mode,
             "active_task": active_task,
@@ -4146,7 +4159,7 @@ def do_knowledge_action(args):
     package_dir = os.path.abspath(os.path.join(os.path.dirname(__file__), "..", "..", "knowledge-runtime", "scripts"))
     if package_dir not in sys.path:
         sys.path.insert(0, package_dir)
-        
+
     if args.subaction == "status":
         from knowledge_runtime import api as kr_api
         prov = kr_api._get_api().active_provider_name
@@ -4156,17 +4169,17 @@ def do_knowledge_action(args):
             "active_provider": prov,
             "cache_enabled": kr_api._get_api().cache_enabled
         }, indent=2))
-        
+
     elif args.subaction == "search":
         from knowledge_runtime import api as kr_api
         results = kr_api.search(args.query, limit=args.limit)
         print(json.dumps(results, indent=2))
-        
+
     elif args.subaction == "refresh" or args.subaction == "rebuild":
         from db import clear_qmd_metadata
         clear_qmd_metadata()
         print(json.dumps({"status": "success", "message": "QMD metadata cache cleared and rebuilt successfully."}, indent=2))
-        
+
     elif args.subaction == "doctor":
         from knowledge_runtime import api as kr_api
         api = kr_api._get_api()
@@ -4177,7 +4190,7 @@ def do_knowledge_action(args):
             "cache_enabled": api.cache_enabled
         }
         print(json.dumps(report, indent=2))
-        
+
     elif args.subaction == "stats":
         conn = sqlite3.connect(PROJECT_DB)
         try:
@@ -4187,13 +4200,13 @@ def do_knowledge_action(args):
             print(json.dumps({"qmd_metadata_records": count}, indent=2))
         finally:
             conn.close()
-            
+
     elif args.subaction == "cache":
         if args.cache_action == "clear":
             from knowledge_runtime import api as kr_api
             kr_api._get_api().cache.invalidate_all()
             print(json.dumps({"status": "success", "message": "Cache invalidated."}, indent=2))
-            
+
     elif args.subaction == "validate":
         print(json.dumps({"status": "success", "message": "Knowledge Runtime validates successfully."}, indent=2))
 
@@ -4208,10 +4221,10 @@ def do_test_action(args):
     from datetime import datetime
     from tia_engine import TestImpactResolver, validate_test_architecture
     from test_coordinator import TestCoordinator, resolve_module_tests, resolve_integration_tests, run_stability_worker
-    
+
     subaction = getattr(args, "subaction", None)
     force = getattr(args, "force", False)
-    
+
     # Load runtime policy
     from session import load_runtime_policy, load_session
     try:
@@ -4220,7 +4233,7 @@ def do_test_action(args):
     except Exception as e:
         print(f"Error loading/validating runtime policy: {e}", file=sys.stderr)
         sys.exit(1)
-        
+
     if not subaction:
         subaction = te_cfg.get("default_mode", "affected")
 
@@ -4268,7 +4281,7 @@ def do_test_action(args):
         if not run_id:
             print("Error: Please specify run_id to cancel.", file=sys.stderr)
             sys.exit(1)
-            
+
         from session import OSFileLock
         lock = OSFileLock(coordinator.lock_path)
         while not lock.acquire():
@@ -4326,9 +4339,9 @@ def do_test_action(args):
     # 1. Resolve targets
     resolver = TestImpactResolver()
     changed_files = resolver.get_git_changed_files()
-    
+
     test_targets = []
-    
+
     if subaction == "affected":
         test_targets = resolver.resolve_affected_tests(changed_files)
     elif subaction == "module":
@@ -4381,10 +4394,10 @@ def do_test_action(args):
             test_targets = ["skills/workflow-runtime/tests/concurrency/test_lock.py"]
         else:
             test_targets = resolver.resolve_affected_tests(changed_files)
-            
+
         if not test_targets:
             test_targets = ["skills/workflow-runtime/tests/smoke/test_smoke.py"]
-            
+
         if getattr(args, "run_stability_worker", False):
             # Run the actual stability execution loop
             run_stability_worker(test_targets, max_runs=100)
@@ -4407,7 +4420,7 @@ def do_test_action(args):
         return
 
     cmd = [sys.executable, "-m", "pytest"] + test_targets
-    
+
     try:
         ret_code, stdout, stderr = coordinator.run_coordinated(cmd, test_mode=subaction, test_scope=",".join(test_targets), force=force)
         sys.exit(ret_code)
@@ -4447,7 +4460,7 @@ def do_provider_action(args):
             create_if_missing = (create_if_missing_in == "y")
             sync_structure_in = input("Sync structure? (y/n) [y]: ").strip().lower() or "y"
             sync_structure = (sync_structure_in == "y")
-            
+
             host = "127.0.0.1"
             port = 27124
             api_key = ""
@@ -4474,7 +4487,7 @@ def do_provider_action(args):
             host = input("Enter host [127.0.0.1]: ").strip() or "127.0.0.1"
             port_in = input("Enter port [27124]: ").strip() or "27124"
             port = int(port_in) if port_in.isdigit() else 27124
-            
+
             import getpass
             api_key = getpass.getpass("Enter API Key or environment variable name: ").strip()
             vault_path = input("Enter vault path: ").strip()
@@ -4487,7 +4500,7 @@ def do_provider_action(args):
                 "api_key": api_key,
                 "vault_path": vault_path
             }
-        
+
         if getattr(args, "project", False):
             proj_cfg = provider_manager.load_project_config(".")
             if "providers" not in proj_cfg:
@@ -4519,15 +4532,15 @@ def do_provider_action(args):
             vault_root = input(f"Enter vault_root ({existing.get('vault_root', '')}): ").strip() or existing.get('vault_root', '')
             pattern = input(f"Enter project_folder_pattern ({existing.get('project_folder_pattern', 'AIWF-Knowledge-{project_slug}')}): ").strip() or existing.get('project_folder_pattern', 'AIWF-Knowledge-{project_slug}')
             mode = input(f"Enter mode ({existing.get('mode', 'file-sync')}): ").strip() or existing.get('mode', 'file-sync')
-            
+
             create_if_missing_str = "y" if existing.get("create_if_missing", True) else "n"
             create_if_missing_in = input(f"Create if missing? (y/n) [{create_if_missing_str}]: ").strip().lower() or create_if_missing_str
             create_if_missing = (create_if_missing_in == "y")
-            
+
             sync_structure_str = "y" if existing.get("sync_structure", True) else "n"
             sync_structure_in = input(f"Sync structure? (y/n) [{sync_structure_str}]: ").strip().lower() or sync_structure_str
             sync_structure = (sync_structure_in == "y")
-            
+
             host = existing.get("host", "127.0.0.1")
             port = existing.get("port", 27124)
             api_key = existing.get("api_key", "")
@@ -4554,7 +4567,7 @@ def do_provider_action(args):
             host = input(f"Enter host ({existing.get('host', '127.0.0.1')}): ").strip() or existing.get('host', '127.0.0.1')
             port_in = input(f"Enter port ({existing.get('port', 27124)}): ").strip()
             port = int(port_in) if port_in.isdigit() else existing.get('port', 27124)
-            
+
             import getpass
             api_key = getpass.getpass("Enter API Key or environment variable name (masked): ").strip() or existing.get('api_key', '')
             vault_path = input(f"Enter vault path ({existing.get('vault_path', '')}): ").strip() or existing.get('vault_path', '')
@@ -4567,7 +4580,7 @@ def do_provider_action(args):
                 "api_key": api_key,
                 "vault_path": vault_path
             }
-        
+
         if getattr(args, "project", False):
             proj_cfg = provider_manager.load_project_config(".")
             if "providers" not in proj_cfg:
@@ -4655,7 +4668,7 @@ def do_provider_action(args):
                 exists = os.path.exists(resolved_folder)
                 obs_cfg = provider_manager.resolve_provider_config("obsidian", ".")
                 masked = provider_manager.mask_secrets(obs_cfg)
-                
+
                 project_slug = ""
                 map_path = os.path.join(".", ".agents", "knowledge", "obsidian-project-map.json")
                 if os.path.exists(map_path):
@@ -4664,7 +4677,7 @@ def do_provider_action(args):
                             project_slug = json.load(f).get("project_slug", "")
                     except Exception:
                         pass
-                
+
                 res = {
                     "global_config_path": path,
                     "vault_root": obs_cfg.get("vault_root") or obs_cfg.get("vault_path"),
@@ -4701,7 +4714,7 @@ def do_provider_action(args):
                     print(f"[OK] Resolved path exists.")
                 else:
                     print(f"[WARNING] Resolved path does not exist on disk.")
-                
+
                 obs_cfg = provider_manager.resolve_provider_config("obsidian", ".")
                 vault_root = obs_cfg.get("vault_root") or obs_cfg.get("vault_path")
                 if vault_root:
@@ -4716,11 +4729,11 @@ def do_provider_action(args):
             except Exception as e:
                 print(f"[ERROR] Obsidian doctor check failed: {e}")
             return
-            
+
         if not os.path.exists(path):
             print(f"Global configuration file does not exist at {path}.")
             return
-        
+
         import stat
         try:
             st = os.stat(path)
@@ -5160,11 +5173,11 @@ def do_telegram(args):
     import subprocess
     import platform
     subaction = getattr(args, "subaction", None)
-    
+
     daemon_script = os.path.join(os.path.dirname(__file__), "telegram_daemon.py")
     log_file = os.path.expanduser("~/.aiwf/telegram-listener.log")
     pid_file = os.path.expanduser("~/.aiwf/telegram-daemon.pid")
-    
+
     if subaction == "start":
         running, pid = is_telegram_daemon_running(pid_file)
         if running:
@@ -5173,7 +5186,7 @@ def do_telegram(args):
 
         pid = start_telegram_daemon(daemon_script, log_file, pid_file)
         print(f"[SYSTEM]: Shared Telegram Daemon started in background with PID: {pid}.")
-        
+
     elif subaction == "stop":
         running, pid = is_telegram_daemon_running(pid_file)
         if running:
@@ -5210,7 +5223,7 @@ def do_telegram(args):
         else:
             print("[SYSTEM]: Shared Telegram Daemon is INACTIVE.")
         print(f"[SYSTEM]: Autostart is {'ENABLED' if enabled else 'DISABLED'}.")
-            
+
     elif subaction == "link":
         disc_path = os.path.expanduser("~/.aiwf/discovered_groups.json")
         groups = {}
@@ -5220,19 +5233,19 @@ def do_telegram(args):
                     groups = json.load(f)
             except Exception:
                 pass
-                
+
         if not groups:
             print("[SYSTEM] Chua phat hien nhom Telegram nao. Hay dam bao ban da add Bot vao Group va gui tin nhan truoc.")
             return
-            
+
         curr_path = os.path.abspath(".")
-        
+
         print("\n--- Danh sach nhom Telegram da phat hien ---")
         options_list = list(groups.items())
         for idx, (gid, title) in enumerate(options_list, 1):
             print(f"{idx}. {title} (ID: {gid})")
         print(f"{len(options_list) + 1}. Thoat")
-        
+
         try:
             ans = input(f"Chon nhom muon lien ket voi du an '{os.path.basename(curr_path)}' (1-{len(options_list) + 1}): ").strip()
             if not ans:
@@ -5244,7 +5257,7 @@ def do_telegram(args):
                 import aiwf_registry
                 if aiwf_registry.update_project_telegram_chat_id(curr_path, target_gid):
                     print(f"[SYSTEM] Lien ket thanh cong du an '{os.path.basename(curr_path)}' voi Group '{target_title}' ({target_gid}).")
-                    
+
                     # Sync dynamic Bot commands after linking
                     cfg = {}
                     cfg_path = os.path.expanduser("~/.aiwf/.env.telegram-notify")
@@ -5339,8 +5352,8 @@ def do_registry(args):
     import aiwf_registry
     if args.subaction == "register":
         res = aiwf_registry.register_project(
-            args.path, 
-            force=args.force, 
+            args.path,
+            force=args.force,
             source=args.source,
             framework_root=args.framework_root
         )
@@ -5391,7 +5404,7 @@ def do_update(args):
     import aiwf_registry
     update_all = args.all
     update_current = args.current
-    
+
     if not update_all and not update_current:
         if sys.stdout.isatty():
             print("Update mode:")
@@ -5412,7 +5425,7 @@ def do_update(args):
                 return
         else:
             update_current = True
-            
+
     if update_all:
         print("Starting batch update of all registered projects...")
         summary = aiwf_registry.update_all_projects()
@@ -5587,6 +5600,62 @@ def process_runtime_bus_once() -> bool:
     except Exception:
         pass
     return True
+
+def extract_work_item_id_from_text(value: str) -> str:
+    import re
+    match = re.search(r"\b(?:FEAT|FIX|QUICK)-\d+\b", value or "")
+    return match.group(0) if match else ""
+
+def extract_work_item_id_from_artifact(path: str) -> str:
+    try:
+        with open(path, "r", encoding="utf-8") as f:
+            head = f.read(4096)
+    except Exception:
+        return ""
+
+    import re
+    for pattern in [
+        r"^\s*(?:feature_id|issue_id|quick_id|work_item_id)\s*:\s*[\"']?((?:FEAT|FIX|QUICK)-\d+)",
+        r"\b(?:FEAT|FIX|QUICK)-\d+\b",
+    ]:
+        match = re.search(pattern, head, flags=re.MULTILINE)
+        if match:
+            return match.group(1) if match.groups() else match.group(0)
+    return ""
+
+def validate_blueprint_scope(bp_data: dict, work_item_id: str, workspace_root: str = ".") -> tuple[bool, str]:
+    if not work_item_id or work_item_id in {"unknown", "N/A", "None"}:
+        return False, "Missing scoped work_item_id."
+
+    bp_path = str(bp_data.get("path") or bp_data.get("blueprint_path") or "").strip()
+    if not bp_path:
+        return False, "Blueprint approval does not include a blueprint path."
+
+    normalized_path = bp_path.replace("\\", "/").lstrip("./")
+    if os.path.isabs(bp_path) or normalized_path.startswith("file:"):
+        return False, "Blueprint path must be project-relative."
+
+    abs_path = os.path.abspath(os.path.join(workspace_root, normalized_path))
+    if not os.path.exists(abs_path):
+        return False, f"Blueprint file is missing: {normalized_path}."
+
+    record_id = (
+        bp_data.get("work_item_id")
+        or bp_data.get("feature_id")
+        or bp_data.get("issue_id")
+        or bp_data.get("quick_id")
+    )
+    path_id = extract_work_item_id_from_text(normalized_path)
+    content_id = extract_work_item_id_from_artifact(abs_path)
+
+    for label, candidate in [("approval", record_id), ("path", path_id), ("content", content_id)]:
+        if candidate and str(candidate) != work_item_id:
+            return False, f"Blueprint {label} belongs to {candidate}, not {work_item_id}."
+
+    if not (record_id or path_id or content_id):
+        return False, "Blueprint approval is not bound to a work item id."
+
+    return True, "Blueprint scope matches the active work item."
 
 
 def restart_runtime_bus_daemon() -> int | None:
@@ -6005,7 +6074,7 @@ def do_runtime_action(args):
         write_runtime_policy,
         DEFAULT_RUNTIME_POLICY
     )
-    
+
     subaction = getattr(args, "subaction", None)
     if subaction in {"start", "stop", "restart", "reload", "status", "enable", "disable", "process", "daemon"}:
         do_runtime_bus(args)
@@ -6014,9 +6083,9 @@ def do_runtime_action(args):
     if subaction != "policy":
         print(f"Unknown runtime subaction: {subaction}", file=sys.stderr)
         sys.exit(1)
-        
+
     policy_action = getattr(args, "policy_action", None)
-    
+
     if not policy_action:
         try:
             policy = load_runtime_policy(validate=True)
@@ -6024,13 +6093,13 @@ def do_runtime_action(args):
         except Exception as e:
             print(f"Error: {e}", file=sys.stderr)
             sys.exit(1)
-            
+
     elif policy_action == "validate":
         path = get_runtime_policy_path()
         if not os.path.exists(path):
             print("Error: runtime-policy.json does not exist. Run 'aiwf init' first to generate it.", file=sys.stderr)
             sys.exit(1)
-            
+
         try:
             with open(path, "r", encoding="utf-8") as f:
                 policy = json.load(f)
@@ -6042,7 +6111,7 @@ def do_runtime_action(args):
         except Exception as e:
             print(f"Validation FAILED: {e}", file=sys.stderr)
             sys.exit(1)
-            
+
     elif policy_action == "reset":
         try:
             write_runtime_policy(DEFAULT_RUNTIME_POLICY)
@@ -6095,21 +6164,21 @@ def main():
 
     perm_p = subparsers.add_parser("permissions", aliases=["permission"])
     perm_sub = perm_p.add_subparsers(dest="subaction", required=False)
-    
+
     perm_init = perm_sub.add_parser("init")
     _ = perm_init.add_argument("--mode", type=str, choices=["sandbox", "full_access", "unrestricted"])
     _ = perm_init.add_argument("--force", action="store_true")
-    
+
     _ = perm_sub.add_parser("show")
-    
+
     perm_change = perm_sub.add_parser("change")
     _ = perm_change.add_argument("--mode", type=str, choices=["sandbox", "full_access", "unrestricted"], required=True)
     _ = perm_change.add_argument("--force", action="store_true")
-    
+
     _ = perm_sub.add_parser("validate")
-    
+
     _ = subparsers.add_parser("compact")
-    
+
     val = subparsers.add_parser("validate")
     _ = val.add_argument("--checkpoint", type=str)
     _ = val.add_argument("--work-item", type=str, help="Work item ID for scoped validation")
@@ -6120,7 +6189,7 @@ def main():
     val_bp = val_sub.add_parser("blueprint")
     _ = val_bp.add_argument("--file", required=True, type=str)
     _ = val_sub.add_parser("session")
-    
+
     st = subparsers.add_parser("start")
     _ = st.add_argument("--skill", required=True, type=str)
     _ = st.add_argument("--command", required=True, type=str)
@@ -6129,13 +6198,13 @@ def main():
     _ = st.add_argument("--work-item", type=str, help="Work item ID")
     _ = st.add_argument("--workflow", type=str, help="Workflow type")
     _ = st.add_argument("--autonomous", action="store_true", help="Enable autonomous delivery mode")
-    
+
     sp = subparsers.add_parser("step")
     _ = sp.add_argument("--step", required=True, type=str)
     _ = sp.add_argument("--log", type=str)
     _ = sp.add_argument("--work-item", type=str, help="Work item ID")
     _ = sp.add_argument("--workflow", type=str, help="Workflow type")
-    
+
     cp = subparsers.add_parser("complete")
     _ = cp.add_argument("--checkpoint", type=int)
     _ = cp.add_argument("--step", type=str)
@@ -6143,15 +6212,15 @@ def main():
     _ = cp.add_argument("--next-command", type=str)
     _ = cp.add_argument("--work-item", type=str, help="Work item ID")
     _ = cp.add_argument("--workflow", type=str, help="Workflow type")
-    
+
     fl = subparsers.add_parser("fail")
     _ = fl.add_argument("--step", required=True, type=str)
     _ = fl.add_argument("--log", type=str)
     _ = fl.add_argument("--work-item", type=str, help="Work item ID")
     _ = fl.add_argument("--workflow", type=str, help="Workflow type")
-    
+
     _ = subparsers.add_parser("heartbeat")
-    
+
     usg = subparsers.add_parser("usage")
     _ = usg.add_argument("subaction", choices=["sync", "report", "diagnose", "export", "breakdown", "requests", "request", "diff", "insights", "recommendations", "optimize", "timeline", "forecast", "budget", "context"])
     _ = usg.add_argument("--format", default="table", choices=["json", "table"])
@@ -6177,11 +6246,11 @@ def main():
     _ = usg.add_argument("--policy", type=str)
     _ = usg.add_argument("--start-time", type=str)
     _ = usg.add_argument("--end-time", type=str)
-    
+
     bp = subparsers.add_parser("blueprint")
     _ = bp.add_argument("--path", required=True, type=str)
     _ = bp.add_argument("--approve", action="store_true")
-    
+
     sg = subparsers.add_parser("suggest")
     _ = sg.add_argument("--request", type=str)
     _ = sg.add_argument("--classification", type=str)
@@ -6189,7 +6258,7 @@ def main():
     _ = sg.add_argument("--options", type=str)
     _ = sg.add_argument("--status", type=str)
     _ = sg.add_argument("--choose", type=str)
-    
+
     # -------------------------------------------------------------------------
     # FEAT-050: Extend task subcommand with orchestrator subactions
     # -------------------------------------------------------------------------
@@ -6241,70 +6310,70 @@ def main():
     _ = lock_p.add_argument("--task-id", type=str)
     _ = lock_p.add_argument("--files", type=str)
     _ = lock_p.add_argument("--stale-only", action="store_true")
-    
+
     _ = subparsers.add_parser("status")
-    
+
     # FEAT-308 / FEAT-311: workflow subcommand
     wf_p = subparsers.add_parser("workflow")
     wf_sub = wf_p.add_subparsers(dest="subaction", required=True)
-    
+
     wf_trace = wf_sub.add_parser("trace", help="Trace current workflow request status")
     _ = wf_trace.add_argument("--request-id", type=str, default=None)
-    
+
     # Submit
     wf_submit = wf_sub.add_parser("submit", help="Submit a new workflow request")
     _ = wf_submit.add_argument("prompt", type=str, help="User prompt/request description")
-    
+
     # Start
     wf_start = wf_sub.add_parser("start", help="Start workflow execution")
     _ = wf_start.add_argument("--workflow-id", type=str, required=True)
-    
+
     # Status
     wf_status = wf_sub.add_parser("status", help="Get workflow status")
     _ = wf_status.add_argument("--workflow-id", type=str, default=None)
-    
+
     # Follow
     wf_follow = wf_sub.add_parser("follow", help="Follow execution logs")
     _ = wf_follow.add_argument("--workflow-id", type=str, default=None)
-    
+
     # Agents
     wf_agents = wf_sub.add_parser("agents", help="List active agents in workflow")
     _ = wf_agents.add_argument("--workflow-id", type=str, default=None)
-    
+
     # Timeline
     wf_timeline = wf_sub.add_parser("timeline", help="Show workflow event timeline")
     _ = wf_timeline.add_argument("--workflow-id", type=str, default=None)
-    
+
     # Cancel
     wf_cancel = wf_sub.add_parser("cancel", help="Cancel a running workflow")
     _ = wf_cancel.add_argument("--workflow-id", type=str, required=True)
-    
+
     # Resume
     wf_resume = wf_sub.add_parser("resume", help="Resume a paused workflow")
     _ = wf_resume.add_argument("--workflow-id", type=str, default=None)
-    
+
     # Session Bootstrap CLI subcommands
     session_p = subparsers.add_parser("session")
     session_sub = session_p.add_subparsers(dest="subaction", required=True)
-    
+
     session_status = session_sub.add_parser("status")
     _ = session_status.add_argument("--session-id", type=str, default=None)
-    
+
     session_init = session_sub.add_parser("initialize")
     _ = session_init.add_argument("--session-id", type=str, default=None)
-    
+
     session_reset = session_sub.add_parser("reset")
     _ = session_reset.add_argument("--session-id", type=str, default=None)
-    
+
     dep_p = subparsers.add_parser("dependency")
     _ = dep_p.add_argument("subaction", choices=["graph"])
-    
+
     merge_p = subparsers.add_parser("merge")
     _ = merge_p.add_argument("subaction", choices=["prepare", "complete"])
-    
+
     conf_p = subparsers.add_parser("conflict")
     _ = conf_p.add_argument("subaction", choices=["detect", "resolve"])
-    
+
     exec_p = subparsers.add_parser("execution")
     _ = exec_p.add_argument("subaction", choices=["recommend", "mode", "summary", "submit", "list", "read", "stream", "cancel", "kill", "pause", "resume", "recover", "capacity"])
     _ = exec_p.add_argument("--mode", type=str, choices=["parallel", "sequential"])
@@ -6322,7 +6391,7 @@ def main():
     _ = exec_p.add_argument("--cpu-limit", type=float)
     _ = exec_p.add_argument("--memory-limit", type=float)
     _ = exec_p.add_argument("--id", type=str)
-    
+
     analysis_p = subparsers.add_parser("analysis-agent")
     _ = analysis_p.add_argument("subaction", choices=["add", "list", "clear", "merge"])
     _ = analysis_p.add_argument("--agent-id", type=str)
@@ -6330,10 +6399,10 @@ def main():
     _ = analysis_p.add_argument("--status", type=str)
     _ = analysis_p.add_argument("--summary", type=str)
     _ = analysis_p.add_argument("--recommendations", type=str)
-    
+
     routing_p = subparsers.add_parser("routing")
     _ = routing_p.add_argument("subaction", choices=["list", "validate"])
-    
+
     prompt_p = subparsers.add_parser("prompt")
     prompt_sub = prompt_p.add_subparsers(dest="subaction", required=True)
     select_p = prompt_sub.add_parser("select")
@@ -6343,7 +6412,7 @@ def main():
 
     choice_p = subparsers.add_parser("choice")
     choice_sub = choice_p.add_subparsers(dest="subaction", required=True)
-    
+
     choice_create = choice_sub.add_parser("create")
     _ = choice_create.add_argument("--id", required=True, type=str)
     _ = choice_create.add_argument("--title", required=True, type=str)
@@ -6352,22 +6421,22 @@ def main():
     _ = choice_create.add_argument("--type", type=str, default="choice")
     _ = choice_create.add_argument("--required", action="store_true")
     _ = choice_create.add_argument("--allow-cancel", action="store_true")
-    
+
     choice_wait = choice_sub.add_parser("wait")
     _ = choice_wait.add_argument("--id", required=True, type=str)
     _ = choice_wait.add_argument("--timeout", type=int)
-    
+
     choice_read = choice_sub.add_parser("read")
     _ = choice_read.add_argument("--id", required=True, type=str)
-    
+
     _ = choice_sub.add_parser("clear")
-    
+
     aw_p = subparsers.add_parser("active-workflow")
     _ = aw_p.add_argument("--work-item", type=str, help="Work item ID")
     aw_sub = aw_p.add_subparsers(dest="subaction", required=True)
-    
+
     _ = aw_sub.add_parser("get")
-    
+
     aw_set = aw_sub.add_parser("set")
     _ = aw_set.add_argument("--type", type=str)
     _ = aw_set.add_argument("--phase", type=str)
@@ -6379,63 +6448,63 @@ def main():
     _ = aw_set.add_argument("--waiting-for", type=str)
     _ = aw_set.add_argument("--last-user-prompt", type=str)
     _ = aw_set.add_argument("--resume-instruction", type=str)
-    
+
     _ = aw_sub.add_parser("clear")
     _ = aw_sub.add_parser("resume")
-    
+
     aw_wait = aw_sub.add_parser("set-waiting")
     _ = aw_wait.add_argument("--waiting-for", type=str)
-    
+
     aw_val = aw_sub.add_parser("validate-blueprint")
     _ = aw_val.add_argument("--path", required=True, type=str)
     _ = aw_val.add_argument("--workflow", type=str)
-    
+
     _ = aw_sub.add_parser("get-branch")
-    
+
     aw_sug = aw_sub.add_parser("suggest-branch")
     _ = aw_sug.add_argument("--artifact-id", required=True, type=str)
     _ = aw_sug.add_argument("--slug", required=True, type=str)
-    
+
     aw_opts = aw_sub.add_parser("branch-options")
     _ = aw_opts.add_argument("--artifact-id", required=True, type=str)
     _ = aw_opts.add_argument("--slug", required=True, type=str)
-    
+
     # New subcommands registration
     res_p = subparsers.add_parser("resume")
     _ = res_p.add_argument("--work-item", type=str, help="Work item ID to resume")
     _ = res_p.add_argument("--workflow", type=str, help="Workflow type")
     _ = subparsers.add_parser("discover")
-    
+
     reg_p = subparsers.add_parser("registry")
     reg_sub = reg_p.add_subparsers(dest="subaction", required=True)
-    
+
     reg_reg = reg_sub.add_parser("register")
     _ = reg_reg.add_argument("--path", type=str, default=".")
     _ = reg_reg.add_argument("--force", action="store_true")
     _ = reg_reg.add_argument("--source", type=str, default="register")
     _ = reg_reg.add_argument("--framework-root", type=str, default=None)
-    
+
     reg_unreg = reg_sub.add_parser("unregister")
     _ = reg_unreg.add_argument("--path", type=str, default=".")
-    
+
     _ = reg_sub.add_parser("list")
     _ = reg_sub.add_parser("doctor")
     _ = reg_sub.add_parser("cleanup")
-    
+
     upd_p = subparsers.add_parser("update")
     _ = upd_p.add_argument("--all", action="store_true")
     _ = upd_p.add_argument("--current", action="store_true")
-    
+
     classify_p = subparsers.add_parser("classify")
     _ = classify_p.add_argument("request", type=str)
-    
+
     memory_p = subparsers.add_parser("memory")
     memory_sub = memory_p.add_subparsers(dest="subaction", required=True)
     _ = memory_sub.add_parser("bootstrap")
     _ = memory_sub.add_parser("update")
     mem_search_p = memory_sub.add_parser("search")
     _ = mem_search_p.add_argument("query", type=str)
-    
+
     env_p = subparsers.add_parser("env")
     env_sub = env_p.add_subparsers(dest="subaction", required=True)
     _ = env_sub.add_parser("health")
@@ -6444,36 +6513,36 @@ def main():
     debug_p = subparsers.add_parser("debug")
     debug_sub = debug_p.add_subparsers(dest="subaction", required=True)
     _ = debug_sub.add_parser("run")
-    
+
     verify_p = subparsers.add_parser("verify")
     verify_sub = verify_p.add_subparsers(dest="subaction", required=True)
     _ = verify_sub.add_parser("run")
-    
+
     release_p = subparsers.add_parser("release")
     release_sub = release_p.add_subparsers(dest="subaction", required=True)
     _ = release_sub.add_parser("plan")
     rel_exec = release_sub.add_parser("execute")
     _ = rel_exec.add_argument("--approve", action="store_true")
-    
+
     orchestrator_p = subparsers.add_parser("orchestrator", aliases=["orchestrate"])
     _ = orchestrator_p.add_argument("--work-item", type=str, help="Work item ID")
     orchestrator_sub = orchestrator_p.add_subparsers(dest="subaction", required=True)
-    
+
     # run
     run_p = orchestrator_sub.add_parser("run")
     _ = run_p.add_argument("--autonomous", action="store_true")
     _ = run_p.add_argument("work_item_id", type=str, nargs="?", default=None)
     _ = run_p.add_argument("--work-item-id", type=str, dest="work_item_opt", default=None)
-    
+
     # defects
     _ = orchestrator_sub.add_parser("defects")
-    
+
     # resume
     _ = orchestrator_sub.add_parser("resume")
-    
+
     # cancel
     _ = orchestrator_sub.add_parser("cancel")
-    
+
     # action (Visualizer Recovery Center backward-compatibility)
     orch_act = orchestrator_sub.add_parser("action")
     _ = orch_act.add_argument("--action", required=True, type=str)
@@ -6498,7 +6567,7 @@ def main():
     _ = orchestrator_sub.add_parser("locks")
     _ = orchestrator_sub.add_parser("timeline")
     _ = orchestrator_sub.add_parser("metrics")
-    
+
     logs_p = orchestrator_sub.add_parser("logs")
     _ = logs_p.add_argument("--level", type=str, default=None)
     _ = logs_p.add_argument("--agent", type=str, default=None)
@@ -6508,7 +6577,7 @@ def main():
     _ = logs_p.add_argument("--runtime", action="store_true")
 
     _ = subparsers.add_parser("context")
-    
+
     input_p = subparsers.add_parser("input")
     input_sub = input_p.add_subparsers(dest="subaction", required=True)
     submit_p = input_sub.add_parser("submit")
@@ -6516,11 +6585,11 @@ def main():
     _ = submit_p.add_argument("--value", required=True, type=str)
     _ = submit_p.add_argument("--source", required=True, type=str)
     _ = submit_p.add_argument("--resume-token", required=True, type=str)
-    
+
     rules_p = subparsers.add_parser("rules")
     rules_sub = rules_p.add_subparsers(dest="subaction", required=True)
     _ = rules_sub.add_parser("status")
-    
+
     state_p = subparsers.add_parser("state")
     state_sub = state_p.add_subparsers(dest="subaction", required=True)
     _ = state_sub.add_parser("status")
@@ -6540,25 +6609,25 @@ def main():
     _ = implement_sub.add_parser("status")
     _ = implement_sub.add_parser("resume")
     _ = implement_sub.add_parser("abort")
-    
+
     knowledge_p = subparsers.add_parser("knowledge")
     knowledge_sub = knowledge_p.add_subparsers(dest="subaction", required=True)
-    
+
     _ = knowledge_sub.add_parser("status")
-    
+
     ks = knowledge_sub.add_parser("search")
     _ = ks.add_argument("--query", required=True, type=str)
     _ = ks.add_argument("--limit", type=int, default=5)
-    
+
     _ = knowledge_sub.add_parser("refresh")
     _ = knowledge_sub.add_parser("doctor")
     _ = knowledge_sub.add_parser("stats")
     _ = knowledge_sub.add_parser("rebuild")
-    
+
     kc = knowledge_sub.add_parser("cache")
     kc_sub = kc.add_subparsers(dest="cache_action", required=True)
     _ = kc_sub.add_parser("clear")
-    
+
     _ = knowledge_sub.add_parser("validate")
 
     test_p = subparsers.add_parser("test")
@@ -6586,45 +6655,45 @@ def main():
 
     provider_p = subparsers.add_parser("provider")
     provider_sub = provider_p.add_subparsers(dest="subaction", required=True)
-    
+
     pl = provider_sub.add_parser("list")
     _ = pl.add_argument("--project", action="store_true", help="Operate on project overrides")
-    
+
     pa = provider_sub.add_parser("add")
     _ = pa.add_argument("name", type=str)
     _ = pa.add_argument("--project", action="store_true")
-    
+
     pe = provider_sub.add_parser("edit")
     _ = pe.add_argument("name", type=str)
     _ = pe.add_argument("--project", action="store_true")
-    
+
     pr = provider_sub.add_parser("remove")
     _ = pr.add_argument("name", type=str)
     _ = pr.add_argument("--project", action="store_true")
-    
+
     pen = provider_sub.add_parser("enable")
     _ = pen.add_argument("name", type=str)
     _ = pen.add_argument("--project", action="store_true")
-    
+
     pdi = provider_sub.add_parser("disable")
     _ = pdi.add_argument("name", type=str)
     _ = pdi.add_argument("--project", action="store_true")
-    
+
     pt = provider_sub.add_parser("test")
     _ = pt.add_argument("name", type=str)
     _ = pt.add_argument("--project", action="store_true")
-    
+
     pdoc = provider_sub.add_parser("doctor")
     _ = pdoc.add_argument("name", type=str, nargs="?", default=None)
-    
+
     _ = provider_sub.add_parser("path")
-    
+
     p_res = provider_sub.add_parser("resolve")
     _ = p_res.add_argument("name", type=str)
-    
+
     p_sync = provider_sub.add_parser("sync")
     _ = p_sync.add_argument("name", type=str)
-    
+
     ups_p = subparsers.add_parser("update-source")
     _ = ups_p.add_argument("source", nargs="?", type=str, default=None)
     _ = ups_p.add_argument("--source", type=str, dest="source_opt")
@@ -6635,7 +6704,7 @@ def main():
     _ = ups_p.add_argument("--json", action="store_true")
     _ = ups_p.add_argument("--yes", action="store_true")
     _ = ups_p.add_argument("--allow-dirty", action="store_true")
-    
+
     telegram_p = subparsers.add_parser("telegram", help="Global Telegram Shared Daemon & link options")
     telegram_sub = telegram_p.add_subparsers(dest="subaction", required=True)
     _ = telegram_sub.add_parser("start")
@@ -6650,16 +6719,16 @@ def main():
     api_server_p = subparsers.add_parser("api-server", help="Start stable Observability API Server")
     _ = api_server_p.add_argument("--port", type=int, default=31000)
     _ = api_server_p.add_argument("--host", type=str, default="localhost")
-    
+
     args = parser.parse_args()
-    
+
     # Interceptor for scoped work item activation
     work_item_id = getattr(args, "work_item", None)
     if work_item_id:
         from state_store import set_active_work_item_id, register_work_item
         workflow_type = getattr(args, "workflow", None)
         set_active_work_item_id(work_item_id)
-        
+
         # Check initial checkpoint for registration
         initial_checkpoint = 1
         if workflow_type in ["quick-feature", "quick-fix"]:
@@ -6670,11 +6739,11 @@ def main():
             except Exception:
                 pass
         register_work_item(work_item_id, workflow_type=workflow_type, checkpoint=initial_checkpoint)
-        
+
         # Also set the environment variable to ensure child processes inherit it
         os.environ["AIWF_ACTIVE_WORK_ITEM"] = work_item_id
         os.environ["AIWF_WORK_ITEM_ID"] = work_item_id
-    
+
     cmds = {
         "api-server": do_api_server,
         "init": do_init,
@@ -6732,7 +6801,7 @@ def main():
         "workflow": do_workflow,
         "session": do_session_command
     }
-    
+
     modifying_actions = ["init", "start", "step", "complete", "fail", "blueprint", "suggest", "compact", "task", "deps", "config", "runtime", "execution", "analysis-agent", "choice", "input", "active-workflow", "resume", "discover", "classify", "memory", "env", "debug", "verify", "release", "state", "provider", "knowledge", "orchestrator", "orchestrate", "workflow", "session", "telegram"]
     if args.action in modifying_actions:
         with SessionLock():

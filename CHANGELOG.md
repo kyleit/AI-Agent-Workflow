@@ -5,6 +5,15 @@ All notable changes to this project will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [6.19.2] - 2026-07-21
+
+### Fixed
+- **Blueprint Approval scope enforcement**:
+  - Blocked implementation when a Blueprint approval belongs to a different work item than the current workflow.
+  - Prevented full-access and autonomous delivery modes from auto-approving final Blueprint Approval gates.
+  - Added runtime and coordinator validation so Blueprint approval records must match the active work item, Blueprint path, and Blueprint frontmatter.
+  - Added regression coverage for the cross-work-item approval case that previously allowed `FIX-*` state to unlock a `FEAT-*` Blueprint.
+
 ## [6.19.1] - 2026-07-21
 
 ### Added

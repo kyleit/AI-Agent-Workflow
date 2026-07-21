@@ -44,3 +44,6 @@ qdrant_storage
 .agents/config/.env.telegram-notify
 .agents/config/.env*
 *.env*
+
+# Temporary test cleanup folder
+_to_delete/
