@@ -10,12 +10,7 @@ tags:
   - quick
   - minor
 version: 3.3.0
-author:
-  name: Kyle Dang
-  email: kyleit@klexpress.net
-  website: https://www.klexpress.net
 license: MIT
-repository: https://gitlab.com/hngan.it/ai-workflow-skills
 created_at: 2026-07-03
 updated_at: 2026-07-09
 description: Enforces a three-stage workflow (Specification, Blueprint, and Implementation) for quick features, upgraded with v3.2 Mini Spec quality standards and rich planning sections.
@@ -30,10 +25,13 @@ runtime_requirements:
   environment: none
   version: cached
   provider: optional
-  usage: cached
----
+  usage: cached---
 
 # Skill: quick-feature (Three-Phase Workflow with Blueprint-Driven Execution)
+
+## Purpose
+
+Enforces a three-stage workflow (Specification, Blueprint, and Implementation) for quick features, upgraded with v3.2 Mini Spec quality standards and rich planning sections.
 
 ---
 
@@ -59,7 +57,7 @@ This Skill MUST interface with the centralized Python CLI Runtime Engine:
 | **Phase 3 (Implementation)**: Implement code only after explicit Blueprint approval. |
 | NO SOURCE CODE will be modified during Phase 1 or Phase 2. |
 | Specification path: `docs/quick/QUICK-XXX_feature_name.md` |
-| Design Blueprint path: `docs/designs/QUICK-XXX_feature_name_blueprint.md` |
+| Design Blueprint path: `docs/blueprints/QUICK-XXX_feature_name_blueprint.md` |
 
 ---
 
@@ -80,10 +78,11 @@ This Skill MUST strictly adhere to the global policies defined in [AI_RULES.md](
 
 ## Capability Boundary & Guardrails
 
-- **No Premature Implementation**: No source code may be created, deleted, or modified before a Technical Design Blueprint is generated under `docs/designs/` and explicitly approved by the user.
+- **No Premature Implementation**: No source code may be created, deleted, or modified before a Technical Design Blueprint is generated under `docs/blueprints/` and explicitly approved by the user.
 - **Validation of Blueprint**: Before code generation, verify that the Blueprint exists, has status `approved` in the session or was explicitly approved by the user in the prompt logs.
 - **No Refactoring**: Implement ONLY the minimal changes described in the approved Blueprint. Do NOT introduce unrelated cleanups, structural refactoring, or database redesigns.
 - **No Downstream Auto-Execution**: Do NOT execute Git commands (commit, push) automatically. Release must only occur if explicitly requested by the user.
+- **Frontend Design Binding**: If the feature touches UI/UX, frontend components, layout, spacing, typography, color, animation, icons, visual hierarchy, aesthetic styling, or design-system decisions, the Agent MUST use `frontend-design` before finalizing the Specification, Blueprint, or implementation decisions.
 
 ---
 
@@ -112,7 +111,7 @@ QUICK Feature IDs are determined **ONLY** by scanning `docs/quick/`:
 
 ## Workflow Sequence
 
-Execute these steps strictly. Stop at every gate.
+Execute these steps strictly. Do not stop for user approval until the Blueprint has passed internal review.
 
 ```
 Step 1:  Receive User Feature Request
@@ -127,39 +126,34 @@ Step 4:  Targeted Source Inspection
          ↓
 Step 5:  Generate Feature Specification (docs/quick/QUICK-XXX_feature_name.md)
          ↓
-Step 6:  User Approval Gate (Phase 1: Spec Approval)
-          - **CRITICAL**: The AGENT MUST STOP CALLING TOOLS IMMEDIATELY AND END TURN.
-          - Present the Specification (docs/quick/QUICK-XXX_feature_name.md) to the user in chat.
-          - [STOP] Wait for the user's explicit chat response to proceed. DO NOT run any more tools.
+Step 6:  Internal Spec Review Gate (No User Stop)
+          - Review the Specification against this skill, AI_RULES.md, the user request, and frontend-design when UI/design is affected.
+          - If review FAILS, explain the failed points and revise the Specification only in those points.
+          - Repeat review/revision until PASS.
+          - Do NOT ask the user for approval at this gate.
          ↓
-Step 7:  Generate Technical Design Blueprint (docs/designs/QUICK-XXX_feature_name_blueprint.md)
+Step 7:  Generate Technical Design Blueprint (docs/blueprints/QUICK-XXX_feature_name_blueprint.md)
          ↓
-Step 8:  User Approval Gate (Phase 2: Blueprint Approval)
+Step 8:  Internal Blueprint Review + Final User Approval Gate
           - Run python CLI to register blueprint.
-          - **CRITICAL**: The AGENT MUST STOP CALLING TOOLS IMMEDIATELY AND END TURN.
-          - Present the Technical Design Blueprint (docs/designs/QUICK-XXX_feature_name_blueprint.md) to the user in chat.
-          - [STOP] Wait for the user's explicit chat response to proceed. DO NOT run any more tools.
+          - Review the Blueprint against this skill, AI_RULES.md, the Specification, document-compliance-assessment rules, and frontend-design when UI/design is affected.
+          - If review FAILS, clearly state each failed point and revise only those points. Repeat until PASS.
+          - After review PASS, present the Technical Design Blueprint to the user in chat.
+          - **ABSOLUTE USER APPROVAL STOP**: The AGENT MUST STOP CALLING TOOLS IMMEDIATELY AND END TURN.
+          - [STOP] Wait for explicit user approval. DO NOT run any more tools. DO NOT mark approved. DO NOT inspect further. DO NOT implement.
           - Once approved, run python CLI to mark blueprint approved.
          ↓
-Step 9:  Pre-Implementation Git Gate (Phase 3)
-          - Run git branch & git status.
-          - **CRITICAL**: The AGENT MUST STOP CALLING TOOLS IMMEDIATELY AND END TURN.
-          - Present git details and ask the user to confirm branch strategy.
-          - [STOP] Wait for the user's explicit chat response to proceed. DO NOT run any more tools.
+Step 9:  Pre-Implementation Git Check (Phase 3)
+          - Read current branch and git status.
+          - If branch policy requires a user decision, stop and ask only that branch question.
          ↓
-Step 10: Global Approval Gate (Phase 3)
-          - Explain modifications, list affected files and branch.
-          - **CRITICAL**: The AGENT MUST STOP CALLING TOOLS IMMEDIATELY AND END TURN.
-          - Present the implementation summary to the user and request permission to apply.
-          - [STOP] Wait for the user's explicit chat response to proceed. DO NOT run any more tools.
+Step 10: Code Implementation (Direct minimal code changes)
          ↓
-Step 11: Code Implementation (Direct minimal code changes)
-         ↓
-Step 12: Automatic Validation Pipeline
+Step 11: Automatic Validation Pipeline
          - Run compiler, check builds, run existing unit tests.
          - [STOP] If tests fail → Report failures and halt.
          ↓
-Step 13: Generate Quick Feature Summary Report & Self-Validation Checklist
+Step 12: Generate Quick Feature Summary Report & Self-Validation Checklist
 ```
 
 ---
@@ -341,20 +335,28 @@ Bản thiết kế kỹ thuật (Technical Design Blueprint) ở Phase 2 bắt b
 
 ---
 
-### Step 6: User Approval Gate
+### Step 6: Internal Spec Review Gate
 
-**CRITICAL GATING RULE**: The AGENT MUST STOP CALLING TOOLS IMMEDIATELY AND END TURN. Present the Specification (docs/quick/QUICK-XXX_feature_name.md) to the user in chat and wait. DO NOT create a Blueprint or modify source code until the user responds "Y", "yes", "proceed", or "approve" in the chat.
+Review the Specification internally before Blueprint generation.
+
+Rules:
+- Do not stop for user approval after the Specification.
+- Do not end turn after the Specification.
+- Include `frontend-design` in the review when the feature touches UI/UX, frontend components, layout, spacing, typography, color, animation, icons, visual hierarchy, aesthetic styling, or design-system decisions.
+- If the Specification review fails, state the exact failed points and revise only those points.
+- Continue to Blueprint generation only after the Specification review passes.
+- No source code may be modified during this step.
 
 ---
 
 ### Step 7: Generate Technical Design Blueprint
 
-Create the Design Blueprint under `docs/designs/QUICK-XXX_feature_name_blueprint.md`.
+Create the Design Blueprint under `docs/blueprints/QUICK-XXX_feature_name_blueprint.md`.
 
 Use this template:
 
 ```markdown
-<!-- File path: docs/designs/QUICK-XXX_feature_name_blueprint.md -->
+<!-- File path: docs/blueprints/QUICK-XXX_feature_name_blueprint.md -->
 ---
 artifact_type: blueprint
 feature_id: QUICK-XXX
@@ -398,17 +400,20 @@ Complete directory layout after modifications:
 
 ---
 
-### Step 8: User Approval Gate (Blueprint)
+### Step 8: Internal Blueprint Review + Final User Approval Gate
 
 1. Register the blueprint via CLI:
-   `python skills/workflow-runtime/scripts/workflow_runtime.py blueprint --path docs/designs/QUICK-XXX_feature_name_blueprint.md`
-2. **CRITICAL GATING RULE**: The AGENT MUST STOP CALLING TOOLS IMMEDIATELY AND END TURN. Present the Design Blueprint to the user in chat and wait. DO NOT proceed autonomously.
-3. Once the user responds with approval in the chat, run:
-   `python skills/workflow-runtime/scripts/workflow_runtime.py blueprint --path docs/designs/QUICK-XXX_feature_name_blueprint.md --approve`
+   `python skills/workflow-runtime/scripts/workflow_runtime.py blueprint --path docs/blueprints/QUICK-XXX_feature_name_blueprint.md`
+2. Review the blueprint strictly against the Specification, this Skill, `AI_RULES.md`, document-compliance-assessment rules, and `frontend-design` when UI/design is affected.
+3. If review fails, state the exact failed points and revise only those points. Repeat until review passes.
+4. **ABSOLUTE USER APPROVAL STOP**: After the Blueprint review passes, present the Design Blueprint to the user in chat and immediately stop calling tools. End the turn. DO NOT proceed autonomously. DO NOT mark the Blueprint approved. DO NOT inspect additional files. DO NOT implement code.
+5. If the user has not explicitly approved with `Y`, `Yes`, `Proceed`, `Continue`, or equivalent approval text, the Agent must remain stopped at this gate.
+6. Once the user responds with approval in the chat, run:
+   `python skills/workflow-runtime/scripts/workflow_runtime.py blueprint --path docs/blueprints/QUICK-XXX_feature_name_blueprint.md --approve`
 
 ---
 
-### Step 11: Code Implementation
+### Step 10: Code Implementation
 
 Only after receiving blueprint approval:
 1. Verify the blueprint is approved in the session.
@@ -416,7 +421,7 @@ Only after receiving blueprint approval:
 
 ---
 
-### Step 13: Generate Quick Task Result
+### Step 12: Generate Quick Task Result
 
 Upon completion, print the final summary:
 

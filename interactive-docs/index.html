@@ -21,7 +21,7 @@
             <span class="logo-text">AI WORKFLOW</span>
             <button id="menuToggle" class="menu-toggle" aria-label="Toggle Menu">☰</button>
         </div>
-        
+
         <ul class="menu-list">
             <li class="menu-item active">
                 <button data-tab="overview">
@@ -57,6 +57,12 @@
                 <button data-tab="obsidian">
                     <svg viewBox="0 0 24 24"><path d="M12 2L2 22h20L12 2zm0 3.99L18.8 19H5.2L12 5.99z"/></svg>
                     Đồng bộ Obsidian
+                </button>
+            </li>
+            <li class="menu-item">
+                <button data-tab="aiwf-cli">
+                    <svg viewBox="0 0 24 24"><path d="M20 4H4c-1.1 0-2 .9-2 2v12c0 1.1.9 2 2 2h16c1.1 0 2-.9 2-2V6c0-1.1-.9-2-2-2zm0 14H4V6h16v12zM7.5 15l-1.41-1.41L8.67 11l-2.58-2.59L7.5 7l4 4-4 4zm4.5-1h5v2h-5v-2z"/></svg>
+                    Tra cứu Lệnh aiwf
                 </button>
             </li>
         </ul>
@@ -145,7 +151,7 @@
             <!-- 2.1 Quy trình Đầy Đủ -->
             <div id="flowStandard" class="flow-panel">
                 <p style="color: var(--muted); margin-bottom: 20px;">Dành cho các tính năng có độ phức tạp cao, ảnh hưởng lớn đến cấu trúc và kiến trúc mã nguồn. Quy trình đi qua đầy đủ 10 bước nghiêm ngặt.</p>
-                
+
                 <div class="flow-steps-timeline">
                     <div class="timeline-step active">
                         <div class="step-number">1</div>
@@ -244,7 +250,7 @@
             <!-- 2.2 Quy trình Tính Năng Nhanh -->
             <div id="flowFeature" class="flow-panel" style="display: none;">
                 <p style="color: var(--muted); margin-bottom: 20px;">Áp dụng cho các tính năng nhỏ, độc lập, có mức độ ảnh hưởng kiến trúc thấp. Quy trình 3 pha rút gọn giúp tối ưu thời gian phát triển.</p>
-                
+
                 <div class="flow-steps-timeline">
                     <div class="timeline-step">
                         <div class="step-number">1</div>
@@ -295,7 +301,7 @@
             <!-- 2.3 Quy trình Sửa Lỗi Nhanh -->
             <div id="flowFix" class="flow-panel" style="display: none;">
                 <p style="color: var(--muted); margin-bottom: 20px;">Áp dụng để sửa các lỗi (bug) phát sinh cục bộ của dự án. Tương tự Quick Feature nhưng lưu vết tài liệu sửa lỗi riêng biệt.</p>
-                
+
                 <div class="flow-steps-timeline">
                     <div class="timeline-step">
                         <div class="step-number">1</div>
@@ -346,7 +352,7 @@
             <!-- 2.4 Quy trình Điều phối tự động (Orchestrated Workflow) -->
             <div id="flowOrchestrate" class="flow-panel" style="display: none;">
                 <p style="color: var(--muted); margin-bottom: 20px;">Quy trình điều phối tự động hóa thông qua điểm vào duy nhất <code>/orchestrate</code>. Phân tách và lập lịch thông minh, đảm bảo chỉ chạy song song ở pha Triển khai (Implementation) sau khi đã được duyệt Blueprint.</p>
-                
+
                 <div class="flow-steps-timeline">
                     <div class="timeline-step">
                         <div class="step-number">1</div>
@@ -482,7 +488,7 @@
                 <!-- Sidebar điều khiển bên trái -->
                 <div class="simulator-controls">
                     <h2>Bộ Điều Khiển Giả Lập</h2>
-                    
+
                     <div class="sim-select-group">
                         <label for="workflowSelect">Chọn Quy trình:</label>
                         <select id="workflowSelect">
@@ -621,7 +627,7 @@
                 .dot-red { background: #ff5f56; }
                 .dot-yellow { background: #ffbd2e; }
                 .dot-green { background: #27c93f; }
-                
+
                 /* Mockup 1: Create Vault */
                 .mockup-vault-body {
                     display: flex;
@@ -676,7 +682,7 @@
                     margin-top: 8px;
                     cursor: pointer;
                 }
-                
+
                 /* Mockup 2: Settings REST API */
                 .mockup-settings-body {
                     display: flex;
@@ -714,7 +720,7 @@
                     font-size: 0.8rem;
                     color: #fff;
                 }
-                
+
                 /* Mockup 3: CLI Setup */
                 .mockup-cli-body {
                     background: #0f0f11;
@@ -729,7 +735,7 @@
                 .mockup-cli-success {
                     color: #7ee787;
                 }
-                
+
                 /* Mockup 4: Graph View */
                 .mockup-graph-body {
                     position: relative;
@@ -766,7 +772,7 @@
             </style>
 
             <div class="obsidian-guide-container">
-                
+
                 <!-- BƯỚC 1 -->
                 <div class="obsidian-step-card">
                     <div class="obsidian-step-info">
@@ -918,6 +924,219 @@
                             </div>
                             <div class="graph-node" style="top:130px; left:210px;">
                                 <span class="graph-node-label">Blueprints</span>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+
+            </div>
+        </section>
+
+        <!-- TAB 7: HƯỚNG DẪN CÂU LỆNH AIWF CLI -->
+        <section id="aiwf-cli" class="tab-content">
+            <div class="welcome-card">
+                <h2>⚡ Hướng dẫn Tra cứu Câu lệnh AIWF CLI (<code>aiwf</code>)</h2>
+                <p>CLI <code>aiwf</code> là giao diện lệnh toàn cục cho phép điều khiển và quản lý AI Engineering Workflow từ bất kỳ terminal nào. Hệ thống phân chia rõ giữa <strong>Framework source</strong> (mã nguồn AIWF gốc) và <strong>Project-local runtime</strong> (thư mục <code>.agents/</code> cài trong dự án).</p>
+            </div>
+
+            <div style="display: grid; grid-template-columns: repeat(auto-fit, minmax(400px, 1fr)); gap: 20px; margin-top: 20px;">
+
+                <!-- CARD 1: CÀI ĐẶT & KHỞI TẠO -->
+                <div class="welcome-card" style="margin-bottom: 0;">
+                    <h3 style="color: #fff; margin-bottom: 8px; font-size: 15px; display: flex; align-items: center; gap: 8px;">
+                        🚀 1. Cài đặt &amp; Khởi tạo (Install &amp; Bootstrap)
+                    </h3>
+                    <p style="color: var(--muted); font-size: 12px; margin-bottom: 12px;">Các lệnh khởi tạo framework source toàn cục hoặc cài đặt local vào dự án.</p>
+
+                    <div style="display: flex; flex-direction: column; gap: 12px;">
+                        <div>
+                            <span style="font-size: 12px; color: var(--cyan); font-weight: 600;">Cài AIWF vào project hiện tại</span>
+                            <p style="font-size: 11px; color: var(--muted); margin: 2px 0 6px 0;">Cài đặt thư mục local <code>.agents/</code> chứa rules, skills, templates, runtime &amp; manifest.</p>
+                            <div class="code-wrapper">
+                                <div class="code-header-bar"><span class="code-lang">bash</span><button class="copy-btn" onclick="copyToClipboard('aiwf install', this)">Copy</button></div>
+                                <pre>aiwf install</pre>
+                            </div>
+                        </div>
+
+                        <div>
+                            <span style="font-size: 12px; color: var(--cyan); font-weight: 600;">Bootstrap Global CLI (Chạy một lần tại thư mục source)</span>
+                            <div class="code-wrapper">
+                                <div class="code-header-bar"><span class="code-lang">macOS / Linux</span><button class="copy-btn" onclick="copyToClipboard('./bootstrap.sh', this)">Copy</button></div>
+                                <pre>./bootstrap.sh</pre>
+                            </div>
+                            <div class="code-wrapper" style="margin-top: 6px;">
+                                <div class="code-header-bar"><span class="code-lang">Windows PowerShell</span><button class="copy-btn" onclick="copyToClipboard('.\\bootstrap.ps1', this)">Copy</button></div>
+                                <pre>.\bootstrap.ps1</pre>
+                            </div>
+                        </div>
+
+                        <div>
+                            <span style="font-size: 12px; color: #ff5252; font-weight: 600;">Gỡ AIWF khỏi project hiện tại</span>
+                            <div class="code-wrapper">
+                                <div class="code-header-bar"><span class="code-lang">bash</span><button class="copy-btn" onclick="copyToClipboard('aiwf uninstall', this)">Copy</button></div>
+                                <pre>aiwf uninstall</pre>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- CARD 2: HEALTHCHECK & CONFIG -->
+                <div class="welcome-card" style="margin-bottom: 0;">
+                    <h3 style="color: #fff; margin-bottom: 8px; font-size: 15px; display: flex; align-items: center; gap: 8px;">
+                        🏥 2. Kiểm tra Healthcheck &amp; Cấu hình (Doctor &amp; Config)
+                    </h3>
+                    <p style="color: var(--muted); font-size: 12px; margin-bottom: 12px;">Kiểm tra sức khỏe môi trường và thiết lập cấu hình dịch vụ một lần cho dự án.</p>
+
+                    <div style="display: flex; flex-direction: column; gap: 12px;">
+                        <div>
+                            <span style="font-size: 12px; color: var(--cyan); font-weight: 600;">Kiểm tra sức khỏe hệ thống</span>
+                            <div class="code-wrapper">
+                                <div class="code-header-bar"><span class="code-lang">bash</span><button class="copy-btn" onclick="copyToClipboard('aiwf doctor', this)">Copy</button></div>
+                                <pre>aiwf doctor</pre>
+                            </div>
+                        </div>
+
+                        <div>
+                            <span style="font-size: 12px; color: var(--cyan); font-weight: 600;">Xem phiên bản CLI hiện tại</span>
+                            <div class="code-wrapper">
+                                <div class="code-header-bar"><span class="code-lang">bash</span><button class="copy-btn" onclick="copyToClipboard('aiwf version', this)">Copy</button></div>
+                                <pre>aiwf version</pre>
+                            </div>
+                        </div>
+
+                        <div>
+                            <span style="font-size: 12px; color: var(--cyan); font-weight: 600;">Cấu hình runtime &amp; khởi chạy daemons</span>
+                            <div class="code-wrapper">
+                                <div class="code-header-bar"><span class="code-lang">bash</span><button class="copy-btn" onclick="copyToClipboard('aiwf config', this)">Copy</button></div>
+                                <pre>aiwf config</pre>
+                            </div>
+                            <div class="code-wrapper" style="margin-top: 6px;">
+                                <div class="code-header-bar"><span class="code-lang">bash (chỉ kiểm tra)</span><button class="copy-btn" onclick="copyToClipboard('aiwf config --check-only', this)">Copy</button></div>
+                                <pre>aiwf config --check-only</pre>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- CARD 3: WORKFLOW STATUS & SESSION -->
+                <div class="welcome-card" style="margin-bottom: 0;">
+                    <h3 style="color: #fff; margin-bottom: 8px; font-size: 15px; display: flex; align-items: center; gap: 8px;">
+                        📊 3. Trạng thái Workflow &amp; Session Engine
+                    </h3>
+                    <p style="color: var(--muted); font-size: 12px; margin-bottom: 12px;">Theo dõi tiến độ SDLC, checkpoint hiện tại và khôi phục phiên gián đoạn.</p>
+
+                    <div style="display: flex; flex-direction: column; gap: 12px;">
+                        <div>
+                            <span style="font-size: 12px; color: var(--cyan); font-weight: 600;">Xem tổng quan trạng thái phiên (Session)</span>
+                            <div class="code-wrapper">
+                                <div class="code-header-bar"><span class="code-lang">bash</span><button class="copy-btn" onclick="copyToClipboard('aiwf status', this)">Copy</button></div>
+                                <pre>aiwf status</pre>
+                            </div>
+                        </div>
+
+                        <div>
+                            <span style="font-size: 12px; color: var(--cyan); font-weight: 600;">Khôi phục quy trình từ checkpoint gần nhất</span>
+                            <div class="code-wrapper">
+                                <div class="code-header-bar"><span class="code-lang">bash</span><button class="copy-btn" onclick="copyToClipboard('aiwf workflow resume', this)">Copy</button></div>
+                                <pre>aiwf workflow resume</pre>
+                            </div>
+                        </div>
+
+                        <div>
+                            <span style="font-size: 12px; color: var(--cyan); font-weight: 600;">Kiểm tra tiến độ chi tiết dạng JSON</span>
+                            <div class="code-wrapper">
+                                <div class="code-header-bar"><span class="code-lang">bash</span><button class="copy-btn" onclick="copyToClipboard('aiwf status --json', this)">Copy</button></div>
+                                <pre>aiwf status --json</pre>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- CARD 4: RUNTIME DAEMON & TELEGRAM -->
+                <div class="welcome-card" style="margin-bottom: 0;">
+                    <h3 style="color: #fff; margin-bottom: 8px; font-size: 15px; display: flex; align-items: center; gap: 8px;">
+                        📲 4. Daemon Services &amp; Thông báo Telegram
+                    </h3>
+                    <p style="color: var(--muted); font-size: 12px; margin-bottom: 12px;">Quản lý daemon chạy ngầm và đẩy thông báo quyết định tới Telegram của Ba.</p>
+
+                    <div style="display: flex; flex-direction: column; gap: 12px;">
+                        <div>
+                            <span style="font-size: 12px; color: var(--cyan); font-weight: 600;">Cấu hình Telegram Bot Token &amp; Chat ID</span>
+                            <div class="code-wrapper">
+                                <div class="code-header-bar"><span class="code-lang">bash</span><button class="copy-btn" onclick="copyToClipboard('aiwf telegram config', this)">Copy</button></div>
+                                <pre>aiwf telegram config</pre>
+                            </div>
+                        </div>
+
+                        <div>
+                            <span style="font-size: 12px; color: var(--cyan); font-weight: 600;">Kiểm tra trạng thái Telegram Daemon</span>
+                            <div class="code-wrapper">
+                                <div class="code-header-bar"><span class="code-lang">bash</span><button class="copy-btn" onclick="copyToClipboard('aiwf telegram status', this)">Copy</button></div>
+                                <pre>aiwf telegram status</pre>
+                            </div>
+                        </div>
+
+                        <div>
+                            <span style="font-size: 12px; color: var(--cyan); font-weight: 600;">Bật / Tắt dịch vụ Telegram Daemon</span>
+                            <div class="code-wrapper">
+                                <div class="code-header-bar"><span class="code-lang">bash</span><button class="copy-btn" onclick="copyToClipboard('aiwf telegram start', this)">Copy</button></div>
+                                <pre>aiwf telegram start</pre>
+                            </div>
+                            <div class="code-wrapper" style="margin-top: 6px;">
+                                <div class="code-header-bar"><span class="code-lang">bash</span><button class="copy-btn" onclick="copyToClipboard('aiwf telegram stop', this)">Copy</button></div>
+                                <pre>aiwf telegram stop</pre>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- CARD 5: MEMORY & PROVIDER -->
+                <div class="welcome-card" style="margin-bottom: 0;">
+                    <h3 style="color: #fff; margin-bottom: 8px; font-size: 15px; display: flex; align-items: center; gap: 8px;">
+                        🧠 5. Quản lý Bộ nhớ (Memory) &amp; Skill Dependencies
+                    </h3>
+                    <p style="color: var(--muted); font-size: 12px; margin-bottom: 12px;">Đồng bộ tri thức dự án và kiểm tra các phụ thuộc kỹ thuật của từng Skill.</p>
+
+                    <div style="display: flex; flex-direction: column; gap: 12px;">
+                        <div>
+                            <span style="font-size: 12px; color: var(--cyan); font-weight: 600;">Đồng bộ Project Memory theo Git diff</span>
+                            <div class="code-wrapper">
+                                <div class="code-header-bar"><span class="code-lang">bash</span><button class="copy-btn" onclick="copyToClipboard('aiwf memory update', this)">Copy</button></div>
+                                <pre>aiwf memory update</pre>
+                            </div>
+                        </div>
+
+                        <div>
+                            <span style="font-size: 12px; color: var(--cyan); font-weight: 600;">Kiểm tra phụ thuộc (Runtime Requirements) của Skill</span>
+                            <div class="code-wrapper">
+                                <div class="code-header-bar"><span class="code-lang">bash</span><button class="copy-btn" onclick="copyToClipboard('aiwf deps check', this)">Copy</button></div>
+                                <pre>aiwf deps check</pre>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- CARD 6: TESTING & RELEASE -->
+                <div class="welcome-card" style="margin-bottom: 0;">
+                    <h3 style="color: #fff; margin-bottom: 8px; font-size: 15px; display: flex; align-items: center; gap: 8px;">
+                        🧪 6. Kiểm thử Scope &amp; Đóng gói Release
+                    </h3>
+                    <p style="color: var(--muted); font-size: 12px; margin-bottom: 12px;">Chạy kiểm thử khoanh vùng và thực hiện quy trình phát hành sản phẩm.</p>
+
+                    <div style="display: flex; flex-direction: column; gap: 12px;">
+                        <div>
+                            <span style="font-size: 12px; color: var(--cyan); font-weight: 600;">Chạy bộ kiểm thử (Targeted Test)</span>
+                            <div class="code-wrapper">
+                                <div class="code-header-bar"><span class="code-lang">bash</span><button class="copy-btn" onclick="copyToClipboard('aiwf test run', this)">Copy</button></div>
+                                <pre>aiwf test run</pre>
+                            </div>
+                        </div>
+
+                        <div>
+                            <span style="font-size: 12px; color: var(--cyan); font-weight: 600;">Thực hiện kế hoạch phát hành (Release Plan)</span>
+                            <div class="code-wrapper">
+                                <div class="code-header-bar"><span class="code-lang">bash</span><button class="copy-btn" onclick="copyToClipboard('aiwf release plan', this)">Copy</button></div>
+                                <pre>aiwf release plan</pre>
                             </div>
                         </div>
                     </div>

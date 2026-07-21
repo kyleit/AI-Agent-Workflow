@@ -60,7 +60,7 @@ def create_authorization(work_item_id: str):
         "allowed_paths": [
             "docs/brainstorming/",
             "docs/plans/",
-            "docs/designs/",
+            "docs/blueprints/",
             "docs/debug/",
             "docs/verification/",
             "artifacts/autonomous-orchestrator/"
@@ -164,7 +164,7 @@ def run_autonomous_delivery(work_item_id: str):
         "AGENT-VERIFY-001", "AGENT-VERIFY-001", "AGENT-VERIFY-001", "AGENT-VERIFY-001", "AGENT-VERIFY-001"
     ]
     locks_spec = [
-        [], [], [], ["docs/designs/"], ["docs/designs/"],
+        [], [], [], ["docs/blueprints/"], ["docs/blueprints/"],
         ["skills/workflow-runtime/scripts/"], ["skills/workflow-runtime/scripts/"], ["extensions/visualizer/resources/webview.html"],
         ["skills/workflow-runtime/scripts/workflow_runtime.py"], ["skills/workflow-runtime/scripts/"],
         ["extensions/visualizer/resources/webview.html"], ["extensions/visualizer/resources/webview.html"],

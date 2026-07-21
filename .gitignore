@@ -8,6 +8,7 @@ __pycache__/
 *.tmp
 *.bak
 .agents/.session.json
+.agents/.session.json.lock
 .agents/state/
 .agents/runtime/*.db
 .agents/runtime/*.db-journal
@@ -25,6 +26,9 @@ scratch/
 # Local runtime choices and transient data
 .agents/runtime/choice-response.json
 .agents/runtime/pending-choice.json
+.agents/inbox/*
+!.agents/inbox/.gitkeep
+.agents/skills/workflow-runtime/tests/integration/temp_full_access_test/
 
 # Performance soak/stress testing evidence and local lease logs
 docs/brainstorming/stale_leases/
@@ -34,3 +38,8 @@ artifacts/adaptive-agent-team/stale_write_evidence.json
 artifacts/full-access-autonomous-delivery/
 
 qdrant_storage
+
+# Telegram Bot Credentials
+.agents/config/.env.telegram-notify
+.agents/config/.env*
+*.env*

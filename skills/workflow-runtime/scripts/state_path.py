@@ -68,8 +68,8 @@ def get_state_file(name: str, workspace_root: Optional[str] = None) -> str:
 
 
 def get_events_path(workspace_root: Optional[str] = None) -> str:
-    """Return the absolute path to state root events.jsonl."""
-    return os.path.join(get_state_root(workspace_root), "events.jsonl")
+    """Return the absolute path to the canonical events/events.jsonl file."""
+    return os.path.join(get_subdir("events", workspace_root), "events.jsonl")
 
 
 def get_dashboard_path(workspace_root: Optional[str] = None) -> str:

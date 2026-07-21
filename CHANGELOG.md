@@ -5,6 +5,79 @@ All notable changes to this project will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [6.19.0] - 2026-07-21
+
+### Added
+- **AIWF runtime configuration and project status workflow (QUICK-035 / QUICK-036)**:
+  - Added project-aware runtime status reporting for registered projects, workflow state, dependency cache, daemon health, Telegram inbox/outbox, and Git status.
+  - Added an interactive AIWF usage guide and interactive docs surface so users can review common setup, status, runtime, and workflow commands from a single place.
+  - Added runtime daemon management guidance for start, stop, enable, disable, and restart flows.
+
+- **Visualizer Extension v1.0.47**:
+  - Added an Active Project Status panel to show registry, Telegram, Git, workflow, lease, dependency cache, and daemon status for the current project.
+  - Added refresh/config controls and parser tests for project status rendering.
+
+### Changed
+- **Continuous pre-approval workflow gates**:
+  - Updated quick-feature, quick-fix, brainstorming, planning, blueprint, and coordinator skills so agents self-review each pre-approval artifact and continue until the Blueprint review passes.
+  - Moved the mandatory user approval stop to the post-Blueprint review gate before implementation.
+  - Added strict failure reporting rules so agents must state failed review points and revise only those points before continuing.
+
+- **AIWF global agent rules**:
+  - Moved Git staging, targeted pytest logging, environment discovery, frontend-design binding, and continuous pre-approval review rules into the reusable AIWF rules block.
+  - Required `frontend-design` whenever a task or artifact touches frontend design, UI/UX, layout, color, typography, animation, icons, or visual hierarchy.
+
+### Fixed
+- **Telegram inbox JSON routing**:
+  - Updated Telegram message routing to write valid JSON objects into `.agents/inbox/inbox.json` using atomic replacement.
+  - Updated the Telegram monitor, routing tests, and notify-telegram documentation to read the JSON inbox format.
+  - Ignored local Telegram inbox runtime data while keeping the project inbox folder available.
+
+## [6.18.4] - 2026-07-21
+
+### Added
+- **Telegram CLI Interactive Configuration (QUICK-034)**:
+  - Added `telegram config` to the workflow runtime so users can configure the Telegram bot token and optional proxy through a guided CLI prompt.
+  - Mirrored the command into `.agents/skills/workflow-runtime/scripts/workflow_runtime.py` so Antigravity and project-local agents use the same runtime behavior as the canonical `skills/` tree.
+  - Updated Unix and PowerShell bootstrap help text to show the Telegram command group.
+
+### Fixed
+- **Configuration save robustness**:
+  - Empty token input now exits with code 1 when no previous token exists.
+  - Telegram configuration writes now use a temporary file plus atomic replacement and sanitized error output.
+- **Project-local Telegram inbox routing**:
+  - Routed Telegram messages into `.agents/inbox/inbox.json` inside the registered project instead of `~/.aiwf/<project>/inbox.json`.
+  - Updated the Telegram monitor and workflow rules so agents may read project-local inbox messages without an extra workflow confirmation prompt.
+  - Kept received Telegram files and photos under `.agents/inbox/` so agents with project-only filesystem access can process them.
+
+## [6.18.3] - 2026-07-20
+
+### Fixed
+- **Sửa lỗi Telegram Listener Daemon & Thêm Quy tắc Phản hồi (FIX-410)**:
+  - Tách tiến trình `listen.sh` thành daemon độc lập bằng cách truyền Parent PID rỗng.
+  - Khắc phục lỗi mã hóa Unicode trên hệ điều hành Windows (loại bỏ ký tự emoji `✨`).
+  - Gửi thông báo khởi tạo thành công kèm `Conversation ID` hiện hành qua Telegram API.
+  - Tự động đăng ký các câu lệnh chính thức của Telegram qua api `setMyCommands`.
+  - Khắc phục các xung đột liên quan đến Windows PID trên Git Bash/MSYS và bắt lỗi crash `curl`.
+- **Cập nhật chính sách đường dẫn tương đối (Relative Path Policy)**:
+  - Yêu cầu bắt buộc mọi tài liệu Markdown (`docs/`) và quy tắc chung (`AI_RULES.md`) phải sử dụng định dạng đường dẫn tương đối thay vì dùng link tuyệt đối (`file:///`).
+
+### Added (Visualizer Extension v1.0.46)
+- **Tăng cường Extension API & Sidebar controller (QUICK-033 / FEAT-409)**:
+  - Đăng ký các lệnh VS Code chính thức `visualizer.getSessionData` và `ai-skill-workflow-visualizer.getSessionData` để xuất trạng thái session hiện tại.
+  - Sửa lỗi null check an toàn cho tab stats của Test Coordinator.
+  - Bổ sung bộ điều khiển Sidebar Toggle lưu trạng thái mở rộng/thu gọn vào LocalStorage.
+
+## [6.18.2] - 2026-07-19
+
+### Fixed
+- **Tự động khởi chạy Telegram Inbox Monitor (FIX-411)**:
+  - Tự động chạy tiến trình nền `monitor_listener.py` khi chạy lệnh `init` khởi động workflow, giải quyết vấn đề nhận lệnh Telegram trên các cuộc hội thoại mới.
+  - Tương thích tốt với môi trường Windows (`CREATE_NO_WINDOW`) và Unix (`start_new_session=True`), chạy không chặn (non-blocking) và ẩn log.
+  - Cập nhật tài liệu kỹ năng `initialize-workflow` để loại bỏ hướng dẫn chạy script `listen.sh` cũ.
+- **Quy tắc Kiểm thử Giới hạn Phạm vi (Targeted Testing)**:
+  - Bổ sung quy định kiểm thử mới vào `AGENTS.md`, yêu cầu Agent chỉ chạy các test case liên quan trực tiếp đến thành phần chỉnh sửa để tiết kiệm tài nguyên.
+
 ## [6.16.0] - 2026-07-13
 
 ### Added
@@ -76,8 +149,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Fixed
 - **OS File Locking & Process Resiliency (FEAT-051 / Multi-Agent Safety)**:
-  - Khôi phục công cụ an toàn ghi đa tác nhân [safe_multi_agent_writes.py](file:///e:/AgentsProject/skills/workflow-runtime/scripts/safe_multi_agent_writes.py) và các tệp kiểm thử đi kèm.
-  - Sửa đổi cơ chế khóa `OSFileLock` trong [session.py](file:///e:/AgentsProject/skills/workflow-runtime/scripts/session.py) để cô lập cờ bypass lock chỉ kích hoạt trong môi trường kiểm thử pytest (`PYTEST_CURRENT_TEST`), đảm bảo lock vật lý luôn hoạt động trên production.
+  - Khôi phục công cụ an toàn ghi đa tác nhân [safe_multi_agent_writes.py](skills/workflow-runtime/scripts/safe_multi_agent_writes.py) và các tệp kiểm thử đi kèm.
+  - Sửa đổi cơ chế khóa `OSFileLock` trong [session.py](skills/workflow-runtime/scripts/session.py) để cô lập cờ bypass lock chỉ kích hoạt trong môi trường kiểm thử pytest (`PYTEST_CURRENT_TEST`), đảm bảo lock vật lý luôn hoạt động trên production.
   - Bổ sung cơ chế khóa tiến trình `OSFileLock` cho `LeaseManager` trong `safe_multi_agent_writes.py` nhằm loại bỏ rủi ro tranh chấp ghi file đĩa đồng thời trên Windows.
   - Bổ sung cơ chế thử lại (atomic replace retry loop) tối đa 5 lần cho `write_json_atomic` tăng cường khả năng phục hồi lỗi khóa tệp Windows.
   - Dọn dẹp triệt để các tiến trình mồ côi (zombie python tasks) giúp tái tạo môi trường làm việc sạch.
@@ -87,8 +160,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Fixed
 - **Incident Recovery & Hardening (FEAT-118)**:
-  - Khắc phục sự cố tràn tiến trình Python gây OOM bằng cách tối ưu hóa kết nối SQLite trong [db.py](file:///e:/AgentsProject/skills/workflow-runtime/scripts/db.py) (tránh truy vấn khóa độc quyền ghi khi đọc dữ liệu).
-  - Tích hợp kiểm tra PID kết hợp `process_create_time` qua `psutil` trong [workflow_runtime.py](file:///e:/AgentsProject/skills/workflow-runtime/scripts/workflow_runtime.py) nhằm loại bỏ lỗi nhận diện sai tiến trình trùng lặp PID trên Windows.
+  - Khắc phục sự cố tràn tiến trình Python gây OOM bằng cách tối ưu hóa kết nối SQLite trong [db.py](skills/workflow-runtime/scripts/db.py) (tránh truy vấn khóa độc quyền ghi khi đọc dữ liệu).
+  - Tích hợp kiểm tra PID kết hợp `process_create_time` qua `psutil` trong [workflow_runtime.py](skills/workflow-runtime/scripts/workflow_runtime.py) nhằm loại bỏ lỗi nhận diện sai tiến trình trùng lặp PID trên Windows.
   - Áp dụng cơ chế nhóm Windows Job Object để tự động dọn dẹp các tiến trình con khi tiến trình cha daemon bị kết thúc.
   - Tự động bỏ qua (bypass) các cổng phê duyệt trung gian (`blueprint_approval`) khi kích hoạt chế độ tự động `autonomous_delivery`, ngoại trừ cổng kiểm soát phát hành (`release_approval`).
   - Hoàn thiện lập lịch thông minh Adaptive Team Planner và giới hạn tài nguyên tính toán cho `RuntimeScheduler`.
@@ -100,7 +173,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   - Triển khai cờ khởi chạy CLI `--autonomous` cho phép tự động bypass các cổng phê duyệt thủ công trung gian đối với các hành động thông thường (normal writes/compiles/tests).
   - Tích hợp tính năng tự động ghi nhận thuộc tính `autonomous_delivery` và tính toán động `progress_percentage` trong pha lưu trữ phân tách Pure Split State.
   - Tích hợp nhãn trạng thái `⚡ AUTONOMOUS DELIVERY` động và thanh tiến độ thực thi trực quan trên Visualizer Sidebar.
-  - Bổ sung quy tắc theo dõi và thông báo tiến độ kiểm thử chạy ngầm (background tests) mỗi 5% tiến trình vào chính sách kiểm thử [AI_RULES.md](file:///e:/AgentsProject/AI_RULES.md).
+  - Bổ sung quy tắc theo dõi và thông báo tiến độ kiểm thử chạy ngầm (background tests) mỗi 5% tiến trình vào chính sách kiểm thử [AI_RULES.md](AI_RULES.md).
 
 ## [6.12.0] - 2026-07-12
 

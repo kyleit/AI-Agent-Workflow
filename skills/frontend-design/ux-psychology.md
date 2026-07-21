@@ -29,7 +29,6 @@ Where n = number of choices
 ❌ Bad: 20 form fields at once
 ✅ Good: 3-step wizard with 5-7 fields each
 ```
-
 ---
 
 ### Fitts' Law

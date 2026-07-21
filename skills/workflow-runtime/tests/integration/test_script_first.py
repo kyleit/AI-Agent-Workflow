@@ -145,14 +145,14 @@ class TestScriptFirstExecution(unittest.TestCase):
     # Scenario 9: blueprint validation fails for missing
     def test_blueprint_validation_missing(self):
         from artifact_validator import validate_blueprint_file
-        res = validate_blueprint_file("docs/designs/non_existent_blueprint.md")
+        res = validate_blueprint_file("docs/blueprints/non_existent_blueprint.md")
         self.assertEqual(res["status"], "failure")
 
     # Scenario 10: implementation gate blocks non-blueprint input
     # Verified by checking blueprint files missing or unapproved
     def test_implementation_gate_blocks(self):
         from artifact_validator import validate_blueprint_file
-        res = validate_blueprint_file("docs/designs/non_existent_blueprint.md", "FEAT-")
+        res = validate_blueprint_file("docs/blueprints/non_existent_blueprint.md", "FEAT-")
         self.assertEqual(res["status"], "failure")
 
     # Scenario 11 & 12: quick-fix and quick-feature stops after specs
@@ -173,7 +173,7 @@ class TestScriptFirstExecution(unittest.TestCase):
     def test_verify_runner_blocks_release(self):
         from validation_runner import run_verify
         from session import save_session_atomic
-        bp_path = "docs/designs/FEAT-021_script_first_execution_blueprint.md"
+        bp_path = "docs/blueprints/FEAT-021_script_first_execution_blueprint.md"
         os.makedirs(os.path.dirname(bp_path), exist_ok=True)
         with open(bp_path, "w", encoding="utf-8") as f:
             f.write("# FEAT-021 Blueprint\n\n## Technical Blueprint\n## System Architecture\n## Implementation Plan\n## Verification Plan")

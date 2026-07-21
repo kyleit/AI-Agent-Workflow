@@ -10,7 +10,7 @@ class EvidenceGateEngine:
         # Check physical folder artifacts as required by FEAT-304
         if evidence.get("workflow_mode") == "autonomous":
             brainstorming_dir = os.path.join(self.workspace_root, "docs", "brainstorming")
-            planning_dir = os.path.join(self.workspace_root, "docs", "planning")
+            planning_dir = os.path.join(self.workspace_root, "docs", "plans")
             blueprints_dir = os.path.join(self.workspace_root, "docs", "blueprints")
             
             # Brainstorming folder check

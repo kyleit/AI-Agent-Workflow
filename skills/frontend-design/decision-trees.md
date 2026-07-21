@@ -15,7 +15,6 @@ This file helps you DECIDE, not copy.
 - **Always ask user preferences** before applying
 - **Generate fresh palettes** based on context, don't copy hex codes
 - **Apply UX laws** from ux-psychology.md to validate decisions
-
 ---
 
 ## 1. Master Decision Tree

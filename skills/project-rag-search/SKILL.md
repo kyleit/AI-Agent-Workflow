@@ -22,8 +22,7 @@ runtime_requirements:
   environment: none
   version: none
   provider: optional
-  usage: none
----
+  usage: none---
 
 # Skill: Project RAG Search (Script-First)
 
@@ -33,7 +32,7 @@ Provide semantic retrieval of Project Memory in response to a natural language q
 ## Script Invocation
 Execute the Python CLI command:
 ```bash
-python3 runtime/scripts/project_memory/cli.py search "<query>"
+python3 .agents/runtime/scripts/project_memory/cli.py search "<query>"
 ```
 
 ## Expected Output

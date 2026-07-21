@@ -52,8 +52,11 @@ show_help() {
     echo "  sync         Sync project memory/documentation to external providers (e.g. Obsidian)"
     echo "  init         Initialize a new project workspace"
     echo "  test         Execute unit, integration, or e2e test validation runner"
+    echo "  config       Check and bootstrap AIWF runtime services"
+    echo "  runtime      Manage runtime daemon, command bus, and policy"
     echo "  workflow     Submit, inspect, track, or manage active SDLC workflows"
     echo "  session      Recover, inspect, lock, or update active workspace sessions"
+    echo "  telegram     Manage Telegram global configuration, shared daemon, and project links"
     echo "  help         Show this help message"
 }
 

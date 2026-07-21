@@ -9,12 +9,7 @@ tags:
   - recovery
   - runtime
 version: 2.5.0
-author:
-  name: Kyle Dang
-  email: kyleit@klexpress.net
-  website: https://www.klexpress.net
 license: MIT
-repository: https://gitlab.com/hngan.it/ai-workflow-skills
 created_at: 2026-07-03
 updated_at: 2026-07-03
 description: Resume the AI Engineering Workflow from the last recorded checkpoint by reading .agents/.session.json and validating the workspace environment.
@@ -29,8 +24,7 @@ runtime_requirements:
   environment: cached
   version: cached
   provider: optional
-  usage: cached
----
+  usage: cached---
 
 # Skill: resume-workflow (Workflow Recovery Engine)
 

@@ -1,5 +1,5 @@
 ---
-name: orchestrator
+name: orchestrator [DEPRECATED]
 command: orchestrate
 aliases:
   - orchestrator
@@ -11,7 +11,10 @@ tags:
   - workflow
   - runtime
 version: 1.0.0
-description: Top-level autonomous execution orchestrator and single entry point of the framework.
+license: MIT
+created_at: 2026-07-15
+updated_at: 2026-07-15
+description: (DEPRECATED) Legacy autonomous execution orchestrator. Use workflow-coordinator instead.
 runtime_requirements:
   rules: required
   state: required
@@ -23,10 +26,39 @@ runtime_requirements:
   environment: cached
   version: cached
   provider: optional
-  usage: cached
+  usage: cached---
+
+# Skill: orchestrator [DEPRECATED]
+
+> [!WARNING]
+> This skill is **DEPRECATED**. Please use the new `workflow-coordinator` skill instead.
+> Legacy commands `orchestrator` and `orchestrate` are shimmed and routed internally to `workflow-coordinator`.
+
 ---
 
-# Skill: orchestrator
+## Purpose
+
+(DEPRECATED) Legacy autonomous execution orchestrator. Use workflow-coordinator instead.
+
+---
+
+## 🔒 WORKFLOW RUNTIME & INITIALIZATION CHECK
+
+This Skill interfaces with the centralized Python CLI Runtime Engine:
+- **Validate Checkpoint**: Run `python skills/workflow-runtime/scripts/workflow_runtime.py validate --checkpoint "optional"` before taking any action.
+- **Progress Tracking**: Update status and log progress using `workflow_runtime.py` when integrated in a workflow session.
+
+---
+
+## 🔒 GLOBAL POLICY REFERENCES
+
+This Skill strictly adheres to the global policies defined in [AI_RULES.md](../../AI_RULES.md):
+- **Approval Gate Policy** (Section 1) - Seek explicit confirmation before modifying code or creating files.
+- **Memory First Policy** (Section 3) - Consult project summary/memory before source files or user questions.
+- **RAG Policy** (Section 4) - Follow retrieval sequence levels.
+- **Artifact Policy** (Section 5) - Strictly follow path boundaries and naming formats.
+
+---
 
 ## Overview
 The Orchestrator is the single entry point for all framework workflows. It automatically analyzes user intent, builds the execution DAG, handles file locking, runs tasks sequentially, and manages runtime updates, rendering manual skill selection obsolete.
@@ -64,7 +96,7 @@ The Orchestrator is the single entry point for all framework workflows. It autom
 ## 🔒 Blueprint Enforcement & IDE Integration Guide
 1. **Quy tắc phối hợp giữa Antigravity IDE và Framework**:
    - Tệp `implementation_plan.md` (yêu cầu của Antigravity IDE) chỉ đóng vai trò là "cầu nối phê duyệt" với IDE để xin phép sửa đổi file.
-   - Nội dung của `implementation_plan.md` phải tuân thủ và khớp 100% với tệp Design Blueprint (`docs/designs/FEAT-XXX_*` hoặc `docs/designs/FIX-XXX_*`) trong dự án.
+   - Nội dung của `implementation_plan.md` phải tuân thủ và khớp 100% với tệp Design Blueprint (`docs/blueprints/FEAT-XXX_*` hoặc `docs/blueprints/FIX-XXX_*`) trong dự án.
    - Agent không được tự biên tự diễn giải pháp mới trong `implementation_plan.md` nếu chưa có Design Blueprint được đăng ký và phê duyệt hợp lệ qua CLI (`aiwf blueprint --approve`).
 2. **Chặn cứng Phase 6 (Implementation)**:
    - Nếu session có checkpoint < 5 (chưa phê duyệt Blueprint) và yêu cầu thuộc về một active feature/fix đang triển khai, Orchestrator cấm tuyệt đối đề xuất chạy Implementation. Phải hướng dẫn người dùng chạy Spec/Blueprint phase trước.

@@ -12,12 +12,7 @@ tags:
   - cache
   - search
 version: 1.0.0
-author:
-  name: Kyle Dang
-  email: kyleit@klexpress.net
-  website: https://www.klexpress.net
 license: MIT
-repository: https://gitlab.com/hngan.it/ai-workflow-skills
 created_at: 2026-07-09
 updated_at: 2026-07-09
 description: Unified knowledge layer and provider router for the AI Engineering Workflow framework.
@@ -32,8 +27,7 @@ runtime_requirements:
   environment: none
   version: none
   provider: optional
-  usage: none
----
+  usage: none---
 
 # Knowledge Runtime Skill
 

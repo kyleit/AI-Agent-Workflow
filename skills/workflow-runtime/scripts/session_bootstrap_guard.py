@@ -69,7 +69,7 @@ class SessionBootstrapGuard:
                         "name": "brainstorming-to-plan",
                         "phase": "planning",
                         "inputs": ["brainstorm_file"],
-                        "required_outputs": ["docs/planning/*_plan.md"],
+                        "required_outputs": ["docs/plans/*_plan.md"],
                         "next_phase": "Gate1_PlanApproval"
                     },
                     "blueprint": {

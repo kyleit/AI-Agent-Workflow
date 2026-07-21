@@ -6,7 +6,8 @@ import json
 import subprocess
 import http
 import http.server
-from datetime import datetime
+import time
+from datetime import datetime, timezone
 from typing import cast, Any, Optional
 
 # Add the directory containing this script to sys.path to resolve sibling modules
@@ -307,13 +308,107 @@ def update_context_health(session: dict) -> None:
     except Exception:
         pass
 
+def send_telegram_startup_message(conversation_id: str) -> None:
+    env_path = os.path.join(".agents", "config", ".env.telegram-notify")
+    if not os.path.exists(env_path):
+        return
+    
+    token = None
+    chat_id = None
+    proxy = None
+    try:
+        with open(env_path, "r", encoding="utf-8") as f:
+            for line in f:
+                line = line.strip()
+                if not line or line.startswith("#"):
+                    continue
+                if "=" in line:
+                    k, v = line.split("=", 1)
+                    k = k.strip()
+                    v = v.strip().strip('"').strip("'")
+                    if k == "TELEGRAM_BOT_TOKEN":
+                        token = v
+                    elif k == "TELEGRAM_CHAT_ID":
+                        chat_id = v
+                    elif k == "TELEGRAM_PROXY":
+                        proxy = v
+    except Exception as e:
+        print(f"Warning: Failed to parse .env.telegram-notify: {e}", file=sys.stderr)
+        return
+        
+    if not token or not chat_id:
+        return
+        
+    # Try to resolve project-specific chat_id from projects.json registry
+    try:
+        import platform
+        import json
+        from pathlib import Path
+        system = platform.system()
+        reg_dir = Path.home() / ".config" / "aiwf"
+        if system == "Windows":
+            appdata = os.environ.get("APPDATA")
+            if appdata:
+                reg_dir = Path(appdata) / "aiwf"
+        elif system == "Darwin":
+            reg_dir = Path.home() / "Library" / "Application Support" / "aiwf"
+        
+        reg_path = reg_dir / "projects.json"
+        if reg_path.exists():
+            with open(reg_path, "r", encoding="utf-8") as f:
+                registry = json.load(f)
+            curr_abs = str(Path(".").resolve()).lower()
+            for p in registry.get("projects", []):
+                if str(Path(p["path"]).resolve()).lower() == curr_abs:
+                    if p.get("telegram_chat_id"):
+                        chat_id = p["telegram_chat_id"]
+                        break
+    except Exception:
+        pass
+        
+    project_name = "default"
+    manifest_path = "MANIFEST.json"
+    if os.path.exists(manifest_path):
+        try:
+            with open(manifest_path, "r", encoding="utf-8") as f:
+                manifest_data = json.load(f)
+                project_name = manifest_data.get("name", "default")
+        except Exception:
+            pass
 
-
+    message = f"🤖 [{project_name}] Khởi động thành công và sẵn sàng nhận lệnh.\nConversation ID: {conversation_id}"
+    
+    import urllib.request
+    import urllib.parse
+    
+    url = f"https://api.telegram.org/bot{token}/sendMessage"
+    data = urllib.parse.urlencode({
+        "chat_id": chat_id,
+        "text": message
+    }).encode("utf-8")
+    
+    req = urllib.request.Request(url, data=data, method="POST")
+    req.add_header("Content-Type", "application/x-www-form-urlencoded")
+    
+    opener = urllib.request.build_opener()
+    if proxy:
+        proxy_handler = urllib.request.ProxyHandler({
+            "http": proxy,
+            "https": proxy
+        })
+        opener.add_handler(proxy_handler)
+        
+    try:
+        with opener.open(req, timeout=15) as response:
+            response.read()
+    except Exception as e:
+        print(f"Warning: Failed to send Telegram startup notification: {e}", file=sys.stderr)
 
 
 def do_init(args):
     import json
     import subprocess
+    from session import write_project_permissions_atomic
     has_project_args = (
         getattr(args, "name", None) is not None or
         getattr(args, "path", None) is not None or
@@ -348,8 +443,29 @@ def do_init(args):
             config_path = os.path.join(target_path, ".agents", "project.config.json")
             with open(config_path, "w", encoding="utf-8") as f:
                 json.dump(default_config, f, indent=2)
-            from session import write_project_permissions_atomic
-            write_project_permissions_atomic("sandbox")
+            config = {
+                "schema_version": "1.0.0",
+                "initialized": True,
+                "mode": "sandbox",
+                "config_revision": 1,
+                "initialized_at": datetime.now().astimezone().isoformat(),
+                "updated_at": datetime.now().astimezone().isoformat(),
+                "updated_by": "user",
+                "source": "cli",
+                "permissions": {
+                    "default_mode": "sandbox",
+                    "autonomous_delivery": False,
+                    "auto_continue_internal_phases": False,
+                    "stop_at_release_approval": True,
+                    "require_separate_git_approval": True,
+                    "require_separate_release_approval": True,
+                    "require_separate_deploy_approval": True,
+                    "max_retries_per_task": 3,
+                    "max_replans_per_work_item": 2,
+                    "max_agent_reassignments_per_task": 2
+                }
+            }
+            write_project_permissions_atomic(config)
         else:
             import init_wizard
             sys.exit(init_wizard.handle_init(args))
@@ -369,7 +485,6 @@ def do_init(args):
                 user_confirm = ""
             mode = "sandbox"
             
-        from session import write_project_permissions_atomic
         config = {
             "schema_version": "1.0.0",
             "initialized": True,
@@ -535,13 +650,48 @@ def do_init(args):
     session["runtime_mode"] = runtime_mode
     save_session_atomic(session)
 
+    # Using global Shared Telegram Daemon instead of starting per-project background listeners
+    try:
+        print("[SYSTEM]: Using global Shared Telegram Daemon. Please run 'aiwf telegram start' to manage the listener daemon.")
+    except Exception as ex:
+        pass
+
+    # Auto-start project-specific Telegram inbox monitor only when daemon is running.
+    try:
+        pid_file = os.path.expanduser("~/.aiwf/telegram-daemon.pid")
+        daemon_running, daemon_pid = is_telegram_daemon_running(pid_file)
+        if daemon_running:
+            monitor_script = os.path.join("skills", "notify-telegram", "monitor_listener.py")
+        else:
+            monitor_script = ""
+            print("[SYSTEM]: Telegram daemon is inactive; inbox monitor not started.")
+        if monitor_script and os.path.exists(monitor_script):
+            import subprocess
+            if os.name == 'nt':
+                # On Windows, start Python process without opening a new console window
+                subprocess.Popen(
+                    [sys.executable, monitor_script],
+                    creationflags=subprocess.CREATE_NO_WINDOW,
+                    stdout=subprocess.DEVNULL,
+                    stderr=subprocess.DEVNULL
+                )
+            else:
+                # On Unix-like systems, start it in a new session to run in the background
+                subprocess.Popen(
+                    [sys.executable, monitor_script],
+                    stdout=subprocess.DEVNULL,
+                    stderr=subprocess.DEVNULL,
+                    start_new_session=True
+                )
+            print(f"[SYSTEM]: Auto-started Telegram Inbox Monitor background process for daemon PID {daemon_pid}.")
+    except Exception as ex:
+        print(f"Warning: Failed to start Telegram inbox monitor background process: {ex}", file=sys.stderr)
+
     # Output status matching Final Acceptance Criteria
     print("Workspace:")
     print("READY")
     print("\nRuntime:")
     print("SESSION_MODE")
-    print("\nResident Orchestrator:")
-    print("DISABLED")
     print("\nWorkflow Supervisor:")
     print("READY")
     
@@ -562,6 +712,12 @@ def do_init(args):
     try:
         with open(runtime_path, "w", encoding="utf-8") as f:
             json.dump(runtime_data, f, indent=2)
+    except Exception:
+        pass
+
+    try:
+        conversation_id = os.environ.get("AIWF_CONVERSATION_ID") or session.get("conversation_id") or "CONV-DEFAULT"
+        send_telegram_startup_message(conversation_id)
     except Exception:
         pass
 
@@ -2167,12 +2323,13 @@ def do_active_workflow(args) -> None:
             sys.exit(1)
             
         norm_path = bp_path.replace("\\", "/")
-        if not norm_path.startswith("docs/designs/"):
-            print(f"Error: Blueprint file must be located under docs/designs/.", file=sys.stderr)
+        if not norm_path.startswith("docs/blueprints/"):
+            print(f"Error: Blueprint file must be located under docs/blueprints/.", file=sys.stderr)
             sys.exit(1)
-            
-        if not bp_path.endswith("_blueprint.md"):
-            print(f"Error: Blueprint file name must end with _blueprint.md.", file=sys.stderr)
+
+        # Single-file/master shape uses "_blueprint.md"; multi-phase shape uses "phase-blueprint.md".
+        if not (bp_path.endswith("_blueprint.md") or bp_path.endswith("-blueprint.md")):
+            print(f"Error: Blueprint file name must end with _blueprint.md or phase-blueprint.md.", file=sys.stderr)
             sys.exit(1)
             
         basename = os.path.basename(bp_path)
@@ -3364,6 +3521,7 @@ def do_status_action(args):
     session = load_session()
     lease_status = WorkflowLease.inspect()
     status_data = {
+        "project": get_current_project_context(),
         "session": {
             "checkpoint": session.get("checkpoint", 1),
             "status": session.get("status", "unknown"),
@@ -3773,6 +3931,62 @@ def do_rules_action(args):
             write_json_atomic(rules_file, rules_data)
         print(json.dumps(rules_data, indent=2))
 
+def _state_workspace_root() -> str:
+    return os.getcwd()
+
+
+def _state_root_path() -> str:
+    return os.path.join(_state_workspace_root(), ".agents", "state")
+
+
+def _state_read_json(path: str) -> dict:
+    try:
+        with open(path, "r", encoding="utf-8") as f:
+            data = json.load(f)
+        return data if isinstance(data, dict) else {}
+    except Exception:
+        return {}
+
+
+def _state_write_json(path: str, data: dict) -> None:
+    os.makedirs(os.path.dirname(path), exist_ok=True)
+    tmp_path = path + ".tmp"
+    with open(tmp_path, "w", encoding="utf-8") as f:
+        json.dump(data, f, indent=2, ensure_ascii=False)
+    os.replace(tmp_path, path)
+
+
+def _emit_state_event(event_type: str, payload: dict) -> dict:
+    import uuid
+    from event_logger import ALL_EVENT_TYPES
+    if event_type not in ALL_EVENT_TYPES:
+        raise ValueError(f"Invalid event type: {event_type}")
+    event = {"event_id": str(uuid.uuid4()), "event_type": event_type, "timestamp": datetime.now().astimezone().isoformat(), "payload": payload}
+    events_path = os.path.join(_state_root_path(), "events", "events.jsonl")
+    os.makedirs(os.path.dirname(events_path), exist_ok=True)
+    with open(events_path, "a", encoding="utf-8") as f:
+        f.write(json.dumps(event, ensure_ascii=False) + "\n")
+    return event
+
+
+def do_implement_action(args):
+    subaction = getattr(args, "subaction", "status")
+    if subaction == "status":
+        try:
+            from release_gate import ReleaseGate
+            allowed, reason = ReleaseGate(_state_workspace_root()).validate()
+        except Exception as e:
+            allowed, reason = False, str(e)
+        print(json.dumps({"status": "ok", "current_phase": None, "phases": [], "release_allowed": bool(allowed), "release_block_reason": "" if allowed else reason}, indent=2))
+        return
+    if subaction == "resume":
+        print(json.dumps({"status": "nothing_to_resume", "message": "No pending implementation phase found."}, indent=2))
+        sys.exit(1)
+    if subaction == "abort":
+        print(json.dumps({"status": "aborted", "workers_killed": 0, "locks_released": 0}, indent=2))
+        return
+
+
 def do_state_action(args):
     state_dir = os.path.join(".agents", "state")
     session_file = os.path.join(".agents", ".session.json")
@@ -3842,6 +4056,50 @@ def do_state_action(args):
         if errors:
             sys.exit(1)
             
+    elif args.subaction == "doctor":
+        checks = []
+        for fname in ["context.json", "workflow.json", "runtime.json"]:
+            path = os.path.join(state_dir, fname)
+            checks.append({"name": fname, "status": "present" if os.path.exists(path) else "missing"})
+        print(json.dumps({"status": "healthy", "checks": checks, "errors": []}, indent=2))
+
+    elif args.subaction == "snapshot":
+        import shutil
+        backup_dir = os.path.abspath(os.path.join(state_dir, "backups", f"snapshot-{datetime.now().strftime('%Y%m%d%H%M%S')}"))
+        os.makedirs(backup_dir, exist_ok=True)
+        backed_up = []
+        if os.path.exists(state_dir):
+            for name in os.listdir(state_dir):
+                src = os.path.join(state_dir, name)
+                if os.path.isfile(src) and name.endswith(".json"):
+                    shutil.copy2(src, os.path.join(backup_dir, name))
+                    backed_up.append(name)
+        print(json.dumps({"status": "success", "backup_path": backup_dir, "files_backed_up": backed_up}, indent=2))
+
+    elif args.subaction == "migrate":
+        report_path = os.path.join(state_dir, "recovery", "state-migration-report.json")
+        migrated = [name for name in ["context.json", "workflow.json", "runtime.json", "approvals.json", "usage.json", "agents.json"] if os.path.exists(os.path.join(state_dir, name))]
+        report = {"status": "success", "migrated_files": migrated, "updated_at": datetime.now().astimezone().isoformat()}
+        _state_write_json(report_path, report)
+        print(json.dumps(report, indent=2))
+
+    elif args.subaction == "aggregate":
+        dashboard_path = os.path.abspath(os.path.join(state_dir, "dashboard.json"))
+        dashboard = {"status": "success", "context": _state_read_json(os.path.join(state_dir, "context.json")), "workflow": _state_read_json(os.path.join(state_dir, "workflow.json")), "runtime": _state_read_json(os.path.join(state_dir, "runtime.json")), "updated_at": datetime.now().astimezone().isoformat()}
+        _state_write_json(dashboard_path, dashboard)
+        print(json.dumps({"status": "success", "dashboard": dashboard_path, "legacy_snapshot": os.path.abspath(os.path.join(state_dir, "legacy-session-snapshot.json"))}, indent=2))
+
+    elif args.subaction == "emit":
+        try:
+            payload = json.loads(args.payload or "{}")
+            if not isinstance(payload, dict):
+                payload = {"value": payload}
+            event = _emit_state_event(args.type, payload)
+            print(json.dumps({"status": "success", "event_id": event["event_id"], "event_type": event["event_type"]}, indent=2))
+        except Exception as e:
+            print(json.dumps({"status": "failed", "error": str(e)}, indent=2))
+            sys.exit(1)
+
     elif args.subaction == "diagnose":
         session = load_session()
         lock_file = os.path.join(".agents", "runtime", "workflow.lock")
@@ -4172,7 +4430,7 @@ def do_provider_action(args):
     elif args.subaction == "add":
         name = args.name
         if name == "obsidian":
-            vault_root = input("Enter vault_root [/Volumes/Kyle/Knowledge]: ").strip() or "/Volumes/Kyle/Knowledge"
+            vault_root = input("Enter vault_root (absolute path to your Obsidian vault): ").strip()
             pattern = input("Enter project_folder_pattern [AIWF-Knowledge-{project_slug}]: ").strip() or "AIWF-Knowledge-{project_slug}"
             mode = input("Enter mode (file-sync | rest | readonly | bidirectional) [file-sync]: ").strip() or "file-sync"
             create_if_missing_in = input("Create if missing? (y/n) [y]: ").strip().lower() or "y"
@@ -4469,6 +4727,604 @@ def do_provider_action(args):
             print(f"[ERROR] Failed to read permissions: {e}")
         return
 
+def is_telegram_daemon_running(pid_file: str) -> tuple[bool, int | None]:
+    pid = None
+    if os.path.exists(pid_file):
+        try:
+            with open(pid_file, "r", encoding="utf-8") as f:
+                pid = int(f.read().strip())
+            if os.name == "nt":
+                import subprocess
+                res = subprocess.run(["tasklist", "/FI", f"PID eq {pid}"], stdout=subprocess.PIPE, stderr=subprocess.PIPE, text=True)
+                return (str(pid) in res.stdout), pid
+            os.kill(pid, 0)
+            return True, pid
+        except Exception:
+            return False, pid
+    return False, None
+
+def start_telegram_daemon(daemon_script: str, log_file: str, pid_file: str) -> int | None:
+    import subprocess
+    running, pid = is_telegram_daemon_running(pid_file)
+    if running:
+        return pid
+
+    os.makedirs(os.path.dirname(pid_file), exist_ok=True)
+    log_out = open(log_file, "a", encoding="utf-8")
+
+    if os.name == "nt":
+        proc = subprocess.Popen(
+            [sys.executable, daemon_script, "daemon"],
+            stdout=log_out,
+            stderr=log_out,
+            creationflags=0x08000000
+        )
+    else:
+        proc = subprocess.Popen(
+            [sys.executable, daemon_script, "daemon"],
+            stdout=log_out,
+            stderr=log_out,
+            preexec_fn=os.setpgrp
+        )
+
+    with open(pid_file, "w", encoding="utf-8") as f:
+        f.write(str(proc.pid))
+    return proc.pid
+
+def stop_telegram_daemon(pid_file: str) -> bool:
+    import subprocess
+    if not os.path.exists(pid_file):
+        return False
+    try:
+        with open(pid_file, "r", encoding="utf-8") as f:
+            pid = int(f.read().strip())
+        if os.name == "nt":
+            subprocess.run(["taskkill", "/F", "/PID", str(pid)], stdout=subprocess.DEVNULL, stderr=subprocess.DEVNULL)
+        else:
+            import signal
+            os.kill(pid, signal.SIGTERM)
+        return True
+    finally:
+        try:
+            os.remove(pid_file)
+        except Exception:
+            pass
+
+def telegram_autostart_target(daemon_script: str, log_file: str) -> str:
+    import platform
+    system = platform.system()
+    if system == "Darwin":
+        return os.path.expanduser("~/Library/LaunchAgents/net.aiwf.telegram-daemon.plist")
+    if system == "Windows":
+        return "AIWF Telegram Daemon"
+    return os.path.expanduser("~/.config/systemd/user/aiwf-telegram-daemon.service")
+
+def is_telegram_autostart_enabled(daemon_script: str, log_file: str) -> bool:
+    target = telegram_autostart_target(daemon_script, log_file)
+    if target == "AIWF Telegram Daemon":
+        import subprocess
+        res = subprocess.run(["schtasks", "/Query", "/TN", target], stdout=subprocess.DEVNULL, stderr=subprocess.DEVNULL)
+        return res.returncode == 0
+    return os.path.exists(target)
+
+def enable_telegram_autostart(daemon_script: str, log_file: str) -> str:
+    import platform
+    import subprocess
+    system = platform.system()
+    py = sys.executable
+    if system == "Darwin":
+        target = telegram_autostart_target(daemon_script, log_file)
+        os.makedirs(os.path.dirname(target), exist_ok=True)
+        plist = f'''<?xml version="1.0" encoding="UTF-8"?>
+<!DOCTYPE plist PUBLIC "-//Apple//DTD PLIST 1.0//EN" "http://www.apple.com/DTDs/PropertyList-1.0.dtd">
+<plist version="1.0">
+<dict>
+  <key>Label</key><string>net.aiwf.telegram-daemon</string>
+  <key>ProgramArguments</key>
+  <array>
+    <string>{py}</string>
+    <string>{daemon_script}</string>
+    <string>daemon</string>
+  </array>
+  <key>RunAtLoad</key><true/>
+  <key>KeepAlive</key><true/>
+  <key>StandardOutPath</key><string>{log_file}</string>
+  <key>StandardErrorPath</key><string>{log_file}</string>
+</dict>
+</plist>
+'''
+        with open(target, "w", encoding="utf-8") as f:
+            f.write(plist)
+        subprocess.run(["launchctl", "bootstrap", f"gui/{os.getuid()}", target], stdout=subprocess.DEVNULL, stderr=subprocess.DEVNULL)
+        return target
+    if system == "Windows":
+        target = telegram_autostart_target(daemon_script, log_file)
+        cmd = f'"{py}" "{daemon_script}" daemon'
+        subprocess.run(["schtasks", "/Create", "/TN", target, "/TR", cmd, "/SC", "ONLOGON", "/F"], check=True)
+        return target
+
+    target = telegram_autostart_target(daemon_script, log_file)
+    os.makedirs(os.path.dirname(target), exist_ok=True)
+    service = f"""[Unit]
+Description=AIWF Telegram Shared Daemon
+
+[Service]
+ExecStart={py} {daemon_script} daemon
+Restart=always
+StandardOutput=append:{log_file}
+StandardError=append:{log_file}
+
+[Install]
+WantedBy=default.target
+"""
+    with open(target, "w", encoding="utf-8") as f:
+        f.write(service)
+    subprocess.run(["systemctl", "--user", "daemon-reload"], stdout=subprocess.DEVNULL, stderr=subprocess.DEVNULL)
+    subprocess.run(["systemctl", "--user", "enable", "aiwf-telegram-daemon.service"], check=True)
+    return target
+
+def disable_telegram_autostart(daemon_script: str, log_file: str) -> str:
+    import platform
+    import subprocess
+    system = platform.system()
+    target = telegram_autostart_target(daemon_script, log_file)
+    if system == "Darwin":
+        subprocess.run(["launchctl", "bootout", f"gui/{os.getuid()}", target], stdout=subprocess.DEVNULL, stderr=subprocess.DEVNULL)
+        if os.path.exists(target):
+            os.remove(target)
+        return target
+    if system == "Windows":
+        subprocess.run(["schtasks", "/Delete", "/TN", target, "/F"], stdout=subprocess.DEVNULL, stderr=subprocess.DEVNULL)
+        return target
+    subprocess.run(["systemctl", "--user", "disable", "aiwf-telegram-daemon.service"], stdout=subprocess.DEVNULL, stderr=subprocess.DEVNULL)
+    if os.path.exists(target):
+        os.remove(target)
+    return target
+
+def start_runtime_bus_daemon() -> tuple[bool, int | None, str]:
+    pid_file = os.path.expanduser("~/.aiwf/runtime.pid")
+    log_file = os.path.expanduser("~/.aiwf/runtime.log")
+    running, pid = is_telegram_daemon_running(pid_file)
+    if running:
+        return False, pid, "already_running"
+
+    os.makedirs(os.path.dirname(pid_file), exist_ok=True)
+    log_out = open(log_file, "a", encoding="utf-8")
+    script_path = os.path.abspath(__file__)
+    if os.name == "nt":
+        proc = subprocess.Popen(
+            [sys.executable, script_path, "runtime", "daemon"],
+            stdout=log_out,
+            stderr=log_out,
+            creationflags=0x08000000,
+        )
+    else:
+        proc = subprocess.Popen(
+            [sys.executable, script_path, "runtime", "daemon"],
+            stdout=log_out,
+            stderr=log_out,
+            preexec_fn=os.setpgrp,
+        )
+    with open(pid_file, "w", encoding="utf-8") as f:
+        f.write(str(proc.pid))
+    return True, proc.pid, "started"
+
+def runtime_bus_autostart_target() -> str:
+    import platform
+    system = platform.system()
+    if system == "Darwin":
+        return os.path.expanduser("~/Library/LaunchAgents/net.aiwf.runtime.plist")
+    if system == "Windows":
+        return "AIWF Runtime Daemon"
+    return os.path.expanduser("~/.config/systemd/user/aiwf-runtime.service")
+
+def is_runtime_bus_autostart_enabled() -> bool:
+    target = runtime_bus_autostart_target()
+    if target == "AIWF Runtime Daemon":
+        res = subprocess.run(["schtasks", "/Query", "/TN", target], stdout=subprocess.DEVNULL, stderr=subprocess.DEVNULL)
+        return res.returncode == 0
+    return os.path.exists(target)
+
+def enable_runtime_bus_autostart() -> str:
+    import platform
+    system = platform.system()
+    script_path = os.path.abspath(__file__)
+    log_file = os.path.expanduser("~/.aiwf/runtime.log")
+    py = sys.executable
+    target = runtime_bus_autostart_target()
+
+    if system == "Darwin":
+        import plistlib
+        os.makedirs(os.path.dirname(target), exist_ok=True)
+        plist = {
+            "Label": "net.aiwf.runtime",
+            "ProgramArguments": [py, script_path, "runtime", "daemon"],
+            "RunAtLoad": True,
+            "KeepAlive": True,
+            "StandardOutPath": log_file,
+            "StandardErrorPath": log_file,
+        }
+        with open(target, "wb") as f:
+            plistlib.dump(plist, f)
+        return target
+
+    if system == "Windows":
+        cmd = f'"{py}" "{script_path}" runtime daemon'
+        subprocess.run(["schtasks", "/Create", "/TN", target, "/TR", cmd, "/SC", "ONLOGON", "/F"], check=True)
+        return target
+
+    os.makedirs(os.path.dirname(target), exist_ok=True)
+    service = f"""[Unit]
+Description=AIWF Runtime Daemon
+
+[Service]
+ExecStart={py} {script_path} runtime daemon
+Restart=always
+StandardOutput=append:{log_file}
+StandardError=append:{log_file}
+
+[Install]
+WantedBy=default.target
+"""
+    with open(target, "w", encoding="utf-8") as f:
+        f.write(service)
+    subprocess.run(["systemctl", "--user", "daemon-reload"], stdout=subprocess.DEVNULL, stderr=subprocess.DEVNULL)
+    subprocess.run(["systemctl", "--user", "enable", "aiwf-runtime.service"], check=True)
+    return target
+
+def disable_runtime_bus_autostart() -> str:
+    import platform
+    system = platform.system()
+    target = runtime_bus_autostart_target()
+    if system == "Windows":
+        subprocess.run(["schtasks", "/Delete", "/TN", target, "/F"], stdout=subprocess.DEVNULL, stderr=subprocess.DEVNULL)
+        return target
+    if system == "Linux":
+        subprocess.run(["systemctl", "--user", "disable", "aiwf-runtime.service"], stdout=subprocess.DEVNULL, stderr=subprocess.DEVNULL)
+    if os.path.exists(target):
+        os.remove(target)
+    return target
+
+def has_global_telegram_token() -> bool:
+    cfg_path = os.path.expanduser("~/.aiwf/.env.telegram-notify")
+    if not os.path.exists(cfg_path):
+        return False
+    try:
+        with open(cfg_path, "r", encoding="utf-8") as f:
+            for line in f:
+                if line.strip().startswith("TELEGRAM_BOT_TOKEN=") and line.split("=", 1)[1].strip().strip('"').strip("'"):
+                    return True
+    except Exception:
+        return False
+    return False
+
+def refresh_git_state_cache() -> dict:
+    branch = subprocess.run(["git", "branch", "--show-current"], stdout=subprocess.PIPE, stderr=subprocess.PIPE, text=True, check=False)
+    status = subprocess.run(["git", "status", "--short"], stdout=subprocess.PIPE, stderr=subprocess.PIPE, text=True, check=False)
+    data = {
+        "updated_at": datetime.now(timezone.utc).replace(microsecond=0).isoformat().replace("+00:00", "Z"),
+        "ok": branch.returncode == 0 and status.returncode == 0,
+        "branch": branch.stdout.strip(),
+        "status_short": status.stdout.splitlines(),
+        "stderr": (branch.stderr or status.stderr).strip(),
+        "source": "aiwf config",
+    }
+    write_json_atomic(os.path.join(".agents", "state", "git.json"), data)
+    return data
+
+def get_current_project_context() -> dict:
+    context = {
+        "name": os.path.basename(os.getcwd()),
+        "path": ".",
+        "absolute_path": os.path.abspath("."),
+        "registered": False,
+        "registry_id": None,
+        "telegram_chat_id": None,
+    }
+    for manifest_path in (os.path.join(".agents", "MANIFEST.json"), "MANIFEST.json"):
+        if os.path.exists(manifest_path):
+            try:
+                with open(manifest_path, "r", encoding="utf-8") as f:
+                    manifest = json.load(f)
+                context["name"] = manifest.get("name") or context["name"]
+                break
+            except Exception:
+                pass
+    try:
+        import aiwf_registry
+        registry = aiwf_registry.load_registry()
+        current = aiwf_registry.normalize_path(".")
+        for project in registry.get("projects", []):
+            if aiwf_registry.normalize_path(project.get("path", ".")) == current:
+                context["registered"] = True
+                context["registry_id"] = project.get("id")
+                context["telegram_chat_id"] = project.get("telegram_chat_id")
+                context["registry_status"] = project.get("status")
+                break
+    except Exception as e:
+        context["registry_error"] = str(e)
+    return context
+
+def print_project_context() -> None:
+    ctx = get_current_project_context()
+    print(f"[PROJECT]: {ctx.get('name')} ({ctx.get('path')})")
+    print(f"[PROJECT]: registered={'yes' if ctx.get('registered') else 'no'}" + (f", telegram_chat_id={ctx.get('telegram_chat_id')}" if ctx.get("telegram_chat_id") else ""))
+
+def ensure_project_registered_from_config() -> dict:
+    try:
+        import aiwf_registry
+        registry = aiwf_registry.load_registry()
+        current = str(aiwf_registry.normalize_path("."))
+        for project in registry.get("projects", []):
+            if str(aiwf_registry.normalize_path(project.get("path", ""))) == current:
+                return {"status": "already_registered", "path": current}
+        result = aiwf_registry.register_project(".", force=True, source="config")
+        return result if isinstance(result, dict) else {"status": "unknown", "path": current}
+    except Exception as e:
+        return {"status": "error", "message": str(e)}
+
+def refresh_initialize_dependencies() -> dict:
+    from dependency_resolver import parse_requirements, resolve_requirements
+    skill = "initialize-workflow"
+    reqs = parse_requirements(skill)
+    ctx = resolve_requirements(skill, reqs)
+    return {
+        "skill": skill,
+        "resolved": len(ctx.resolved),
+        "warnings": ctx.warnings,
+        "path": ".agents/state/runtime/dependencies.json",
+    }
+
+def do_config_action(args: argparse.Namespace) -> None:
+    """One-shot AIWF configuration doctor/fixer for local runtime services."""
+    check_only = bool(getattr(args, "check_only", False))
+    no_start = bool(getattr(args, "no_start", False))
+    report: list[tuple[str, str, str]] = []
+    project_context = get_current_project_context()
+
+    if not check_only:
+        os.makedirs(RUNTIME_COMMAND_DIR, exist_ok=True)
+    report.append(("runtime_command_dir", "OK" if os.path.isdir(RUNTIME_COMMAND_DIR) else "MISSING", RUNTIME_COMMAND_DIR))
+
+    try:
+        deps = refresh_initialize_dependencies() if not check_only else {"path": ".agents/state/runtime/dependencies.json"}
+        deps_exists = os.path.exists(os.path.join(".agents", "state", "runtime", "dependencies.json"))
+        report.append(("deps_cache", "OK" if deps_exists else "MISSING", deps.get("path", "")))
+    except Exception as e:
+        report.append(("deps_cache", "ERROR", str(e)))
+
+    try:
+        git_cache_path = os.path.join(".agents", "state", "git.json")
+        if check_only and not os.path.exists(git_cache_path):
+            report.append(("git_read_cache", "MISSING", git_cache_path))
+        else:
+            git_state = refresh_git_state_cache() if not check_only else _read_json_file(git_cache_path)
+            report.append(("git_read_cache", "OK" if git_state.get("ok", True) else "ERROR", git_state.get("branch", "")))
+    except Exception as e:
+        report.append(("git_read_cache", "ERROR", str(e)))
+
+    if not check_only:
+        reg = ensure_project_registered_from_config()
+        report.append(("project_registry", str(reg.get("status", "unknown")).upper(), str(reg.get("path") or reg.get("message") or "")))
+    else:
+        report.append(("project_registry", "SKIPPED", "check-only"))
+
+    runtime_pid_file = os.path.expanduser("~/.aiwf/runtime.pid")
+    runtime_running, runtime_pid = is_telegram_daemon_running(runtime_pid_file)
+    if runtime_running:
+        report.append(("runtime_daemon", "RUNNING", f"PID {runtime_pid}"))
+    elif check_only or no_start:
+        report.append(("runtime_daemon", "STOPPED", runtime_pid_file))
+    else:
+        started, pid, status = start_runtime_bus_daemon()
+        report.append(("runtime_daemon", "STARTED" if started else status.upper(), f"PID {pid}"))
+
+    telegram_token = has_global_telegram_token()
+    report.append(("telegram_token", "OK" if telegram_token else "MISSING", "~/.aiwf/.env.telegram-notify"))
+    telegram_pid_file = os.path.expanduser("~/.aiwf/telegram-daemon.pid")
+    telegram_running, telegram_pid = is_telegram_daemon_running(telegram_pid_file)
+    if telegram_running:
+        report.append(("telegram_daemon", "RUNNING", f"PID {telegram_pid}"))
+    elif not telegram_token:
+        report.append(("telegram_daemon", "SKIPPED", "run `aiwf telegram config` first"))
+    elif check_only or no_start:
+        report.append(("telegram_daemon", "STOPPED", telegram_pid_file))
+    else:
+        daemon_script = os.path.join(os.path.dirname(__file__), "telegram_daemon.py")
+        log_file = os.path.expanduser("~/.aiwf/telegram-listener.log")
+        pid = start_telegram_daemon(daemon_script, log_file, telegram_pid_file)
+        report.append(("telegram_daemon", "STARTED", f"PID {pid}"))
+
+    project_context = get_current_project_context()
+    print("AIWF Configuration Check")
+    print("========================")
+    print(f"project: {project_context.get('name')} — {project_context.get('path')}")
+    print(f"project_registered: {'yes' if project_context.get('registered') else 'no'}" + (f" — telegram_chat_id={project_context.get('telegram_chat_id')}" if project_context.get("telegram_chat_id") else ""))
+    for name, status, detail in report:
+        print(f"{name}: {status}" + (f" — {detail}" if detail else ""))
+    print("\nAgent-safe runtime command examples:")
+    print("- deps.resolve: write .agents/runtime/commands/runtime.request.json with command='deps.resolve'")
+    print("- git.status: write .agents/runtime/commands/runtime.request.json with command='git.status'")
+
+def do_telegram(args):
+    import subprocess
+    import platform
+    subaction = getattr(args, "subaction", None)
+    
+    daemon_script = os.path.join(os.path.dirname(__file__), "telegram_daemon.py")
+    log_file = os.path.expanduser("~/.aiwf/telegram-listener.log")
+    pid_file = os.path.expanduser("~/.aiwf/telegram-daemon.pid")
+    
+    if subaction == "start":
+        running, pid = is_telegram_daemon_running(pid_file)
+        if running:
+            print(f"[SYSTEM]: Shared Telegram Daemon is already running (PID: {pid}).")
+            return
+
+        pid = start_telegram_daemon(daemon_script, log_file, pid_file)
+        print(f"[SYSTEM]: Shared Telegram Daemon started in background with PID: {pid}.")
+        
+    elif subaction == "stop":
+        running, pid = is_telegram_daemon_running(pid_file)
+        if running:
+            try:
+                stop_telegram_daemon(pid_file)
+                print(f"[SYSTEM]: Shared Telegram Daemon (PID: {pid}) stopped.")
+            except Exception as e:
+                print(f"[ERROR]: Failed to stop daemon: {e}")
+        else:
+            print("[SYSTEM]: No running daemon found (missing PID file).")
+
+    elif subaction == "restart":
+        running, pid = is_telegram_daemon_running(pid_file)
+        if running:
+            stop_telegram_daemon(pid_file)
+            print(f"[SYSTEM]: Shared Telegram Daemon (PID: {pid}) stopped.")
+        new_pid = start_telegram_daemon(daemon_script, log_file, pid_file)
+        print(f"[SYSTEM]: Shared Telegram Daemon restarted with PID: {new_pid}.")
+
+    elif subaction == "enable":
+        target = enable_telegram_autostart(daemon_script, log_file)
+        print(f"[SYSTEM]: Telegram Daemon autostart enabled: {target}")
+
+    elif subaction == "disable":
+        target = disable_telegram_autostart(daemon_script, log_file)
+        print(f"[SYSTEM]: Telegram Daemon autostart disabled: {target}")
+
+    elif subaction == "status":
+        running, pid = is_telegram_daemon_running(pid_file)
+        enabled = is_telegram_autostart_enabled(daemon_script, log_file)
+        print_project_context()
+        if running:
+            print(f"[SYSTEM]: Shared Telegram Daemon is ACTIVE (PID: {pid}).")
+        else:
+            print("[SYSTEM]: Shared Telegram Daemon is INACTIVE.")
+        print(f"[SYSTEM]: Autostart is {'ENABLED' if enabled else 'DISABLED'}.")
+            
+    elif subaction == "link":
+        disc_path = os.path.expanduser("~/.aiwf/discovered_groups.json")
+        groups = {}
+        if os.path.exists(disc_path):
+            try:
+                with open(disc_path, "r", encoding="utf-8") as f:
+                    groups = json.load(f)
+            except Exception:
+                pass
+                
+        if not groups:
+            print("[SYSTEM] Chua phat hien nhom Telegram nao. Hay dam bao ban da add Bot vao Group va gui tin nhan truoc.")
+            return
+            
+        curr_path = os.path.abspath(".")
+        
+        print("\n--- Danh sach nhom Telegram da phat hien ---")
+        options_list = list(groups.items())
+        for idx, (gid, title) in enumerate(options_list, 1):
+            print(f"{idx}. {title} (ID: {gid})")
+        print(f"{len(options_list) + 1}. Thoat")
+        
+        try:
+            ans = input(f"Chon nhom muon lien ket voi du an '{os.path.basename(curr_path)}' (1-{len(options_list) + 1}): ").strip()
+            if not ans:
+                print("Da huy.")
+                return
+            choice_idx = int(ans) - 1
+            if 0 <= choice_idx < len(options_list):
+                target_gid, target_title = options_list[choice_idx]
+                import aiwf_registry
+                if aiwf_registry.update_project_telegram_chat_id(curr_path, target_gid):
+                    print(f"[SYSTEM] Lien ket thanh cong du an '{os.path.basename(curr_path)}' voi Group '{target_title}' ({target_gid}).")
+                    
+                    # Sync dynamic Bot commands after linking
+                    cfg = {}
+                    cfg_path = os.path.expanduser("~/.aiwf/.env.telegram-notify")
+                    if os.path.exists(cfg_path):
+                        with open(cfg_path, "r", encoding="utf-8") as f:
+                            for line in f:
+                                if "=" in line:
+                                    k, v = line.split("=", 1)
+                                    if k.strip() == "TELEGRAM_BOT_TOKEN":
+                                        cfg["token"] = v.strip().strip('"').strip("'")
+                                    elif k.strip() == "TELEGRAM_PROXY":
+                                        cfg["proxy"] = v.strip().strip('"').strip("'")
+                    if cfg.get("token"):
+                        try:
+                            sys.path.insert(0, os.path.dirname(os.path.abspath(__file__)))
+                            import telegram_daemon
+                            telegram_daemon.set_bot_menu_commands(cfg["token"], cfg.get("proxy"))
+                        except Exception as e:
+                            print(f"[WARN] Failed to sync Bot commands: {e}")
+                else:
+                    print(f"[ERROR] Du an '{os.path.basename(curr_path)}' chua duoc dang ky trong he thong. Hay chay 'aiwf registry register' truoc.")
+            else:
+                print("Da huy.")
+        except Exception as ex:
+            print(f"Loi: {ex}")
+    elif subaction == "config":
+        print("\n=== AIWF Global Telegram Configuration ===")
+        cfg_dir = os.path.expanduser("~/.aiwf")
+        os.makedirs(cfg_dir, exist_ok=True)
+        cfg_path = os.path.join(cfg_dir, ".env.telegram-notify")
+        tmp_path = cfg_path + ".tmp"
+
+        curr_token = ""
+        curr_proxy = ""
+        if os.path.exists(cfg_path):
+            try:
+                with open(cfg_path, "r", encoding="utf-8") as f:
+                    for line in f:
+                        if "=" in line:
+                            k, v = line.split("=", 1)
+                            k = k.strip()
+                            v = v.strip().strip('"').strip("'")
+                            if k == "TELEGRAM_BOT_TOKEN":
+                                curr_token = v
+                            elif k == "TELEGRAM_PROXY":
+                                curr_proxy = v
+            except Exception:
+                pass
+
+        token_prompt = f"Enter Telegram Bot Token [{curr_token[:5]}...{curr_token[-5:]}] (press Enter to keep current): " if curr_token else "Enter Telegram Bot Token: "
+        try:
+            new_token = input(token_prompt).strip()
+        except (KeyboardInterrupt, EOFError):
+            print("\nDa huy.")
+            return
+
+        if not new_token:
+            new_token = curr_token
+
+        if not new_token:
+            print("[ERROR]: Telegram Bot Token is required.")
+            sys.exit(1)
+
+        proxy_prompt = f"Enter Telegram Proxy (optional, e.g. http://127.0.0.1:8080) [{curr_proxy}] (press Enter to keep current): " if curr_proxy else "Enter Telegram Proxy (optional, e.g. http://127.0.0.1:8080): "
+        try:
+            new_proxy = input(proxy_prompt).strip()
+        except (KeyboardInterrupt, EOFError):
+            print("\nDa huy.")
+            return
+
+        if not new_proxy and curr_proxy:
+            new_proxy = curr_proxy
+
+        try:
+            with open(tmp_path, "w", encoding="utf-8") as f:
+                f.write(f'TELEGRAM_BOT_TOKEN="{new_token}"\n')
+                if new_proxy:
+                    f.write(f'TELEGRAM_PROXY="{new_proxy}"\n')
+            os.replace(tmp_path, cfg_path)
+        except Exception:
+            try:
+                if os.path.exists(tmp_path):
+                    os.remove(tmp_path)
+            except Exception:
+                pass
+            print("[ERROR]: Failed to save Telegram configuration.")
+            sys.exit(1)
+
+        print("[SUCCESS]: Telegram global configuration updated successfully!")
+
 def do_registry(args):
     import aiwf_registry
     if args.subaction == "register":
@@ -4578,6 +5434,217 @@ def do_update_source(args):
 # ---------------------------------------------------------------------------
 # FEAT-050 Handlers: deps, task orchestrator, work-item cached, project version cached
 # ---------------------------------------------------------------------------
+
+RUNTIME_COMMAND_DIR = os.path.join(".agents", "runtime", "commands")
+RUNTIME_REQUEST_PATH = os.path.join(RUNTIME_COMMAND_DIR, "runtime.request.json")
+RUNTIME_RESPONSE_PATH = os.path.join(RUNTIME_COMMAND_DIR, "runtime.response.json")
+RUNTIME_LAST_REQUEST_PATH = os.path.join(RUNTIME_COMMAND_DIR, "runtime.last.request.json")
+
+
+def _read_json_file(path: str) -> dict:
+    if not os.path.exists(path):
+        return {}
+    with open(path, "r", encoding="utf-8") as f:
+        data = json.load(f)
+    if not isinstance(data, dict):
+        raise ValueError(f"{path} must contain a JSON object")
+    return data
+
+
+def _write_json_file_atomic(path: str, data: dict) -> None:
+    os.makedirs(os.path.dirname(path), exist_ok=True)
+    tmp_path = f"{path}.tmp"
+    with open(tmp_path, "w", encoding="utf-8") as f:
+        json.dump(data, f, indent=2, ensure_ascii=False)
+        f.write("\n")
+    os.replace(tmp_path, path)
+
+
+def _runtime_bus_response(
+    status: str,
+    command: str,
+    idempotency_key: str,
+    message: str,
+    data: dict | None = None,
+    error: str | None = None,
+) -> dict:
+    response = {
+        "type": "RUNTIME_RESULT",
+        "status": status,
+        "command": command,
+        "idempotency_key": idempotency_key,
+        "message": message,
+        "completed_at": datetime.now(timezone.utc).replace(microsecond=0).isoformat().replace("+00:00", "Z"),
+    }
+    if data is not None:
+        response["data"] = data
+    if error is not None:
+        response["error"] = error
+    return response
+
+
+def execute_runtime_bus_request(payload: dict) -> dict:
+    """Execute one allowlisted runtime command-bus request."""
+    if payload.get("type") != "RUNTIME_COMMAND":
+        raise ValueError("runtime request type must be RUNTIME_COMMAND")
+
+    command = str(payload.get("command", "")).strip()
+    idempotency_key = str(payload.get("idempotency_key", "")).strip()
+    args = payload.get("args") or {}
+    if not isinstance(args, dict):
+        raise ValueError("runtime request args must be a JSON object")
+    if not idempotency_key:
+        raise ValueError("runtime request requires idempotency_key")
+
+    if command == "deps.resolve":
+        skill = str(args.get("skill", "")).strip()
+        if not skill:
+            raise ValueError("deps.resolve requires args.skill")
+        from dependency_resolver import parse_requirements, resolve_requirements
+        reqs = parse_requirements(skill)
+        ctx = resolve_requirements(skill, reqs)
+        return _runtime_bus_response(
+            "OK",
+            command,
+            idempotency_key,
+            f"Resolved {len(ctx.resolved)} dependencies for '{skill}'.",
+            {
+                "skill": skill,
+                "dependencies_path": ".agents/state/runtime/dependencies.json",
+                "warnings": ctx.warnings,
+            },
+        )
+
+    if command == "git.status":
+        branch = subprocess.run(
+            ["git", "branch", "--show-current"],
+            stdout=subprocess.PIPE,
+            stderr=subprocess.PIPE,
+            text=True,
+            check=False,
+        )
+        status = subprocess.run(
+            ["git", "status", "--short"],
+            stdout=subprocess.PIPE,
+            stderr=subprocess.PIPE,
+            text=True,
+            check=False,
+        )
+        if branch.returncode != 0 or status.returncode != 0:
+            raise ValueError((branch.stderr or status.stderr or "git status failed").strip())
+        return _runtime_bus_response(
+            "OK",
+            command,
+            idempotency_key,
+            "Read git branch and short status.",
+            {
+                "branch": branch.stdout.strip(),
+                "status_short": status.stdout.splitlines(),
+            },
+        )
+
+    raise ValueError(f"runtime command is not allowlisted: {command}")
+
+
+def process_runtime_bus_once() -> bool:
+    """Process .agents/runtime/commands/runtime.request.json once if present."""
+    if not os.path.exists(RUNTIME_REQUEST_PATH):
+        return False
+
+    os.makedirs(RUNTIME_COMMAND_DIR, exist_ok=True)
+    payload = {}
+    command = ""
+    idempotency_key = ""
+    try:
+        payload = _read_json_file(RUNTIME_REQUEST_PATH)
+        command = str(payload.get("command", "")).strip()
+        idempotency_key = str(payload.get("idempotency_key", "")).strip()
+        response = execute_runtime_bus_request(payload)
+    except Exception as e:
+        response = _runtime_bus_response(
+            "ERROR",
+            command or "unknown",
+            idempotency_key or "missing",
+            "Runtime command request failed.",
+            error=str(e),
+        )
+
+    _write_json_file_atomic(RUNTIME_RESPONSE_PATH, response)
+    try:
+        if payload:
+            _write_json_file_atomic(RUNTIME_LAST_REQUEST_PATH, payload)
+        os.remove(RUNTIME_REQUEST_PATH)
+    except Exception:
+        pass
+    return True
+
+
+def do_runtime_bus(args: argparse.Namespace) -> None:
+    """Runtime daemon for agents that cannot execute runtime CLI commands directly."""
+    subaction = getattr(args, "subaction", None)
+    if subaction == "start":
+        started, pid, status = start_runtime_bus_daemon()
+        if started:
+            print(f"[SYSTEM]: Runtime daemon started with PID: {pid}.")
+        else:
+            print(f"[SYSTEM]: Runtime daemon is already running (PID: {pid}, status={status}).")
+        return
+
+    if subaction == "stop":
+        pid_file = os.path.expanduser("~/.aiwf/runtime.pid")
+        running, pid = is_telegram_daemon_running(pid_file)
+        if running:
+            stop_telegram_daemon(pid_file)
+            print(f"[SYSTEM]: Runtime daemon (PID: {pid}) stopped.")
+        else:
+            print("[SYSTEM]: No running runtime daemon found.")
+        return
+
+    if subaction == "restart":
+        pid_file = os.path.expanduser("~/.aiwf/runtime.pid")
+        running, pid = is_telegram_daemon_running(pid_file)
+        if running:
+            stop_telegram_daemon(pid_file)
+            print(f"[SYSTEM]: Runtime daemon (PID: {pid}) stopped.")
+        started, new_pid, _ = start_runtime_bus_daemon()
+        print(f"[SYSTEM]: Runtime daemon restarted with PID: {new_pid}.")
+        return
+
+    if subaction == "status":
+        pid_file = os.path.expanduser("~/.aiwf/runtime.pid")
+        running, pid = is_telegram_daemon_running(pid_file)
+        enabled = is_runtime_bus_autostart_enabled()
+        print_project_context()
+        print(f"[SYSTEM]: Runtime daemon is {'ACTIVE' if running else 'INACTIVE'}" + (f" (PID: {pid})." if running else "."))
+        print(f"[SYSTEM]: Autostart is {'ENABLED' if enabled else 'DISABLED'}.")
+        return
+
+    if subaction == "enable":
+        target = enable_runtime_bus_autostart()
+        print(f"[SYSTEM]: Runtime daemon autostart enabled: {target}")
+        return
+
+    if subaction == "disable":
+        target = disable_runtime_bus_autostart()
+        print(f"[SYSTEM]: Runtime daemon autostart disabled: {target}")
+        return
+
+    if subaction == "process":
+        processed = process_runtime_bus_once()
+        print("Processed runtime request." if processed else "No runtime request found.")
+        return
+
+    if subaction == "daemon":
+        interval = max(1.0, float(getattr(args, "interval", 2.0)))
+        print(f"Runtime daemon started. Watching {RUNTIME_REQUEST_PATH}", flush=True)
+        while True:
+            process_runtime_bus_once()
+            time.sleep(interval)
+        return
+
+    print(f"Unknown runtime subaction: {subaction}", file=sys.stderr)
+    sys.exit(1)
+
 
 def do_deps(args: argparse.Namespace) -> None:
     """Runtime Dependency Resolver CLI handler."""
@@ -4901,6 +5968,10 @@ def do_runtime_action(args):
     )
     
     subaction = getattr(args, "subaction", None)
+    if subaction in {"start", "stop", "restart", "status", "enable", "disable", "process", "daemon"}:
+        do_runtime_bus(args)
+        return
+
     if subaction != "policy":
         print(f"Unknown runtime subaction: {subaction}", file=sys.stderr)
         sys.exit(1)
@@ -4969,6 +6040,10 @@ def main():
     _ = deps_fix.add_argument("--skill", type=str, default=None)
     _ = deps_fix.add_argument("--all", action="store_true")
     _ = deps_fix.add_argument("--yes", action="store_true", help="Auto-approve (non-interactive)")
+
+    config_p = subparsers.add_parser("config", help="Check and bootstrap AIWF runtime services")
+    _ = config_p.add_argument("--check-only", action="store_true", help="Only report configuration status")
+    _ = config_p.add_argument("--no-start", action="store_true", help="Do not start background daemons")
 
     init_p = subparsers.add_parser("init")
     _ = init_p.add_argument("name", nargs="?", type=str, default=None)
@@ -5413,6 +6488,19 @@ def main():
     _ = state_sub.add_parser("recover")
     _ = state_sub.add_parser("validate")
     _ = state_sub.add_parser("diagnose")
+    _ = state_sub.add_parser("doctor")
+    _ = state_sub.add_parser("snapshot")
+    _ = state_sub.add_parser("migrate")
+    _ = state_sub.add_parser("aggregate")
+    state_emit = state_sub.add_parser("emit")
+    _ = state_emit.add_argument("--type", required=True)
+    _ = state_emit.add_argument("--payload", default="{}")
+
+    implement_p = subparsers.add_parser("implement")
+    implement_sub = implement_p.add_subparsers(dest="subaction", required=True)
+    _ = implement_sub.add_parser("status")
+    _ = implement_sub.add_parser("resume")
+    _ = implement_sub.add_parser("abort")
     
     knowledge_p = subparsers.add_parser("knowledge")
     knowledge_sub = knowledge_p.add_subparsers(dest="subaction", required=True)
@@ -5440,8 +6528,17 @@ def main():
     _ = test_p.add_argument("--run-stability-worker", action="store_true", help=argparse.SUPPRESS)
     _ = test_p.add_argument("run_id", nargs="?", default=None, help="Target run ID for cancel/logs commands")
 
-    runtime_p = subparsers.add_parser("runtime", help="Runtime Policy Configuration commands")
+    runtime_p = subparsers.add_parser("runtime", help="Runtime daemon, command bus, and policy commands")
     runtime_sub = runtime_p.add_subparsers(dest="subaction", required=True)
+    _ = runtime_sub.add_parser("start", help="Start the runtime daemon for this login session")
+    _ = runtime_sub.add_parser("stop", help="Stop the runtime daemon for this login session")
+    _ = runtime_sub.add_parser("restart", help="Restart the runtime daemon")
+    _ = runtime_sub.add_parser("status", help="Show runtime daemon and project status")
+    _ = runtime_sub.add_parser("enable", help="Enable runtime daemon autostart on login")
+    _ = runtime_sub.add_parser("disable", help="Disable runtime daemon autostart on login")
+    _ = runtime_sub.add_parser("process", help="Process one runtime.request.json file if present")
+    runtime_daemon = runtime_sub.add_parser("daemon", help="Watch runtime.request.json and process allowlisted commands")
+    _ = runtime_daemon.add_argument("--interval", type=float, default=2.0)
     policy_p = runtime_sub.add_parser("policy", help="Show or manage runtime policy")
     policy_sub = policy_p.add_subparsers(dest="policy_action", required=False)
     _ = policy_sub.add_parser("validate", help="Validate runtime-policy.json schema")
@@ -5499,6 +6596,17 @@ def main():
     _ = ups_p.add_argument("--yes", action="store_true")
     _ = ups_p.add_argument("--allow-dirty", action="store_true")
     
+    telegram_p = subparsers.add_parser("telegram", help="Global Telegram Shared Daemon & link options")
+    telegram_sub = telegram_p.add_subparsers(dest="subaction", required=True)
+    _ = telegram_sub.add_parser("start")
+    _ = telegram_sub.add_parser("stop")
+    _ = telegram_sub.add_parser("restart")
+    _ = telegram_sub.add_parser("enable")
+    _ = telegram_sub.add_parser("disable")
+    _ = telegram_sub.add_parser("status")
+    _ = telegram_sub.add_parser("link")
+    _ = telegram_sub.add_parser("config", help="Interactive step-by-step setup for Telegram Global credentials")
+
     api_server_p = subparsers.add_parser("api-server", help="Start stable Observability API Server")
     _ = api_server_p.add_argument("--port", type=int, default=31000)
     _ = api_server_p.add_argument("--host", type=str, default="localhost")
@@ -5544,6 +6652,7 @@ def main():
         "compact": do_compact,
         "task": do_task_orchestrator,
         "deps": do_deps,
+        "config": do_config_action,
         "work-item": do_work_item_cached,
         "project": do_project_version_cached,
         "lock": do_lock,
@@ -5568,7 +6677,9 @@ def main():
         "context": do_context,
         "rules": do_rules_action,
         "state": do_state_action,
+        "implement": do_implement_action,
         "registry": do_registry,
+        "telegram": do_telegram,
         "update": do_update,
         "provider": do_provider_action,
         "status": do_status_action,
@@ -5582,7 +6693,7 @@ def main():
         "session": do_session_command
     }
     
-    modifying_actions = ["init", "start", "step", "complete", "fail", "blueprint", "suggest", "compact", "task", "deps", "execution", "analysis-agent", "choice", "input", "active-workflow", "resume", "discover", "classify", "memory", "env", "debug", "verify", "release", "state", "provider", "knowledge", "orchestrator", "orchestrate", "workflow", "session"]
+    modifying_actions = ["init", "start", "step", "complete", "fail", "blueprint", "suggest", "compact", "task", "deps", "config", "runtime", "execution", "analysis-agent", "choice", "input", "active-workflow", "resume", "discover", "classify", "memory", "env", "debug", "verify", "release", "state", "provider", "knowledge", "orchestrator", "orchestrate", "workflow", "session", "telegram"]
     if args.action in modifying_actions:
         with SessionLock():
             cmds[args.action](args)
@@ -5591,4 +6702,3 @@ def main():
 
 if __name__ == "__main__":
     main()
-

@@ -9,12 +9,7 @@ tags:
   - runtime
   - lightweight
 version: 3.0.0
-author:
-  name: Kyle Dang
-  email: kyleit@klexpress.net
-  website: https://www.klexpress.net
 license: MIT
-repository: https://gitlab.com/hngan.it/ai-workflow-skills
 created_at: 2026-07-03
 updated_at: 2026-07-11
 description: Lightweight runtime initializer for the AI Engineering Workflow. Loads mandatory guardrails, reads cached git/state/approval/dashboard context only. Does NOT load full memory, RAG, workspace scan, environment CLI checks, or transcript sync.
@@ -29,8 +24,7 @@ runtime_requirements:
   environment: cached
   version: cached
   provider: optional
-  usage: cached
----
+  usage: cached---
 
 # Skill: initialize-workflow (Lightweight Runtime Initialization)
 
@@ -97,6 +91,10 @@ Step 5:  Read Cached Version + Provider + Usage (from state files only)
          ↓
 Step 6:  Write Initialization Summary
          ↓
+Step 7:  Auto-Resume & Git Auto-Stash Recovery (Optional)
+         ↓
+Step 8:  Arm Telegram project inbox monitor only when the shared daemon is active
+         ↓
 STOP — No memory load, no RAG, no env CLI, no workspace scan, no transcript sync
 ```
 
@@ -113,15 +111,43 @@ STOP — No memory load, no RAG, no env CLI, no workspace scan, no transcript sy
   - `current_step`: `"Starting lightweight workflow initialization..."`
   - `updated_at`: (current ISO-8601 timestamp)
 
-### Step 1 — Run Runtime Dependency Resolver
+### Step 1 — Resolve Runtime Dependencies Without Approval Noise
+
+Do not require agents to run this command on every initialization:
 
 ```bash
 python skills/workflow-runtime/scripts/workflow_runtime.py deps resolve --skill initialize-workflow
 ```
 
+Some IDEs and agents require approval for every Python command. In those environments, use this
+order instead:
+
+1. Read `.agents/state/runtime/dependencies.json`.
+2. If the file exists, is valid JSON, and `skill == "initialize-workflow"`, use it as the cached
+   dependency result.
+3. If the cache is missing or invalid and direct runtime commands are blocked, write a command-bus
+   request to `.agents/runtime/commands/runtime.request.json`:
+
+```json
+{
+  "type": "RUNTIME_COMMAND",
+  "command": "deps.resolve",
+  "args": {
+    "skill": "initialize-workflow"
+  },
+  "idempotency_key": "deps-resolve-initialize-workflow",
+  "requested_at": "2026-07-21T08:40:00Z"
+}
+```
+
+4. Wait for `.agents/runtime/commands/runtime.response.json`. If it reports `status == "OK"`,
+   re-read `.agents/state/runtime/dependencies.json`.
+5. If no runtime daemon is running and direct commands are blocked, continue with the existing
+   cache if available; otherwise stop with a clear message telling Ba to run `aiwf config` once.
+
 - If resolution fails for a `required` dependency → **STOP**, print error, exit.
 - If resolver warns about missing `runtime_requirements` in other skills → log warning, continue (safe_minimal fallback applies).
-- Write resolution result to `.agents/state/runtime/dependencies.json`.
+- The canonical resolution output is `.agents/state/runtime/dependencies.json`.
 
 ### Step 2 — Load Guardrails Summary (Hash-Based)
 
@@ -178,7 +204,23 @@ git status --short
 - If exists: restore checkpoint, skill, command, step from snapshot. If `git_stash_ref` present → prompt approval to run `git stash pop`. Delete snapshot after restore.
 - Print: `✨ [SYSTEM]: Recovered SDLC context from thread rollover. Checkpoint restored to X.`
 
+### Step 8 — Telegram Project Inbox Monitor
+
+- Initialization may start the project-specific Telegram monitor process
+  (`skills/notify-telegram/monitor_listener.py`) only when the shared Telegram daemon is already
+  active. If the daemon is inactive, do not start a listener and do not schedule idle polling.
+- The monitor watches the project-local `.agents/inbox/inbox.json` file so agents do not need to
+  read Telegram inbox messages from outside the registered workspace.
+- If a background timer/check is used, it must be silent on idle. When `.agents/inbox/inbox.json`
+  is absent, unchanged, empty, or invalid JSON, the agent must not write a chat response and must
+  not send a Telegram message.
+- When the timer/check detects a new valid inbox JSON object, load the `notify-telegram` skill and
+  process the event according to its Project Inbox Mode rules. If the event originated from
+  Telegram, the final answer or completion status must be sent back to the event `chat_id` on
+  Telegram before the turn is considered complete.
+
 ---
+
 
 ## ⛔ Removed Operations (FEAT-050)
 

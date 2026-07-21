@@ -12,12 +12,7 @@ tags:
   - profile
   - discovery
 version: 2.5.0
-author:
-  name: Kyle Dang
-  email: kyleit@klexpress.net
-  website: https://www.klexpress.net
 license: MIT
-repository: https://gitlab.com/hngan.it/ai-workflow-skills
 created_at: 2026-07-05
 updated_at: 2026-07-05
 description: Discover target project's tech stack (languages, frameworks, tools, platforms, databases, infrastructure) and generate project-profile.json to configure dynamic workflow checkpoints.
@@ -32,8 +27,7 @@ runtime_requirements:
   environment: cached
   version: cached
   provider: optional
-  usage: none
----
+  usage: none---
 
 # Skill: Project Discovery
 

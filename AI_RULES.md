@@ -10,11 +10,15 @@ The framework is strictly **approval-driven**, but allows dual execution modes d
 
 - **Legacy Mode (`workflow_mode=legacy`)**: Every state-changing action (modifying files, commits, tags, branches) requires explicit human confirmation via the `ask_question` tool.
 - **Autonomous Mode (`workflow_mode=autonomous`)**: Workflow execution is managed by the **Workflow Supervisor**. State-changing actions during intermediate compilation, test runs, and static linting are automated. The supervisor strictly halts only at the following **3 Strategic Human Approval Gates**:
-  1. **Gate 1 — Planning Approval**: Human validates scope and priority.
-  2. **Gate 2 — Blueprint Approval**: Human validates technical architecture and contracts.
+  1. **Gate 1 — Workflow Selection Approval**: Human selects the workflow path only when the request is ambiguous or multiple workflow options are valid.
+  2. **Gate 2 — Blueprint Approval**: Human validates technical architecture and contracts after the Blueprint has passed all internal review loops.
   3. **Gate 3 — Release Approval**: Human validates production release risk.
 
 *   **No Double Confirmation Policy**: Mọi hành động mà người dùng đã phê duyệt hoặc lựa chọn thông qua giao diện tương tác (như `ask_question` hoặc CLI `prompt select` / `choice`) thì Agent **không được phép hỏi lại hoặc yêu cầu xác nhận lại** trong đoạn chat. Agent phải trực tiếp thực hiện hành động đó ngay sau khi có kết quả lựa chọn của người dùng, ngoại trừ việc chọn chế độ nguy hiểm `unrestricted` thì bắt buộc phải cảnh báo và xác nhận lại.
+
+*   **Pre-Approval Artifact Self-Review Policy**: From roadmap/discovery through Specification, Implementation Plan, and Technical Blueprint, the Agent MUST self-review every generated artifact before moving to the next artifact. The review MUST check the user request, the active Skill, this `AI_RULES.md`, traceability, artifact placement, relative-path rules, and `document-compliance-assessment` requirements. If the review FAILS, the Agent MUST state the exact failed points, revise only those failed points, and repeat the review/revision loop until PASS. The Agent MUST NOT request user approval for intermediate roadmap, brainstorming, specification, or plan artifacts in the continuous workflow unless required to resolve ambiguity, missing information, or workflow selection. The ONLY mandatory pre-implementation human approval stop is after the Technical Blueprint has passed internal review.
+
+*   **Frontend Design Skill Binding Policy**: Any request, artifact, Blueprint, implementation, or review that creates, changes, or specifies frontend design MUST use the `frontend-design` Skill before making design decisions. This includes UI/UX flows, frontend components, page layout, spacing, typography, color, visual hierarchy, icons, animation, aesthetic styling, and design-system choices. If the work only changes backend logic with no user-facing interface/design impact, this binding is not required.
 
 ---
 
@@ -78,7 +82,7 @@ Retrieval-Augmented Generation searches must follow a strict priority ordering.
     *   **Level 1**: Project Memory (`project-summary.md`, area and module documents under `memory_root`).
     *   **Level 2**: Discovery & Specifications (`docs/brainstorming/`, `docs/issues/`, `docs/quick/`).
     *   **Level 3**: Implementation Plans (`docs/plans/`).
-    *   **Level 4**: Technical Blueprints (`docs/designs/`).
+    *   **Level 4**: Technical Blueprints (`docs/blueprints/`).
     *   **Level 5**: Architectural Decision Records (`docs/adr/`).
     *   **Level 6**: Targeted source code inspection (only for files identified in Levels 1–5).
 *   **Chunk Selection & Fallback**:
@@ -97,7 +101,7 @@ The documentation architecture enforces strict separation of concerns.
     | :--- | :--- | :--- |
     | `docs/brainstorming/` | Requirements Discovery (Standard Features) | `FEAT-XXX_slug.md` |
     | `docs/plans/` | Implementation Plans | `FEAT-XXX_slug_plan.md` |
-    | `docs/designs/` | Technical Blueprints | `FEAT-XXX_slug_blueprint.md` |
+    | `docs/blueprints/` | Technical Blueprints | `FEAT-XXX_slug_blueprint.md` |
     | `docs/issues/` | Bug Fix Specifications (Quick-Fix) | `FIX-XXX_slug.md` |
     | `docs/quick/` | Quick Feature Specifications | `QUICK-XXX_slug.md` |
     | `docs/adr/` | Architectural Decision Records | `ADR-XXX_slug.md` |
@@ -199,7 +203,7 @@ To eliminate duplicated information, reduce token usage, and maintain clear sepa
     *   Focusses entirely on project management, scope, deliverables, and risk mitigation.
     *   **Strict Constraints**: Planning documents must **NEVER** describe code implementations, define classes, define functions or interfaces, define database tables/schemas/SQL, define directory or folder layouts, or generate pseudo-code.
     *   The document must remain understandable by both technical and non-technical stakeholders.
-*   **Technical Design Blueprint Phase (`docs/designs/`)**:
+*   **Technical Design Blueprint Phase (`docs/blueprints/`)**:
     *   Acts as the **single source of technical truth** and the **Implementation Contract** for code changes.
     *   **Strict Quality Constraints**: The Design Blueprint must contain complete technical decisions and specs. It is strictly forbidden to use placeholders (`...`, `etc.`, `TBD`, `to be decided`, `future work`) or generic instructions (`modify related files`, `update existing logic`). Every single affected file, API contract, and algorithm must be explicitly defined and documented.
     *   Owns all technical specifications, including: architecture layouts, sequence and interaction flows (e.g., Mermaid diagrams), class and method signatures (with types), database schemas and migration scripts, folder structures, error handling, security validations, and test strategies.
@@ -295,10 +299,9 @@ To keep the VS Code Visualizer Dashboard synchronized in real-time with minimum 
 This is a mandatory global policy. The following rules are absolute and cannot be bypassed:
 
 *   **Rule 1: No Code Modification Without Blueprint**: No Skill may create, delete, or modify source code unless there is a Technical Design Blueprint document. Triaging or implementing changes directly from brainstorming, planning, feature specifications, fix specifications, quick specifications, or user conversation text is strictly forbidden. The Technical Design Blueprint is the ONLY legal input for code generation and modification.
-*   **Rule 2: Valid Blueprint Path**: A Blueprint must exist under the `docs/designs/` directory. Valid file paths must match:
-    - `docs/designs/FEAT-XXX_slug_blueprint.md`
-    - `docs/designs/FIX-XXX_slug_blueprint.md`
-    - `docs/designs/QUICK-XXX_slug_blueprint.md`
+*   **Rule 2: Valid Blueprint Path**: A Blueprint must exist under the `docs/blueprints/` directory. Valid file paths match one of:
+    - Single-file shape: `docs/blueprints/FEAT-XXX_slug_blueprint.md`, `docs/blueprints/FIX-XXX_slug_blueprint.md`, `docs/blueprints/QUICK-XXX_slug_blueprint.md`
+    - Multi-phase folder shape (large FEAT-XXX features only): `docs/blueprints/<feature-slug>/master/FEAT-XXX_..._master_blueprint.md` + `docs/blueprints/<feature-slug>/phase-NN-<phase-slug>/phase-blueprint.md` (each optionally split into companion files per that phase's own indexing rules)
 *   **Rule 3: Explicit User Approval**: The Blueprint must be explicitly approved by the user. Accepted approval keywords are: `Y`, `Yes`, `Proceed`, `Continue` (case-insensitive). The AI must never assume blueprint approval.
 *   **Rule 4: Stop Condition**: If no approved Blueprint exists, the AI must IMMEDIATELY STOP, explain the requirement, recommend generating or approving the Blueprint, and wait for input.
 *   **Rule 5: Override Priority**: This policy overrides all implementation-capable Skills. No exceptions.
@@ -462,7 +465,7 @@ To minimize token consumption, eliminate LLM logic errors, and ensure repeatable
 To prevent the leakage of user directory structures, usernames, and system details when project files and changes are pushed to remote Git repositories:
 1. **No Absolute Paths**: All AI agents and CLI scripts are strictly prohibited from generating, writing, or placing absolute file paths (e.g., `/Users/username/...`, `C:\Users\username\...`, or `file:///path/to/user/...`) in any project files, documents, configuration files, prompt responses, source code, or tests.
 2. **Mandatory Relative Paths**: All references to files, folders, and resources must use project-relative paths (e.g., `./skills/...`, `docs/plans/...`, or `.agents/workflow.config.json`).
-3. **Markdown Links**: Fenced markdown links and file pointers must use relative URLs/paths instead of absolute URLs/schemes pointing to the local filesystem (unless using relative links like `[link](file://./relative_path)` or generic references).
+3. **Markdown Links**: Tất cả các liên kết tài liệu Markdown trỏ tới tệp tin hoặc thư mục BẮT BUỘC phải luôn luôn sử dụng đường dẫn tương đối (relative paths) bắt đầu từ thư mục gốc của dự án (ví dụ: `[session.py](skills/workflow-runtime/scripts/session.py)`). Tuyệt đối nghiêm cấm việc sử dụng đường dẫn tuyệt đối hoặc định dạng giao thức tuyệt đối cục bộ như `file:///e:/...` hay `file:///C:/...` trong các tài liệu.
 4. **Scope of Application**: This rule applies universally to all Skills, docs, issues, plans, designs, code comments, tests, and CLI outputs.
 
 ---
@@ -564,7 +567,7 @@ To enforce standard software engineering processes and prevent bypasses, all ope
 4. **Artifact Enforcement**:
    Every skill must generate its required artifacts under the approved docs/ directories:
    - Discovery/Brainstorming: `docs/brainstorming/FEAT-xxx.md` (or `docs/brainstorming/FIX-xxx.md`)
-   - Planning: `docs/planning/FEAT-xxx_plan.md`
+   - Planning: `docs/plans/FEAT-xxx_plan.md`
    - Design/Blueprint: `docs/blueprints/FEAT-xxx_blueprint.md`
    - Technical Reports: `docs/reports/FEAT-xxx_report.md`
    Creating workflow artifacts in project root is strictly forbidden. If a required artifact is missing or stored in an invalid location, the workflow status is set to `BLOCKED`.
@@ -574,10 +577,11 @@ To enforce standard software engineering processes and prevent bypasses, all ope
 
 6. **Human Approval Gates**:
    Human approval is strictly required at three strategic gates:
-   - Gate 1: Planning Approval
-   - Gate 2: Blueprint Approval
+   - Gate 1: Workflow Selection Approval, only when workflow routing is ambiguous or multiple valid paths exist
+   - Gate 2: Blueprint Approval, only after roadmap/discovery, plan/spec, and blueprint artifacts have passed internal review
    - Gate 3: Release Approval
-    - All intermediate phases (Implementation, Debug, Verification, Certification, Final Review, Release Preparation, Post Release Validation, Monitoring, Governance) must execute autonomously when evidence passes.
+    - Roadmap/discovery, specification, and implementation plan artifacts are reviewed internally and do not create human approval stops unless information is missing or contradictory.
+    - All post-approval intermediate phases (Implementation, Debug, Verification, Certification, Final Review, Release Preparation, Post Release Validation, Monitoring, Governance) must execute autonomously when evidence passes.
 
 7. **Session Auto-Initialization & Bootstrap Guard**:
    All workflow requests must pass through Session Bootstrap Guard. If the current session is not initialized:
@@ -620,8 +624,8 @@ To enforce standard software engineering processes and prevent bypasses, all ope
    
    Approved mappings:
    - **Brainstorming**: `docs/brainstorming/`
-   - **Planning**: `docs/planning/`
-   - **Architecture**: `docs/architecture/`
+   - **Planning**: `docs/plans/`
+   - **Architecture**: `docs/architecture-reviews/`
    - **Blueprints**: `docs/blueprints/`
    - **Implementation**: `docs/implementation/`
    - **Verification**: `docs/verification/`
@@ -638,3 +642,22 @@ To enforce standard software engineering processes and prevent bypasses, all ope
 
 3. **Supervisor Blocking**:
    Workflow Supervisor must verify artifact paths and naming before phase transitions. Any violation will set status to `BLOCKED` with reason `Artifact governance violation`.
+
+---
+
+## Section 29: Telegram Continuous Listener Policy
+
+1. **Auto-Start on Initialization**:
+   Whenever a new workflow session is initialized (running `init` / `start` of the `initialize-workflow` skill), the Agent MUST check for the presence of the `notify-telegram` skill and automatically start the Telegram background listener script (`listen.sh`) in the background.
+
+2. **Non-blocking Execution**:
+   The listener process MUST be executed asynchronously (non-blocking daemon process) to avoid stalling the initialization CLI or workflow sequence.
+
+3. **Message Integration**:
+   Messages received via Telegram (logged to `.agents/inbox/inbox.json`) must be processed within the active session by the running Agent, preventing duplicate parallel CLI session invocations.
+
+4. **Project Inbox Read Allowance**:
+   Agents may read `.agents/inbox/inbox.json` and non-sensitive files under `.agents/inbox/` without asking for additional workflow confirmation. This allowance is read-only, project-local, and exists only for Telegram inbox messages and user-provided input artifacts routed into the registered workspace. It does not grant permission to read credentials, secrets, `.env` files, private keys, tokens, or any file outside the registered project workspace. Host IDE or sandbox filesystem prompts still take precedence and cannot be bypassed by this policy.
+
+5. **Bidirectional Command Execution & Messaging**:
+   Bất kỳ khi nào bắt đầu một lượt làm việc (Turn), Agent BẮT BUỘC phải kiểm tra tệp tin `.agents/inbox/inbox.json`. Nếu có lệnh/tin nhắn từ Ba gửi đến, Agent phải xử lý nó như một yêu cầu hướng dẫn trực tiếp từ người dùng. Sau khi thực thi xong hoặc khi chạm đến các chốt phê duyệt cần dừng lại hỏi Ba, Agent BẮT BUỘC phải gửi tóm tắt hoạt động và nội dung câu hỏi về Telegram của Ba qua sendMessage API (sử dụng mẫu và các helper script trong kỹ năng `notify-telegram`), sau đó khởi chạy lại tiến trình lắng nghe `listen.sh` để đảm bảo chu trình liên tục được vũ trang.

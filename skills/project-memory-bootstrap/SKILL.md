@@ -21,20 +21,17 @@ runtime_requirements:
   environment: cached
   version: cached
   provider: optional
-  usage: none
----
+  usage: none---
 
 # Skill: Project Memory Bootstrap (Script-First)
 
 ## Purpose
 Perform a complete, first-time analysis of the current project and generate all Project Memory layers under `.agents/memory/`.
-
 ## Script Invocation
 Execute the Python CLI command:
 ```bash
-python3 runtime/scripts/project_memory/cli.py bootstrap
+python3 .agents/runtime/scripts/project_memory/cli.py bootstrap
 ```
-*(Nếu chạy trong thư mục phân phối, sử dụng: `python3 .agents/runtime/scripts/project_memory/cli.py bootstrap`)*
 
 ## Expected Output
 The script returns a structured JSON payload:

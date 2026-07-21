@@ -142,7 +142,7 @@ def test_end_to_end_workflow_gates_and_transitions(setup_workspace):
     sm.transition_to("ReleaseExecution")
     
     # Run post-release lifecycle automator
-    out_dir = os.path.join(setup_workspace, "docs", "reviews")
+    out_dir = os.path.join(setup_workspace, "docs", "verification")
     automator = PostReleaseLifecycleAutomator(
         release_version="6.14.2",
         git_commit="1f7f0e7",

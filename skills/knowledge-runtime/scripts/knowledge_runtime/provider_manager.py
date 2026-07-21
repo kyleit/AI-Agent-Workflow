@@ -422,7 +422,7 @@ def resolve_obsidian_project_folder(project_root: str = ".") -> str:
         folder_mapping = obs_cfg.get("folder_mapping", {
             "docs/brainstorming": "Brainstorming",
             "docs/plans": "Plans",
-            "docs/designs": "Blueprints",
+            "docs/blueprints": "Blueprints",
             "docs/adr": "ADR",
             "docs/releases": "Releases",
             ".agents/memory": "Memory",
@@ -517,7 +517,7 @@ def sync_obsidian(project_root: str = ".") -> dict:
         "docs/plans": "Plans",
         "docs/quick": "Brainstorming",
         "docs/issues": "Plans",
-        "docs/designs": "Blueprints",
+        "docs/blueprints": "Blueprints",
         "docs/adr": "ADR",
         "docs/releases": "Releases",
         ".agents/memory": "Memory",

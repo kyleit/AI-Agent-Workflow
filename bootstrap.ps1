@@ -55,8 +55,11 @@ function Show-Help {
     Write-Host "  init         Initialize a new project workspace (collect specification, generate configs)"
     Write-Host "  update-source Update the centralized framework source repository safely via Git"
     Write-Host "  test         Execute test validate, smoke, or affected tests"
+    Write-Host "  config       Check and bootstrap AIWF runtime services"
+    Write-Host "  runtime      Manage runtime daemon, command bus, and policy"
     Write-Host "  workflow     Submit, inspect, track, or manage active SDLC workflows"
     Write-Host "  session      Recover, inspect, lock, or update active workspace sessions"
+    Write-Host "  telegram     Manage Telegram global configuration, shared daemon, and project links"
     Write-Host "  help         Show this help message"
 }
 

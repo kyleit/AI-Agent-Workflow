@@ -9,12 +9,7 @@ tags:
   - controller
   - session
 version: 2.11.0
-author:
-  name: Kyle Dang
-  email: kyleit@klexpress.net
-  website: https://www.klexpress.net
 license: MIT
-repository: https://gitlab.com/hngan.it/ai-workflow-skills
 created_at: 2026-07-03
 updated_at: 2026-07-06
 description: Runtime controller for the AI Engineering Workflow. Manages execution session state (.session.json), validates context health, detects context drift, updates checkpoints, supports recovery via resume-workflow, and outputs runtime heartbeats. Read-only.
@@ -29,8 +24,7 @@ runtime_requirements:
   environment: cached
   version: cached
   provider: optional
-  usage: cached
----
+  usage: cached---
 
 # Skill: workflow-runtime (AI Workflow Runtime Controller)
 
@@ -102,6 +96,59 @@ python skills/workflow-runtime/scripts/workflow_runtime.py fail --step <error_de
 python skills/workflow-runtime/scripts/workflow_runtime.py heartbeat
 ```
 - Prints the formatted workflow state box.
+
+### 8. Agent-Safe Runtime Daemon
+
+Use this when an IDE/Agent requires approval for every Python/runtime command. The agent writes a
+project-local request file, and the already-running runtime daemon executes only allowlisted runtime
+commands.
+
+Daemon controls:
+
+```bash
+python skills/workflow-runtime/scripts/workflow_runtime.py runtime start
+python skills/workflow-runtime/scripts/workflow_runtime.py runtime stop
+python skills/workflow-runtime/scripts/workflow_runtime.py runtime restart
+python skills/workflow-runtime/scripts/workflow_runtime.py runtime status
+python skills/workflow-runtime/scripts/workflow_runtime.py runtime enable
+python skills/workflow-runtime/scripts/workflow_runtime.py runtime disable
+```
+
+- `start` / `stop` only affect the current running daemon.
+- `enable` / `disable` manage OS login autostart, matching the Telegram daemon semantics.
+- `status` MUST include the current project context so multi-project setups are not ambiguous.
+
+Request file:
+
+```json
+{
+  "type": "RUNTIME_COMMAND",
+  "command": "deps.resolve",
+  "args": {
+    "skill": "initialize-workflow"
+  },
+  "idempotency_key": "deps-resolve-initialize-workflow",
+  "requested_at": "2026-07-21T08:40:00Z"
+}
+```
+
+Supported allowlisted commands:
+- `deps.resolve`: refreshes `.agents/state/runtime/dependencies.json`.
+- `git.status`: reads branch and short status only. It does not commit, tag, push, checkout, or
+  mutate Git state.
+
+Response file: `.agents/runtime/commands/runtime.response.json`.
+
+### 9. One-Shot Configuration
+
+```bash
+python skills/workflow-runtime/scripts/workflow_runtime.py config
+```
+
+This is the single setup command for normal users. It checks and bootstraps safe local runtime
+services: dependency cache, Git read cache, project registry, runtime daemon, and Telegram
+daemon when credentials are already configured. Use `--check-only` to report without starting
+daemons and `--no-start` to create/cache files without launching background processes.
 
 ---
 

@@ -150,7 +150,19 @@ def register_project(project_path: str, force: bool = False, source: str = "regi
                 version = manifest.get("version", "unknown")
         except Exception:
             pass
-            
+    # Read TELEGRAM_CHAT_ID if config exists
+    chat_id = None
+    env_path = norm_path / ".agents" / "config" / ".env.telegram-notify"
+    if env_path.exists():
+        try:
+            with open(env_path, "r", encoding="utf-8") as f:
+                for line in f:
+                    line = line.strip()
+                    if line.startswith("TELEGRAM_CHAT_ID="):
+                        chat_id = line.split("=", 1)[1].strip().strip('"').strip("'")
+        except Exception:
+            pass
+
     now_str = datetime.now().astimezone().isoformat()
     
     if existing:
@@ -158,6 +170,8 @@ def register_project(project_path: str, force: bool = False, source: str = "regi
         existing["last_seen_at"] = now_str
         existing["aiwf_version"] = version
         existing["status"] = "active"
+        if chat_id:
+            existing["telegram_chat_id"] = chat_id
         if source == "install":
             existing["last_installed_at"] = now_str
     else:
@@ -171,6 +185,7 @@ def register_project(project_path: str, force: bool = False, source: str = "regi
             "last_updated_at": None,
             "aiwf_version": version,
             "install_source": source,
+            "telegram_chat_id": chat_id,
             "status": "active"
         }
         registry["projects"].append(new_project)
@@ -181,6 +196,24 @@ def register_project(project_path: str, force: bool = False, source: str = "regi
         "project_path": str(norm_path), 
         "registry_path": str(get_registry_path())
     }
+
+def update_project_telegram_chat_id(project_path: str, chat_id: str) -> bool:
+    """Explicitly update the telegram_chat_id mapping for a project path."""
+    norm_path = normalize_path(project_path)
+    registry = load_registry()
+    proj_id = generate_project_id(norm_path)
+    
+    updated = False
+    for p in registry["projects"]:
+        if p["id"] == proj_id or normalize_path(p["path"]) == norm_path:
+            p["telegram_chat_id"] = chat_id
+            updated = True
+            break
+            
+    if updated:
+        save_registry_atomic(registry)
+        return True
+    return False
 
 def unregister_project(project_path: str) -> bool:
     """Remove a project from registry by path."""

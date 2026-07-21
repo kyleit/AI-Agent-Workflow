@@ -14,12 +14,7 @@ tags:
   - debug
   - qa
 version: 2.5.0
-author:
-  name: Kyle Dang
-  email: kyleit@klexpress.net
-  website: https://www.klexpress.net
 license: MIT
-repository: https://gitlab.com/hngan.it/ai-workflow-skills
 created_at: 2026-07-05
 updated_at: 2026-07-05
 description: Validate frontend implementation visually. Uses browser tools when available to debug and verify frontend UI against the expected design and requirements.
@@ -34,8 +29,7 @@ runtime_requirements:
   environment: none
   version: none
   provider: optional
-  usage: none
----
+  usage: none---
 
 # Skill: Frontend Visual Debug (VIR Entry-Point)
 
@@ -87,7 +81,7 @@ Local dev URL
 ```
 
 If these inputs are missing, infer them by scanning:
-- `docs/designs/` (Technical Blueprint)
+- `docs/blueprints/` (Technical Blueprint — single-file `FEAT-XXX_*_blueprint.md`, or the multi-phase `<feature-slug>/phase-NN-<phase-slug>/phase-blueprint.md` + companions for the relevant frontend phase)
 - `docs/brainstorming/` (Requirements)
 - `docs/plans/` (Implementation Plan)
 
@@ -149,13 +143,13 @@ The Skill must detect the workspace technology stack:
       - Apply minimal, precise fixes to the affected components in the active feature scope.
       - Re-run browser checks to confirm the fix succeeded.
 5.  **Report Generation**:
-    - Generate the report at `docs/verification/FEAT-XXX_visual_debug.md` matching the layout below.
+    - Generate the report at `docs/verification/FEAT-XXX_visual_debug.md` (or `docs/verification/FEAT-XXX_phase-NN-<phase-slug>_visual_debug.md` when debugging one phase of a multi-phase feature, matching the real `docs/verification/` filename convention — no subfolder nesting here) matching the layout below.
 
 ---
 
 ## Output Template
 
-Generate `docs/verification/FEAT-XXX_visual_debug.md` in the following format:
+Generate `docs/verification/FEAT-XXX_visual_debug.md` (or the phase-suffixed variant above) in the following format:
 
 ```markdown
 # Visual Debug Report

@@ -12,6 +12,34 @@ from session import load_session
 LIMIT_TOKENS = 2000000
 BRAIN_ROOT = os.path.expanduser("~/.gemini/antigravity-ide/brain")
 
+def get_workflow_metadata(project_path: str) -> dict | None:
+    """Best-effort AIWF metadata lookup; never raises for non-AIWF projects."""
+    try:
+        if not isinstance(project_path, str):
+            return None
+        root = project_path.strip()
+        if not root or not os.path.isdir(root):
+            return None
+        session_path = os.path.join(root, ".agents", ".session.json")
+        if os.path.exists(session_path):
+            with open(session_path, "r", encoding="utf-8") as f:
+                data = json.load(f)
+            return data if isinstance(data, dict) else None
+        state_root = os.path.join(root, ".agents", "state")
+        metadata: dict = {}
+        for key, path in [
+            ("context", os.path.join(state_root, "context.json")),
+            ("workflow", os.path.join(state_root, "workflow.json")),
+        ]:
+            if os.path.exists(path):
+                with open(path, "r", encoding="utf-8") as f:
+                    payload = json.load(f)
+                if isinstance(payload, dict):
+                    metadata[key] = payload
+        return metadata or None
+    except Exception:
+        return None
+
 def parse_transcript(log_file: str) -> dict:
     if not os.path.exists(log_file):
         return {}

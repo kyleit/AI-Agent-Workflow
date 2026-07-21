@@ -330,11 +330,11 @@ class ReleaseGate:
         feature_id = ledger.get("feature_id", "")
         verify_path = os.path.join(
             self._workspace_root or ".",
-            "docs", "reviews", f"{feature_id}_verify.md"
+            "docs", "verification", f"{feature_id}_verify.md"
         )
         if not os.path.exists(verify_path):
             return (
-                f"Verify report not found at docs/reviews/{feature_id}_verify.md. "
+                f"Verify report not found at docs/verification/{feature_id}_verify.md. "
                 f"Run /verify first."
             )
 
