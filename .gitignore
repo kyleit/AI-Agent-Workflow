@@ -29,6 +29,7 @@ scratch/
 .agents/inbox/*
 !.agents/inbox/.gitkeep
 .agents/skills/workflow-runtime/tests/integration/temp_full_access_test/
+skills/workflow-runtime/tests/integration/temp_full_access_test/
 
 # Performance soak/stress testing evidence and local lease logs
 docs/brainstorming/stale_leases/
