@@ -6699,6 +6699,8 @@ def main():
     _ = ups_p.add_argument("--source", type=str, dest="source_opt")
     _ = ups_p.add_argument("--remote", type=str, default="origin")
     _ = ups_p.add_argument("--branch", type=str, default="main")
+    _ = ups_p.add_argument("--url", type=str, default="https://github.com/kyleit/AI-Agent-Workflow.git")
+    _ = ups_p.add_argument("--allow-prerelease", action="store_true")
     _ = ups_p.add_argument("--check", action="store_true")
     _ = ups_p.add_argument("--dry-run", action="store_true")
     _ = ups_p.add_argument("--json", action="store_true")
