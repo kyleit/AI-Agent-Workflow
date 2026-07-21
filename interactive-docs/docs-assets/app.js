@@ -17,7 +17,7 @@ function initRouter() {
   menuButtons.forEach(btn => {
     btn.addEventListener("click", () => {
       const targetTab = btn.getAttribute("data-tab");
-      
+
       // Update sidebar menu active state
       document.querySelectorAll(".menu-item").forEach(item => item.classList.remove("active"));
       btn.parentElement.classList.add("active");
@@ -40,7 +40,7 @@ function initRouter() {
         "obsidian": "Hướng dẫn tích hợp Obsidian (Obsidian Vault Setup)"
       };
       headerTitle.textContent = tabTitleMap[targetTab] || "Tài liệu AI Skill Framework";
-      
+
       // Tự động đóng menu trên mobile khi click chọn mục
       const menuList = document.querySelector(".menu-list");
       if (menuList) {
@@ -57,7 +57,7 @@ function initRouter() {
       e.stopPropagation();
       menuList.classList.toggle("show");
     });
-    
+
     // Đóng menu khi nhấp ra ngoài vùng hoạt động
     document.addEventListener("click", (e) => {
       if (!menuToggle.contains(e.target) && !menuList.contains(e.target)) {
@@ -95,15 +95,39 @@ let currentSearchQuery = "";
 
 function initSkillsCatalog() {
   const grid = document.querySelector(".skills-grid");
-  const filterBtns = document.querySelectorAll(".filter-btn");
+  const filterTabsContainer = document.querySelector(".filter-tabs");
   const searchInput = document.querySelector("#skillSearch");
+
+  // Render filter buttons dynamically
+  const categories = [...new Set(skillsData.map(s => s.category))].filter(Boolean).sort();
+
+  const categoryLabels = {
+    all: "Tất cả Skills",
+    workflow: "Workflow & SDLC",
+    runtime: "CLI Runtime",
+    memory: "RAG & Memory",
+    environment: "Môi trường (Env)",
+    architecture: "Kiến trúc (ADR)",
+    quality: "Kiểm định (Quality)",
+    tooling: "Công cụ (Tooling)",
+    governance: "Quản trị (Governance)"
+  };
+
+  let filterHtml = `<button class="filter-btn active" data-category="all">Tất cả Skills</button>`;
+  categories.forEach(cat => {
+    const label = categoryLabels[cat] || (cat.charAt(0).toUpperCase() + cat.slice(1));
+    filterHtml += `<button class="filter-btn" data-category="${cat}">${label}</button>`;
+  });
+  filterTabsContainer.innerHTML = filterHtml;
+
+  const filterBtns = filterTabsContainer.querySelectorAll(".filter-btn");
 
   function renderSkills() {
     grid.innerHTML = "";
-    
+
     const filtered = skillsData.filter(skill => {
       const matchesCategory = currentFilterCategory === "all" || skill.category === currentFilterCategory;
-      const matchesSearch = skill.name.toLowerCase().includes(currentSearchQuery) || 
+      const matchesSearch = skill.name.toLowerCase().includes(currentSearchQuery) ||
                             skill.command.toLowerCase().includes(currentSearchQuery) ||
                             skill.purpose.toLowerCase().includes(currentSearchQuery);
       return matchesCategory && matchesSearch;
@@ -530,7 +554,7 @@ function initSimulator() {
   const simAgentAction = document.querySelector("#simAgentAction");
   const simCliCommand = document.querySelector("#simCliCommand");
   const simProgress = document.querySelector("#simProgress");
-  
+
   const btnRunCli = document.querySelector("#btnRunCli");
   const btnApprove = document.querySelector("#btnApprove");
   const btnReset = document.querySelector("#btnReset");
@@ -555,7 +579,7 @@ function initSimulator() {
       btnRunCli.textContent = "Chạy CLI";
     } else {
       btnRunCli.style.display = "none";
-      
+
       if (currentStep.gate === "proceed") {
         btnApprove.style.display = "block";
         btnApprove.textContent = "Tiếp tục (Bypass)";
@@ -634,7 +658,7 @@ function initSimulator() {
       const userDiv = document.createElement("div");
       userDiv.innerHTML = `<span class="terminal-prompt">User Input:</span> <span class="terminal-cmd" style="color: var(--green);">Y</span>`;
       terminalBody.appendChild(userDiv);
-      
+
       const resDiv = document.createElement("div");
       resDiv.className = "terminal-success";
       resDiv.textContent = "Proceeding gate approved by user.";

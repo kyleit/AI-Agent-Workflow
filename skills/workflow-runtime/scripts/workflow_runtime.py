@@ -5234,11 +5234,44 @@ def do_telegram(args):
             except Exception:
                 pass
 
+        curr_path = os.path.abspath(".")
+        input_chat_id = getattr(args, "chat_id", None) or getattr(args, "chat_id_opt", None)
+
+        if input_chat_id:
+            # Non-interactive path
+            target_gid = input_chat_id
+            target_title = groups.get(target_gid, "Unknown Telegram Group")
+            import aiwf_registry
+            if aiwf_registry.update_project_telegram_chat_id(curr_path, target_gid):
+                print(f"[SYSTEM] Lien ket thanh cong du an '{os.path.basename(curr_path)}' voi Group '{target_title}' ({target_gid}).")
+
+                # Sync dynamic Bot commands after linking
+                cfg = {}
+                cfg_path = os.path.expanduser("~/.aiwf/.env.telegram-notify")
+                if os.path.exists(cfg_path):
+                    with open(cfg_path, "r", encoding="utf-8") as f:
+                        for line in f:
+                            if "=" in line:
+                                k, v = line.split("=", 1)
+                                if k.strip() == "TELEGRAM_BOT_TOKEN":
+                                    cfg["token"] = v.strip().strip('"').strip("'")
+                                elif k.strip() == "TELEGRAM_PROXY":
+                                    cfg["proxy"] = v.strip().strip('"').strip("'")
+                if cfg.get("token"):
+                    try:
+                        sys.path.insert(0, os.path.dirname(os.path.abspath(__file__)))
+                        import telegram_daemon
+                        telegram_daemon.set_bot_menu_commands(cfg["token"], cfg.get("proxy"))
+                    except Exception as e:
+                        print(f"[WARN] Failed to sync Bot commands: {e}")
+            else:
+                print(f"[ERROR] Du an '{os.path.basename(curr_path)}' chua duoc dang ky trong he thong. Hay chay 'aiwf registry register' truoc.")
+            return
+
+        # Interactive path fallback
         if not groups:
             print("[SYSTEM] Chua phat hien nhom Telegram nao. Hay dam bao ban da add Bot vao Group va gui tin nhan truoc.")
             return
-
-        curr_path = os.path.abspath(".")
 
         print("\n--- Danh sach nhom Telegram da phat hien ---")
         options_list = list(groups.items())
@@ -6715,7 +6748,9 @@ def main():
     _ = telegram_sub.add_parser("enable")
     _ = telegram_sub.add_parser("disable")
     _ = telegram_sub.add_parser("status")
-    _ = telegram_sub.add_parser("link")
+    link_p = telegram_sub.add_parser("link")
+    link_p.add_argument("chat_id", nargs="?", type=str, default=None, help="Telegram Chat ID to link directly (non-interactive)")
+    link_p.add_argument("--chat-id", type=str, dest="chat_id_opt", default=None, help="Telegram Chat ID to link directly (non-interactive)")
     _ = telegram_sub.add_parser("config", help="Interactive step-by-step setup for Telegram Global credentials")
 
     api_server_p = subparsers.add_parser("api-server", help="Start stable Observability API Server")

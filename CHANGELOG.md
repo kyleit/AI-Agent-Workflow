@@ -5,6 +5,22 @@ All notable changes to this project will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [6.19.3] - 2026-07-21
+
+### Added
+- **AIWF Framework desktop app release pipeline**:
+  - Added desktop packaging targets for macOS installers and GitHub release artifacts.
+  - Added a GitHub Actions desktop release workflow that builds downloadable packages on tag pushes.
+
+### Fixed
+- **AIWF Framework macOS tray behavior**:
+  - Kept the desktop app running in the macOS menu bar when the main window is closed.
+  - Enforced singleton launch behavior so opening the app again focuses the existing instance.
+  - Fixed the tray icon rendering by using a dedicated macOS template tray glyph instead of the full app icon.
+- **AIWF Framework desktop runtime execution**:
+  - Resolved Python runtime launch failures on machines where `python` is not available by detecting `python3`, `python`, `py -3`, or an explicit `AIWF_PYTHON` override.
+  - Added macOS signing and notarization hooks for trusted public `.pkg` and `.dmg` releases.
+
 ## [6.19.2] - 2026-07-21
 
 ### Fixed

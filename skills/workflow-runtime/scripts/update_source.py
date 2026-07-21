@@ -34,7 +34,7 @@ class SourceRepositoryService:
             if c1 != 0:
                 print(f"Error initializing Git: {e1}", file=sys.stderr)
                 return False
-            
+
             c2, _, _ = self._run_git(["remote", "add", self.remote, remote_url])
             if c2 != 0:
                 self._run_git(["remote", "set-url", self.remote, remote_url])
@@ -135,7 +135,7 @@ class SourceRepositoryService:
 
         # Compare commits
         _, remote_commit, _ = self._run_git(["rev-parse", upstream])
-        
+
         is_up_to_date = current_commit == remote_commit
         is_behind = False
         is_ahead = False
