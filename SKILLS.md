@@ -406,7 +406,7 @@ Frontend/Desktop Visual Debug           Skipped (Backend Only)
 * **Recommended Next Skill**: None (utility skill).
 * **Example Invocation**:
   ```bash
-  /okr image_path="C:\Users\Kyle\Desktop\okr.jpg"
+  /okr image_path="path/to/okr.jpg"
   ```
 * **Current Status**: Stable.
 * **Dependencies**: Requires OCR capabilities / multimodal models.
@@ -604,7 +604,7 @@ Frontend/Desktop Visual Debug           Skipped (Backend Only)
 * **Recommended Next Skill**: None (utility skill).
 * **Example Invocation**:
   ```bash
-  /okr image_path="C:\Users\Kyle\Desktop\okr.jpg"
+  /okr image_path="path/to/okr.jpg"
   ```
 * **Current Status**: Stable.
 * **Dependencies**: Requires OCR capabilities / multimodal models.
@@ -823,7 +823,7 @@ Frontend/Desktop Visual Debug           Skipped (Backend Only)
 
 * **Responsibilities**:
   1. Thực hiện phân tích tĩnh các file hướng dẫn `SKILL.md` để đảm bảo định dạng YAML frontmatter chính xác.
-  2. Phát hiện các vi phạm quy tắc an toàn (cấm tuyệt đối đường dẫn tuyệt đối, link `file:///`, hoặc enum không an toàn cho `permission_mode`).
+  2. Phát hiện các vi phạm quy tắc an toàn (cấm tuyệt đối đường dẫn tuyệt đối, link `local-file-url`, hoặc enum không an toàn cho `permission_mode`).
   3. Mô phỏng động sự tương tác hội thoại của người dùng (happy path, sai checkpoint, approval gate, v.v.).
   4. Xuất báo cáo chất lượng chính thức dưới dạng tệp tin markdown trong `docs/verification/`.
 * **Input**: `--skill <skill-name>` (Tên Skill cần kiểm tra).
