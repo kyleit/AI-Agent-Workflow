@@ -55,8 +55,9 @@ This Skill MUST interface with the centralized Python CLI Runtime Engine:
 | **Phase 2 (Blueprint)**: Design the technical solution and write the Design Blueprint. |
 | **Phase 3 (Implementation)**: Implement code only after explicit Blueprint approval. |
 | NO SOURCE CODE will be modified during Phase 1 or Phase 2. |
-| Specification path: `docs/issues/FIX-XXX_issue_name.md` |
-| Design Blueprint path: `docs/blueprints/FIX-XXX_issue_name_blueprint.md` |
+| Specification path: `docs/features/<feature-family>/issues/FIX-XXX_issue_name.md` |
+| Design Blueprint path: `docs/features/<feature-family>/blueprints/FIX-XXX_issue_name_blueprint.md` |
+| Feature index path: `docs/features/<feature-family>/README.md` |
 
 ---
 
@@ -101,7 +102,7 @@ Every issue must first be evaluated against the following criteria:
 ## FIX-XXX ID Naming Rule
 
 FIX IDs are independent of Feature IDs but share the same directory:
-1. Scan `docs/issues/` for files matching `FIX-XXX_*.md` (where `XXX` is a 3-digit number).
+1. Scan `docs/issues/` recursively for canonical files matching `FIX-XXX_*/FIX-XXX_*.md` and legacy flat files matching `FIX-XXX_*.md` (where `XXX` is a 3-digit number).
 2. Ignore plans, designs, and other files.
 3. If no matching files exist (excluding placeholders like `.gitkeep`), the ID starts at `FIX-001`.
 4. If files exist, the next ID is the highest existing ID + 1 (e.g. `FIX-002`, `FIX-003`).
@@ -123,21 +124,23 @@ Step 3:  Consult Project Memory & RAG (No whole-workspace scanning)
          ↓
 Step 4:  Targeted Source Inspection
          ↓
-Step 5:  Generate Fix Specification (docs/issues/FIX-XXX_issue_name.md)
+Step 5:  Generate Fix Specification (docs/features/<feature-family>/issues/FIX-XXX_issue_name.md)
          ↓
 Step 6:  Internal Spec Review Gate (No User Stop)
           - Review the Specification against this skill, AI_RULES.md, the user request, and frontend-design when UI/design is affected.
+          - Write or update the Specification's `Internal Review Evidence` section with concrete PASS/FAIL evidence.
           - If review FAILS, explain the failed points and revise the Specification only in those points.
           - Repeat review/revision until PASS.
           - Do NOT ask the user for approval at this gate.
          ↓
-Step 7:  Generate Technical Design Blueprint (docs/blueprints/FIX-XXX_issue_name_blueprint.md)
+Step 7:  Generate Technical Design Blueprint (docs/features/<feature-family>/blueprints/FIX-XXX_issue_name_blueprint.md)
           ↓
 Step 8:  Internal Blueprint Review + Final User Approval Gate
           - Run python CLI to register blueprint.
           - Review the Blueprint against this skill, AI_RULES.md, the Specification, document-compliance-assessment rules, and frontend-design when UI/design is affected.
+          - Write or update the Blueprint's `Internal Review Evidence` section with concrete PASS/FAIL evidence.
           - If review FAILS, clearly state each failed point and revise only those points. Repeat until PASS.
-          - After review PASS, present the Technical Design Blueprint to the user in chat.
+          - After review PASS, request approval through `workflow_runtime.py prompt select`; plain chat approval is not valid unless the prompt bridge is unavailable and explicitly reported.
           - **ABSOLUTE USER APPROVAL STOP**: The AGENT MUST STOP CALLING TOOLS IMMEDIATELY AND END TURN.
           - [STOP] Wait for explicit user approval. DO NOT run any more tools. DO NOT mark approved. DO NOT inspect further. DO NOT implement.
           - Once approved, run python CLI to mark blueprint approved.
@@ -148,11 +151,26 @@ Step 9:  Pre-Implementation Git Check (Phase 3)
          ↓
 Step 10: Code Implementation (Direct minimal code fix)
          ↓
-Step 11: Automatic Validation Pipeline
-         - Run compiler, check builds, run existing unit tests.
+Step 11: Code Standard Review Gate
+         - Use `code-standard-review` against the approved Blueprint and changed files.
+         - [STOP/REPAIR LOOP] If review fails → fix exact failed points only and rerun review.
+         ↓
+Step 12: Automatic Validation Pipeline
+         - Run targeted compiler/build/lint/typecheck checks for changed components only.
          - [STOP] If tests fail → Report failures and halt.
          ↓
-Step 12: Generate Quick-Fix Summary Report & Self-Validation Checklist
+Step 13: Debug/Test Gate
+         - Run targeted tests for changed components only.
+         - For pytest, use `pytest -v -s <related_test_file_or_directory> 2>&1 | tee .agents/runtime/tests.log`.
+         ↓
+Step 14: Real Runtime Case Gate
+         - Exercise a real CLI/API/IPC/database/service/browser path without mocks or fake test doubles.
+         ↓
+Step 15: Frontend Browser Evidence Gate (when UI/browser behavior is affected)
+         - Capture screenshots with IDE browser tools or CDP/equivalent real browser automation.
+         ↓
+Step 16: Generate Quick-Fix Evidence Report & Self-Validation Checklist
+         - Write `docs/features/<feature-family>/reports/FIX-XXX_issue_name_post_implementation_report.md`.
 ```
 
 ---
@@ -162,12 +180,12 @@ Step 12: Generate Quick-Fix Summary Report & Self-Validation Checklist
 ### Step 5: Generate Fix Specification
 
 Calculate the FIX ID and write the document at:
-`docs/issues/FIX-XXX_issue_name.md`
+`docs/features/<feature-family>/issues/FIX-XXX_issue_name.md`
 
 Use this template:
 
 ```markdown
-<!-- File path: docs/issues/FIX-XXX_issue_name.md -->
+<!-- File path: docs/features/<feature-family>/issues/FIX-XXX_issue_name.md -->
 ---
 artifact_type: fix-spec
 issue_id: FIX-XXX
@@ -322,6 +340,19 @@ Bản thiết kế kỹ thuật (Technical Design Blueprint) ở Phase 2 bắt b
 - Giao diện và cơ chế tiêm phụ thuộc (Interfaces & dependency injection)
 - Triển khai cụ thể cơ chế xử lý lỗi và ghi log (Error handling & logging implementation details)
 - Chiến lược kiểm thử tự động chi tiết (Testing strategy)
+
+## 20. Internal Review Evidence
+| Field | Evidence |
+|---|---|
+| Reviewer Roles | Planner / Reviewer / QC / relevant Specialist roles |
+| Source Artifacts Reviewed | User issue, active Skill, `AI_RULES.md`, memory/RAG/source references |
+| Checklist Result | PASS/FAIL rows with concrete section evidence |
+| Failed Points | `None` or exact failed-point list |
+| Revision Scope | `None` or exact sections revised |
+| Re-review Count | `0` for first-pass PASS, otherwise number of repeated reviews |
+| Document Compliance Score | `NN/100` |
+| Relative Path Scan | PASS only when no `file:///`, `/Users/`, `/Volumes/`, drive-letter paths, or local absolute links exist |
+| Final Result | `PASS` or `FAIL` |
 ```
 ```
 
@@ -335,6 +366,8 @@ Rules:
 - Do not stop for user approval after the Specification.
 - Do not end turn after the Specification.
 - Include `frontend-design` in the review when the fix touches UI/UX, frontend components, layout, spacing, typography, color, animation, icons, visual hierarchy, aesthetic styling, or design-system decisions.
+- The Specification must contain `Internal Review Evidence`; missing evidence is review FAIL.
+- The review must include a document-compliance score and a relative-path scan result.
 - If the Specification review fails, state the exact failed points and revise only those points.
 - Continue to Blueprint generation only after the Specification review passes.
 - No source code may be modified during this step.
@@ -343,12 +376,12 @@ Rules:
 
 ### Step 7: Generate Technical Design Blueprint
 
-Create the Design Blueprint under `docs/blueprints/FIX-XXX_issue_name_blueprint.md`.
+Create the Design Blueprint under `docs/features/<feature-family>/blueprints/FIX-XXX_issue_name_blueprint.md`.
 
 Use this template:
 
 ```markdown
-<!-- File path: docs/blueprints/FIX-XXX_issue_name_blueprint.md -->
+<!-- File path: docs/features/<feature-family>/blueprints/FIX-XXX_issue_name_blueprint.md -->
 ---
 artifact_type: blueprint
 issue_id: FIX-XXX
@@ -388,6 +421,19 @@ Complete directory layout after modifications:
 ## 7. Verification & Test Plan
 - **Acceptance Assertions**:
   - *REQ-001*: Test method and target file.
+
+## 8. Internal Review Evidence
+| Field | Evidence |
+|---|---|
+| Reviewer Roles | Architect / Reviewer / QA / QC / relevant Specialist roles |
+| Source Artifacts Reviewed | Specification, active Skill, `AI_RULES.md`, `document-compliance-assessment`, memory/RAG/source references |
+| Checklist Result | PASS/FAIL rows with concrete section evidence |
+| Failed Points | `None` or exact failed-point list |
+| Revision Scope | `None` or exact sections revised |
+| Re-review Count | `0` for first-pass PASS, otherwise number of repeated reviews |
+| Document Compliance Score | `NN/100` |
+| Relative Path Scan | PASS only when no `file:///`, `/Users/`, `/Volumes/`, drive-letter paths, or local absolute links exist |
+| Final Result | `PASS` or `FAIL` |
 ```
 
 ---
@@ -395,13 +441,17 @@ Complete directory layout after modifications:
 ### Step 8: Internal Blueprint Review + Final User Approval Gate
 
 1. Register the blueprint via CLI:
-   `python skills/workflow-runtime/scripts/workflow_runtime.py blueprint --path docs/blueprints/FIX-XXX_issue_name_blueprint.md`
+   `aiwf blueprint --path docs/features/<feature-family>/blueprints/FIX-XXX_issue_name_blueprint.md`
 2. Review the blueprint strictly against the Specification, this Skill, `AI_RULES.md`, document-compliance-assessment rules, and `frontend-design` when UI/design is affected.
-3. If review fails, state the exact failed points and revise only those points. Repeat until review passes.
-4. **ABSOLUTE USER APPROVAL STOP**: After the Blueprint review passes, present the Design Blueprint to the user in chat and immediately stop calling tools. End the turn. DO NOT proceed autonomously. DO NOT mark the Blueprint approved. DO NOT inspect additional files. DO NOT implement code.
-5. If the user has not explicitly approved with `Y`, `Yes`, `Proceed`, `Continue`, or equivalent approval text, the Agent must remain stopped at this gate.
-6. Once the choice is resolved as approved (Yes), run:
-   `python skills/workflow-runtime/scripts/workflow_runtime.py blueprint --path docs/blueprints/FIX-XXX_issue_name_blueprint.md --approve`
+3. The Blueprint must contain `Internal Review Evidence`; missing evidence, score below `95/100`, unresolved failed points, or relative-path scan FAIL means review FAIL.
+4. If review fails, state the exact failed points and revise only those points. Repeat until review passes.
+5. **ABSOLUTE USER APPROVAL STOP**: After the Blueprint review passes, present the Design Blueprint summary and request approval through the runtime prompt bridge:
+   `aiwf prompt select --question "Approve this FIX Technical Design Blueprint for implementation?" --options "Continue|Cancel" --default "Cancel"`
+   Then immediately stop calling tools. End the turn. DO NOT proceed autonomously. DO NOT mark the Blueprint approved. DO NOT inspect additional files. DO NOT implement code.
+6. Plain chat approval text is not a valid substitute unless the runtime prompt bridge is unavailable and the Agent explicitly reports that unavailability.
+7. If the runtime prompt result is not `Continue`, or if no explicit fallback approval evidence exists because the prompt bridge is unavailable, the Agent must remain stopped at this gate.
+8. Once the runtime prompt result is `Continue`, run:
+   `aiwf blueprint --path docs/features/<feature-family>/blueprints/FIX-XXX_issue_name_blueprint.md --approve`
    **Do NOT prompt for confirmation again in the chat text.**
 
 ---
@@ -414,7 +464,21 @@ Only after receiving blueprint approval:
 
 ---
 
-### Step 12: Generate Quick Task Result
+### Step 11-16: Post-Implementation Quality Loop
+
+After implementation, the Agent MUST continue automatically through:
+1. `code-standard-review` for changed-file code standards.
+2. Targeted build/lint/typecheck validation.
+3. Targeted debug/tests.
+4. Real runtime case testing without mock-only or fake-data-only evidence.
+5. Browser screenshot evidence when UI/browser behavior is affected. If IDE browser tools are unavailable, use CDP debug port or equivalent real browser automation.
+6. Markdown evidence report under `docs/reports/` with screenshots linked by relative paths.
+
+Missing `code-standard-review`, real runtime evidence, required screenshots, or the final report means quick-fix status is FAILED.
+
+---
+
+### Step 16: Generate Quick Task Result
 
 Upon completion, print the final summary:
 
@@ -427,6 +491,10 @@ Files Modified:
 Validation:
 Build: [PASS | FAILED]
 Tests: [PASS | FAILED]
+Code Standard Review: [PASS | FAILED]
+Real Runtime Case: [PASS | FAILED | Not Applicable + why]
+Browser Evidence: [PASS | FAILED | Not Applicable + why]
+Report: `docs/features/<feature-family>/reports/FIX-XXX_issue_name_post_implementation_report.md`
 
 Recommended Next Step:
 - Post-implementation verification complete. STOP. Recommend running Release if desired.

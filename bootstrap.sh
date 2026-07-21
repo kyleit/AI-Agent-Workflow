@@ -50,7 +50,9 @@ show_help() {
     echo "  registry     Manage centralized global project registry"
     echo "  provider     Manage external knowledge providers (sync, list, config)"
     echo "  sync         Sync project memory/documentation to external providers (e.g. Obsidian)"
+    echo "  bootstrap    Run framework environment bootstrap installer"
     echo "  init         Initialize a new project workspace"
+    echo "  update-source Update the centralized framework source repository safely via Git"
     echo "  test         Execute unit, integration, or e2e test validation runner"
     echo "  config       Check and bootstrap AIWF runtime services"
     echo "  runtime      Manage runtime daemon, command bus, and policy"
@@ -58,6 +60,19 @@ show_help() {
     echo "  session      Recover, inspect, lock, or update active workspace sessions"
     echo "  telegram     Manage Telegram global configuration, shared daemon, and project links"
     echo "  help         Show this help message"
+    echo ""
+    echo "Common subcommands:"
+    echo "  aiwf config                         Check/register project and start configured services"
+    echo "  aiwf config --check-only            Check configuration without starting daemons"
+    echo "  aiwf runtime status                 Show runtime daemon and current project context"
+    echo "  aiwf runtime start|stop|restart     Manage runtime daemon for this login session"
+    echo "  aiwf runtime reload                 Restart runtime daemon and shared Telegram daemon"
+    echo "  aiwf runtime enable|disable         Enable/disable runtime daemon login autostart"
+    echo "  aiwf telegram status                Show Telegram daemon and project link status"
+    echo "  aiwf telegram start|stop|restart    Manage shared Telegram daemon"
+    echo "  aiwf telegram enable|disable        Enable/disable Telegram daemon login autostart"
+    echo "  aiwf telegram config|link           Configure Telegram token or link project chat"
+    echo "  aiwf prompt select --question ...   Show a runtime-visible structured approval prompt"
 }
 
 if [ $# -lt 1 ]; then
@@ -69,6 +84,18 @@ COMMAND=$1
 shift
 
 case "$COMMAND" in
+    bootstrap)
+        "$FRAMEWORK_ROOT/bootstrap.sh" "$@"
+        ;;
+    init)
+        python3 "$FRAMEWORK_ROOT/skills/workflow-runtime/scripts/workflow_runtime.py" init "$@"
+        ;;
+    update-source)
+        python3 "$FRAMEWORK_ROOT/skills/workflow-runtime/scripts/workflow_runtime.py" update-source "$@"
+        ;;
+    test)
+        python3 "$FRAMEWORK_ROOT/skills/workflow-runtime/scripts/workflow_runtime.py" test "$@"
+        ;;
     install)
         "$FRAMEWORK_ROOT/install.sh" "$@"
         ;;

@@ -1,7 +1,7 @@
 {
   "name": "ai-skill-framework",
   "description": "A reusable collection of engineering skills for AI coding agents to manage SDLC lifecycle",
-  "version": "6.19.0",
+  "version": "6.19.1",
   "min_ai_platform_version": "1.0.0",
   "author": {
     "name": "Kyle Dang",
@@ -291,6 +291,30 @@
         "performance-reviewer",
         "accessibility-reviewer",
         "architecture-reviewer"
+      ],
+      "phase": "debug",
+      "execution_mode": "sequential"
+    },
+    {
+      "name": "code-standard-review",
+      "command": "code-review",
+      "aliases": [
+        "standard-review",
+        "implementation-review"
+      ],
+      "category": "review",
+      "tags": [
+        "code-review",
+        "standards",
+        "quality",
+        "compliance"
+      ],
+      "owner_agent": "reviewer",
+      "specialist_agents": [
+        "code-reviewer",
+        "architecture-reviewer",
+        "security-reviewer",
+        "qa-reviewer"
       ],
       "phase": "debug",
       "execution_mode": "sequential"
@@ -645,6 +669,29 @@
       ],
       "phase": "verification",
       "execution_mode": "sequential"
+    },
+    {
+      "name": "semantic-docs-cleanup",
+      "command": "semantic-docs-cleanup",
+      "aliases": [
+        "docs-cleanup",
+        "semantic-docs",
+        "cleanup-docs"
+      ],
+      "category": "documentation",
+      "tags": [
+        "docs",
+        "migration",
+        "cleanup",
+        "governance"
+      ],
+      "owner_agent": "reviewer",
+      "specialist_agents": [
+        "documentation-writer",
+        "qa-reviewer"
+      ],
+      "phase": "documentation",
+      "execution_mode": "sequential"
     }
   ],
   "templates": [
@@ -692,6 +739,9 @@
     ],
     "architecture": [
       "create-adr"
+    ],
+    "documentation": [
+      "semantic-docs-cleanup"
     ],
     "runtime": [
       "initialize-workflow",

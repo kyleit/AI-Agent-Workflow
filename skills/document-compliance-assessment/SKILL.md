@@ -15,7 +15,7 @@ license: MIT
 repository: https://gitlab.com/hngan.it/ai-workflow-skills
 created_at: 2026-07-17
 updated_at: 2026-07-17
-description: Đánh giá điểm tuân thủ tài liệu và truy vết dựa trên quy tắc điều phối hệ thống.
+description: Use when reviewing workflow artifacts, traceability, relative-path compliance, and pre-approval document quality before a phase can pass.
 runtime_requirements:
   rules: required
   state: required
@@ -68,6 +68,46 @@ Tài liệu hoặc giai đoạn sẽ bị đánh FAIL (NO-GO) ngay lập tức n
 2. Có luồng rò rỉ thông tin bí mật (mã xác thực, token, khóa API, khóa proxy, cookie) hoặc thông tin cá nhân (PII) trong tài liệu hoặc log kiểm thử.
 3. Báo cáo đạt nhưng chưa đủ bằng chứng thực tế ghi nhận trong tệp tin kết quả.
 4. Tổng điểm chất lượng tài liệu đánh giá dưới **95/100**.
+5. A pre-approval artifact is missing an `Internal Review Evidence` section.
+6. The review says PASS but does not list reviewer roles, source artifacts, checklist rows, failed-point repair history, document-compliance score, and relative-path scan result.
+7. The final Blueprint Approval gate is requested through plain chat instead of `workflow_runtime.py prompt select`, unless the runtime prompt bridge is explicitly reported unavailable.
+8. The artifact uses vague placeholders such as `TBD`, `...`, `etc.`, `modify related files`, or generic implementation instructions where concrete file-by-file evidence is required.
+9. A new FEAT/FIX/QUICK workflow artifact is written as a flat file directly under `docs/brainstorming/`, `docs/plans/`, `docs/blueprints/`, `docs/issues/`, `docs/quick/`, `docs/debug/`, `docs/verification/`, or `docs/reports/` instead of under `docs/features/<feature-family>/<stage>/`.
+10. A new FEAT/FIX/QUICK workflow artifact is stored in a folder copied from the work item ID, such as `docs/work-items/FEAT-XXX_*` or `docs/<stage>/FEAT-XXX_*`, instead of a semantic feature family folder.
+11. A new FEAT/FIX/QUICK workflow artifact lacks a matching `docs/features/<feature-family>/README.md` cross-artifact index, unless the artifact is a legacy file being migrated and the migration report explicitly explains it.
+12. A documentation migration groups artifacts by `FEAT-*`, `FIX-*`, or `QUICK-*` ID without reading content evidence from frontmatter, title, headings, summary/problem statement, and linked artifacts.
+
+---
+
+## Strict Pre-Approval Artifact Review Rules
+
+For roadmap/discovery, Specification, Implementation Plan, and Technical Blueprint artifacts:
+
+- A score of `100/100` is allowed only when every scoring row cites concrete evidence from the artifact by section heading, table row, or checklist item.
+- Missing evidence MUST subtract points. Do not infer compliance from intent.
+- Any no-go condition above overrides the numeric score and produces `FAIL`.
+- If review FAILS, output an exact failed-point list. Each item must name the violated rule, the artifact section, the required correction, and the scope boundary that must not be changed.
+- The authoring agent must revise only those failed points, then rerun the same review. The re-review must increment `Re-review Count`.
+- The workflow cannot advance to the next phase until the current artifact has review result `PASS`, score `>=95/100`, and zero no-go findings.
+
+Required `Internal Review Evidence` block:
+
+```markdown
+## Internal Review Evidence
+
+| Field | Evidence |
+|---|---|
+| Reviewer Roles | Planner / Architect / Reviewer / QA / QC / Specialist roles used |
+| Source Artifacts Reviewed | `relative/path.md`, user request summary, active Skill, `AI_RULES.md` |
+| Checklist Result | PASS/FAIL rows with concrete evidence |
+| Failed Points | `None` or exact failed-point list |
+| Revision Scope | `None` or exact sections revised |
+| Re-review Count | `0` for first-pass PASS, otherwise number of repeated reviews |
+| Document Compliance Score | `NN/100` |
+| Relative Path Scan | PASS only when no `file:///`, `/Users/`, `/Volumes/`, drive-letter paths, or local absolute links exist |
+| Semantic Feature Folder Compliance | PASS only when new FEAT/FIX/QUICK artifacts live under `docs/features/<feature-family>/<stage>/`, `<feature-family>` is semantic rather than ID-derived, classification evidence is recorded, and the feature index exists |
+| Final Result | `PASS` or `FAIL` |
+```
 
 ---
 

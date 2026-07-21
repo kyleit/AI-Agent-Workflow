@@ -5,6 +5,26 @@ All notable changes to this project will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [6.19.1] - 2026-07-21
+
+### Added
+- **Semantic documentation cleanup skill**:
+  - Added `semantic-docs-cleanup` with `/semantic-docs-cleanup`, `/docs-cleanup`, `/semantic-docs`, and `/cleanup-docs` entry points.
+  - Added deterministic dry-run, apply, and validate-only cleanup flows for migrating legacy `docs/` artifacts into `docs/features/<feature-family>/<stage>/`.
+  - Added backup, WIP protection, forbidden ID-folder validation, and report/review generation under `_to_delete/semantic-docs-cleanup/`.
+
+### Changed
+- **Documentation governance and artifact layout**:
+  - Migrated clean tracked legacy documentation into semantic feature family folders under `docs/features/`.
+  - Updated workflow rules and skills to require new FEAT/FIX/QUICK artifacts to use semantic feature family paths instead of flat legacy stage folders.
+  - Added manifest registration for `semantic-docs-cleanup` in the documentation category.
+
+### Fixed
+- **Runtime and daemon management polish**:
+  - Added the `runtime reload` action to restart both the runtime bus and shared Telegram daemon.
+  - Restored orchestrator status and health subcommands while keeping deprecated resident daemon actions blocked.
+  - Updated targeted runtime and Telegram routing tests for the current command behavior.
+
 ## [6.19.0] - 2026-07-21
 
 ### Added
@@ -60,7 +80,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   - Tự động đăng ký các câu lệnh chính thức của Telegram qua api `setMyCommands`.
   - Khắc phục các xung đột liên quan đến Windows PID trên Git Bash/MSYS và bắt lỗi crash `curl`.
 - **Cập nhật chính sách đường dẫn tương đối (Relative Path Policy)**:
-  - Yêu cầu bắt buộc mọi tài liệu Markdown (`docs/`) và quy tắc chung (`AI_RULES.md`) phải sử dụng định dạng đường dẫn tương đối thay vì dùng link tuyệt đối (`file:///`).
+  - Yêu cầu bắt buộc mọi tài liệu Markdown (`docs/`) và quy tắc chung (`AI_RULES.md`) phải sử dụng định dạng đường dẫn tương đối thay vì dùng file URL tuyệt đối.
 
 ### Added (Visualizer Extension v1.0.46)
 - **Tăng cường Extension API & Sidebar controller (QUICK-033 / FEAT-409)**:

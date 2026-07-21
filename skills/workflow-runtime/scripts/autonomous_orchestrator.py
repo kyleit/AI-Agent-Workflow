@@ -624,7 +624,6 @@ def print_defects(work_item_id: str = None):
 
 def get_orchestrator_status(work_item_id: str = None):
     print("Resident Orchestrator\n")
-    print("Resident Orchestrator: DISABLED")
     print("Runtime Manager: DISABLED")
     print("PID: N/A")
     print("Workspace: .")

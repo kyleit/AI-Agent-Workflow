@@ -61,6 +61,19 @@ function Show-Help {
     Write-Host "  session      Recover, inspect, lock, or update active workspace sessions"
     Write-Host "  telegram     Manage Telegram global configuration, shared daemon, and project links"
     Write-Host "  help         Show this help message"
+    Write-Host ""
+    Write-Host "Common subcommands:"
+    Write-Host "  aiwf config                         Check/register project and start configured services"
+    Write-Host "  aiwf config --check-only            Check configuration without starting daemons"
+    Write-Host "  aiwf runtime status                 Show runtime daemon and current project context"
+    Write-Host "  aiwf runtime start|stop|restart     Manage runtime daemon for this login session"
+    Write-Host "  aiwf runtime reload                 Restart runtime daemon and shared Telegram daemon"
+    Write-Host "  aiwf runtime enable|disable         Enable/disable runtime daemon login autostart"
+    Write-Host "  aiwf telegram status                Show Telegram daemon and project link status"
+    Write-Host "  aiwf telegram start|stop|restart    Manage shared Telegram daemon"
+    Write-Host "  aiwf telegram enable|disable        Enable/disable Telegram daemon login autostart"
+    Write-Host "  aiwf telegram config|link           Configure Telegram token or link project chat"
+    Write-Host "  aiwf prompt select --question ...   Show a runtime-visible structured approval prompt"
 }
 
 if ([string]::IsNullOrEmpty(`$Command)) {

@@ -55,45 +55,49 @@ The **workflow-runtime** Skill acts as the centralized execution state controlle
 The runtime CLI engine is written in Python and resides in:
 `skills/workflow-runtime/scripts/workflow_runtime.py`
 
+Agents SHOULD invoke the project CLI wrapper (`aiwf ...`) instead of calling the Python script
+directly. Direct Python invocation is a maintainer/debug fallback only, because some IDEs require
+approval for every Python command.
+
 ### 1. Initialize Session
 ```bash
-python skills/workflow-runtime/scripts/workflow_runtime.py init
+aiwf init
 ```
 - Creates a clean `.session.json` state, generating a unique `conversation_id` if missing.
 
 ### 2. Validate Session Checkpoint
 ```bash
-python skills/workflow-runtime/scripts/workflow_runtime.py validate --checkpoint "exactly X"
+aiwf validate --checkpoint "exactly X"
 ```
 - Confirms workspace integrity and checks that the current checkpoint is at level `X`.
 
 ### 3. Start a Skill
 ```bash
-python skills/workflow-runtime/scripts/workflow_runtime.py start --skill <skill_name> --command <command> --checkpoint <level> --step <step_desc>
+aiwf start --skill <skill_name> --command <command> --checkpoint <level> --step <step_desc>
 ```
 - Transitions session status to `"in_progress"`.
 
 ### 4. Record Execution Step
 ```bash
-python skills/workflow-runtime/scripts/workflow_runtime.py step --step <step_desc> --log <log_message>
+aiwf step --step <step_desc> --log <log_message>
 ```
 - Appends progress messages and logs atomically.
 
 ### 5. Complete a Skill
 ```bash
-python skills/workflow-runtime/scripts/workflow_runtime.py complete --checkpoint <level> --step <step_desc> --next-skill <skill> --next-command <cmd>
+aiwf complete --checkpoint <level> --step <step_desc> --next-skill <skill> --next-command <cmd>
 ```
 - Transitions status to `"completed"` and proposes the next step.
 
 ### 6. Fail a Skill
 ```bash
-python skills/workflow-runtime/scripts/workflow_runtime.py fail --step <error_desc> --log <error_log>
+aiwf fail --step <error_desc> --log <error_log>
 ```
 - Marks status as `"failed"`.
 
 ### 7. View Heartbeat
 ```bash
-python skills/workflow-runtime/scripts/workflow_runtime.py heartbeat
+aiwf heartbeat
 ```
 - Prints the formatted workflow state box.
 
@@ -106,15 +110,19 @@ commands.
 Daemon controls:
 
 ```bash
-python skills/workflow-runtime/scripts/workflow_runtime.py runtime start
-python skills/workflow-runtime/scripts/workflow_runtime.py runtime stop
-python skills/workflow-runtime/scripts/workflow_runtime.py runtime restart
-python skills/workflow-runtime/scripts/workflow_runtime.py runtime status
-python skills/workflow-runtime/scripts/workflow_runtime.py runtime enable
-python skills/workflow-runtime/scripts/workflow_runtime.py runtime disable
+aiwf runtime start
+aiwf runtime stop
+aiwf runtime restart
+aiwf runtime reload
+aiwf runtime status
+aiwf runtime enable
+aiwf runtime disable
 ```
 
 - `start` / `stop` only affect the current running daemon.
+- `restart` restarts only the runtime daemon.
+- `reload` restarts both the runtime daemon and the shared Telegram daemon; Telegram is skipped
+  with an explicit message when global Telegram credentials are not configured.
 - `enable` / `disable` manage OS login autostart, matching the Telegram daemon semantics.
 - `status` MUST include the current project context so multi-project setups are not ambiguous.
 
@@ -142,7 +150,7 @@ Response file: `.agents/runtime/commands/runtime.response.json`.
 ### 9. One-Shot Configuration
 
 ```bash
-python skills/workflow-runtime/scripts/workflow_runtime.py config
+aiwf config
 ```
 
 This is the single setup command for normal users. It checks and bootstraps safe local runtime
@@ -154,11 +162,11 @@ daemons and `--no-start` to create/cache files without launching background proc
 
 ## Examples & Usage Cases
 - **Starting Initialization**:
-  `python skills/workflow-runtime/scripts/workflow_runtime.py start --skill initialize-workflow --command init --checkpoint 1 --step "Starting initialization..."`
+  `aiwf start --skill initialize-workflow --command init --checkpoint 1 --step "Starting initialization..."`
 - **Recording Sub-tasks**:
-  `python skills/workflow-runtime/scripts/workflow_runtime.py step --step "Resolving workspace path" --log "> Resolved relative path to '.'"`
+  `aiwf step --step "Resolving workspace path" --log "> Resolved relative path to '.'"`
 - **Completion Transition**:
-  `python skills/workflow-runtime/scripts/workflow_runtime.py complete --checkpoint 1 --step "Initialization Complete" --next-skill project-discovery --next-command discover`
+  `aiwf complete --checkpoint 1 --step "Initialization Complete" --next-skill project-discovery --next-command discover`
 
 ---
 

@@ -1,6 +1,6 @@
 # AI Skills Master Index
 
-This document is the master directory of all 20 skills available in the AI Skill Framework. It details the purpose, inputs/outputs, boundaries, and dependencies for each skill.
+This document is the master directory of all skills available in the AI Skill Framework. It details the purpose, inputs/outputs, boundaries, and dependencies for each skill.
 
 ---
 
@@ -865,6 +865,27 @@ Frontend/Desktop Visual Debug           Skipped (Backend Only)
 
 ---
 
+## 26. `semantic-docs-cleanup` (command: `/semantic-docs-cleanup`)
+* **Purpose**: Clean and migrate legacy documentation into semantic feature-family folders.
+* **Responsibilities**:
+  1. Inventory legacy files outside `docs/features/`.
+  2. Classify clean tracked documents by real product/domain family and workflow stage.
+  3. Backup every moved or deleted file before applying changes.
+  4. Move clean tracked artifacts into `docs/features/<feature-family>/<stage>/`.
+  5. Skip modified or untracked WIP files and report them explicitly.
+  6. Remove obsolete empty legacy directories and generate audit reports.
+* **Input**:
+  ```bash
+  /semantic-docs-cleanup
+  ```
+* **Output**: Inventory, plan, report, and review files under `_to_delete/semantic-docs-cleanup/reports/`.
+* **Capability Boundary**: Only modifies `docs/` and `_to_delete/semantic-docs-cleanup/`; never rewrites active WIP files.
+* **Recommended Next Skill**: `document-compliance-assessment` for independent artifact governance review.
+* **Current Status**: Production Stable (v1.0.0 — Documentation Governance Layer).
+* **Dependencies**: Git status must be available to distinguish clean tracked files from WIP.
+
+---
+
 ## 🛠️ Script-First Skill Architecture
 
 Starting with version 5.0.0, the AI Skill Framework implements a **Script-First Skill Architecture**. Under this model, all deterministic, repeatable, file-based validation, and environment inspection tasks are executed by specialized Python scripts instead of being simulated or processed manually by the LLM in natural language prompt text.
@@ -892,4 +913,3 @@ Starting with version 5.0.0, the AI Skill Framework implements a **Script-First 
 
 3. **Group C — Remain Mostly LLM-Driven**
    * Rationale writing, UX critique, and architectural trade-off evaluations. Scripts are used only to enforce confirmation gates and status checkpoints.
-

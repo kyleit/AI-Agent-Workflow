@@ -55,12 +55,13 @@ Your responsibility is to produce a production-ready Implementation Plan with th
 
 ```yaml
 # Structure-mirroring rule (applies in ANY project): a feature's brainstorming input may be either
-#   (a) a single flat file:   docs/brainstorming/FEAT-XXX_feature_slug.md
-#   (b) a multi-phase folder: docs/brainstorming/<feature-slug>/master/FEAT-XXX_..._master_brainstorming.md
-#                              + docs/brainstorming/<feature-slug>/phase-NN-<phase-slug>/phase-brainstorming.md
+#   (a) a semantic feature file: docs/features/<feature-family>/brainstorming/FEAT-XXX_feature_slug.md
+#   (b) a multi-phase folder:   docs/features/<feature-family>/brainstorming/master/FEAT-XXX_..._master_brainstorming.md
+#                              + docs/features/<feature-family>/brainstorming/phase-NN-<phase-slug>/phase-brainstorming.md
 # Detect which shape exists for this feature and mirror that same shape for the plan output.
-prompt_file: docs/brainstorming/FEAT-XXX_feature_slug.md   # or the (b) folder form above
+prompt_file: docs/features/<feature-family>/brainstorming/FEAT-XXX_feature_slug.md   # or the (b) folder form above
 # Path to the brainstorming/requirement discovery file(s) containing the planning prompt
+roadmap_file: docs/features/<feature-family>/roadmaps/FEAT-XXX_feature_slug_roadmap.md  # required for large or multi-phase features
 
 workspace: auto
 
@@ -104,12 +105,14 @@ Runs under the Multi-Agent Workflow. Respect agent ownership and handoff rules d
 # Workflow
 
 ## Step 1 — Read Master Requirement Document
-First detect the shape of this feature's brainstorming input: a single flat `docs/brainstorming/FEAT-XXX_feature_slug.md`, or a `docs/brainstorming/<feature-slug>/master/` + `phase-NN-<phase-slug>/` folder tree.
+First detect the shape of this feature's brainstorming input: a canonical semantic feature file `docs/features/<feature-family>/brainstorming/FEAT-XXX_feature_slug.md`, a legacy flat `docs/brainstorming/FEAT-XXX_feature_slug.md`, a former work-item folder, or a `docs/features/<feature-family>/brainstorming/master/` + `phase-NN-<phase-slug>/` folder tree. Legacy flat/work-item input may be read, but new output must use the semantic feature documentation contract.
 
 - **Single-file shape**: read that one file. Produce one plan for the whole feature (Step 5/Output Rules, single-file branch).
-- **Multi-phase folder shape**: read `master/FEAT-XXX_..._master_brainstorming.md` first, then every `phase-NN-<phase-slug>/phase-brainstorming.md` in phase order. Produce one Implementation Plan **per phase** plus one master plan indexing all phases (Step 5/Output Rules, multi-phase branch), mirroring the same phase breakdown — never re-decompose the feature into a different phase split than the brainstorming stage already chose.
+- **Multi-phase folder shape**: read `docs/features/<feature-family>/roadmaps/FEAT-XXX_feature_slug_roadmap.md` first and verify it has review result PASS, then read `master/FEAT-XXX_..._master_brainstorming.md`, then every `phase-NN-<phase-slug>/phase-brainstorming.md` in Roadmap phase order. Produce one Implementation Plan **per phase** plus one master plan indexing all phases (Step 5/Output Rules, multi-phase branch), mirroring the Roadmap and brainstorming breakdown — never re-decompose the feature into a different phase split.
 
-Either way, extract the **Feature ID**, **Feature Name**, **MoSCoW Prioritization**, and the **Planning Prompt** section(s).
+Either way, extract the **Feature ID**, **Feature Name**, **MoSCoW Prioritization**, Roadmap phase inventory when present, and the **Planning Prompt** section(s).
+
+If a feature is large/multi-phase but the reviewed Roadmap is missing, STOP and return to `brainstorming`; do not generate the Implementation Plan.
 
 ---
 
@@ -132,9 +135,9 @@ Inspect only files explicitly referenced by memory or RAG.
 Generate the plan document. It must contain the YAML metadata header and the plan sections. Planner MUST directly use the MoSCoW prioritization defined in the brainstorming document to group requirements into implementation phases (e.g., all 'Must' requirements must be placed in Phase 1, 'Should' in Phase 2, etc.) without re-analyzing architecture or scope:
 
 ```markdown
-<!-- File path (single-file shape):  docs/plans/FEAT-XXX_feature_slug_plan.md -->
-<!-- File path (multi-phase shape): docs/plans/<feature-slug>/phase-NN-<phase-slug>/phase-plan.md -->
-<!-- File path (multi-phase master): docs/plans/<feature-slug>/master/FEAT-XXX_..._master_plan.md -->
+<!-- File path (single-file shape):  docs/features/<feature-family>/plans/FEAT-XXX_feature_slug_plan.md -->
+<!-- File path (multi-phase shape): docs/features/<feature-family>/plans/phase-NN-<phase-slug>/phase-plan.md -->
+<!-- File path (multi-phase master): docs/features/<feature-family>/plans/master/FEAT-XXX_..._master_plan.md -->
 
 ---
 feature_id: FEAT-XXX
@@ -154,6 +157,11 @@ next_artifact: [relative path to the matching blueprint file/folder once created
 | :--- | :--- | :--- | :--- | :---: |
 | FR-01 | Phase 1 | Task 1.1 | [...] | [x] |
 | FR-02 | Phase 1 | Task 1.2 | [...] | [x] |
+
+## 1A. Roadmap Coverage Matrix (Required for large/multi-phase features)
+| Roadmap Capability | Roadmap Phase | Plan Task(s) | Covered? | Notes |
+| :--- | :--- | :--- | :---: | :--- |
+| [Capability] | Phase N | Task N.N | [x] | [Notes] |
 
 ## 2. Task Ownership & Roles
 Phân bổ người chịu trách nhiệm thực thi các tác vụ (Architect, Coder, Reviewer, Verifier, Documentation, Runtime):
@@ -205,7 +213,7 @@ Cung cấp định hướng cho pha Blueprint thiết kế chi tiết:
 | Task 1.1 | Yes | Yes | No | No | Yes | Yes | No |
 
 ## 10. Artifact Production Plan
-- **Phase 1 Artifacts**: docs/blueprints/FEAT-XXX_blueprint.md (or the matching phase-blueprint.md under docs/blueprints/<feature-slug>/)
+- **Phase 1 Artifacts**: docs/features/<feature-family>/blueprints/FEAT-XXX_feature_slug_blueprint.md (or the matching phase-blueprint.md under the same semantic feature folder)
 - **Phase 2 Artifacts**: docs/adr/ADR-XXX.md, docs/releases/Release_Notes.md
 
 ## 11. Token & Execution Optimization
@@ -213,6 +221,19 @@ Cung cấp định hướng cho pha Blueprint thiết kế chi tiết:
 - **Parallel execution opportunities**: [...]
 - **Expected token savings**: [...]
 - **Recommended execution strategy**: [...]
+
+## 12. Internal Review Evidence
+| Field | Evidence |
+|---|---|
+| Reviewer Roles | Planner / Reviewer / QC / relevant Specialist roles |
+| Source Artifacts Reviewed | Brainstorming artifact, active Skill, `AI_RULES.md`, memory/RAG/source references |
+| Checklist Result | PASS/FAIL rows with concrete section evidence |
+| Failed Points | `None` or exact failed-point list |
+| Revision Scope | `None` or exact sections revised |
+| Re-review Count | `0` for first-pass PASS, otherwise number of repeated reviews |
+| Document Compliance Score | `NN/100` |
+| Relative Path Scan | PASS only when no `file:///`, `/Users/`, `/Volumes/`, drive-letter paths, or local absolute links exist |
+| Final Result | `PASS` or `FAIL` |
 
 ## Recommended Next Skill
 /blueprint
@@ -226,15 +247,19 @@ Self-review the generated Implementation Plan before handing off to Blueprint.
 
 Review checklist:
 - The Plan covers every in-scope FR/NFR/TC from the Brainstorming document.
+- For large/multi-phase features, the Plan covers every capability, phase, dependency, and release slice from the reviewed Roadmap.
 - Task ownership uses the correct agent responsibilities (Planner, Architect, Coder, QA, QC/Reviewer, Release Manager, and specialists where relevant).
 - Task dependencies, roadmap/phasing, parallel groups, rollback, verification strategy, and artifact production plan are internally consistent.
 - The Plan stays at planning depth: no classes, functions, API schemas, database schemas, folder structures, or pseudo-code.
 - All paths are project-relative and artifact placement follows `AI_RULES.md`.
 - `document-compliance-assessment` no-go conditions are not present.
+- The Plan contains `Internal Review Evidence` with reviewer roles, source artifacts, checklist evidence, failed-point repair history, document-compliance score, and relative-path scan result.
 - If the plan touches UI/UX, frontend components, layout, spacing, typography, color, animation, icons, visual hierarchy, aesthetic styling, or design-system decisions, `frontend-design` has been used and its relevant constraints are captured for Blueprint.
 
 Rules:
 - Do not stop for user approval at this gate.
+- Missing `Internal Review Evidence`, score below `95/100`, unresolved failed points, or relative-path scan FAIL means review FAIL.
+- For large/multi-phase features, missing Roadmap Coverage Matrix or mismatch with `docs/features/<feature-family>/roadmaps/FEAT-XXX_feature_slug_roadmap.md` means review FAIL.
 - If review FAILS, state the exact failed points and revise only those points.
 - Repeat review/revision until PASS.
 - Continue to Blueprint handoff only after review passes.
@@ -246,21 +271,21 @@ Rules:
 Mirror whichever shape Step 1 detected for this feature:
 
 **Single-file shape** — create exactly two files:
-1. `docs/plans/FEAT-XXX_feature_slug_plan.md`
-2. `docs/plans/FEAT-XXX_feature_slug_plan.json`
+1. `docs/features/<feature-family>/plans/FEAT-XXX_feature_slug_plan.md`
+2. `docs/features/<feature-family>/plans/FEAT-XXX_feature_slug_plan.json`
 
 **Multi-phase folder shape** — for each phase, create:
-1. `docs/plans/<feature-slug>/phase-NN-<phase-slug>/phase-plan.md`
-2. `docs/plans/<feature-slug>/phase-NN-<phase-slug>/phase-plan.json`
+1. `docs/features/<feature-family>/plans/phase-NN-<phase-slug>/phase-plan.md`
+2. `docs/features/<feature-family>/plans/phase-NN-<phase-slug>/phase-plan.json`
 
 Plus one master plan indexing every phase:
-1. `docs/plans/<feature-slug>/master/FEAT-XXX_..._master_plan.md`
-2. `docs/plans/<feature-slug>/master/FEAT-XXX_..._master_plan.json`
+1. `docs/features/<feature-family>/plans/master/FEAT-XXX_..._master_plan.md`
+2. `docs/features/<feature-family>/plans/master/FEAT-XXX_..._master_plan.json`
 
 First line of every Markdown file must be its own real path, e.g.:
 ```html
-<!-- File path: docs/plans/FEAT-XXX_feature_slug_plan.md -->
-<!-- or: docs/plans/<feature-slug>/phase-NN-<phase-slug>/phase-plan.md -->
+<!-- File path: docs/features/<feature-family>/plans/FEAT-XXX_feature_slug_plan.md -->
+<!-- or: docs/features/<feature-family>/plans/phase-NN-<phase-slug>/phase-plan.md -->
 ```
 
 The JSON file must conform to this schema:
@@ -301,7 +326,7 @@ The JSON file must conform to this schema:
       "mapped_tasks": ["Task 1.1"]
     }
   ],
-  "artifacts": ["docs/blueprints/FEAT-XXX_blueprint.md"]
+  "artifacts": ["docs/features/<feature-family>/blueprints/FEAT-XXX_feature_slug_blueprint.md"]
 }
 ```
 
@@ -321,7 +346,7 @@ The JSON file must conform to this schema:
 # IDE Skill Hardening & Boundary Rules
 
 ## 1. Single Responsibility
-Convert a master brainstorming planning prompt into a formal Implementation Plan and internally review it until PASS. Once the reviewed plan output (single file, or every phase's `phase-plan.md` + master index for the multi-phase shape) is generated under `docs/plans/`, return control to the workflow coordinator. Do not request user approval for this intermediate artifact.
+Convert a master brainstorming planning prompt into a formal Implementation Plan and internally review it until PASS. Once the reviewed plan output (single file, or every phase's `phase-plan.md` + master index for the multi-phase shape) is generated under `docs/features/<feature-family>/plans/`, return control to the workflow coordinator. Do not request user approval for this intermediate artifact.
 
 ## 2. Never Execute Next Phase
 Do NOT directly invoke `plan-to-blueprint` or any other Skill when acting as a worker. In an orchestrated continuous workflow, the workflow-coordinator may route the next phase after this reviewed Plan is complete.
@@ -356,14 +381,14 @@ Source Files Inspected:
 [list or "None — answered from memory"]
 
 Generated Output:
-[Single-file shape: docs/plans/FEAT-XXX_feature_slug_plan.md (+ .json)]
-[Multi-phase shape: docs/plans/<feature-slug>/master/FEAT-XXX_..._master_plan.md (+ .json)
- + docs/plans/<feature-slug>/phase-NN-<phase-slug>/phase-plan.md (+ .json)]
+[Single-file shape: docs/features/<feature-family>/plans/FEAT-XXX_feature_slug_plan.md (+ .json)]
+[Multi-phase shape: docs/features/<feature-family>/plans/master/FEAT-XXX_..._master_plan.md (+ .json)
+ + docs/features/<feature-family>/plans/phase-NN-<phase-slug>/phase-plan.md (+ .json)]
 
 Recommended Next Skill:
 plan-to-blueprint
 
-Workflow Paused.
+Workflow Handed Off to workflow-coordinator for plan-to-blueprint.
 ```
 
 ## Evaluation Criteria & Readiness Score (Scale 100)

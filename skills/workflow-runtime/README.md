@@ -1,6 +1,6 @@
 # AI Workflow Runtime Engine
 
-Tài liệu hướng dẫn kỹ thuật của CLI Runtime Engine thưa Ba.
+Technical guide for the AI Workflow CLI Runtime Engine.
 
 ## 1. Architecture
 Hệ thống điều khiển Runtime được phân tách thành các mô-đun Python chuyên biệt độc lập:

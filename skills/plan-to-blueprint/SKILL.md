@@ -78,15 +78,16 @@ Runs under the Multi-Agent Workflow. Respect agent ownership and handoff rules d
 
 ```yaml
 # Structure-mirroring rule (applies in ANY project, not just this repo):
-# a feature's docs/brainstorming/ and docs/plans/ input may exist as either:
-#   (a) a single flat file:   docs/<stage>/FEAT-XXX_feature_slug.md
-#   (b) a multi-phase folder: docs/<stage>/<feature-slug>/master/FEAT-XXX_..._master_<stage>.md
-#                              + docs/<stage>/<feature-slug>/phase-NN-<phase-slug>/phase-<stage>.md
+# a feature's brainstorming and plan input may exist as either:
+#   (a) semantic feature files: docs/features/<feature-family>/<stage>/FEAT-XXX_feature_slug_<stage>.md
+#   (b) a multi-phase folder:   docs/features/<feature-family>/<stage>/master/FEAT-XXX_..._master_<stage>.md
+#                              + docs/features/<feature-family>/<stage>/phase-NN-<phase-slug>/phase-<stage>.md
 # Detect which shape the actual source_plan/source_brainstorming uses for THIS feature and mirror
 # that same shape for the blueprint output — do not force multi-phase splitting onto a simple,
 # single-phase feature, and do not flatten a genuinely multi-phase plan into one file.
-source_brainstorming: docs/brainstorming/FEAT-XXX_feature_slug.md   # or the (b) folder form above
-source_plan: docs/plans/FEAT-XXX_feature_slug_plan.md               # or the (b) folder form above
+source_brainstorming: docs/features/<feature-family>/brainstorming/FEAT-XXX_feature_slug.md   # or the (b) folder form above
+source_plan: docs/features/<feature-family>/plans/FEAT-XXX_feature_slug_plan.md               # or the (b) folder form above
+source_roadmap: docs/features/<feature-family>/roadmaps/FEAT-XXX_feature_slug_roadmap.md      # required for large or multi-phase features
 
 workspace: auto
 
@@ -104,12 +105,14 @@ output_path: docs/blueprints/                          # mirrors source_plan's s
 # Workflow
 
 ## Step 1 — Read Inputs
-First detect the shape of this feature's plan: does `docs/plans/` hold a single flat `FEAT-XXX_feature_slug_plan.md` for it, or a `docs/plans/<feature-slug>/master/` + `phase-NN-<phase-slug>/` folder tree? Use whichever exists.
+First detect the shape of this feature's plan: does `docs/features/<feature-family>/plans/` hold a canonical semantic feature file `FEAT-XXX_feature_slug_plan.md`, a legacy flat `docs/plans/FEAT-XXX_feature_slug_plan.md`, a former work-item folder, or a `master/` + `phase-NN-<phase-slug>/` folder tree? Use whichever exists as input, but all new Blueprint output must use the canonical semantic feature documentation contract.
 
-- **Single-file shape**: read `docs/plans/FEAT-XXX_feature_slug_plan.json` (fallback `.md`) and the matching `docs/brainstorming/FEAT-XXX_feature_slug.md`. Produce one blueprint for the whole feature (Step 5/Output Rules, single-file branch).
-- **Multi-phase folder shape**: read `docs/brainstorming/<feature-slug>/master/FEAT-XXX_..._master_brainstorming.md` first, then every `phase-NN-<phase-slug>/phase-brainstorming.md` in phase order, then the mirrored `docs/plans/<feature-slug>/master/...plan.json` (fallback `.md`) and each `phase-NN-<phase-slug>/phase-plan.json` (fallback `.md`) — a feature's requirements are split across these files, not contained in one document. Produce one Technical Blueprint **per phase** plus one master blueprint indexing all phases (Step 5/Output Rules, multi-phase branch). Never collapse a genuinely multi-phase plan into a single flat blueprint file, and never force a single-phase feature into an unnecessary master+phase split.
+- **Single-file shape**: read `docs/features/<feature-family>/plans/FEAT-XXX_feature_slug_plan.json` (fallback `.md`) and the matching `docs/features/<feature-family>/brainstorming/FEAT-XXX_feature_slug.md`. Legacy flat or former work-item input may be read if needed. Produce one blueprint for the whole feature (Step 5/Output Rules, single-file branch).
+- **Multi-phase folder shape**: read `docs/features/<feature-family>/roadmaps/FEAT-XXX_feature_slug_roadmap.md` first and verify it has review result PASS, then read `docs/features/<feature-family>/brainstorming/master/FEAT-XXX_..._master_brainstorming.md`, every `phase-NN-<phase-slug>/phase-brainstorming.md` in Roadmap phase order, the mirrored `docs/features/<feature-family>/plans/master/...plan.json` (fallback `.md`), and each `phase-NN-<phase-slug>/phase-plan.json` (fallback `.md`) — a feature's requirements are split across these files, not contained in one document. Produce one Technical Blueprint **per phase** plus one master blueprint indexing all phases (Step 5/Output Rules, multi-phase branch). Never collapse a genuinely multi-phase plan into a single flat blueprint file, and never force a single-phase feature into an unnecessary master+phase split.
 
-Either way, extract **Feature ID**, **Feature Name**, requirements, scope, constraints, and recommendations, as well as the **Traceability Matrix**, **Stakeholder Analysis**, **Data Flow**, **Open Decisions**, and **Risk Matrix** from the brainstorming and plan sources, reading the JSON form first when present for minimal token usage.
+Either way, extract **Feature ID**, **Feature Name**, requirements, scope, constraints, and recommendations, as well as the **Roadmap Coverage Matrix** when present, **Traceability Matrix**, **Stakeholder Analysis**, **Data Flow**, **Open Decisions**, and **Risk Matrix** from the roadmap, brainstorming, and plan sources, reading the JSON form first when present for minimal token usage.
+
+If a feature is large/multi-phase but the reviewed Roadmap is missing, STOP and return to `brainstorming`; do not generate the Blueprint.
 
 ---
 
@@ -180,9 +183,9 @@ Given the depth required by 5b, a single `phase-blueprint.md` will often become 
 Only split when the single-file version would genuinely be unwieldy — don't split arbitrarily for a small phase. Every companion file must be linked from the index file so nothing is orphaned. The master blueprint may similarly gain companion files (e.g. a shared domain model doc) if truly needed for size, indexed the same way.
 
 ```markdown
-<!-- File path (single-file shape):   docs/blueprints/FEAT-XXX_feature_slug_blueprint.md -->
-<!-- File path (multi-phase shape):   docs/blueprints/<feature-slug>/phase-NN-<phase-slug>/phase-blueprint.md -->
-<!-- File path (multi-phase master): docs/blueprints/<feature-slug>/master/FEAT-XXX_..._master_blueprint.md -->
+<!-- File path (single-file shape):   docs/features/<feature-family>/blueprints/FEAT-XXX_feature_slug_blueprint.md -->
+<!-- File path (multi-phase shape):   docs/features/<feature-family>/blueprints/phase-NN-<phase-slug>/phase-blueprint.md -->
+<!-- File path (multi-phase master): docs/features/<feature-family>/blueprints/master/FEAT-XXX_..._master_blueprint.md -->
 
 ---
 feature_id: FEAT-XXX
@@ -206,6 +209,11 @@ next_artifact: [Implementation (Source Code)](../) # or the relevant implementat
 | File Path | Operation (Create/Modify/Delete/Rename) | Responsibility | Dependency | Impact & Risk |
 | :--- | :--- | :--- | :--- | :--- |
 | `relative/path/to/file` | `[NEW | MODIFY | DELETE]` | [...] | [...] | [...] |
+
+## 1A. Roadmap Preservation Matrix (Required for large/multi-phase features)
+| Roadmap Capability | Roadmap Phase | Plan Task | Blueprint Contract | Covered? |
+| :--- | :--- | :--- | :--- | :---: |
+| [Capability] | Phase N | Task N.N | Section/File contract | [x] |
 
 ## 2. Target Folder Structure
 Must show the DDD/Clean Architecture layer each new directory belongs to (Domain / Application / Infrastructure / Interface), using the target language/framework's own layering convention (see §5a) — check the existing codebase first, only propose a new one if none exists.
@@ -309,6 +317,19 @@ Same rule as §3: give the interface/API itself as a real fenced code block (the
   - **Owner**: [Architect / Coder / Reviewer / Verifier / Documentation / Runtime]
   - **Inputs / Outputs / Dependencies**: [...]
   - **Implementation Notes & Risks**: [...]
+
+## 16. Internal Review Evidence
+| Field | Evidence |
+|---|---|
+| Reviewer Roles | Architect / Reviewer / QA / QC / relevant Specialist roles |
+| Source Artifacts Reviewed | Plan, Brainstorming, active Skill, `AI_RULES.md`, `document-compliance-assessment`, memory/RAG/source references |
+| Checklist Result | PASS/FAIL rows with concrete section evidence |
+| Failed Points | `None` or exact failed-point list |
+| Revision Scope | `None` or exact sections revised |
+| Re-review Count | `0` for first-pass PASS, otherwise number of repeated reviews |
+| Document Compliance Score | `NN/100` |
+| Relative Path Scan | PASS only when no `file:///`, `/Users/`, `/Volumes/`, drive-letter paths, or local absolute links exist |
+| Final Result | `PASS` or `FAIL` |
 ```
 
 ---
@@ -320,46 +341,54 @@ Same rule as §3: give the interface/API itself as a real fenced code block (the
 Self-review the generated Technical Blueprint before requesting user approval.
 
 Review checklist:
-- The Blueprint covers every approved Plan task and every in-scope requirement without adding unrelated scope.
+- The Blueprint covers every internally reviewed Plan task and every in-scope requirement without adding unrelated scope.
+- For large/multi-phase features, the Blueprint covers every Roadmap capability, phase, dependency, and release slice without adding, dropping, or reordering phases.
 - File-by-file analysis, implementation contracts, interfaces, data contracts, algorithms, validation rules, rollback, and test matrix are concrete and verifiable.
 - The Blueprint includes real near-code signatures/structures where required by this Skill and contains no placeholders, vague tasks, or generic instructions.
 - DDD/Clean Architecture layer ownership and dependency direction are explicit for every designed module.
 - Traceability maps requirement -> plan task -> blueprint contract -> expected test.
 - All paths are project-relative and artifact placement follows `AI_RULES.md`.
 - `document-compliance-assessment` no-go conditions are not present.
+- The Blueprint contains `Internal Review Evidence` with reviewer roles, source artifacts, checklist evidence, failed-point repair history, document-compliance score, and relative-path scan result.
 - If the Blueprint touches UI/UX, frontend components, layout, spacing, typography, color, animation, icons, visual hierarchy, aesthetic styling, or design-system decisions, `frontend-design` has been used and the Blueprint includes its relevant constraints.
 
 Rules:
 - Do not request user approval until this review passes.
+- Missing `Internal Review Evidence`, score below `95/100`, unresolved failed points, or relative-path scan FAIL means review FAIL.
+- For large/multi-phase features, missing Roadmap Preservation Matrix or mismatch with `docs/features/<feature-family>/roadmaps/FEAT-XXX_feature_slug_roadmap.md` means review FAIL.
 - If review FAILS, state the exact failed points and revise only those points.
 - Repeat review/revision until PASS.
 - Continue to the final user approval stop only after review passes.
 
 ## Step 7 — Final User Approval Stop
 
-After the Blueprint review passes, present the Blueprint path(s), review result, remaining risks, and approval question to the user, then stop absolutely.
+After the Blueprint review passes, present the Blueprint path(s), review result, remaining risks, and request approval through the runtime prompt bridge:
 
-The Agent MUST end the turn and MUST NOT call tools, mark the Blueprint approved, inspect more files, run git, run tests, or implement code until the user explicitly approves with `Y`, `Yes`, `Proceed`, `Continue`, or equivalent approval text.
+`aiwf prompt select --question "Approve this Technical Design Blueprint for implementation?" --options "Continue|Cancel" --default "Cancel"`
+
+Then stop absolutely. A plain chat approval question is not valid unless the runtime prompt bridge is unavailable and the Agent explicitly reports that unavailability.
+
+The Agent MUST end the turn and MUST NOT mark the Blueprint approved, inspect more files, run git, run tests, or implement code until the user explicitly approves through the runtime prompt bridge, or through fallback chat evidence only after prompt bridge unavailability is explicitly reported.
 
 Mirror whichever shape Step 1 detected for this feature:
 
 **Single-file shape** — create exactly two files (plus companions from §5c only if this one feature is unusually large):
-1. `docs/blueprints/FEAT-XXX_feature_slug_blueprint.md`
-2. `docs/blueprints/FEAT-XXX_feature_slug_blueprint.json`
+1. `docs/features/<feature-family>/blueprints/FEAT-XXX_feature_slug_blueprint.md`
+2. `docs/features/<feature-family>/blueprints/FEAT-XXX_feature_slug_blueprint.json`
 
 **Multi-phase folder shape** — for each phase, create at minimum two files (see §5c for when to add companions):
-1. `docs/blueprints/<feature-slug>/phase-NN-<phase-slug>/phase-blueprint.md`
-2. `docs/blueprints/<feature-slug>/phase-NN-<phase-slug>/phase-blueprint.json`
+1. `docs/features/<feature-family>/blueprints/phase-NN-<phase-slug>/phase-blueprint.md`
+2. `docs/features/<feature-family>/blueprints/phase-NN-<phase-slug>/phase-blueprint.json`
 3. Any companion `.md` files from §5c, each linked from `phase-blueprint.md`.
 
 Plus one master blueprint indexing every phase:
-1. `docs/blueprints/<feature-slug>/master/FEAT-XXX_..._master_blueprint.md`
-2. `docs/blueprints/<feature-slug>/master/FEAT-XXX_..._master_blueprint.json`
+1. `docs/features/<feature-family>/blueprints/master/FEAT-XXX_..._master_blueprint.md`
+2. `docs/features/<feature-family>/blueprints/master/FEAT-XXX_..._master_blueprint.json`
 
 First line of every Markdown file must be its own real path, e.g.:
 ```html
-<!-- File path: docs/blueprints/FEAT-XXX_feature_slug_blueprint.md -->
-<!-- or: docs/blueprints/<feature-slug>/phase-NN-<phase-slug>/phase-blueprint.md -->
+<!-- File path: docs/features/<feature-family>/blueprints/FEAT-XXX_feature_slug_blueprint.md -->
+<!-- or: docs/features/<feature-family>/blueprints/phase-NN-<phase-slug>/phase-blueprint.md -->
 ```
 
 The JSON file must conform to this schema:
@@ -500,14 +529,16 @@ Source Files Inspected:
 [list or "None — all context from memory"]
 
 Generated Output:
-[Single-file shape: docs/blueprints/FEAT-XXX_feature_slug_blueprint.md (+ .json)]
-[Multi-phase shape: docs/blueprints/<feature-slug>/master/FEAT-XXX_..._master_blueprint.md (+ .json)
- + docs/blueprints/<feature-slug>/phase-NN-<phase-slug>/phase-blueprint.md (+ .json, + companions if split per §5c)]
+[Single-file shape: docs/features/<feature-family>/blueprints/FEAT-XXX_feature_slug_blueprint.md (+ .json)]
+[Multi-phase shape: docs/features/<feature-family>/blueprints/master/FEAT-XXX_..._master_blueprint.md (+ .json)
+ + docs/features/<feature-family>/blueprints/phase-NN-<phase-slug>/phase-blueprint.md (+ .json, + companions if split per §5c)]
 
 Recommended Next Skill:
 [create-adr (if ADR Required = Yes) | blueprint-to-implementation (if ADR Required = No)]
 
-Workflow Paused.
+Workflow Paused at Final Blueprint Approval.
+Approval Method:
+workflow_runtime.py prompt select
 ```
 
 ## Evaluation Criteria & Readiness Score (Scale 100)

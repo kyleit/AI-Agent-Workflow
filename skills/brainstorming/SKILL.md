@@ -42,7 +42,7 @@ runtime_requirements:
 | I will **NOT** edit any project files. |
 | I will **NOT** implement anything. |
 | I will **ONLY** perform Requirement Discovery. |
-| The ONLY files I may write are under `docs/brainstorming/` (single file or feature-folder — see Feature ID Allocation Rule) |
+| The ONLY files I may write are under `docs/features/<feature-family>/brainstorming/`; for large or multi-phase features I may also write the required Roadmap under `docs/features/<feature-family>/roadmaps/`; I may update `docs/features/<feature-family>/README.md` as the feature index. |
 | I will self-review discovery outputs before writing and will not ask for user approval unless information is missing or ambiguous. |
 
 > This output is mandatory. Do not skip it. Do not abbreviate it.
@@ -67,7 +67,7 @@ This Skill MUST interface with the centralized Python CLI Runtime Engine:
 
 ```
 IF you are about to:
-  ✗ Use write_file() on any path except docs/brainstorming/
+  ✗ Use write_file() on any path except `docs/features/<feature-family>/brainstorming/`, the matching `docs/features/<feature-family>/roadmaps/` for large/multi-phase features, or `docs/features/<feature-family>/README.md`
   ✗ Use edit_file(), replace_file(), or multi_replace_file()
   ✗ Run any shell command that modifies files
   ✗ Read source code files to find bugs to fix
@@ -152,12 +152,27 @@ Feature IDs are determined **ONLY** by scanning `docs/brainstorming/`:
 4. Files exist (either shape) → next ID = highest existing ID + 1.
 5. Resume/Selection mode → reuse the Feature ID under discussion.
 
+## Semantic Feature Folder Rule
+
+Before writing any document, classify `<feature-family>` as a semantic product/domain capability by reading the user request, feature name, filename candidates, title, headings, summary/problem statement, and linked artifacts. Do not use `FEAT-*`, `FIX-*`, or `QUICK-*` IDs as folder names. If classification confidence is below 0.85, stop and report the candidate feature families with evidence.
+
 ## Document Shape Rule (single file vs. multi-phase folder)
 
-This Skill produces **one flat file** (`docs/brainstorming/FEAT-XXX_feature_name.md`) by default — this covers the large majority of features. Use the **multi-phase folder shape** instead —
-`docs/brainstorming/<feature-slug>/master/FEAT-XXX_..._master_brainstorming.md` + one `docs/brainstorming/<feature-slug>/phase-NN-<phase-slug>/phase-brainstorming.md` per phase — ONLY when, during Step 3–7 discovery, the feature genuinely decomposes into multiple, largely independent implementation phases (each with its own FR/NFR/AC set that could plausibly ship on its own), typically 4+ phases for a large system-level feature. Ask the user before switching shape if it's ambiguous — this is a real judgment call, not an automatic threshold.
+This Skill produces one document under the semantic feature folder (`docs/features/<feature-family>/brainstorming/FEAT-XXX_feature_name.md`) by default — this covers the large majority of features. Use the **multi-phase folder shape** instead —
+`docs/features/<feature-family>/brainstorming/master/FEAT-XXX_..._master_brainstorming.md` + one `docs/features/<feature-family>/brainstorming/phase-NN-<phase-slug>/phase-brainstorming.md` per phase — ONLY when, during Step 3–7 discovery, the feature genuinely decomposes into multiple, largely independent implementation phases (each with its own FR/NFR/AC set that could plausibly ship on its own), typically 4+ phases for a large system-level feature. Ask the user before switching shape if it's ambiguous — this is a real judgment call, not an automatic threshold.
 
-If the multi-phase shape is chosen, Step 15 writes the master doc first (feature-wide problem statement, stakeholder analysis, architecture principles, risk matrix, and an index of every phase with a one-paragraph summary + link), then one phase-brainstorming.md per phase (using the same template below, scoped to that phase's FR/NFR/AC only).
+If the multi-phase shape is chosen, Step 14 writes and reviews the Roadmap first under `docs/features/<feature-family>/roadmaps/FEAT-XXX_feature_slug_roadmap.md`, then Step 16 writes the master doc (feature-wide problem statement, stakeholder analysis, architecture principles, risk matrix, and an index of every phase with a one-paragraph summary + link), then one phase-brainstorming.md per phase (using the same template below, scoped to that phase's FR/NFR/AC only).
+
+## Roadmap-First Rule for Large or Multi-Phase Features
+
+For any large, multi-phase, system-level, cross-module, or high-risk feature, a reviewed Roadmap artifact is mandatory before Planning or Blueprint.
+
+- Roadmap path: `docs/features/<feature-family>/roadmaps/FEAT-XXX_feature_slug_roadmap.md`.
+- The Roadmap must be created before `docs/plans/` or `docs/blueprints/` artifacts.
+- The Roadmap must include a complete feature inventory, phase breakdown, requirement-to-phase coverage matrix, dependencies, release slices, risks, and explicit "not missed" checks.
+- The Roadmap must contain `Internal Review Evidence`.
+- If the Roadmap review FAILS, fix only the failed points and re-review until PASS.
+- If a later phase discovers a missing feature or phase, return to Roadmap first instead of patching the Plan/Blueprint directly.
 
 > [!WARNING]
 > Never pre-assign FEAT-XXX IDs during Feature Decomposition.
@@ -202,10 +217,13 @@ Step 12: Generate 2–3 Solution Options + Comparison Table
               ↓
 Step 13: Recommend One Option (with architectural reasoning)
               ↓
-Step 14: Internal Discovery Review Gate
+Step 14: Roadmap Gate (large/multi-phase only)
+         [generate and review docs/features/<feature-family>/roadmaps/FEAT-XXX_feature_slug_roadmap.md; if FAIL, revise only failed points until PASS]
+              ↓
+Step 15: Internal Discovery Review Gate
          [review all discovery outputs; if FAIL, state failed points and revise only those points until PASS]
               ↓
-Step 15: Generate Brainstorming Document(s)
+Step 16: Generate Brainstorming Document(s)
               ↓
          STOP — Skill responsibility complete.
 ```
@@ -228,7 +246,7 @@ Do not modify it. Do not skip it. Do not summarize it.
 | I will **NOT** edit any project files. |
 | I will **NOT** implement anything. |
 | I will **ONLY** perform Requirement Discovery. |
-| The ONLY file I may write is: `docs/brainstorming/FEAT-XXX_feature_name.md` |
+| The ONLY files I may write are under `docs/features/<feature-family>/brainstorming/`; for large or multi-phase features I may also write `docs/features/<feature-family>/roadmaps/<WORK_ITEM_ID>_<slug>_roadmap.md`; I may update `docs/features/<feature-family>/README.md` |
 | I will self-review discovery outputs before writing and will not ask for user approval unless information is missing or ambiguous. |
 
 Reading requirement input...
@@ -408,7 +426,75 @@ Risk Mitigation:
 
 ---
 
-### Step 14: Internal Discovery Review Gate
+### Step 14: Roadmap Gate (Large or Multi-Phase Features Only)
+
+When the feature is large or multi-phase, generate and review the Roadmap before the Brainstorming document is finalized.
+
+Roadmap template:
+
+```markdown
+<!-- File path: docs/features/<feature-family>/roadmaps/FEAT-XXX_feature_slug_roadmap.md -->
+---
+artifact_type: roadmap
+feature_id: FEAT-XXX
+workflow: standard
+status: reviewed
+---
+
+# Roadmap – [Feature Name]
+
+## 1. Feature Inventory
+| Feature / Capability | Priority | Included? | Phase | Notes |
+|---|---|:---:|---|---|
+| [Capability] | Must/Should/Could | Yes/No | Phase N | [Notes] |
+
+## 2. Phase Roadmap
+| Phase | Goal | In Scope | Out of Scope | Exit Criteria |
+|---|---|---|---|---|
+| Phase 1 | [Goal] | [Scope] | [Out] | [Criteria] |
+
+## 3. Requirement-To-Phase Coverage Matrix
+| Req ID | Requirement | Phase | Acceptance Criteria | Test Evidence Target |
+|---|---|---|---|---|
+| FR-01 | [Requirement] | Phase 1 | [AC] | [Expected test/report] |
+
+## 4. Dependency Order
+- Phase 1 -> Phase 2 -> Phase 3
+
+## 5. Release Slices
+| Slice | Included Phases | User Value | Release Risk |
+|---|---|---|---|
+| Slice 1 | Phase 1 | [Value] | [Risk] |
+
+## 6. Not Missed Checklist
+- [ ] Every user-requested capability is listed in Feature Inventory.
+- [ ] Every FR/NFR/TC maps to exactly one primary phase.
+- [ ] Every phase has exit criteria.
+- [ ] Dependencies are ordered.
+- [ ] Deferred items are explicitly listed.
+
+## 7. Internal Review Evidence
+| Field | Evidence |
+|---|---|
+| Reviewer Roles | Product Analyst / Planner / Architect / Reviewer / QC |
+| Source Artifacts Reviewed | User request, active Skill, `AI_RULES.md`, memory/RAG/source references |
+| Checklist Result | PASS/FAIL rows with concrete evidence |
+| Failed Points | `None` or exact failed-point list |
+| Revision Scope | `None` or exact sections revised |
+| Re-review Count | `0` for first-pass PASS, otherwise number of repeated reviews |
+| Document Compliance Score | `NN/100` |
+| Relative Path Scan | PASS only when no local absolute paths exist |
+| Final Result | `PASS` or `FAIL` |
+```
+
+Rules:
+- Do not continue to Planning unless the Roadmap exists and review result is PASS.
+- Missing roadmap for a large/multi-phase feature is a workflow BLOCKER.
+- Missing Feature Inventory coverage, missing phase mapping, or missing Not Missed Checklist is review FAIL.
+
+---
+
+### Step 15: Internal Discovery Review Gate
 
 Self-review the discovery output before writing the Brainstorming document.
 
@@ -423,30 +509,35 @@ Review checklist:
 
 Rules:
 - Do not stop for user approval at this gate.
+- The generated Brainstorming document must contain `Internal Review Evidence`; missing evidence is review FAIL.
+- The review must include a document-compliance score and a relative-path scan result.
 - If review FAILS, state the exact failed points and revise only those points.
 - Repeat review/revision until PASS.
-- Continue to Step 15 only after review passes.
+- Continue to Step 16 only after review passes.
 
 ---
 
-### Step 15: Generate Brainstorming Document(s)
+### Step 16: Generate Brainstorming Document(s)
 
-Only after Y confirmation:
+After Internal Discovery Review PASS:
 
 1. Scan `docs/brainstorming/` to calculate the next Feature ID.
 2. Per the Document Shape Rule above, write either:
-   - `docs/brainstorming/FEAT-XXX_feature_name.md` (single-file shape — default), one per independent feature if decomposition was chosen, OR
-   - `docs/brainstorming/<feature-slug>/master/FEAT-XXX_..._master_brainstorming.md` + `docs/brainstorming/<feature-slug>/phase-NN-<phase-slug>/phase-brainstorming.md` per phase (multi-phase shape).
-3. Use **relative paths only** for all artifact links.
+   - `docs/features/<feature-family>/brainstorming/FEAT-XXX_feature_name.md` (single-file shape — default), one per independent feature if decomposition was chosen, OR
+   - `docs/features/<feature-family>/brainstorming/master/FEAT-XXX_..._master_brainstorming.md` + `docs/features/<feature-family>/brainstorming/phase-NN-<phase-slug>/phase-brainstorming.md` per phase (multi-phase shape).
+3. For large/multi-phase features, ensure `docs/features/<feature-family>/roadmaps/FEAT-XXX_feature_name_roadmap.md` already exists and has review result PASS.
+4. Create or update `docs/features/<feature-family>/README.md` with relative links to every artifact created for this feature family.
+4. Use **relative paths only** for all artifact links.
+5. Include an `Internal Review Evidence` section recording the discovery review result.
 
 ---
 
 ## Brainstorming Document Template
 
 ```markdown
-<!-- Single-file shape:   docs/brainstorming/FEAT-XXX_feature_name.md -->
-<!-- Multi-phase master:  docs/brainstorming/<feature-slug>/master/FEAT-XXX_..._master_brainstorming.md -->
-<!-- Multi-phase phase:   docs/brainstorming/<feature-slug>/phase-NN-<phase-slug>/phase-brainstorming.md (same template, scoped to that phase) -->
+<!-- Single-file shape:   docs/features/<feature-family>/brainstorming/FEAT-XXX_feature_name.md -->
+<!-- Multi-phase master:  docs/features/<feature-family>/brainstorming/master/FEAT-XXX_..._master_brainstorming.md -->
+<!-- Multi-phase phase:   docs/features/<feature-family>/brainstorming/phase-NN-<phase-slug>/phase-brainstorming.md (same template, scoped to that phase) -->
 
 ---
 feature_id: FEAT-XXX
@@ -713,15 +804,27 @@ The Planning Agent must require no further clarification from this section.
 [All identified risks and mitigations]
 
 ### Verification Checklist
-- [ ] Implementation Plan generated and approved (docs/plans/, single-file or multi-phase shape)
-- [ ] Technical Blueprint generated and approved (docs/blueprints/, single-file or multi-phase shape)
+- [ ] Implementation Plan generated and internally reviewed (docs/plans/, single-file or multi-phase shape)
+- [ ] Technical Blueprint generated, internally reviewed, and ready for final Blueprint Approval (docs/blueprints/, single-file or multi-phase shape)
 - [ ] All Acceptance Criteria mapped to implementation tasks
+
+### Internal Review Evidence
+| Field | Evidence |
+|---|---|
+| Reviewer Roles | Product Analyst / Requirement Analyst / Reviewer / QC / relevant Specialist roles |
+| Source Artifacts Reviewed | User request, active Skill, `AI_RULES.md`, memory/RAG/source references |
+| Checklist Result | PASS/FAIL rows with concrete section evidence |
+| Failed Points | `None` or exact failed-point list |
+| Revision Scope | `None` or exact sections revised |
+| Re-review Count | `0` for first-pass PASS, otherwise number of repeated reviews |
+| Document Compliance Score | `NN/100` |
+| Relative Path Scan | PASS only when no `file:///`, `/Users/`, `/Volumes/`, drive-letter paths, or local absolute links exist |
+| Final Result | `PASS` or `FAIL` |
 
 ---
 
-> ⚠ The next Skill is `brainstorming-to-plan`.
-> It must be invoked **manually** by the user.
-> This Skill does NOT invoke it automatically.
+> Next Skill: `brainstorming-to-plan`.
+> In an orchestrated continuous workflow, return control to `workflow-coordinator` so it can dispatch the next phase without asking the user for approval.
 
 ---
 
@@ -735,15 +838,15 @@ Before exiting, verify each item. Report any FAIL explicitly.
 | :--- | :---: |
 | Outputted the `DISCOVERY MODE ACTIVE` declaration as the first action | [ ] PASS |
 | Did NOT modify any source code files | [ ] PASS |
-| Did NOT edit any project files outside `docs/brainstorming/` | [ ] PASS |
+| Did NOT edit any project files outside the allowed work item artifact folders | [ ] PASS |
 | Treated all user input as requirements (not implementation commands) | [ ] PASS |
 | Calculated the Requirement Readiness Score | [ ] PASS |
 | Asked clarification questions when score < 85 and stopped | [ ] PASS |
 | Generated 2–3 significantly different solution options | [ ] PASS |
 | Recommended one option with detailed architectural reasoning | [ ] PASS |
 | Completed internal discovery review and fixed every failed point before writing | [ ] PASS |
-| Stopped after completing Brainstorming generation | [ ] PASS |
-| Did NOT invoke or suggest invoking another Skill automatically | [ ] PASS |
+| Returned control to workflow-coordinator for the next phase | [ ] PASS |
+| Did NOT ask the user for approval after Brainstorming generation | [ ] PASS |
 
 **Result:** `[ALL PASS | FAILED: list failed items]`
 
@@ -766,12 +869,12 @@ Output at end of execution:
 | **Solutions Generated** | `[Option A: Name, Option B: Name, Option C: Name (if applicable)]` |
 | **Recommended Solution** | `Option [A/B/C] — [Name]` |
 | **Internal Review** | `[PASS | FAILED: item list]` |
-| **Brainstorming File(s)** | `[docs/brainstorming/FEAT-XXX_feature_name.md, or the master+phase-NN file set | None]` |
+| **Brainstorming File(s)** | `[docs/features/<feature-family>/brainstorming/FEAT-XXX_feature_name.md, or the master+phase-NN file set | None]` |
 | **Self-Validation** | `[ALL PASS | FAILED: item list]` |
 
 ---
-**Workflow Paused.** Skill responsibility is complete.
-The next Skill (`brainstorming-to-plan`) must be invoked manually.
+**Workflow Handed Off.** Skill responsibility is complete.
+In an orchestrated continuous workflow, `workflow-coordinator` must dispatch `brainstorming-to-plan` without a user approval stop.
 
 ## Evaluation Criteria & Readiness Score (Scale 100)
 Giai đoạn chỉ được qua cổng kiểm duyệt khi tổng điểm từ 95 trở lên và không vi phạm tiêu chí đường dẫn (đánh fail lập tức nếu vi phạm chính sách đường dẫn tuyệt đối).

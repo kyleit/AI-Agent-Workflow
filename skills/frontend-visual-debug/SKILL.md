@@ -81,7 +81,7 @@ Local dev URL
 ```
 
 If these inputs are missing, infer them by scanning:
-- `docs/blueprints/` (Technical Blueprint — single-file `FEAT-XXX_*_blueprint.md`, or the multi-phase `<feature-slug>/phase-NN-<phase-slug>/phase-blueprint.md` + companions for the relevant frontend phase)
+- `docs/features/<feature-family>/blueprints/` (Technical Blueprint — `<WORK_ITEM_ID>_<slug>_blueprint.md`, or the multi-phase `phase-NN-<phase-slug>/phase-blueprint.md` + companions for the relevant frontend phase; legacy flat or former work-item files may be read only for older work)
 - `docs/brainstorming/` (Requirements)
 - `docs/plans/` (Implementation Plan)
 
@@ -89,7 +89,7 @@ If these inputs are missing, infer them by scanning:
 
 ## Browser Tool Policy
 
-*   **If Browser Tools are Available**:
+*   **If IDE Browser Tools are Available**:
     The agent MUST use them.
     1. Open the browser using available tools (e.g., `browser_subagent`).
     2. Navigate to the local development server URL.
@@ -98,12 +98,37 @@ If these inputs are missing, infer them by scanning:
     5. Check the network tab for failed asset downloads or failed API requests.
     6. Take screenshots of key states (standard layout, responsive breakpoints, modals, hover states) and review them.
     7. Verify core frontend interactions (e.g., button clicks, form submissions, dropdowns).
-*   **If Browser Tools are NOT Available**:
-    1. Explain clearly to the user that browser automation tools are unavailable.
-    2. Fall back to static inspection of frontend source code (components, markup, CSS styles).
-    3. Perform dry-run code reviews against the blueprint and responsive guidelines.
-    4. Recommend manual visual verification to the user.
-    5. **Strict Rule**: Under no circumstances can the visual debug report be marked as `PASS` without browser automation inspection. The status MUST be set to `PARTIAL`.
+*   **If IDE Browser Tools are NOT Available**:
+    1. Attempt a real browser path through Chrome DevTools Protocol (CDP) or an equivalent browser automation surface before falling back to static inspection.
+    2. Start or reuse the local dev server, launch/connect a browser with a debug port, navigate to the target URL, inspect DOM/layout, console, network, responsive breakpoints, and affected interactions, then capture screenshots.
+    3. If CDP/equivalent browser automation is unavailable, explain the missing capability clearly, perform static inspection only as supporting analysis, and mark the status `PARTIAL` or `FAILED`.
+    4. **Strict Rule**: Under no circumstances can the visual debug report be marked as `PASS` without real browser or CDP/equivalent browser automation evidence.
+
+Opening a browser once is not evidence. A screenshot without inspection is not evidence. PASS requires the Agent to compare the rendered UI against the Blueprint, user request, and `frontend-design` acceptance criteria.
+
+## Visual PASS Evidence Contract
+
+The report may mark `PASS` only when every affected UI criterion has concrete evidence:
+- Desktop and mobile screenshots, plus tablet when the layout materially changes.
+- Screenshots for affected states such as modal, drawer, menu, hover/focus, loading, empty, error, form validation, and disabled states when applicable.
+- DOM/layout inspection notes for spacing, alignment, clipping, overflow, z-index, text wrapping, and visual hierarchy.
+- Console and network inspection results, including blocking errors, failed assets, failed API calls, hydration mismatches, or uncaught promises.
+- Interaction evidence for affected buttons, forms, navigation, menus, toggles, dialogs, and keyboard/focus paths.
+- Responsive evidence for the required breakpoints.
+- Explicit comparison against Blueprint and `frontend-design` acceptance criteria.
+
+Automatic FAIL conditions:
+- No real browser/CDP evidence.
+- Missing required screenshots.
+- Only static/source inspection was performed.
+- Known visual mismatch remains unfixed.
+- Text overlaps, clips, or overflows its container.
+- Layout breaks at required breakpoints.
+- Blocking console/network errors exist.
+- Required interaction, keyboard, focus, or navigation path fails.
+- The rendered UI conflicts with explicit user requirements, Blueprint decisions, or `frontend-design` criteria.
+
+If any automatic FAIL condition is present, apply the smallest in-scope fix, rerun browser/CDP inspection, update screenshots, and repeat until PASS or a real blocker is documented.
 
 ---
 
@@ -143,13 +168,13 @@ The Skill must detect the workspace technology stack:
       - Apply minimal, precise fixes to the affected components in the active feature scope.
       - Re-run browser checks to confirm the fix succeeded.
 5.  **Report Generation**:
-    - Generate the report at `docs/verification/FEAT-XXX_visual_debug.md` (or `docs/verification/FEAT-XXX_phase-NN-<phase-slug>_visual_debug.md` when debugging one phase of a multi-phase feature, matching the real `docs/verification/` filename convention — no subfolder nesting here) matching the layout below.
+    - Generate the report at `docs/features/<feature-family>/verification/<WORK_ITEM_ID>_<slug>_visual_debug.md` (or `docs/features/<feature-family>/verification/phase-NN-<phase-slug>/phase-visual-debug.md` when debugging one phase of a multi-phase feature) matching the layout below.
 
 ---
 
 ## Output Template
 
-Generate `docs/verification/FEAT-XXX_visual_debug.md` (or the phase-suffixed variant above) in the following format:
+Generate `docs/features/<feature-family>/verification/FEAT-XXX_slug_visual_debug.md` (or the phase variant above) in the following format:
 
 ```markdown
 # Visual Debug Report
@@ -209,7 +234,8 @@ The Skill may report `PASS` only when:
 - Page loads successfully with no blocking console/network errors.
 - The design layout and responsive checks pass.
 - Core interactions are fully functional.
-- Browser tools were used to verify the page visually.
+- Real browser or CDP/equivalent browser automation was used to verify the page visually.
+- Required screenshots and inspection evidence are included in the report.
 
-If browser tools are unavailable, the status MUST be set to `PARTIAL`.
+If no real browser or CDP/equivalent automation path is available, the status MUST be set to `PARTIAL` or `FAILED`, never `PASS`.
 If critical visual or interaction bugs remain, set to `FAILED`.

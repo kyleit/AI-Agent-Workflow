@@ -402,6 +402,22 @@ For EVERY design task:
 
 ---
 
+## 11. Design Output Acceptance Contract
+
+For any workflow artifact or implementation handoff that changes frontend UI, the Design Authority MUST produce explicit acceptance criteria that `frontend-visual-debug` can verify in a real browser. Design guidance without testable criteria is incomplete.
+
+The criteria MUST cover:
+- Target routes, pages, components, and user states affected by the change.
+- Intended layout structure, visual hierarchy, spacing rhythm, typography scale, color usage, iconography, and motion decisions.
+- Responsive expectations for desktop and mobile, plus tablet when the layout materially changes.
+- Required interaction states such as hover, focus, active, disabled, loading, empty, error, modal, drawer, menu, and form validation states when applicable.
+- Accessibility requirements for contrast, focus visibility, keyboard navigation, touch target sizing, text readability, and reduced motion when applicable.
+- Screenshot states that must be captured during `frontend-visual-debug`.
+
+`frontend-design` may approve design direction only. It MUST NOT mark the implemented UI as visually correct. Final UI correctness requires browser/CDP evidence from `frontend-visual-debug`.
+
+---
+
 ## Reference Files
 
 For deeper guidance on specific areas:

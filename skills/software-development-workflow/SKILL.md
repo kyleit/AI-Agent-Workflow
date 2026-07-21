@@ -57,54 +57,54 @@ Platform Infrastructure & Knowledge
 Feature-Centric SDLC (Enforcing Blueprint-Driven Development)
 
   Option 1: Standard Workflow (Medium & Large Features)
-    1. Brainstorming     ──> docs/brainstorm/FEAT-XXX_<feature_name>.md
+    1. Brainstorming     ──> docs/features/<feature-family>/brainstorming/FEAT-XXX_<feature_name>.md
                              Skill: brainstorming
-    2. Planning          ──> docs/plans/FEAT-XXX_<feature_name>_plan.md
+    2. Planning          ──> docs/features/<feature-family>/plans/FEAT-XXX_<feature_name>_plan.md
                              Skill: brainstorming-to-plan
-    3. Design            ──> docs/blueprints/FEAT-XXX_<feature_name>_blueprint.md
+    3. Design            ──> docs/features/<feature-family>/blueprints/FEAT-XXX_<feature_name>_blueprint.md
                              Skill: plan-to-blueprint
     [Optional] ADR       ──> docs/adr/ADR-XXX_<short_title>.md
                              Skill: create-adr
-    4. Design Approval   ──> Seek User Y/N Confirmation for Blueprint
+    4. Design Approval   ──> Runtime `prompt select` for Blueprint Approval
     5. Implementation    ──> source code implementation
                              Skill: blueprint-to-implementation
-    6. Debug             ──> docs/debug/FEAT-XXX_debug.md
+    6. Debug             ──> docs/features/<feature-family>/debug/FEAT-XXX_<feature_name>_debug.md
                              Skill: implementation-to-debug
     7. VIR Visual QA     ──> Run visual check loops (if frontend changes are present)
                              Skills: frontend-visual-debug ──> vir-investigate ──> vir-runtime ──> vir-verify
-    8. Verification      ──> docs/verification/FEAT-XXX_verify.md
+    8. Verification      ──> docs/features/<feature-family>/verification/FEAT-XXX_<feature_name>_verify.md
                              Skill: debug-to-verify (requires vir-verify report PASS if mandatory)
     9. STOP              ──> Pause and recommend Release.
     10. Manual Release   ──> updates CHANGELOG.md & bumps version
                              Skill: implementation-to-release (only if explicitly requested)
 
   Option 2: Quick-Fix Workflow (Small Bug Fixes - 3-stage)
-    1. Fix Specification ──> docs/issues/FIX-XXX_<issue_name>.md
+    1. Fix Specification ──> docs/features/<feature-family>/issues/FIX-XXX_<issue_name>.md
                              Skill: quick-fix
-    2. Spec Approval     ──> Seek User Y/N Confirmation
-    3. Technical Design  ──> docs/blueprints/FIX-XXX_<issue_name>_blueprint.md
+    2. Spec Review       ──> Internal review loop; no user approval stop
+    3. Technical Design  ──> docs/features/<feature-family>/blueprints/FIX-XXX_<issue_name>_blueprint.md
                              Skill: quick-fix
-    4. Design Approval   ──> Seek User Y/N Confirmation for Blueprint
+    4. Design Approval   ──> Runtime `prompt select` for Blueprint Approval
     5. Implementation    ──> apply minimal hotfix & verify builds
                              Skill: quick-fix
     6. VIR Visual QA     ──> Targeted visual check (if UI affected)
                              Skills: frontend-visual-debug ──> vir-verify
-    7. Verification      ──> docs/verification/FIX-XXX_verify.md
+    7. Verification      ──> docs/features/<feature-family>/verification/FIX-XXX_<issue_name>_verify.md
     8. STOP              ──> Pause and recommend Release.
     9. Manual Release    ──> updates CHANGELOG.md & bumps version (only if explicitly requested)
 
   Option 3: Quick-Feature Workflow (Small Feature Requests - 3-stage)
-    1. Feature Spec      ──> docs/quick/QUICK-XXX_<feature_name>.md
+    1. Feature Spec      ──> docs/features/<feature-family>/quick/QUICK-XXX_<feature_name>.md
                              Skill: quick-feature
-    2. Spec Approval     ──> Seek User Y/N Confirmation
-    3. Technical Design  ──> docs/blueprints/QUICK-XXX_<feature_name>_blueprint.md
+    2. Spec Review       ──> Internal review loop; no user approval stop
+    3. Technical Design  ──> docs/features/<feature-family>/blueprints/QUICK-XXX_<feature_name>_blueprint.md
                              Skill: quick-feature
-    4. Design Approval   ──> Seek User Y/N Confirmation for Blueprint
+    4. Design Approval   ──> Runtime `prompt select` for Blueprint Approval
     5. Implementation    ──> apply minimal feature code & verify
                              Skill: quick-feature
     6. VIR Visual QA     ──> Targeted visual check (if UI affected)
                              Skills: frontend-visual-debug ──> vir-verify
-    7. Verification      ──> docs/verification/QUICK-XXX_verify.md
+    7. Verification      ──> docs/features/<feature-family>/verification/QUICK-XXX_<feature_name>_verify.md
     8. STOP              ──> Pause and recommend Release.
     9. Manual Release    ──> updates CHANGELOG.md & bumps version (only if explicitly requested)
 ```
@@ -214,36 +214,19 @@ Ensure the session block has:
 }
 ```
 
-### 2.5.4 — Output Formats & Confirmation Gates
-If confidence is high (recommending one skill), output exactly:
+### 2.5.4 — Auto-Dispatch & Ambiguity Gates
+If confidence is high (one workflow is clearly correct), do not ask the user to confirm the recommended Skill and do not ask the user to type `/quick-feature`, `/quick-fix`, or `/brainstorming` manually.
 
-```text
-Detected request type:
-[bug | quick-feature | large-feature | knowledge-search | memory-update | release | ambiguous]
-
-Recommended workflow:
-[skill-name] / [command]
-
-Reason:
-[...]
-
-This will start:
-[short workflow summary]
-
-Confirm?
-Y / N
-```
-
-Create a choice approval gate:
+Persist the routing decision:
 ```bash
-python skills/workflow-runtime/scripts/workflow_runtime.py choice create --id "workflow_suggestion" --title "Workflow Suggestion Confirmation" --desc "Confirm starting the suggested workflow:" --options '[{"id":"confirm","label":"Confirm and Proceed"},{"id":"cancel","label":"Cancel/Revise"}]' --type choice
-python skills/workflow-runtime/scripts/workflow_runtime.py choice wait --id "workflow_suggestion"
+python skills/workflow-runtime/scripts/workflow_runtime.py suggest --request "<request>" --recommend "<skill-name>"
 ```
-Read the choice using `choice read`. If confirmed, dispatch the execution:
+
+Then dispatch immediately:
 ```bash
 python skills/workflow-runtime/scripts/workflow_runtime.py start --skill <recommended_skill> --command <recommended_command> --checkpoint <checkpoint> --step <step>
 ```
-And immediately execute the target skill's instructions.
+Immediately execute the target Skill's instructions. Continue through the pre-approval artifact and internal review loops until the Technical Design Blueprint passes review, then stop for final user approval before implementation.
 
 If intent is ambiguous, output:
 ```text
@@ -256,12 +239,11 @@ I found multiple possible workflows:
 Please choose 1, 2, or 3.
 ```
 
-Create an options selection gate:
+Create a runtime prompt selection gate:
 ```bash
-python skills/workflow-runtime/scripts/workflow_runtime.py choice create --id "workflow_suggestion" --title "Choose Workflow Option" --desc "Please choose one of the options:" --options '[{"id":"1","label":"quick-fix"},{"id":"2","label":"quick-feature"},{"id":"3","label":"brainstorming"}]' --type choice
-python skills/workflow-runtime/scripts/workflow_runtime.py choice wait --id "workflow_suggestion"
+aiwf prompt select --question "Choose workflow option:" --options "quick-fix|quick-feature|brainstorming" --default "quick-feature"
 ```
-Read the selected option. Call `suggest --choose <option_index>`. Then dispatch the chosen skill by calling `start --skill <skill> --command <command> ...` and immediately execute that skill's instructions.
+Read the selected option from the runtime prompt result. Persist it with `suggest --request "<request>" --recommend "<selected_skill>"`. Then dispatch the chosen skill by calling `start --skill <skill> --command <command> ...` and immediately execute that skill's instructions.
 
 ---
 
@@ -271,26 +253,26 @@ Read the selected option. Call `suggest --choose <option_index>`. Then dispatch 
 
 ### 3.1 — Detect Active Feature ID & Track Eligibility
 
-1. **Scan documentation**: Scan `docs/brainstorm/FEAT-XXX_*.md`.
+1. **Scan documentation**: Scan `docs/features/<feature-family>/brainstorming/FEAT-XXX_*.md`, former work-item folders, and legacy flat files only as backward-compatible input.
 2. Find the file with the highest numerical suffix in `FEAT-XXX` as the **Active Feature**. Let this ID be `FEAT-XXX`.
 
 ### 3.2 — Trace Feature Lifecycle Status
 
 #### Case C: Design Blueprint Missing
-If the plan `docs/plans/FEAT-XXX_<feature_name>_plan.md` exists but the technical blueprint `docs/blueprints/FEAT-XXX_<feature_name>_blueprint.md` does NOT:
+If the plan `docs/features/<feature-family>/plans/FEAT-XXX_<feature_name>_plan.md` exists but the technical blueprint `docs/features/<feature-family>/blueprints/FEAT-XXX_<feature_name>_blueprint.md` does NOT:
 * **Recommend next Skill**: `plan-to-blueprint`
 * Stop.
 
 #### Case C.5: Design Blueprint Approval Pending
 If the technical blueprint exists but `blueprint.approved` is NOT marked as `true` in the session data:
 * **STOP**. Explain that the Blueprint is pending approval.
-* **Recommend next action**: Emit a blueprint approval choice:
+* **Recommend next action**: Emit a runtime prompt selection for Blueprint Approval:
   ```bash
-  python skills/workflow-runtime/scripts/workflow_runtime.py choice create --id "blueprint_approval" --title "Blueprint Design Approval" --desc "Do you approve the Design Blueprint docs/blueprints/FEAT-XXX_<feature_name>_blueprint.md?" --type approval
-  python skills/workflow-runtime/scripts/workflow_runtime.py choice wait --id "blueprint_approval"
+  aiwf prompt select --question "Approve the Design Blueprint docs/features/<feature-family>/blueprints/FEAT-XXX_<feature_name>_blueprint.md for implementation?" --options "Continue|Cancel" --default "Cancel"
   ```
-  Wait for response. If approved, run:
-  `python skills/workflow-runtime/scripts/workflow_runtime.py blueprint --path docs/blueprints/FEAT-XXX_<feature_name>_blueprint.md --approve`
+  Wait for the runtime prompt result. If the result is `Continue`, run:
+  `aiwf blueprint --path docs/features/<feature-family>/blueprints/FEAT-XXX_<feature_name>_blueprint.md --approve`
+  If the result is `Cancel`, leave the blueprint pending and stop.
 * Stop.
 
 #### Case E: Implementation Incomplete
@@ -299,7 +281,7 @@ If the technical blueprint exists and is approved, check if git status shows imp
 * Stop.
 
 #### Case H: Verification Phase
-If debug and all quality gates pass, check if `docs/verification/FEAT-XXX_verify.md` is marked as `PASS`.
+If debug and all quality gates pass, check if `docs/features/<feature-family>/verification/FEAT-XXX_<feature_name>_verify.md` is marked as `PASS`.
 * If missing or not `PASS`:
   * **Recommend next Skill**: `debug-to-verify`
   * Stop.

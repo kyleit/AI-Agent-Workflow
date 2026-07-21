@@ -60,11 +60,15 @@ Perform a final qualitative and quantitative audit on the active feature impleme
 ## Responsibilities
 
 1. **Acceptance Criteria Verification**: Cross-reference implemented features against the original criteria defined in the project plan.
-2. **Blueprint Compliance**: Ensure file names, APIs, class signatures, and database schemas strictly align with the technical blueprint under `docs/blueprints/` — either `docs/blueprints/FEAT-XXX_*_blueprint.md` (single-file shape) or `docs/blueprints/<feature-slug>/phase-NN-<phase-slug>/phase-blueprint.md` (+ its companion files) for the multi-phase shape (see `plan-to-blueprint`). Read every companion file linked from the phase index, not just the index itself.
+2. **Blueprint Compliance**: Ensure file names, APIs, class signatures, and database schemas strictly align with the technical blueprint under `docs/features/<feature-family>/blueprints/` — either `<WORK_ITEM_ID>_<slug>_blueprint.md` (single-file shape) or `phase-NN-<phase-slug>/phase-blueprint.md` (+ its companion files) for the multi-phase shape (see `plan-to-blueprint`). Legacy flat or former work-item Blueprints may be read only for older work. Read every companion file linked from the phase index, not just the index itself.
 3. **Coding Standards Audit**: Ensure correct code styles, robust error handling, proper naming conventions, and clean syntax are met.
 4. **Security & Performance**: Review authentication checks, sanitize inputs, verify database indexes, and look for performance bottlenecks.
-5. **Documentation & Changelog**: Check if user docs, API docs, and `CHANGELOG.md` edits are ready for the release notes.
-6. **Go / No-Go Decision**: Make a formal quality assessment whether the code is safe to be merged/released.
+5. **Code Standard Review Evidence**: Verify that `code-standard-review` ran and passed with changed-file evidence.
+6. **Real Runtime Evidence**: Verify the post-implementation report includes at least one real runtime/user case without mocks or fake test doubles when the feature has a runtime surface.
+7. **Frontend Browser Evidence**: For UI/browser changes, verify screenshot evidence exists and was captured through IDE browser tools, CDP debug port, or an equivalent real browser automation path.
+8. **Documentation & Changelog**: Check if user docs, API docs, and `CHANGELOG.md` edits are ready for the release notes.
+9. **Final Evidence Report**: Verify `docs/features/<feature-family>/reports/<WORK_ITEM_ID>_<slug>_post_implementation_report.md` (or matching phase variant) exists and links screenshots with relative Markdown paths.
+10. **Go / No-Go Decision**: Make a formal quality assessment whether the code is safe to be merged/released.
 
 ---
 
@@ -73,21 +77,21 @@ Perform a final qualitative and quantitative audit on the active feature impleme
 ```
 Step 1: Inspect session state, debug report, and visual debug report (if applicable)
         ↓
-Step 2: Audit Acceptance Criteria & Blueprint compliance
+Step 2: Audit Acceptance Criteria, Blueprint compliance, and code-standard-review evidence
         ↓
-Step 3: Audit Documentation, Security, and Code Quality
+Step 3: Audit targeted validation, tests, real runtime case evidence, and browser/CDP screenshots when UI is affected
         ↓
-Step 4: Generate Verification Report at docs/verification/FEAT-XXX_verify.md
-        (or docs/verification/FEAT-XXX_phase-NN-<phase-slug>_verify.md when verifying one phase
-        of a multi-phase feature — matches the real, already-used filename convention; do NOT
-        nest phases into subfolders here, unlike docs/blueprints/)
+Step 4: Audit Documentation, Security, Code Quality, and Post-Implementation Evidence Report
         ↓
-Step 5: Update session checkpoint to 9 & output heartbeat
+Step 5: Generate Verification Report at docs/features/<feature-family>/verification/<WORK_ITEM_ID>_<slug>_verify.md
+        (or docs/features/<feature-family>/verification/phase-NN-<phase-slug>/phase-verify.md when verifying one phase)
+        ↓
+Step 6: Update session checkpoint to 9 & output heartbeat
 ```
 
 ---
 
-## Output Report Format: `docs/verification/FEAT-XXX_verify.md` (or `..._phase-NN-<phase-slug>_verify.md` — see Workflow Sequence Step 4)
+## Output Report Format: `docs/features/<feature-family>/verification/FEAT-XXX_slug_verify.md` (or `phase-NN-<phase-slug>/phase-verify.md` — see Workflow Sequence Step 4)
 
 Generate the verification report using this Markdown template:
 
@@ -114,9 +118,11 @@ Giai đoạn phải đáp ứng toàn bộ các tiêu chí kiểm duyệt dướ
 | 3 | Kiểm thử runtime thật | [ ] PASS | Kiểm thử gọi vào runtime đang chạy qua surface thật phù hợp như IPC, API, UI, CLI, SDK, job queue hoặc service, không chỉ kiểm thử đơn vị hoặc phản chiếu. Luồng thành công chính, luồng lỗi hợp lệ, luồng hồi quy và dọn dẹp đều đạt. |
 | 4 | Đầy đủ chức năng | [ ] PASS | Giai đoạn triển khai đủ lệnh hoặc API bắt buộc, không có phần giữ chỗ chưa hoàn thiện, không bỏ sót hành vi cũ quan trọng. |
 | 5 | Dễ đọc và dễ bảo trì | [ ] PASS | Mã nguồn, script và kết quả rõ ràng, có cấu trúc, đặt tên dễ hiểu, ít trùng lặp và không lan phạm vi ngoài giai đoạn. |
-| 6 | Tuân thủ rule, Memory/RAG và skill trong project | [ ] PASS | Người điều phối và tác nhân đã đọc rule trong project, ưu tiên Memory First/RAG First bằng `./.agents/skills/project-rag-search` khi cần ngữ cảnh, chọn skill phù hợp từ `./.agents/skills`, đọc hướng dẫn skill trước khi làm, ghi rule/skill trong prompt/báo cáo và không tạo bản rule hoặc skill trùng lặp ở nơi khác. |
+| 6 | Code Standard Review | [ ] PASS | Bắt buộc sử dụng `code-standard-review`, có changed-file review evidence, và mọi checklist item đều PASS hoặc có failed-point loop đã sửa lại. |
 | 7 | An toàn dữ liệu và dọn dẹp | [ ] PASS | Kiểm thử chụp nhanh và khôi phục cấu hình, không tạo rác ở Màn hình nền hoặc thư mục tạm, không lộ mã xác thực hoặc bí mật, không để lại tiến trình app hoặc kiểm thử. |
 | 8 | Tuân thủ tài liệu & Truy vết | [ ] PASS | Bắt buộc chạy và đánh giá điểm chất lượng tài liệu đạt từ 95/100 điểm trở lên bằng cách sử dụng skill [document-compliance-assessment](../../.agents/skills/document-compliance-assessment/SKILL.md) và đính kèm báo cáo Document Compliance Report. |
+| 9 | Final Evidence Report | [ ] PASS | `docs/features/<feature-family>/reports/<WORK_ITEM_ID>_<slug>_post_implementation_report.md` or a phase variant exists, includes review/validation/debug/real runtime/browser evidence, and all screenshots use relative Markdown links. |
+| 10 | Browser Screenshot Evidence | [ ] PASS | Nếu UI/browser bị ảnh hưởng, có screenshot thực tế được chụp bằng IDE browser tools hoặc CDP/equivalent real browser automation. |
 
 ## 3. Điều kiện bắt buộc đánh FAIL (NO-GO)
 Giai đoạn phải bị đánh FAIL (NO-GO) nếu gặp bất kỳ lỗi nào dưới đây (báo cáo đánh giá bị vô hiệu):
@@ -135,12 +141,33 @@ Giai đoạn phải bị đánh FAIL (NO-GO) nếu gặp bất kỳ lỗi nào d
 13. Bỏ qua rule của project hoặc không chứng minh đã đọc rule bắt buộc.
 14. Tạo rule song song làm lệch hướng `PROJECT_RULES.md`, `./.agents/AGENTS.md` hoặc `./.agents/AI_RULES.md`.
 15. Quét mã nguồn hoặc hỏi thiết kế trước khi tra cứu Project Memory và dùng `./.agents/skills/project-rag-search` khi cần ngữ cảnh.
+16. Thiếu `code-standard-review` evidence cho các file đã thay đổi.
+17. Thiếu post-implementation evidence report trong `docs/reports/`.
+18. UI/browser thay đổi nhưng không có screenshot evidence từ browser thật hoặc CDP/equivalent.
+19. Real runtime case chỉ dùng mock, fake data, reflection, hoặc unit test mà không gọi surface thật.
 
 ## Đánh giá tuân thủ tài liệu (Document Compliance Report)
 *(Bắt buộc hoàn thành đánh giá tài liệu bằng skill `document-compliance-assessment` trước khi đề xuất Go)*
 
 - **Documentation Traceability Score**: <diem>/100
 - **Trạng thái**: [ĐẠT | KHÔNG ĐẠT]
+
+## Code Standard Review Evidence
+
+| Field | Evidence |
+|---|---|
+| Skill Used | `code-standard-review` |
+| Changed Files Reviewed | `relative/path`, `relative/path` |
+| Result | [PASS | FAIL] |
+| Failed Points | `None` or exact failed-point list |
+
+## Post-Implementation Evidence Report
+
+- **Report Path**: `docs/features/<feature-family>/reports/FEAT-XXX_slug_post_implementation_report.md`
+- **Real Runtime Case Result**: [PASS | FAIL | Not Applicable + why]
+- **Browser Evidence Result**: [PASS | FAIL | Not Applicable + why]
+- **Screenshot Links**:
+  - `docs/reports/assets/FEAT-XXX_slug/screenshot.png`
 
 ## 4. Go / No-Go Recommendation
 - **Recommendation**: [GO | NO-GO]
@@ -155,6 +182,8 @@ Giai đoạn phải bị đánh FAIL (NO-GO) nếu gặp bất kỳ lỗi nào d
 
 If verification status is **FAIL**, the workflow is stopped and blocked from releasing. Return to the debug phase.
 
+Verification MUST be FAIL if the post-implementation evidence report is missing, `code-standard-review` evidence is missing, real runtime evidence is missing for changed runtime behavior, or screenshot/CDP evidence is missing for UI/browser changes.
+
 ---
 
 ## Completion Contract
@@ -167,7 +196,7 @@ Status:
 Completed
 
 Report Generated:
-docs/verification/FEAT-XXX_verify.md (or ..._phase-NN-<phase-slug>_verify.md)
+docs/features/<feature-family>/verification/FEAT-XXX_slug_verify.md (or phase-NN-<phase-slug>/phase-verify.md)
 
 Verification Status:
 [PASS | FAIL]

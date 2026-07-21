@@ -66,10 +66,10 @@ This Skill MUST strictly adhere to the global policies defined in [AI_RULES.md](
 Prior to running any release activities, the AI must strictly execute the following validations:
 
 1. **Verify Explicit Release Request**: The AI must verify that the user has explicitly requested a Release (e.g. via keywords like `/release`, `release`, `create release`, `publish release`, `bump version`, `commit and push`, or `tag this version`). Any automatic progression to this Skill without a clear user request is strictly prohibited.
-2. **Verify Blueprint Approval**: Confirm that a Technical Design Blueprint exists for this work under `docs/blueprints/` and that its status is marked as `"approved": true` in the active workflow session data.
+2. **Verify Blueprint Approval**: Confirm that a Technical Design Blueprint exists for this work under `docs/features/<feature-family>/blueprints/` and that its status is marked as `"approved": true` in the active workflow session data.
 3. **Verify Quality Gates**: Ensure all quality gates are met:
-   - Debug Gate: `docs/debug/FEAT-XXX_debug.md` has `status: PASS`.
-   - Verification Gate: `docs/verification/FEAT-XXX_verify.md` has `status: PASS`.
+   - Debug Gate: `docs/features/<feature-family>/debug/<WORK_ITEM_ID>_<slug>_debug.md` has `status: PASS`.
+   - Verification Gate: `docs/features/<feature-family>/verification/<WORK_ITEM_ID>_<slug>_verify.md` has `status: PASS`.
 4. **Walkthrough Handover Decision Gate**: The AI must prompt the user using the Choice Protocol before packaging or overwriting `walkthrough.md` in the repository, asking whether they want to overwrite (create new walkthrough) or keep/append to the previous history.
 
 **If any validation fails:**
@@ -77,22 +77,15 @@ Prior to running any release activities, the AI must strictly execute the follow
 - Print the warning: `❌ Release aborted: No explicit release request or approved Blueprint found. The framework forbids automatic releases. Please run /release only when you are ready to publish.`
 - Do NOT perform version bumps, modify changelogs, commit, tag, push, or merge.
 
-## Interactive Choice Protocol for Release Gates
+## Runtime Prompt Protocol for Release Gates
 
-Every approval gate in **Phase 8 (Release Summary)**, **Phase 9 (Commit Release)**, and **Phase 11 (Push Branch)** MUST be performed using the Centralized CLI Choice Protocol:
+Every approval gate in **Phase 8 (Release Summary)**, **Phase 9 (Commit Release)**, and **Phase 11 (Push Branch)** MUST be performed using the centralized runtime prompt selection protocol:
 1. Run:
    ```bash
-   python skills/workflow-runtime/scripts/workflow_runtime.py choice create --id "release_approval" --title "Release/Commit/Push Approval" --desc "Verify and approve the release step to proceed." --type approval
+   aiwf prompt select --question "Approve this release step?" --options "Continue|Cancel" --default "Cancel"
    ```
-2. Run:
-   ```bash
-   python skills/workflow-runtime/scripts/workflow_runtime.py choice wait --id "release_approval"
-   ```
-3. Read result:
-   ```bash
-   python skills/workflow-runtime/scripts/workflow_runtime.py choice read --id "release_approval"
-   ```
-If the result is `approve`, proceed to the next step. If `cancel`, stop.
+2. If the result is `Continue`, proceed to the next step. If the result is `Cancel`, stop.
+3. Do not ask for the same approval again in plain chat text.
 
 ---
 

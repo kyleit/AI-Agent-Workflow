@@ -8,17 +8,25 @@ This document is the single source of truth for all shared behaviors, constraint
 
 The framework is strictly **approval-driven**, but allows dual execution modes depending on project configurations:
 
-- **Legacy Mode (`workflow_mode=legacy`)**: Every state-changing action (modifying files, commits, tags, branches) requires explicit human confirmation via the `ask_question` tool.
+- **Legacy Mode (`workflow_mode=legacy`)**: Every state-changing action (modifying files, commits, tags, branches) requires explicit human confirmation via `workflow_runtime.py prompt select`.
 - **Autonomous Mode (`workflow_mode=autonomous`)**: Workflow execution is managed by the **Workflow Supervisor**. State-changing actions during intermediate compilation, test runs, and static linting are automated. The supervisor strictly halts only at the following **3 Strategic Human Approval Gates**:
   1. **Gate 1 — Workflow Selection Approval**: Human selects the workflow path only when the request is ambiguous or multiple workflow options are valid.
   2. **Gate 2 — Blueprint Approval**: Human validates technical architecture and contracts after the Blueprint has passed all internal review loops.
   3. **Gate 3 — Release Approval**: Human validates production release risk.
 
-*   **No Double Confirmation Policy**: Mọi hành động mà người dùng đã phê duyệt hoặc lựa chọn thông qua giao diện tương tác (như `ask_question` hoặc CLI `prompt select` / `choice`) thì Agent **không được phép hỏi lại hoặc yêu cầu xác nhận lại** trong đoạn chat. Agent phải trực tiếp thực hiện hành động đó ngay sau khi có kết quả lựa chọn của người dùng, ngoại trừ việc chọn chế độ nguy hiểm `unrestricted` thì bắt buộc phải cảnh báo và xác nhận lại.
+*   **No Double Confirmation Policy**: Any action already approved or selected by the user through `workflow_runtime.py prompt select` or its interactive UI bridge MUST NOT be confirmed again in chat. The Agent must directly execute the selected action after receiving the runtime prompt result, except selecting the dangerous `unrestricted` mode, which still requires an explicit high-impact confirmation.
 
 *   **Pre-Approval Artifact Self-Review Policy**: From roadmap/discovery through Specification, Implementation Plan, and Technical Blueprint, the Agent MUST self-review every generated artifact before moving to the next artifact. The review MUST check the user request, the active Skill, this `AI_RULES.md`, traceability, artifact placement, relative-path rules, and `document-compliance-assessment` requirements. If the review FAILS, the Agent MUST state the exact failed points, revise only those failed points, and repeat the review/revision loop until PASS. The Agent MUST NOT request user approval for intermediate roadmap, brainstorming, specification, or plan artifacts in the continuous workflow unless required to resolve ambiguity, missing information, or workflow selection. The ONLY mandatory pre-implementation human approval stop is after the Technical Blueprint has passed internal review.
 
-*   **Frontend Design Skill Binding Policy**: Any request, artifact, Blueprint, implementation, or review that creates, changes, or specifies frontend design MUST use the `frontend-design` Skill before making design decisions. This includes UI/UX flows, frontend components, page layout, spacing, typography, color, visual hierarchy, icons, animation, aesthetic styling, and design-system choices. If the work only changes backend logic with no user-facing interface/design impact, this binding is not required.
+*   **Large Feature Roadmap-First Policy**: Any large, multi-phase, system-level, cross-module, or high-risk feature MUST create a reviewed Roadmap artifact before Implementation Plan or Blueprint generation. The Roadmap MUST live under the semantic feature documentation shape `docs/features/<feature-family>/roadmaps/<WORK_ITEM_ID>_<slug>_roadmap.md` and contain complete phase inventory, feature coverage matrix, requirement-to-phase mapping, dependency order, release slices, risks, and explicit "not missed" checks. Planning and Blueprint phases MUST read and preserve the Roadmap shape. If a large/multi-phase workflow has no reviewed Roadmap, the workflow is BLOCKED and must return to discovery.
+
+*   **Pre-Approval Review Evidence Contract**: Every roadmap/discovery, Specification, Implementation Plan, and Technical Blueprint artifact MUST contain an `Internal Review Evidence` section before the Agent advances to the next phase. This section MUST list: reviewer roles used, source artifacts reviewed, checklist items, PASS/FAIL result, exact failed points when any exist, revision scope, re-review count, document-compliance score, and relative-path scan result. Missing review evidence is an automatic FAIL. A review result may be PASS only when all failed points are fixed, the document-compliance score is at least 95/100, and no no-go condition exists.
+
+*   **Pre-Approval Self-Correction Loop**: If an artifact review FAILS, the Agent MUST NOT proceed to the next phase, request user approval, or create downstream artifacts. The owning phase agent MUST revise only the explicitly failed points, preserve all already-valid content, and rerun the same review checklist. The loop repeats until PASS. The FAIL report MUST be specific enough for a different agent to fix the same points without reinterpreting the whole artifact.
+
+*   **Blueprint Approval Prompt Select Requirement**: After the reviewed Technical Blueprint reaches PASS, the Agent MUST request final Blueprint Approval through `aiwf prompt select`. A plain chat message such as "approve?", "Y/N", "duyet?", or "please confirm" is NOT a valid Blueprint Approval gate. If the prompt bridge cannot be rendered by the IDE/client, the Agent MUST explicitly state that the runtime prompt bridge was unavailable, keep the workflow stopped at Blueprint Approval, and treat any chat response only as fallback evidence. The Agent MUST NOT mark the Blueprint approved or implement code before explicit approval evidence exists.
+
+*   **Frontend Design Skill Binding Policy**: Any request, artifact, Blueprint, implementation, or review that creates, changes, or specifies frontend design MUST use the `frontend-design` Skill before making design decisions. This includes UI/UX flows, frontend components, page layout, spacing, typography, color, visual hierarchy, icons, animation, aesthetic styling, and design-system choices. If the work only changes backend logic with no user-facing interface/design impact, this binding is not required. `frontend-design` produces design decisions and acceptance criteria; it is not visual proof by itself. Implemented UI changes MUST pass the `frontend-visual-debug` evidence gate before the Agent may claim the UI is correct.
 
 ---
 
@@ -80,7 +88,7 @@ Retrieval-Augmented Generation searches must follow a strict priority ordering.
 
 *   **Retrieval Hierarchy**:
     *   **Level 1**: Project Memory (`project-summary.md`, area and module documents under `memory_root`).
-    *   **Level 2**: Discovery & Specifications (`docs/brainstorming/`, `docs/issues/`, `docs/quick/`).
+    *   **Level 2**: Roadmaps, Discovery & Specifications (`docs/roadmaps/`, `docs/brainstorming/`, `docs/issues/`, `docs/quick/`).
     *   **Level 3**: Implementation Plans (`docs/plans/`).
     *   **Level 4**: Technical Blueprints (`docs/blueprints/`).
     *   **Level 5**: Architectural Decision Records (`docs/adr/`).
@@ -99,19 +107,30 @@ The documentation architecture enforces strict separation of concerns.
 *   **Directory Structure**:
     | Directory | Purpose | Naming Format |
     | :--- | :--- | :--- |
-    | `docs/brainstorming/` | Requirements Discovery (Standard Features) | `FEAT-XXX_slug.md` |
-    | `docs/plans/` | Implementation Plans | `FEAT-XXX_slug_plan.md` |
-    | `docs/blueprints/` | Technical Blueprints | `FEAT-XXX_slug_blueprint.md` |
-    | `docs/issues/` | Bug Fix Specifications (Quick-Fix) | `FIX-XXX_slug.md` |
-    | `docs/quick/` | Quick Feature Specifications | `QUICK-XXX_slug.md` |
+    | `docs/features/` | Semantic feature families | `<feature-family>/README.md` |
+    | `docs/features/<feature-family>/roadmaps/` | Large Feature Roadmaps | `<WORK_ITEM_ID>_<slug>_roadmap.md` |
+    | `docs/features/<feature-family>/brainstorming/` | Requirements Discovery (Standard Features) | `<WORK_ITEM_ID>_<slug>.md` |
+    | `docs/features/<feature-family>/plans/` | Implementation Plans | `<WORK_ITEM_ID>_<slug>_plan.md` |
+    | `docs/features/<feature-family>/blueprints/` | Technical Blueprints | `<WORK_ITEM_ID>_<slug>_blueprint.md` |
+    | `docs/features/<feature-family>/issues/` | Bug Fix Specifications (Quick-Fix) | `<WORK_ITEM_ID>_<slug>.md` |
+    | `docs/features/<feature-family>/quick/` | Quick Feature Specifications | `<WORK_ITEM_ID>_<slug>.md` |
     | `docs/adr/` | Architectural Decision Records | `ADR-XXX_slug.md` |
-    | `docs/debug/` | Debug and Build Diagnostics | `FEAT-XXX_debug.md` |
-    | `docs/verification/` | Final Quality Gate Reports | `FEAT-XXX_verify.md` |
+    | `docs/features/<feature-family>/debug/` | Debug and Build Diagnostics | `<WORK_ITEM_ID>_<slug>_debug.md` |
+    | `docs/features/<feature-family>/verification/` | Final Quality Gate Reports | `<WORK_ITEM_ID>_<slug>_verify.md` |
+    | `docs/features/<feature-family>/reports/` | Post-implementation evidence reports | `<WORK_ITEM_ID>_<slug>_post_implementation_report.md` |
     | `docs/releases/` | Release Notes & Change Logs | `RELEASE-XXX_slug.md` |
     | `docs/archive/` | Historical/Retired Artifacts | As needed |
+*   **Semantic Feature Documentation Contract**:
+    *   Every new FEAT/FIX/QUICK artifact MUST be stored under `docs/features/<feature-family>/<stage>/...`.
+    *   `<feature-family>` is a semantic product/domain family, not a work item ID. Examples: `visualizer`, `telegram`, `workflow-runtime`, `interactive-docs`, `project-memory`, `vir`, `cloud-platform`, `release-public-export`, `agent-orchestration`.
+    *   Agents MUST classify the feature family by reading the artifact content, not by copying the `FEAT-*`, `FIX-*`, or `QUICK-*` identifier. Required evidence includes filename, YAML frontmatter, title, first headings, summary/problem statement, and linked source artifacts.
+    *   Every feature family MUST maintain `docs/features/<feature-family>/README.md` as the cross-artifact index. The index MUST link all roadmaps, brainstorming/specs, plans, blueprints, debug reports, verification reports, final reports, screenshots, ADRs, and release artifacts that belong to the feature family.
+    *   New flat workflow artifacts directly under `docs/brainstorming/`, `docs/plans/`, `docs/blueprints/`, `docs/issues/`, `docs/quick/`, `docs/debug/`, `docs/verification/`, or `docs/reports/` are forbidden, except `.gitkeep` and legacy files awaiting semantic migration.
+    *   Existing flat files and former work-item folders are legacy read-only inputs. Agents may read them, migrate them, or link them from a migration report, but MUST NOT create new flat files or new `docs/work-items/<WORK_ITEM_ID>_<slug>/` folders.
+    *   Multi-phase features use the same semantic feature family folder, then stage-specific `master/` and `phase-NN-<phase-slug>/` folders when needed.
 *   **Relative Paths**: All links inside documents must use relative file paths/links. Absolute paths (e.g., `file:///Users/...`) are strictly prohibited in project artifacts.
 *   **Metadata**: Every document must begin with YAML frontmatter specifying its `artifact_type`, `feature_id`/`issue_id`, `workflow`, `status`, and tracking links.
-*   **Plan Synchronization**: Mọi kế hoạch thực thi (`implementation_plan.md`) được tạo ở tầng IDE để người dùng duyệt, sau khi được phê duyệt (Approved), **bắt buộc phải được Agent sao chép và lưu trữ chính thức vào đúng thư mục tương ứng của dự án** (ví dụ: `docs/plans/FEAT-XXX_slug_plan.md` cho feature, hoặc `docs/issues/` / `docs/quick/` cho fix/quick feature) trước khi tiến hành viết Blueprint hoặc triển khai code. Việc chỉ lưu plan ở thư mục brain tạm thời của IDE mà không đồng bộ vào dự án là vi phạm nghiêm trọng quy trình.
+*   **Plan Synchronization**: Any IDE-level execution plan (`implementation_plan.md`) approved by the user MUST be copied into the canonical semantic feature folder before Blueprint or implementation work begins, for example `docs/features/<feature-family>/plans/FEAT-XXX_slug_plan.md`, `docs/features/<feature-family>/issues/FIX-XXX_slug.md`, or `docs/features/<feature-family>/quick/QUICK-XXX_slug.md`. Keeping an approved plan only in an IDE brain/temp directory is a serious workflow violation.
 
 ---
 
@@ -163,11 +182,19 @@ Reliability is enforced through automated builds, testing, and runtime validatio
         9. **DDD / Clean Architecture Validation**: PASS (Architecture Compliance Score >= 95/100, no Critical Architecture Violations)
     *   **Strict Rule**: Passing unit tests alone MUST NEVER mark a feature as completed.
     *   **Debug & Verify Quality Gates**: All standard feature cycles must pass through `implementation-to-debug` (compilation, linter, tests, and runtime pipeline validation) followed by `debug-to-verify` (blueprint compliance, runtime checks, architecture verification, and Go/No-Go decision).
+    *   **Post-Implementation Automated Quality Loop**: After implementation, the workflow MUST continue automatically through the following gates before reporting completion to the user or recommending release:
+        1. **Code Review Gate**: Use `code-standard-review` to review every changed file against the approved Blueprint, project rules, coding standards, architecture boundaries, security expectations, and scope limits.
+        2. **Code Validation Gate**: Run targeted build, lint, typecheck, dependency-direction checks, schema/config validation, and any project-specific validators directly related to the changed files.
+        3. **Debug/Test Gate**: Run targeted tests for the modified components. For `pytest`, use `pytest -v -s <related_test_file_or_directory> 2>&1 | tee .agents/runtime/tests.log`.
+        4. **Real Runtime Case Gate**: Exercise at least one real user/runtime path without mocks, fake test doubles, or fabricated data. Use the real CLI/API/IPC/database/service/browser surface that the feature affects. Seed data is allowed only when it is created through real application interfaces and cleaned up afterward.
+        5. **Frontend Browser Evidence Gate**: If the change affects UI, frontend behavior, layout, visual state, navigation, or user interaction, verify it in a real browser and capture screenshots. Prefer IDE browser tools when available. If IDE browser tools are unavailable, use a browser reachable through a Chrome DevTools Protocol (CDP) debug port or an equivalent real browser automation path. Opening a browser or taking a screenshot once is insufficient. The Agent MUST compare the implemented UI against the Blueprint and `frontend-design` acceptance criteria, inspect layout/DOM, console, network, responsive breakpoints, and affected interactions, then document concrete evidence. This gate MUST FAIL when screenshots are missing, only static/source inspection was performed, known visual issues remain unfixed, console/network errors block the UI, text overlaps/clips, responsive layout breaks, or implementation conflicts with explicit user/design requirements. The Agent MUST fix in-scope failures and rerun the visual check until PASS or a real blocker is reported.
+        6. **Final Evidence Report Gate**: Generate a Markdown report under `docs/reports/` summarizing code review, validation, debug/tests, real runtime case, browser/CDP evidence, screenshots, cleanup, remaining risks, and final PASS/FAIL. Screenshots MUST be stored under `docs/reports/assets/<work-item-id>/` and linked with relative Markdown paths.
+    *   **No Mock-Only Completion Rule**: Unit tests, mocked tests, reflection tests, or fake-data-only checks MUST NOT mark implementation complete when the changed behavior has a real runtime surface. Real runtime evidence is mandatory unless the report explains why no runtime surface exists.
 *   **Failure Behavior**:
     *   If building or compiling fails, or if any test fails, or if runtime validation fails: print stdout/stderr/crash logs.
     *   **STOP** immediately. Set status to `Failed verification` and do not proceed with commit, verify, or release activities. Apply self-healing rules (up to 3 retries) within task scope if applicable.
 *   **Background Test Progress Notification**:
-    *   Các tiến trình test chạy ngầm (background tests) bắt buộc phải theo dõi tiến trình và cứ mỗi 5% tiến độ hoàn thành phải gửi thông báo cập nhật lên giao diện/hệ thống hoặc logs một lần để Ba dễ dàng theo dõi trực quan.
+    *   Các tiến trình test chạy ngầm (background tests) bắt buộc phải theo dõi tiến trình và cứ mỗi 5% tiến độ hoàn thành phải gửi thông báo cập nhật lên giao diện/hệ thống hoặc logs một lần để người dùng dễ dàng theo dõi trực quan.
     *   For any background or asynchronous test execution processes, the agent or test coordinator must track execution progress and output a progress notification or log update exactly every 5% of completed tests.
 
 ---
@@ -181,7 +208,7 @@ The AI must NEVER update version numbers, modify `CHANGELOG.md`, create git comm
 If no explicit release request is given by the user, the workflow MUST STOP after the Verification phase, recommend running Release, and wait for input.
 
 *   **Release Sequence**:
-    1.  **Verify Status Check**: Check `docs/verification/FEAT-XXX_verify.md` and ensure the verification status is `PASS`. If `FAIL` or missing, STOP the workflow and return to the debug phase.
+    1.  **Verify Status Check**: Check `docs/features/<feature-family>/verification/<WORK_ITEM_ID>_<slug>_verify.md` and ensure the verification status is `PASS`. If `FAIL` or missing, STOP the workflow and return to the debug phase.
     2.  **Build & Test**: Compile the codebase and run test suites to ensure 100% pass rate.
     3.  **Detect Version**: Determine the current project version.
     4.  **Update Version**: Update the version strings across project config files (requires approval).
@@ -300,51 +327,45 @@ This is a mandatory global policy. The following rules are absolute and cannot b
 
 *   **Rule 1: No Code Modification Without Blueprint**: No Skill may create, delete, or modify source code unless there is a Technical Design Blueprint document. Triaging or implementing changes directly from brainstorming, planning, feature specifications, fix specifications, quick specifications, or user conversation text is strictly forbidden. The Technical Design Blueprint is the ONLY legal input for code generation and modification.
 *   **Rule 2: Valid Blueprint Path**: A Blueprint must exist under the `docs/blueprints/` directory. Valid file paths match one of:
-    - Single-file shape: `docs/blueprints/FEAT-XXX_slug_blueprint.md`, `docs/blueprints/FIX-XXX_slug_blueprint.md`, `docs/blueprints/QUICK-XXX_slug_blueprint.md`
-    - Multi-phase folder shape (large FEAT-XXX features only): `docs/blueprints/<feature-slug>/master/FEAT-XXX_..._master_blueprint.md` + `docs/blueprints/<feature-slug>/phase-NN-<phase-slug>/phase-blueprint.md` (each optionally split into companion files per that phase's own indexing rules)
-*   **Rule 3: Explicit User Approval**: The Blueprint must be explicitly approved by the user. Accepted approval keywords are: `Y`, `Yes`, `Proceed`, `Continue` (case-insensitive). The AI must never assume blueprint approval.
+    - Canonical semantic feature shape: `docs/features/<feature-family>/blueprints/<WORK_ITEM_ID>_<slug>_blueprint.md` (+ `.json` when generated).
+    - Canonical multi-phase folder shape: `docs/features/<feature-family>/blueprints/master/<WORK_ITEM_ID>_<slug>_master_blueprint.md` + `docs/features/<feature-family>/blueprints/phase-NN-<phase-slug>/phase-blueprint.md` (each optionally split into companion files per that phase's own indexing rules).
+    - Legacy flat shape: `docs/blueprints/FEAT-XXX_slug_blueprint.md`, `docs/blueprints/FIX-XXX_slug_blueprint.md`, or `docs/blueprints/QUICK-XXX_slug_blueprint.md` may be read for backward compatibility only. New Blueprints MUST NOT use the flat shape.
+*   **Rule 3: Explicit User Approval**: The Blueprint must be explicitly approved by the user through the runtime prompt bridge:
+    `aiwf prompt select --question "Approve this Technical Design Blueprint for implementation?" --options "Continue|Cancel" --default "Cancel"`.
+    Manual approval keywords such as `Y`, `Yes`, `Proceed`, or `Continue` are accepted only as fallback evidence when the runtime prompt bridge is unavailable and the Agent explicitly reports that unavailability. The AI must never assume blueprint approval.
 *   **Rule 4: Stop Condition**: If no approved Blueprint exists, the AI must IMMEDIATELY STOP, explain the requirement, recommend generating or approving the Blueprint, and wait for input.
 *   **Rule 5: Override Priority**: This policy overrides all implementation-capable Skills. No exceptions.
 *   **Rule 6: Mandatory SDLC Skill Binding**: Mọi hoạt động chỉnh sửa, thêm, xóa tệp mã nguồn dự án bắt buộc phải được thực hiện trong phạm vi hoạt động của một SDLC Skill tương ứng (như `quick-fix` cho sửa lỗi nhanh, `quick-feature` cho tính năng nhanh). Nghiêm cấm AI Agent tự ý thay đổi file mã nguồn trực tiếp bên ngoài ranh giới của các Skill này, ngay cả khi tài liệu lập kế hoạch `implementation_plan.md` ở tầng IDE đã được duyệt.
 *   **Rule 7: Blueprint Quality Gate**: Before a Blueprint is approved, it must be verified that it contains a complete file-by-file analysis table (mapping absolute/relative paths, operations, and responsibilities) and a verifiable implementation checklist. Any Blueprint containing placeholders or generic instructions must be rejected and returned to the draft phase.
+*   **Rule 8: Blueprint Review Evidence Gate**: Before a Blueprint is presented for approval, the Blueprint artifact itself MUST contain `Internal Review Evidence` with reviewer roles, source artifacts, checklist PASS/FAIL rows, failed-point repair history, document-compliance score, and relative-path scan result. A Blueprint without this section is not review-passed and cannot be sent to the user for approval.
 
 ---
 
-## 14. Skill Suggestion Gate Policy
+## 14. Workflow Coordinator Auto-Routing Policy
 
-When the user provides a natural language request without explicitly invoking a Skill (such as `/workflow`, `/brainstorm`, `/quick-fix`, `/quick-feature`, `/blueprint`, `/implement`, or `/release`), the AI must NOT start work immediately.
+When the user provides a natural language request without explicitly invoking a Skill (such as `/workflow`, `/brainstorm`, `/quick-fix`, `/quick-feature`, `/blueprint`, `/implement`, or `/release`), the AI must route the request through `workflow-coordinator` first instead of asking the user to run a Skill command manually.
 
 The AI must classify the request first using the following classification rules:
-- **Bug, error, regression, wrong output, broken behavior**: Recommend `quick-fix` (if localized/low-risk) or `brainstorming` (if complex/broad).
-- **Small feature, simple UI block, validation, filter, button, config option**: Recommend `quick-feature`.
-- **Large feature, new module, architecture change, multi-component work**: Recommend `brainstorming`.
-- **Existing approved blueprint**: Recommend `blueprint-to-implementation`.
-- **Debug/build/test failure after implementation**: Recommend `implementation-to-debug`.
-- **Verification / Final Quality Gate check**: Recommend `debug-to-verify`.
-- **Release, tagging, push, version bump, changelog update**: Recommend `implementation-to-release` ONLY if the user explicitly requested release.
+- **Bug, error, regression, wrong output, broken behavior**: Route to `quick-fix` (if localized/low-risk) or `brainstorming` (if complex/broad).
+- **Small feature, simple UI block, validation, filter, button, config option**: Route to `quick-feature`.
+- **Large feature, new module, architecture change, multi-component work**: Route to `brainstorming`.
+- **Existing approved blueprint**: Route to `blueprint-to-implementation`.
+- **Debug/build/test failure after implementation**: Route to `implementation-to-debug`.
+- **Verification / Final Quality Gate check**: Route to `debug-to-verify`.
+- **Release, tagging, push, version bump, changelog update**: Route to `implementation-to-release` ONLY if the user explicitly requested release.
 
-### Suggestion Format:
+### Auto-Dispatch Behavior
 
-When classification is clear, output this format and STOP:
-```text
-I detected this as: [classification]
+When classification is clear, the AI MUST:
+1. Invoke or follow `workflow-coordinator` for the current tick.
+2. Persist the routing decision in workflow runtime state when runtime commands are available.
+3. Immediately dispatch to the selected Skill and execute that Skill's pre-approval workflow.
+4. Continue through internal review/revision loops until the Technical Design Blueprint passes review.
+5. Stop absolutely at the final Blueprint Approval gate and wait for explicit user approval before implementation.
 
-Recommended Skill:
-[skill-name] / [command]
+The AI MUST NOT stop merely to recommend a clear Skill, ask the user to type `/quick-feature`, `/quick-fix`, `/brainstorming`, or ask for confirmation before starting the selected workflow. A confirmation gate is allowed only when workflow selection is genuinely ambiguous or required information is missing.
 
-Reason:
-[short reason]
-
-This workflow will:
-- [step 1]
-- [step 2]
-- [step 3]
-
-Confirm to continue?
-Y / N
-```
-
-When multiple options are possible, output this format and STOP:
+When multiple workflow options are genuinely possible, output this format and STOP:
 ```text
 I found multiple possible workflows:
 
@@ -367,7 +388,7 @@ Please choose:
 1, 2, or 3
 ```
 
-The AI must use the `ask_question` tool to present the options (Yes/No or option list) as an interactive menu. If the tool is not supported by the client/IDE, fall back to the text format. The AI must NEVER execute the recommended Skill or modify files until the user explicitly confirms (either by clicking the option in the UI or by typing `Y`, `Yes`, `Proceed`, `Continue`, or the option number).
+The AI may use an interactive question/choice tool only for ambiguous workflow selection or missing required user information. If the tool is not supported by the client/IDE, fall back to the text format. The AI must never modify implementation code until the selected workflow reaches an approved Technical Design Blueprint.
 
 ---
 
@@ -395,10 +416,11 @@ If the permission mode is missing, invalid, or corrupted, the system must automa
 ## 16. Interactive CLI Prompts Bridge Policy
 
 To streamline runtime interactions and eliminate manual keyboard input in the chat interface:
-1. **XML Output Interception**: Whenever a CLI subprocess outputs a `<interactive_prompt type="select">...</interactive_prompt>` XML block, the AI Agent must intercept the command output and parse the JSON payload inside the tags.
-2. **Tool Invocation**: The Agent must call the `ask_question` tool using the question and options parsed from the XML payload.
-3. **Piped Response**: Upon receiving the user's selection, the Agent must use the `manage_task` tool with `send_input` action to pipe the selected option string (or option index) directly back into the subprocess's stdin.
-4. **Graceful Fallback**: If the `ask_question` tool is unavailable or unsupported in the current client, the Agent must print the question as text in the chat, wait for the user to type the selection, and then pipe that input back to the subprocess stdin.
+1. **Runtime Prompt Select First**: Any workflow selection, approval, or confirmation gate MUST be presented by running `workflow_runtime.py prompt select` with explicit options such as `Continue|Cancel`, `Approve|Reject`, or the concrete workflow choices. The Agent must not author ad-hoc chat prompts like `Confirm? Y/N`, `duyệt?`, or `approve?`.
+2. **XML Output Interception**: `prompt select` emits a `<interactive_prompt type="select">...</interactive_prompt>` XML block. The AI Agent must intercept the command output and parse the JSON payload inside the tags.
+3. **Tool Invocation**: The Agent must call the available interactive UI tool using the question and options parsed from the XML payload.
+4. **Piped Response**: Upon receiving the user's selection, the Agent must pipe the selected option string (or option index) directly back into the subprocess stdin.
+5. **Graceful Fallback**: If the interactive UI tool is unavailable or unsupported in the current client, the Agent may print the question as text in the chat, wait for the user to type the selection, and then pipe that input back to the subprocess stdin.
 
 ---
 
@@ -418,9 +440,10 @@ To optimize execution speed, minimize token utilization, and prevent redundant s
 ## 18. Option Selection and Decision Making Policy
 
 To ensure structured interactions and prevent open-ended or ambiguous confirmations when presenting choices to the user:
-1. **Mandatory Interactive Prompting**: Whenever the AI Agent presents multiple options, choices, or alternative paths to the user (including brainstorming directions, design alternatives, architecture options, or resolving ambiguous requirements), the Agent **MUST** use the `ask_question` tool to render the options as a structured, interactive list.
-2. **Constraint on Text List**: The Agent must not simply list options in the chat text and wait for the user to type their choice. An interactive selection menu via the `ask_question` tool is mandatory.
-3. **Graceful Fallback**: If the `ask_question` tool is not supported or fails in the IDE/client, the Agent may fall back to presenting the options as a numbered list in the chat text.
+1. **Mandatory Runtime Prompting**: Whenever the AI Agent presents multiple options, choices, approval gates, or alternative paths to the user (including brainstorming directions, design alternatives, architecture options, resolving ambiguous requirements, Blueprint Approval, release approval, commit approval, tag approval, and push approval), the Agent **MUST** use `workflow_runtime.py prompt select` so the decision is structured and runtime-visible.
+2. **Constraint on Text List**: The Agent must not simply list options in the chat text and wait for the user to type their choice. A runtime prompt selection is mandatory.
+3. **Approval Options**: Approval prompts must use explicit options, normally `Continue|Cancel` or `Approve|Reject`, with a safe default such as `Cancel` or `Reject`.
+4. **Graceful Fallback**: If `prompt select` is unavailable or the IDE/client cannot render the XML prompt, the Agent may fall back to presenting the options as a numbered list in the chat text, but must still treat that as fallback evidence rather than the normal path.
 
 ---
 
@@ -515,7 +538,7 @@ No AIWF Skill may access knowledge providers (such as Markdown files, SQLite dat
      * Application phụ thuộc trực tiếp vào concrete Infrastructure adapters.
      * Lớp Delivery bỏ qua (bypass) Use Cases để thao tác trực tiếp với Database/Repository.
      * Có liên kết phụ thuộc vòng (circular dependency) giữa các lớp lõi.
-   * Kết quả phân tích chất lượng kiến trúc bắt buộc phải được ghi nhận tại `docs/verification/<WORK_ITEM>_architecture_verify.md`.
+   * Architecture quality analysis results MUST be recorded at `docs/features/<feature-family>/verification/<WORK_ITEM>_architecture_verify.md`.
 
 3. **Code Lines Limit**:
    * **Giới hạn số dòng tối đa trên mỗi tệp**: Mỗi tệp tin mã nguồn backend (Go `.go`, Python `.py`) **KHÔNG ĐƯỢC VƯỢT QUÁ 500 dòng code**.
@@ -565,11 +588,12 @@ To enforce standard software engineering processes and prevent bypasses, all ope
    - Release -> `implementation-to-release`
 
 4. **Artifact Enforcement**:
-   Every skill must generate its required artifacts under the approved docs/ directories:
-   - Discovery/Brainstorming: `docs/brainstorming/FEAT-xxx.md` (or `docs/brainstorming/FIX-xxx.md`)
-   - Planning: `docs/plans/FEAT-xxx_plan.md`
-   - Design/Blueprint: `docs/blueprints/FEAT-xxx_blueprint.md`
-   - Technical Reports: `docs/reports/FEAT-xxx_report.md`
+   Every skill must generate its required artifacts under the approved semantic feature docs directories:
+   - Roadmap (large/multi-phase features): `docs/features/<feature-family>/roadmaps/FEAT-xxx_slug_roadmap.md`
+   - Discovery/Brainstorming: `docs/features/<feature-family>/brainstorming/FEAT-xxx_slug.md`
+   - Planning: `docs/features/<feature-family>/plans/FEAT-xxx_slug_plan.md`
+   - Design/Blueprint: `docs/features/<feature-family>/blueprints/FEAT-xxx_slug_blueprint.md`
+   - Technical Reports: `docs/features/<feature-family>/reports/FEAT-xxx_slug_report.md`
    Creating workflow artifacts in project root is strictly forbidden. If a required artifact is missing or stored in an invalid location, the workflow status is set to `BLOCKED`.
 
 5. **State Separation (Workspace vs. Workflow)**:
@@ -633,10 +657,16 @@ To enforce standard software engineering processes and prevent bypasses, all ope
    - **Reports**: `docs/reports/`
    - **Operations**: `docs/operations/`
 
+   All FEAT/FIX/QUICK artifacts MUST use the semantic feature documentation contract:
+   `docs/features/<feature-family>/<stage>/...`. Root-level stage files and former work-item
+   folders are legacy-only and must not be created for new work.
+
 2. **Creation Lifecycle**:
    Before creating any artifact:
    - Identify artifact type.
-   - Select approved directory.
+   - Select approved stage directory under `docs/features/<feature-family>/`.
+   - Classify or create the semantic `<feature-family>` by reading artifact content and recording evidence.
+   - Create or update `docs/features/<feature-family>/README.md`.
    - Validate path.
    - Create document.
 
@@ -660,4 +690,4 @@ To enforce standard software engineering processes and prevent bypasses, all ope
    Agents may read `.agents/inbox/inbox.json` and non-sensitive files under `.agents/inbox/` without asking for additional workflow confirmation. This allowance is read-only, project-local, and exists only for Telegram inbox messages and user-provided input artifacts routed into the registered workspace. It does not grant permission to read credentials, secrets, `.env` files, private keys, tokens, or any file outside the registered project workspace. Host IDE or sandbox filesystem prompts still take precedence and cannot be bypassed by this policy.
 
 5. **Bidirectional Command Execution & Messaging**:
-   Bất kỳ khi nào bắt đầu một lượt làm việc (Turn), Agent BẮT BUỘC phải kiểm tra tệp tin `.agents/inbox/inbox.json`. Nếu có lệnh/tin nhắn từ Ba gửi đến, Agent phải xử lý nó như một yêu cầu hướng dẫn trực tiếp từ người dùng. Sau khi thực thi xong hoặc khi chạm đến các chốt phê duyệt cần dừng lại hỏi Ba, Agent BẮT BUỘC phải gửi tóm tắt hoạt động và nội dung câu hỏi về Telegram của Ba qua sendMessage API (sử dụng mẫu và các helper script trong kỹ năng `notify-telegram`), sau đó khởi chạy lại tiến trình lắng nghe `listen.sh` để đảm bảo chu trình liên tục được vũ trang.
+   Bất kỳ khi nào bắt đầu một lượt làm việc (Turn), Agent BẮT BUỘC phải kiểm tra tệp tin `.agents/inbox/inbox.json`. Nếu có lệnh/tin nhắn từ người dùng gửi đến, Agent phải xử lý nó như một yêu cầu hướng dẫn trực tiếp từ người dùng. Sau khi thực thi xong hoặc khi chạm đến các chốt phê duyệt cần dừng lại hỏi người dùng, Agent BẮT BUỘC phải gửi tóm tắt hoạt động và nội dung câu hỏi về Telegram của người dùng qua sendMessage API (sử dụng mẫu và các helper script trong kỹ năng `notify-telegram`), sau đó khởi chạy lại tiến trình lắng nghe `listen.sh` để đảm bảo chu trình liên tục được vũ trang.

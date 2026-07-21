@@ -44,7 +44,6 @@ def test_status_orchestrator(tmp_path, monkeypatch, capsys):
     args = ArgsMock("status")
     do_orchestrator(args)
     captured = capsys.readouterr()
-    assert "Resident Orchestrator: DISABLED" in captured.out
     assert "Runtime Manager: DISABLED" in captured.out
 
 def test_health_orchestrator(tmp_path, monkeypatch, capsys):

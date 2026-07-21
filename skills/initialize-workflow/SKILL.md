@@ -52,19 +52,25 @@ This skill is the **mandatory entry point** of the AI Engineering Workflow. Its 
 | Load full `project-summary.md` or memory chunks | Use `memory: cached` (metadata JSONs only) |
 | Connect to RAG / query vector DB | Use `rag: cached` (metadata only) |
 | Scan `docs/`, workspace files, or manifests | `workspace_scan: none` |
-| Run `git describe --tags`, `git remote -v`, `git fetch` | Only 3 allowed git commands |
+| Run direct Git commands during normal init | Use `.agents/state/git.json` or runtime command bus `git.status` |
 | Run `python --version`, `node --version`, `docker version`, etc. | Forbidden — consume `workspace_doctor` JSON report instead |
 | Parse transcript files or sync request history | `usage: cached` — read from `dashboard.json` or `context/usage.json` only |
 | Call `sync_request_history()`, `parse_transcript()`, `refresh_context_usage_for_active_conversation()` | All forbidden during init |
 | Write absolute paths to `.session.json` | Workspace `path` must always be `"."` |
 
-### Allowed Git Commands (Exactly 3)
+### Git Data Contract
 
-```bash
-git rev-parse --is-inside-work-tree
-git branch --show-current
-git status --short
-```
+During normal Agent-driven initialization, do not run direct Git commands. Read Git data from
+`.agents/state/git.json` first. If the cache is missing or stale and the runtime daemon is active,
+request `git.status` through `.agents/runtime/commands/runtime.request.json`.
+
+The only direct Git commands that may be used by the runtime daemon, `aiwf config`, or an explicitly
+approved fallback are:
+- `git rev-parse --is-inside-work-tree`
+- `git branch --show-current`
+- `git status --short`
+
+Agents MUST NOT chain these commands with runtime start commands during initialization.
 
 ---
 
@@ -110,23 +116,20 @@ STOP — No memory load, no RAG, no env CLI, no workspace scan, no transcript sy
   - `current_command`: `"init"`
   - `current_step`: `"Starting lightweight workflow initialization..."`
   - `updated_at`: (current ISO-8601 timestamp)
+- Do not call `python skills/workflow-runtime/scripts/workflow_runtime.py start ...` during normal
+  initialization. Some IDEs ask for approval for every Python command. This Skill must use cached
+  state files and runtime command-bus requests instead.
 
 ### Step 1 — Resolve Runtime Dependencies Without Approval Noise
 
-Do not require agents to run this command on every initialization:
-
-```bash
-python skills/workflow-runtime/scripts/workflow_runtime.py deps resolve --skill initialize-workflow
-```
-
-Some IDEs and agents require approval for every Python command. In those environments, use this
-order instead:
+Do not require agents to run a Python runtime command on every initialization. Some IDEs and agents
+require approval for every Python command. Use this order:
 
 1. Read `.agents/state/runtime/dependencies.json`.
 2. If the file exists, is valid JSON, and `skill == "initialize-workflow"`, use it as the cached
    dependency result.
-3. If the cache is missing or invalid and direct runtime commands are blocked, write a command-bus
-   request to `.agents/runtime/commands/runtime.request.json`:
+3. If the cache is missing or invalid, write a command-bus request to
+   `.agents/runtime/commands/runtime.request.json`:
 
 ```json
 {
@@ -143,7 +146,10 @@ order instead:
 4. Wait for `.agents/runtime/commands/runtime.response.json`. If it reports `status == "OK"`,
    re-read `.agents/state/runtime/dependencies.json`.
 5. If no runtime daemon is running and direct commands are blocked, continue with the existing
-   cache if available; otherwise stop with a clear message telling Ba to run `aiwf config` once.
+   cache if available; otherwise stop with a clear message telling the user to run `aiwf config` once.
+6. Only if the user or IDE has explicitly allowed the project CLI, the fallback command is
+   `aiwf deps resolve --skill initialize-workflow`. Do not call the Python script directly from this
+   Skill.
 
 - If resolution fails for a `required` dependency → **STOP**, print error, exit.
 - If resolver warns about missing `runtime_requirements` in other skills → log warning, continue (safe_minimal fallback applies).
@@ -158,15 +164,13 @@ order instead:
 
 ### Step 3 — Read Git State (Cached Only)
 
-Run **exactly these 3 commands**, nothing more:
-
-```bash
-git rev-parse --is-inside-work-tree
-git branch --show-current
-git status --short
-```
-
-- Store result in session `git` field.
+- Read `.agents/state/git.json` first and store the cached result in session `git` field.
+- If the cache is missing/stale and the runtime daemon is active, write a `git.status` request to
+  `.agents/runtime/commands/runtime.request.json`, wait for `.agents/runtime/commands/runtime.response.json`,
+  then re-read `.agents/state/git.json`.
+- If the daemon is inactive and the cache is missing, warn only and continue with
+  `is_repository: unknown`; tell the user to run `aiwf config` once to refresh the cache.
+- Do not run direct Git commands during normal Agent initialization.
 - **FORBIDDEN**: `git describe --tags`, `git remote -v`, `git fetch`, `git tag`, `git --version`, `python --version`, `node --version`, `go version`, `docker --version`.
 
 ### Step 4 — Read Cached State + Approvals
@@ -251,9 +255,6 @@ READY
 Runtime:
 SESSION_MODE
 
-Resident Orchestrator:
-DISABLED
-
 Workflow Supervisor:
 READY
 ```
@@ -262,7 +263,9 @@ READY
 
 ## 🔒 WORKFLOW RUNTIME INTERFACE
 
-- **Start**: `python skills/workflow-runtime/scripts/workflow_runtime.py start --skill "initialize-workflow" --command "init" --checkpoint 1 --step "Starting lightweight initialization..."`
-- **Step Updates**: `python skills/workflow-runtime/scripts/workflow_runtime.py step --step "<desc>" --log "<msg>"`
-- **Completion**: `python skills/workflow-runtime/scripts/workflow_runtime.py complete --checkpoint 1 --step "Initialization Complete" --next-skill "software-development-workflow" --next-command "workflow"`
-- **Failure**: `python skills/workflow-runtime/scripts/workflow_runtime.py fail --step "<error_step>" --log "<error_details>"`
+- Runtime tracking for this Skill is file-based. Update `.agents/state/runtime.json` atomically for
+  start, step, completion, and failure states.
+- Runtime cache refreshes must use `.agents/runtime/commands/runtime.request.json` when possible.
+- If a direct CLI fallback is explicitly allowed, use `aiwf ...` commands. Do not instruct the Agent
+  to call `python skills/workflow-runtime/scripts/workflow_runtime.py ...` directly during
+  initialization.

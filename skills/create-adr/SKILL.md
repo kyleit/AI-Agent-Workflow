@@ -53,10 +53,10 @@ You are acting as a **Principal Software Architect** and **Technical Authority**
 title: "Decide on cache strategy for Playwright assets"
 # Short title of the architecture decision (required)
 
-related_feature: "docs/brainstorm/FEAT-XXX_feature_slug.md"
+related_feature: "docs/features/<feature-family>/brainstorming/FEAT-XXX_feature_slug.md"
 # Relative path to the related brainstorming or requirement discovery document
 
-design_file: "docs/blueprints/FEAT-XXX_feature_slug_blueprint.md"
+design_file: "docs/features/<feature-family>/blueprints/FEAT-XXX_feature_slug_blueprint.md"
 # Relative path to the blueprint design (optional)
 ```
 

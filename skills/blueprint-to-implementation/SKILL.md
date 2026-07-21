@@ -66,9 +66,10 @@ This Skill MUST strictly adhere to the global policies defined in [AI_RULES.md](
 
 Prior to generating any source code, modifying existing files, or conducting any implementation steps, the AI must strictly execute the following validations:
 
-1. **Verify Blueprint Path**: Identify the Technical Design Blueprint file(s). The path must reside under the `docs/blueprints/` directory, in one of two shapes (see `plan-to-blueprint`):
-   - **Single-file shape**: `docs/blueprints/FEAT-XXX_feature_slug_blueprint.md` (+ `.json`).
-   - **Multi-phase folder shape**: `docs/blueprints/<feature-slug>/phase-NN-<phase-slug>/phase-blueprint.md` (+ `.json`), plus `docs/blueprints/<feature-slug>/master/FEAT-XXX_..._master_blueprint.md` for feature-wide context. Implement one phase per `/implement` invocation unless the user explicitly asks for more.
+1. **Verify Blueprint Path**: Identify the Technical Design Blueprint file(s). The path must reside under the semantic feature documentation tree, in one of these shapes (see `plan-to-blueprint`):
+   - **Canonical semantic feature shape**: `docs/features/<feature-family>/blueprints/<WORK_ITEM_ID>_<slug>_blueprint.md` (+ `.json`).
+   - **Canonical multi-phase folder shape**: `docs/features/<feature-family>/blueprints/phase-NN-<phase-slug>/phase-blueprint.md` (+ `.json`), plus `docs/features/<feature-family>/blueprints/master/<WORK_ITEM_ID>_<slug>_master_blueprint.md` for feature-wide context. Implement one phase per `/implement` invocation unless the user explicitly asks for more.
+   - **Legacy flat shape**: `docs/blueprints/FEAT-XXX_slug_blueprint.md`, `docs/blueprints/FIX-XXX_slug_blueprint.md`, or `docs/blueprints/QUICK-XXX_slug_blueprint.md` may be consumed for older work only. Do not create new flat Blueprints.
 2. **Verify Blueprint File Existence**: Confirm the target blueprint file(s) exist on disk.
 3. **Discover and read every companion file**: A `phase-blueprint.md` (or single-file blueprint) may be an index pointing to companion files split out by layer/module (e.g. `phase-blueprint-domain-layer.md`, `phase-blueprint-implementation-detail.md`) per the blueprint's own file-splitting rule. Read the index first, then read **every** companion it links before writing any code — a companion holds the exact struct fields, method signatures, and step-by-step logic; implementing from the index alone produces incomplete code.
 4. **Verify Blueprint Status Check**: Verify that the blueprint is marked as `"approved": true` in the active workflow session data or that explicit approval (`Y`, `Yes`, `Proceed`, `Continue`) was given in the chat log.
@@ -78,7 +79,7 @@ Prior to generating any source code, modifying existing files, or conducting any
 
 **If any check fails:**
 - **STOP immediately**.
-- Print the warning: `❌ Implementation aborted: No approved Technical Design Blueprint found. Please generate and get user approval for the blueprint file(s) under docs/blueprints/ before proceeding.`
+- Print the warning: `Implementation aborted: No approved Technical Design Blueprint found. Please generate and get user approval for the blueprint file(s) under docs/features/<feature-family>/blueprints/ before proceeding.`
 - Halt all file generation and modifications.
 
 ---
@@ -106,7 +107,7 @@ When implementing, implementation agents must check the project language and loa
 
 ## Final Summary Format
 
-Upon completion of the implementation and validation phase, print this exact final summary format to the console and update `.session.json`:
+Upon completion of code transcription, print this exact implementation handoff summary to the console and update `.session.json`. This is NOT the final user-facing completion report. The workflow MUST continue automatically to `implementation-to-debug` for code review, validation, debug/tests, real runtime cases, and final reporting.
 
 ```markdown
 ## Implementation Status
@@ -155,6 +156,17 @@ Note: Every new file is in the directory its blueprint layer (Domain/Application
 ### Self Review
 Result: [PASS | FAILED]
 
+### Required Post-Implementation Quality Loop
+Status: REQUIRED
+Next Skill: implementation-to-debug
+Required Gates:
+- Code Review Gate
+- Code Validation Gate
+- Debug/Test Gate
+- Real Runtime Case Gate
+- Frontend Browser Evidence Gate when UI/browser behavior is affected
+- Final Evidence Report Gate under `docs/reports/`
+
 ## Issues Fixed During Validation
 - [Bullet points of fixes applied during validation or "None"]
 
@@ -162,10 +174,10 @@ Result: [PASS | FAILED]
 - [Bullet points of remaining/unresolved issues or "None"]
 
 ## Recommended Next Skill
-- If PASS: /debug or /verify
+- If PASS: /debug
 - If FAILED: /debug
 
-Workflow Paused.
+Workflow Handed Off to implementation-to-debug.
 ```
 
 ---

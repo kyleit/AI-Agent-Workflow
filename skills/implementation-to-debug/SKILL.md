@@ -53,7 +53,7 @@ This Skill MUST strictly adhere to the global policies defined in [AI_RULES.md](
 
 ## Purpose
 
-Review the implementation, verify builds, resolve compilation and linting issues, and fix unit tests before code verification.
+Review the implementation, verify code standards, run targeted validation, debug tests, exercise real runtime cases without mocks/fake data, capture browser evidence when UI is affected, and generate the post-implementation evidence report before final verification.
 
 ---
 
@@ -83,6 +83,10 @@ Review the implementation, verify builds, resolve compilation and linting issues
 7.  **Logging & Error Handling**: Improve logging visibility, format, and ensure proper try-catch/error propagation.
 8.  **Code Cleanup**: Remove dead code, unused imports, or debug console logs.
 9.  **Runtime Validation Pipeline**: Execute the complete runtime debug validation pipeline (build target binary, start application, wait for readiness detection, execute smoke tests, verify health status, analyze runtime log classifications, perform graceful shutdown, and handle self-healing loop errors).
+10. **Code Review Gate**: Use `code-standard-review` to review every changed file against the approved Blueprint, user requirements, project rules, architecture boundaries, security expectations, and scope limits before validation is marked PASS.
+11. **Real Runtime Case Gate**: Exercise at least one real user/runtime path through the affected CLI/API/IPC/database/service/browser surface. Mock-only, reflection-only, and fake-data-only checks are not sufficient.
+12. **Frontend Browser Evidence Gate**: If UI/browser behavior is affected, verify in a real browser and capture screenshots. Prefer IDE browser tools. If those are unavailable, use a browser reachable through a Chrome DevTools Protocol (CDP) debug port or equivalent real browser automation path.
+13. **Final Evidence Report Gate**: Write `docs/features/<feature-family>/reports/<WORK_ITEM_ID>_<slug>_post_implementation_report.md` (or the matching phase variant inside that semantic feature folder) with relative links to screenshots under `docs/features/<feature-family>/reports/assets/<WORK_ITEM_ID>_<slug>/`.
 
 ---
 
@@ -91,21 +95,39 @@ Review the implementation, verify builds, resolve compilation and linting issues
 ```
 Step 1: Inspect session state & Git branch
         ↓
-Step 2: Run compiler, build, linter, tests, and runtime validation pipeline
+Step 2: Code Review Gate
+        - Use `code-standard-review`
+        - Review changed files against Blueprint, project rules, architecture boundaries, security, and scope
+        - If FAIL, fix only failed points and repeat review
         ↓
-Step 3: Resolve any errors or test failures
+Step 3: Code Validation Gate
+        - Run targeted build/lint/typecheck/dependency/schema/config checks for changed components
         ↓
-Step 4: Generate Debug Report at docs/debug/FEAT-XXX_debug.md
-        (or docs/debug/FEAT-XXX_phase-NN-<phase-slug>_debug.md when debugging one phase of a
-        multi-phase feature — matches the real, already-used filename convention; do NOT nest
-        phases into subfolders here, unlike docs/blueprints/)
+Step 4: Debug/Test Gate
+        - Run targeted tests for changed components
+        - For pytest, use `pytest -v -s <related_test_file_or_directory> 2>&1 | tee .agents/runtime/tests.log`
+        - Resolve failures and rerun within task scope
         ↓
-Step 5: Update session checkpoint to 7 & output heartbeat
+Step 5: Real Runtime Case Gate
+        - Exercise real CLI/API/IPC/database/service/browser surface without mocks or fake test doubles
+        - Clean up any seed data created through real application interfaces
+        ↓
+Step 6: Frontend Browser Evidence Gate (when UI/browser behavior is affected)
+        - Capture screenshots with IDE browser tools, or use CDP debug port fallback if IDE browser tools are unavailable
+        - Store screenshots under docs/features/<feature-family>/reports/assets/<WORK_ITEM_ID>_<slug>/
+        ↓
+Step 7: Generate Debug Report at docs/features/<feature-family>/debug/<WORK_ITEM_ID>_<slug>_debug.md
+        (or docs/features/<feature-family>/debug/phase-NN-<phase-slug>/phase-debug.md when debugging one phase)
+        ↓
+Step 8: Generate Post-Implementation Evidence Report at docs/features/<feature-family>/reports/<WORK_ITEM_ID>_<slug>_post_implementation_report.md
+        (or matching FIX/QUICK/phase variant)
+        ↓
+Step 9: Update session checkpoint to 7 & output heartbeat
 ```
 
 ---
 
-## Output Report Format: `docs/debug/FEAT-XXX_debug.md` (or `..._phase-NN-<phase-slug>_debug.md` — see Workflow Sequence Step 4)
+## Output Report Format: `docs/features/<feature-family>/debug/FEAT-XXX_slug_debug.md` (or `phase-NN-<phase-slug>/phase-debug.md` — see Workflow Sequence Step 4)
 
 Generate the debug report using this Markdown template:
 
@@ -123,10 +145,25 @@ status: [PASS | FAIL]
 [Brief description of the debug phase activities]
 
 ## 2. Diagnostics
+- **Code Review Status**: [PASS | FAIL] (Blueprint compliance, scope, architecture, security, code quality)
 - **Build Status**: [PASS | FAIL] (Command used: `[cmd]`)
 - **Lint Status**: [PASS | FAIL] (Command used: `[cmd]`)
+- **Typecheck Status**: [PASS | FAIL | Not Configured] (Command used: `[cmd]`)
 - **Unit Tests Status**: [PASS | FAIL] (Command used: `[cmd]`)
 - **Runtime Validation Status**: [PASS | FAIL] (Command used: `python skills/workflow-runtime/scripts/workflow_runtime.py debug`)
+- **Real Runtime Case Status**: [PASS | FAIL | Not Applicable + why] (Surface: `[real CLI/API/IPC/database/service/browser]`)
+- **Frontend Browser Evidence Status**: [PASS | FAIL | Not Applicable + why] (Tool: `[IDE browser | CDP | equivalent]`)
+
+## 2A. Code Standard Review Evidence
+| Field | Evidence |
+| :--- | :--- |
+| Skill Used | `code-standard-review` |
+| Blueprint Reviewed | `docs/blueprints/...` |
+| Changed Files Reviewed | `relative/path`, `relative/path` |
+| Checklist Result | PASS/FAIL rows with concrete evidence |
+| Failed Points | `None` or exact failed-point list |
+| Re-review Count | `0` for first-pass PASS, otherwise number of repeated reviews |
+| Final Result | [PASS | FAIL] |
 
 ## 3. Issues Found & Resolved
 | Issue Description | Root Cause | Fix Summary | Files Affected |
@@ -136,11 +173,96 @@ status: [PASS | FAIL]
 ## 4. Remaining Risks
 - **Risk**: [Risk] → **Mitigation**: [Mitigation]
 
-## 5. Debug Status
+## 5. Real Runtime Evidence
+| Case | Real Surface | Data Source | Command/Action | Result | Cleanup |
+| :--- | :--- | :--- | :--- | :---: | :--- |
+| [Case name] | [CLI/API/IPC/database/service/browser] | [Real application data or seed created through real interface] | `[command/action]` | [PASS/FAIL] | [Done/Not needed] |
+
+## 6. Browser Evidence
+| Screenshot | Scenario | Tool | Result |
+| :--- | :--- | :--- | :---: |
+| `[relative/path/to/screenshot.png](../reports/assets/FEAT-XXX_slug/screenshot.png)` | [Scenario] | [IDE browser/CDP/equivalent] | [PASS/FAIL] |
+
+## 7. Post-Implementation Evidence Report
+- **Report Path**: `docs/features/<feature-family>/reports/FEAT-XXX_slug_post_implementation_report.md`
+- **Screenshots Directory**: `docs/features/<feature-family>/reports/assets/FEAT-XXX_slug/`
+
+## 8. Debug Status
 **Status**: [PASS | FAIL (Unresolved issues remain)]
 ```
 
 If debug status is **FAIL**, you MUST NOT proceed to Verification. Return to implementation phase to resolve the outstanding issues.
+
+The debug status MUST be **FAIL** if:
+- `code-standard-review` fails against the approved Blueprint or project rules.
+- Targeted validation/build/lint/typecheck fails.
+- Targeted tests fail or pytest logs are not written to `.agents/runtime/tests.log` when pytest is used.
+- The changed behavior has a real runtime surface but only mock/fake/reflection tests were run.
+- UI/browser behavior changed but no real browser/CDP screenshot evidence exists.
+- The post-implementation evidence report under `docs/features/<feature-family>/reports/` is missing.
+
+---
+
+## Post-Implementation Evidence Report Format: `docs/features/<feature-family>/reports/FEAT-XXX_slug_post_implementation_report.md`
+
+Generate this Markdown report after debug gates finish. Use the matching `FIX-XXX`, `QUICK-XXX`, or phase filename when applicable.
+
+```markdown
+---
+artifact_type: post-implementation-report
+feature_id: FEAT-XXX
+workflow: standard
+status: [PASS | FAIL]
+---
+
+# Post-Implementation Evidence Report – [Feature Title]
+
+## 1. Summary
+[What was implemented and what was verified]
+
+## 2. Changed Files Reviewed
+| File | Blueprint Contract | Review Result | Notes |
+|---|---|:---:|---|
+| `relative/path` | `relative/blueprint.md#section` | [PASS/FAIL] | [Notes] |
+
+## 2A. Code Standard Review Evidence
+| Field | Evidence |
+|---|---|
+| Skill Used | `code-standard-review` |
+| Checklist Result | PASS/FAIL rows from `code-standard-review` |
+| Failed Points | `None` or exact failed-point list |
+| Re-review Count | `0` for first-pass PASS, otherwise number of repeated reviews |
+| Final Result | [PASS | FAIL] |
+
+## 3. Validation Evidence
+| Gate | Command | Result | Log/Notes |
+|---|---|:---:|---|
+| Build | `[cmd]` | [PASS/FAIL] | [Notes] |
+| Lint | `[cmd]` | [PASS/FAIL] | [Notes] |
+| Typecheck | `[cmd]` | [PASS/FAIL] | [Notes] |
+| Tests | `[cmd]` | [PASS/FAIL] | `.agents/runtime/tests.log` if pytest was used |
+
+## 4. Real Runtime Case Evidence
+| Case | Real Surface | Data Source | Steps | Result | Cleanup |
+|---|---|---|---|:---:|---|
+| [Case] | [CLI/API/IPC/database/service/browser] | [Real app data or seed created through real interface] | [Steps] | [PASS/FAIL] | [Done/Not needed] |
+
+## 5. Browser / Screenshot Evidence
+| Screenshot | Scenario | Tool | Result |
+|---|---|---|:---:|
+| ![Scenario](assets/FEAT-XXX/screenshot.png) | [Scenario] | [IDE browser/CDP/equivalent] | [PASS/FAIL] |
+
+## 6. Issues Found And Fixed
+| Issue | Root Cause | Fix | Re-test Result |
+|---|---|---|:---:|
+| [Issue] | [Cause] | [Fix] | [PASS/FAIL] |
+
+## 7. Remaining Risks
+- [Risk or `None`]
+
+## 8. Final Result
+**Status**: [PASS | FAIL]
+```
 
 ---
 
@@ -154,7 +276,7 @@ Status:
 Completed
 
 Report Generated:
-docs/debug/FEAT-XXX_debug.md (or ..._phase-NN-<phase-slug>_debug.md)
+docs/features/<feature-family>/debug/FEAT-XXX_slug_debug.md (or phase-NN-<phase-slug>/phase-debug.md)
 
 Debug Status:
 [PASS | FAIL]

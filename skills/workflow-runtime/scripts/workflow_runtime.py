@@ -3605,6 +3605,16 @@ def do_orchestrator(args):
         print("Error: resident daemon subactions are deprecated in session-based runtime.", file=sys.stderr)
         sys.exit(1)
         
+    elif subaction == "status":
+        from autonomous_orchestrator import get_orchestrator_status
+        get_orchestrator_status(work_item)
+        return
+        
+    elif subaction == "health":
+        from autonomous_orchestrator import get_orchestrator_health
+        get_orchestrator_health(work_item)
+        return
+        
     elif subaction == "agents":
         from autonomous_orchestrator import print_agents_extended
         print_agents_extended(work_item)
@@ -5579,6 +5589,34 @@ def process_runtime_bus_once() -> bool:
     return True
 
 
+def restart_runtime_bus_daemon() -> int | None:
+    pid_file = os.path.expanduser("~/.aiwf/runtime.pid")
+    running, pid = is_telegram_daemon_running(pid_file)
+    if running:
+        stop_telegram_daemon(pid_file)
+        print(f"[SYSTEM]: Runtime daemon (PID: {pid}) stopped.")
+    _started, new_pid, _ = start_runtime_bus_daemon()
+    print(f"[SYSTEM]: Runtime daemon restarted with PID: {new_pid}.")
+    return new_pid
+
+
+def restart_shared_telegram_daemon() -> int | None:
+    if not has_global_telegram_token():
+        print("[SYSTEM]: Shared Telegram Daemon skipped: missing global token. Run `aiwf telegram config` first.")
+        return None
+
+    daemon_script = os.path.join(os.path.dirname(__file__), "telegram_daemon.py")
+    log_file = os.path.expanduser("~/.aiwf/telegram-listener.log")
+    pid_file = os.path.expanduser("~/.aiwf/telegram-daemon.pid")
+    running, pid = is_telegram_daemon_running(pid_file)
+    if running:
+        stop_telegram_daemon(pid_file)
+        print(f"[SYSTEM]: Shared Telegram Daemon (PID: {pid}) stopped.")
+    new_pid = start_telegram_daemon(daemon_script, log_file, pid_file)
+    print(f"[SYSTEM]: Shared Telegram Daemon restarted with PID: {new_pid}.")
+    return new_pid
+
+
 def do_runtime_bus(args: argparse.Namespace) -> None:
     """Runtime daemon for agents that cannot execute runtime CLI commands directly."""
     subaction = getattr(args, "subaction", None)
@@ -5601,13 +5639,14 @@ def do_runtime_bus(args: argparse.Namespace) -> None:
         return
 
     if subaction == "restart":
-        pid_file = os.path.expanduser("~/.aiwf/runtime.pid")
-        running, pid = is_telegram_daemon_running(pid_file)
-        if running:
-            stop_telegram_daemon(pid_file)
-            print(f"[SYSTEM]: Runtime daemon (PID: {pid}) stopped.")
-        started, new_pid, _ = start_runtime_bus_daemon()
-        print(f"[SYSTEM]: Runtime daemon restarted with PID: {new_pid}.")
+        restart_runtime_bus_daemon()
+        return
+
+    if subaction == "reload":
+        print("[SYSTEM]: Reloading AIWF daemons...")
+        restart_runtime_bus_daemon()
+        restart_shared_telegram_daemon()
+        print("[SYSTEM]: AIWF daemon reload complete.")
         return
 
     if subaction == "status":
@@ -5968,7 +6007,7 @@ def do_runtime_action(args):
     )
     
     subaction = getattr(args, "subaction", None)
-    if subaction in {"start", "stop", "restart", "status", "enable", "disable", "process", "daemon"}:
+    if subaction in {"start", "stop", "restart", "reload", "status", "enable", "disable", "process", "daemon"}:
         do_runtime_bus(args)
         return
 
@@ -6533,6 +6572,7 @@ def main():
     _ = runtime_sub.add_parser("start", help="Start the runtime daemon for this login session")
     _ = runtime_sub.add_parser("stop", help="Stop the runtime daemon for this login session")
     _ = runtime_sub.add_parser("restart", help="Restart the runtime daemon")
+    _ = runtime_sub.add_parser("reload", help="Restart the runtime daemon and shared Telegram daemon")
     _ = runtime_sub.add_parser("status", help="Show runtime daemon and project status")
     _ = runtime_sub.add_parser("enable", help="Enable runtime daemon autostart on login")
     _ = runtime_sub.add_parser("disable", help="Disable runtime daemon autostart on login")
