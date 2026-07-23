@@ -1,0 +1,1 @@
+"""VAR Bounded Context package."""

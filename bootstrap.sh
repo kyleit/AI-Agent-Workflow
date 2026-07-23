@@ -59,6 +59,8 @@ show_help() {
     echo "  workflow     Submit, inspect, track, or manage active SDLC workflows"
     echo "  session      Recover, inspect, lock, or update active workspace sessions"
     echo "  telegram     Manage Telegram global configuration, shared daemon, and project links"
+    echo "  var          Execute Visual Agentic Runtime checks/audits (Phase 2)"
+    echo "  vir          Legacy alias for var"
     echo "  help         Show this help message"
     echo ""
     echo "Common subcommands:"
@@ -125,6 +127,9 @@ case "$COMMAND" in
         ;;
     sync)
         python3 "$FRAMEWORK_ROOT/skills/workflow-runtime/scripts/workflow_runtime.py" provider sync "$@"
+        ;;
+    var|vir)
+        python3 "$FRAMEWORK_ROOT/skills/vir-runtime/scripts/vir.py" "$@"
         ;;
     help|-h|--help)
         show_help

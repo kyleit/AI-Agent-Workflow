@@ -46,3 +46,16 @@ All operations MUST adhere strictly to the global workflow constraints defined i
 - **Contracts Consumed**: `RuntimeRequest`
 - **Contracts Produced**: `RuntimeResult`
 - **Schemas Consumed**: `config_schema`
+
+## 3. Python VAR (Visual Agentic Runtime) Execution
+
+Python VAR provides a Hexagonal Architecture execution backend for visual observations and agentic verification.
+
+### Usage Commands:
+- Capture page observation:
+  `python skills/vir-runtime/scripts/var_dispatch.py run --url "http://localhost:3000"`
+- Run autonomous agent loop:
+  `python skills/vir-runtime/scripts/var_dispatch.py agent --url "http://localhost:3000" --goal "Verify UI layout"`
+- Run Quality Gate check:
+  `python skills/vir-runtime/scripts/var_dispatch.py check --baseline "comp_1" --current "obs_1"`
+

@@ -5,9 +5,16 @@ All notable changes to this project will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
-## [6.19.7] - 2026-07-23
+## [6.20.0] - 2026-07-23
 
 ### Added
+- **Python VAR Agent Hexagonal Architecture (FEAT-505)**:
+  - We have successfully upgraded the Visual Agentic Runtime (VAR) in Python to a modern, robust Hexagonal Architecture.
+  - This ensures complete zero-dependency modeling for the core domain rules, leading to higher stability and easier future extensions.
+  - Introduced new dynamic adapters to support broader browser integration capabilities natively (including AsyncCDP, DrissionPage, and Playwright).
+  - Streamlined CLI interactions with a new `var_dispatch.py` bridge, improving developer experience when executing autonomous visual tests and diagnostics.
+
+## [6.19.7] - 2026-07-23
 - **`aiwf doctor` check**:
   - Added a new `workflow_runtime_daemon` check to detect if the agent-safe runtime daemon is running, missing, or stale.
 

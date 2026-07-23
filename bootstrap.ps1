@@ -60,6 +60,8 @@ function Show-Help {
     Write-Host "  workflow     Submit, inspect, track, or manage active SDLC workflows"
     Write-Host "  session      Recover, inspect, lock, or update active workspace sessions"
     Write-Host "  telegram     Manage Telegram global configuration, shared daemon, and project links"
+    Write-Host "  var          Execute Visual Agentic Runtime checks/audits (Phase 2)"
+    Write-Host "  vir          Legacy alias for var"
     Write-Host "  help         Show this help message"
     Write-Host ""
     Write-Host "Common subcommands:"
@@ -123,6 +125,12 @@ switch (`$Command) {
     }
     "sync" {
         python (Join-Path `$FrameworkRoot "skills/workflow-runtime/scripts/workflow_runtime.py") provider sync @args
+    }
+    "var" {
+        python (Join-Path `$FrameworkRoot "skills/vir-runtime/scripts/vir.py") @args
+    }
+    "vir" {
+        python (Join-Path `$FrameworkRoot "skills/vir-runtime/scripts/vir.py") @args
     }
     "help" {
         Show-Help
