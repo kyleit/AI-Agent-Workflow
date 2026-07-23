@@ -83,7 +83,7 @@ Review the implementation, verify code standards, run targeted validation, debug
 7.  **Logging & Error Handling**: Improve logging visibility, format, and ensure proper try-catch/error propagation.
 8.  **Code Cleanup**: Remove dead code, unused imports, or debug console logs.
 9.  **Runtime Validation Pipeline**: Execute the complete runtime debug validation pipeline (build target binary, start application, wait for readiness detection, execute smoke tests, verify health status, analyze runtime log classifications, perform graceful shutdown, and handle self-healing loop errors).
-10. **Code Review Gate**: Use `code-standard-review` to review every changed file against the approved Blueprint, user requirements, project rules, architecture boundaries, security expectations, and scope limits before validation is marked PASS.
+10. **Code Review Gate**: Use `code-standard-review` to review every changed file against the approved Blueprint when one exists. For post-implementation maintenance/debug work without an active Blueprint, review against the explicit user request, reviewed Git diff, project rules, architecture boundaries, security expectations, and scope limits before validation is marked PASS.
 11. **Real Runtime Case Gate**: Exercise at least one real user/runtime path through the affected CLI/API/IPC/database/service/browser surface. Mock-only, reflection-only, and fake-data-only checks are not sufficient.
 12. **Frontend Browser Evidence Gate**: If UI/browser behavior is affected, verify in a real browser and capture screenshots. Prefer IDE browser tools. If those are unavailable, use a browser reachable through a Chrome DevTools Protocol (CDP) debug port or equivalent real browser automation path.
 13. **Final Evidence Report Gate**: Write `docs/features/<feature-family>/reports/<WORK_ITEM_ID>_<slug>_post_implementation_report.md` (or the matching phase variant inside that semantic feature folder) with relative links to screenshots under `docs/features/<feature-family>/reports/assets/<WORK_ITEM_ID>_<slug>/`.
@@ -194,7 +194,7 @@ status: [PASS | FAIL]
 If debug status is **FAIL**, you MUST NOT proceed to Verification. Return to implementation phase to resolve the outstanding issues.
 
 The debug status MUST be **FAIL** if:
-- `code-standard-review` fails against the approved Blueprint or project rules.
+- `code-standard-review` fails against the approved Blueprint when one exists, or against the explicit user request, reviewed Git diff, and project rules when no active Blueprint exists.
 - Targeted validation/build/lint/typecheck fails.
 - Targeted tests fail or pytest logs are not written to `.agents/runtime/tests.log` when pytest is used.
 - The changed behavior has a real runtime surface but only mock/fake/reflection tests were run.

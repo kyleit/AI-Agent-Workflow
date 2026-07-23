@@ -13,7 +13,7 @@ version: 3.0.0
 license: MIT
 created_at: 2026-07-03
 updated_at: 2026-07-06
-description: Enforces explicit user-driven releases and requires blueprint validation before any release activities.
+description: Enforces explicit user-driven releases with workflow-aware validation before any release activities.
 runtime_requirements:
   rules: required
   state: required
@@ -27,23 +27,25 @@ runtime_requirements:
   provider: optional
   usage: cached---
 
-# Skill: Implementation to Release (Explicit & Blueprint-Validated)
+# Skill: Implementation to Release (Explicit & Workflow-Aware)
 
 ## Purpose
 
-Enforces explicit user-driven releases and requires blueprint validation before any release activities.
+Enforces explicit user-driven releases with validation matched to the release context.
 
 ---
 
 ## 🔒 WORKFLOW RUNTIME & INITIALIZATION CHECK
 
 This Skill MUST interface with the centralized Python CLI Runtime Engine:
-- **Validate Checkpoint**: Run `python skills/workflow-runtime/scripts/workflow_runtime.py validate --checkpoint "exactly 9"` before taking any action. If validation fails, halt execution immediately.
+- **Validate Checkpoint (Workflow Release Mode only)**: If `.agents/state/workflow.json` has an active workflow or active work item, validate that the workflow has reached the post-verification release point before taking release action. Prefer `aiwf` runtime commands when available. If validation fails in Workflow Release Mode, halt execution immediately.
+- **Maintenance Release Mode**: If no active workflow exists and the current user turn explicitly requests release, do not require checkpoint 9 and do not abort only because `.agents/state/workflow.json` has `active_workflow: null`. Continue with explicit release request validation, reviewed Git diff, targeted tests, version/changelog update, public export, and release approval.
 - **Progress Tracking**:
-  - *Start*: Run `python skills/workflow-runtime/scripts/workflow_runtime.py start --skill "implementation-to-release" --command "release" --checkpoint 10 --step "Starting execution..."`
-  - *Step Updates*: Run `python skills/workflow-runtime/scripts/workflow_runtime.py step --step "<step_desc>" --log "<progress_message>"` progressively during major steps.
-  - *Completion*: Run `python skills/workflow-runtime/scripts/workflow_runtime.py complete --checkpoint 10 --step "Step Complete" --next-skill "project-memory-update" --next-command "memory-sync"` when execution finishes successfully.
-  - *Failure*: Run `python skills/workflow-runtime/scripts/workflow_runtime.py fail --step "<error_step>" --log "<error_details>"` if any phase fails.
+  - *Start*: Use `aiwf start --skill "implementation-to-release" --command "release" --checkpoint 10 --step "Starting execution..."` when the runtime CLI is available.
+  - *Step Updates*: Use `aiwf step --step "<step_desc>" --log "<progress_message>"` progressively during major steps.
+  - *Completion*: Use `aiwf complete --checkpoint 10 --step "Step Complete" --next-skill "project-memory-update" --next-command "memory-sync"` when execution finishes successfully.
+  - *Failure*: Use `aiwf fail --step "<error_step>" --log "<error_details>"` if any phase fails.
+  - If the runtime CLI is unavailable or the IDE blocks runtime commands, continue the release workflow using file/state evidence and report the runtime bridge limitation explicitly.
 
 ---
 
@@ -66,15 +68,30 @@ This Skill MUST strictly adhere to the global policies defined in [AI_RULES.md](
 Prior to running any release activities, the AI must strictly execute the following validations:
 
 1. **Verify Explicit Release Request**: The AI must verify that the user has explicitly requested a Release (e.g. via keywords like `/release`, `release`, `create release`, `publish release`, `bump version`, `commit and push`, or `tag this version`). Any automatic progression to this Skill without a clear user request is strictly prohibited.
-2. **Verify Blueprint Approval**: Confirm that a Technical Design Blueprint exists for this work under `docs/features/<feature-family>/blueprints/` and that its status is marked as `"approved": true` in the active workflow session data.
-3. **Verify Quality Gates**: Ensure all quality gates are met:
+2. **Determine Release Context**:
+   - **Workflow Release Mode**: If `.agents/state/workflow.json` has an active workflow or active work item, release is tied to that workflow.
+   - **Explicit Maintenance Release Mode**: If no active workflow exists, release may proceed only when the current user message explicitly requests release. This mode is intended for already-implemented maintenance changes, documentation/rule updates, packaging updates, source-export updates, or hotfixes that were completed outside an active workflow session. Absence of an active workflow is not, by itself, a release blocker in this mode.
+3. **Workflow Release Mode Gates**: When an active workflow exists, confirm that:
+   - A Technical Design Blueprint exists for this work under `docs/features/<feature-family>/blueprints/`.
+   - The active workflow session data marks the exact Blueprint as `"approved": true`.
    - Debug Gate: `docs/features/<feature-family>/debug/<WORK_ITEM_ID>_<slug>_debug.md` has `status: PASS`.
    - Verification Gate: `docs/features/<feature-family>/verification/<WORK_ITEM_ID>_<slug>_verify.md` has `status: PASS`.
-4. **Walkthrough Handover Decision Gate**: The AI must prompt the user using the Choice Protocol before packaging or overwriting `walkthrough.md` in the repository, asking whether they want to overwrite (create new walkthrough) or keep/append to the previous history.
+4. **Explicit Maintenance Release Mode Gates**: When no active workflow exists, do not require a Blueprint. Instead, the Release Manager MUST:
+   - Confirm the user explicitly requested release in the current conversation turn.
+   - Inspect the current Git diff and list the files that will be included.
+   - Exclude unrelated dirty files from staging.
+   - Run targeted tests or validation for the changed files. Do not run the full test suite unless the user requested it or the release affects broad shared behavior.
+   - Update version and root `CHANGELOG.md`.
+   - Run `make export` and stage `public_export` if this repository uses public export.
+   - Check `.agents/memory/`; if memory files changed, stage them before commit.
+   - Verify that `CHANGELOG.md` does not contain local absolute paths or `file://` links.
+5. **Walkthrough Handover Decision Gate**: The AI must prompt the user using the Choice Protocol before packaging or overwriting `walkthrough.md` in the repository, asking whether they want to overwrite (create new walkthrough) or keep/append to the previous history.
 
 **If any validation fails:**
 - **STOP immediately**.
-- Print the warning: `❌ Release aborted: No explicit release request or approved Blueprint found. The framework forbids automatic releases. Please run /release only when you are ready to publish.`
+- Print the specific failed gate and the exact evidence that is missing.
+- For Workflow Release Mode, use: `❌ Release aborted: Workflow release requires explicit release request, approved Blueprint, PASS debug report, and PASS verification report.`
+- For Explicit Maintenance Release Mode, use: `❌ Release aborted: Maintenance release requires an explicit current-turn release request, reviewed release diff, targeted validation evidence, changelog/version update, and release approval.`
 - Do NOT perform version bumps, modify changelogs, commit, tag, push, or merge.
 
 ## Runtime Prompt Protocol for Release Gates
@@ -112,7 +129,7 @@ Phase 7: Compile Root CHANGELOG.md detailing version changes and highlights
          ↓
 Phase 8: Approval Gate - Present Release Summary and query user using:
          ```bash
-         python3 .agents/skills/workflow-runtime/scripts/workflow_runtime.py prompt select --question "Choose release action:" --options "Continue|Cancel" --default "Cancel"
+         aiwf prompt select --question "Choose release action:" --options "Continue|Cancel" --default "Cancel"
          ```
          ↓
 Phase 9: Commit release updates (Requires explicit approval)

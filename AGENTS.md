@@ -85,7 +85,7 @@ The framework divides agents into **Core Phase Owners** and **Specialist Assista
 
 ## Post-Implementation Automated Quality Loop
 - After implementation starts from an approved Blueprint, the Agent **MUST continue automatically** through code review, targeted validation, debug/test, real runtime case testing, and final verification before reporting completion.
-- Code review must use `code-standard-review` and compare every changed file against the approved Blueprint, project rules, architecture boundaries, security expectations, and scope limits.
+- Post-implementation commands such as code review, debug, verification, and release do not require a new Blueprint. Use the approved Blueprint as the baseline when one exists; otherwise use the explicit user request, reviewed Git diff, project rules, architecture boundaries, security expectations, and scope limits.
 - Validation and tests must be targeted to the changed components. `pytest` must use `pytest -v -s <related_test_file_or_directory> 2>&1 | tee .agents/runtime/tests.log`.
 - A mock-only or fake-data-only result is not enough. The Agent must exercise a real runtime/user path through the affected CLI/API/IPC/database/service/browser surface, clean up any test data, and report the evidence.
 - If the change affects frontend UI or browser interaction, the Agent must verify it in a real browser and capture screenshots. If IDE browser tools are unavailable, use a browser reachable through a Chrome DevTools Protocol (CDP) debug port or equivalent real browser automation.

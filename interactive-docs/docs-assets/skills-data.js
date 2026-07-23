@@ -45,7 +45,7 @@ const skillsData = [
     "command": "/code-review",
     "category": "quality",
     "checkpoint": "N/A",
-    "purpose": "Use when reviewing implemented code against an approved Blueprint, project rules, coding standards, architecture boundaries, security, maintainability, and testability before validation or release.",
+    "purpose": "Use when reviewing implemented code against an approved Blueprint when available, or against an explicit user request and reviewed diff for maintenance/release-only work, plus project rules, coding standards, architecture boundaries, security, maintainability, and testability before validation or release.",
     "input": "See the skill documentation for required inputs and runtime prerequisites.",
     "output": "Skill-specific artifacts, checks, reports, or runtime state updates.",
     "pitfall": "Follow AI_RULES.md, approval gates, and skill-specific hard rules before modifying files."
@@ -165,7 +165,7 @@ const skillsData = [
     "command": "/release",
     "category": "workflow",
     "checkpoint": "10",
-    "purpose": "Enforces explicit user-driven releases and requires blueprint validation before any release activities.",
+    "purpose": "Enforces explicit user-driven releases with workflow-aware validation before any release activities.",
     "input": "See the skill documentation for required inputs and runtime prerequisites.",
     "output": "Skill-specific artifacts, checks, reports, or runtime state updates.",
     "pitfall": "Follow AI_RULES.md, approval gates, and skill-specific hard rules before modifying files."

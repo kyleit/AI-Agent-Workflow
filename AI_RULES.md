@@ -184,12 +184,12 @@ Reliability is enforced through automated builds, testing, and runtime validatio
         9. **DDD / Clean Architecture Validation**: PASS (Architecture Compliance Score >= 95/100, no Critical Architecture Violations)
     *   **Strict Rule**: Passing unit tests alone MUST NEVER mark a feature as completed.
     *   **Debug & Verify Quality Gates**: All standard feature cycles must pass through `implementation-to-debug` (compilation, linter, tests, and runtime pipeline validation) followed by `debug-to-verify` (blueprint compliance, runtime checks, architecture verification, and Go/No-Go decision).
-    *   **Post-Implementation Automated Quality Loop**: After implementation, the workflow MUST continue automatically through the following gates before reporting completion to the user or recommending release:
-        1. **Code Review Gate**: Use `code-standard-review` to review every changed file against the approved Blueprint, project rules, coding standards, architecture boundaries, security expectations, and scope limits.
+    *   **Post-Implementation Automated Quality Loop**: After implementation, the workflow MUST continue automatically through the following gates before reporting completion to the user or recommending release. These post-implementation commands do not require a new Blueprint. If the implementation started from an approved Blueprint, use that Blueprint as the primary review baseline. If the changes are maintenance/release-only work without an active Blueprint, use the explicit user request, reviewed Git diff, project rules, and changed-file evidence as the review baseline.
+        1. **Code Review Gate**: Use `code-standard-review` to review every changed file against the approved Blueprint when one exists, otherwise against the explicit user request and release diff, plus project rules, coding standards, architecture boundaries, security expectations, and scope limits.
         2. **Code Validation Gate**: Run targeted build, lint, typecheck, dependency-direction checks, schema/config validation, and any project-specific validators directly related to the changed files.
         3. **Debug/Test Gate**: Run targeted tests for the modified components. For `pytest`, use `pytest -v -s <related_test_file_or_directory> 2>&1 | tee .agents/runtime/tests.log`.
         4. **Real Runtime Case Gate**: Exercise at least one real user/runtime path without mocks, fake test doubles, or fabricated data. Use the real CLI/API/IPC/database/service/browser surface that the feature affects. Seed data is allowed only when it is created through real application interfaces and cleaned up afterward.
-        5. **Frontend Browser Evidence Gate**: If the change affects UI, frontend behavior, layout, visual state, navigation, or user interaction, verify it in a real browser and capture screenshots. Prefer IDE browser tools when available. If IDE browser tools are unavailable, use a browser reachable through a Chrome DevTools Protocol (CDP) debug port or an equivalent real browser automation path. Opening a browser or taking a screenshot once is insufficient. The Agent MUST compare the implemented UI against the Blueprint and `frontend-design` acceptance criteria, inspect layout/DOM, console, network, responsive breakpoints, and affected interactions, then document concrete evidence. This gate MUST FAIL when screenshots are missing, only static/source inspection was performed, known visual issues remain unfixed, console/network errors block the UI, text overlaps/clips, responsive layout breaks, or implementation conflicts with explicit user/design requirements. The Agent MUST fix in-scope failures and rerun the visual check until PASS or a real blocker is reported.
+        5. **Frontend Browser Evidence Gate**: If the change affects UI, frontend behavior, layout, visual state, navigation, or user interaction, verify it in a real browser and capture screenshots. Prefer IDE browser tools when available. If IDE browser tools are unavailable, use a browser reachable through a Chrome DevTools Protocol (CDP) debug port or an equivalent real browser automation path. Opening a browser or taking a screenshot once is insufficient. The Agent MUST compare the implemented UI against the Blueprint when one exists, otherwise against the explicit user/design request, and always against `frontend-design` acceptance criteria. It must inspect layout/DOM, console, network, responsive breakpoints, and affected interactions, then document concrete evidence. This gate MUST FAIL when screenshots are missing, only static/source inspection was performed, known visual issues remain unfixed, console/network errors block the UI, text overlaps/clips, responsive layout breaks, or implementation conflicts with explicit user/design requirements. The Agent MUST fix in-scope failures and rerun the visual check until PASS or a real blocker is reported.
         6. **Final Evidence Report Gate**: Generate a Markdown report under `docs/reports/` summarizing code review, validation, debug/tests, real runtime case, browser/CDP evidence, screenshots, cleanup, remaining risks, and final PASS/FAIL. Screenshots MUST be stored under `docs/reports/assets/<work-item-id>/` and linked with relative Markdown paths.
     *   **No Mock-Only Completion Rule**: Unit tests, mocked tests, reflection tests, or fake-data-only checks MUST NOT mark implementation complete when the changed behavior has a real runtime surface. Real runtime evidence is mandatory unless the report explains why no runtime surface exists.
 *   **Failure Behavior**:
@@ -210,17 +210,18 @@ The AI must NEVER update version numbers, modify `CHANGELOG.md`, create git comm
 If no explicit release request is given by the user, the workflow MUST STOP after the Verification phase, recommend running Release, and wait for input.
 
 *   **Release Sequence**:
-    1.  **Verify Status Check**: Check `docs/features/<feature-family>/verification/<WORK_ITEM_ID>_<slug>_verify.md` and ensure the verification status is `PASS`. If `FAIL` or missing, STOP the workflow and return to the debug phase.
-    2.  **Build & Test**: Compile the codebase and run test suites to ensure 100% pass rate.
-    3.  **Detect Version**: Determine the current project version.
-    4.  **Update Version**: Update the version strings across project config files (requires approval).
-    5.  **Update CHANGELOG**: Write release notes into `CHANGELOG.md` under a new version heading (requires approval).
-    6.  **Merge (if applicable)**: Run the Release Gate; if on a non-main branch, ask whether to merge and await approval.
-    7.  **Approval Gate**: Explain the final Git commit, tag, and push actions, listing all modified files and branch, then request final release approval.
-    8.  **Commit**: Commit version files and `CHANGELOG.md`.
-    9.  **Git Tag**: Tag the release commit as `vX.Y.Z`.
-    10. **Push Branch**: Push the release branch to the remote repository.
-    11. **Push Tag**: Push the tag to the remote repository.
+    1.  **Determine Release Context**: If an active workflow/work item exists, this is a Workflow Release and must use that workflow's verification evidence. If no active workflow exists but the current user turn explicitly requests release, this is an Explicit Maintenance Release and must use reviewed Git diff plus targeted validation evidence instead of requiring a Blueprint.
+    2.  **Verify Status Check**: For Workflow Release, check `docs/features/<feature-family>/verification/<WORK_ITEM_ID>_<slug>_verify.md` and ensure the verification status is `PASS`. If `FAIL` or missing, STOP the workflow and return to the debug phase. For Explicit Maintenance Release, do not require a Blueprint or workflow verification artifact; instead list the release diff, exclude unrelated files, and run targeted validation for the files being released.
+    3.  **Build & Test**: Compile the affected components and run targeted tests/validators directly related to the changed files. Run the full test suite only when the user requests it or the release affects broad shared behavior.
+    4.  **Detect Version**: Determine the current project version.
+    5.  **Update Version**: Update the version strings across project config files (requires approval).
+    6.  **Update CHANGELOG**: Write release notes into `CHANGELOG.md` under a new version heading (requires approval).
+    7.  **Merge (if applicable)**: Run the Release Gate; if on a non-main branch, ask whether to merge and await approval.
+    8.  **Approval Gate**: Explain the final Git commit, tag, and push actions, listing all modified files and branch, then request final release approval.
+    9.  **Commit**: Commit version files and `CHANGELOG.md`.
+    10. **Git Tag**: Tag the release commit as `vX.Y.Z`.
+    11. **Push Branch**: Push the release branch to the remote repository.
+    12. **Push Tag**: Push the tag to the remote repository.
 
 ---
 
@@ -323,11 +324,12 @@ To keep the VS Code Visualizer Dashboard synchronized in real-time with minimum 
 
 ---
 
-## 13. Blueprint Mandatory Execution Policy
+## 13. Blueprint Mandatory Implementation Policy
 
 This is a mandatory global policy. The following rules are absolute and cannot be bypassed:
 
-*   **Rule 1: No Code Modification Without Blueprint**: No Skill may create, delete, or modify source code unless there is a Technical Design Blueprint document. Triaging or implementing changes directly from brainstorming, planning, feature specifications, fix specifications, quick specifications, or user conversation text is strictly forbidden. The Technical Design Blueprint is the ONLY legal input for code generation and modification.
+*   **Rule 1: No Implementation Without Blueprint**: No Skill may start product/source-code implementation for a feature or bug fix unless there is a Technical Design Blueprint document. Triaging or implementing feature/fix behavior directly from brainstorming, planning, feature specifications, fix specifications, quick specifications, or user conversation text is strictly forbidden. The Technical Design Blueprint is the ONLY legal input for starting implementation.
+*   **Rule 1A: Post-Implementation Command Exemption**: Post-implementation commands do not require a new Blueprint. This includes `implementation-to-debug`, `code-standard-review`, `debug-to-verify`, `implementation-to-release`, targeted test runs, validation, packaging, version bumping, changelog updates, public export, commit, tag, and push. These commands must not introduce new product behavior unless they route back through the normal Blueprint approval gate. They must validate against the approved Blueprint when one exists; otherwise they must validate against the explicit user request, reviewed Git diff, project rules, and concrete test evidence.
 *   **Rule 2: Valid Blueprint Path**: A Blueprint must exist under the `docs/blueprints/` directory. Valid file paths match one of:
     - Canonical semantic feature shape: `docs/features/<feature-family>/blueprints/<WORK_ITEM_ID>_<slug>_blueprint.md` (+ `.json` when generated).
     - Canonical multi-phase folder shape: `docs/features/<feature-family>/blueprints/master/<WORK_ITEM_ID>_<slug>_master_blueprint.md` + `docs/features/<feature-family>/blueprints/phase-NN-<phase-slug>/phase-blueprint.md` (each optionally split into companion files per that phase's own indexing rules).
@@ -335,8 +337,8 @@ This is a mandatory global policy. The following rules are absolute and cannot b
 *   **Rule 3: Explicit User Approval**: The Blueprint must be explicitly approved by the user through the runtime prompt bridge:
     `aiwf prompt select --question "Approve this Technical Design Blueprint for implementation?" --options "Continue|Cancel" --default "Cancel"`.
     Manual approval keywords such as `Y`, `Yes`, `Proceed`, or `Continue` are accepted only as fallback evidence when the runtime prompt bridge is unavailable and the Agent explicitly reports that unavailability. The AI must never assume blueprint approval.
-*   **Rule 4: Stop Condition**: If no approved Blueprint exists, the AI must IMMEDIATELY STOP, explain the requirement, recommend generating or approving the Blueprint, and wait for input.
-*   **Rule 5: Override Priority**: This policy overrides all implementation-capable Skills. No exceptions.
+*   **Rule 4: Stop Condition**: If a task is about starting implementation and no approved Blueprint exists, the AI must IMMEDIATELY STOP, explain the requirement, recommend generating or approving the Blueprint, and wait for input. Do not apply this stop condition to post-implementation review, debug, verification, or explicit release commands.
+*   **Rule 5: Override Priority**: This policy overrides all implementation-start capable Skills. No exceptions.
 *   **Rule 6: Mandatory SDLC Skill Binding**: Mọi hoạt động chỉnh sửa, thêm, xóa tệp mã nguồn dự án bắt buộc phải được thực hiện trong phạm vi hoạt động của một SDLC Skill tương ứng (như `quick-fix` cho sửa lỗi nhanh, `quick-feature` cho tính năng nhanh). Nghiêm cấm AI Agent tự ý thay đổi file mã nguồn trực tiếp bên ngoài ranh giới của các Skill này, ngay cả khi tài liệu lập kế hoạch `implementation_plan.md` ở tầng IDE đã được duyệt.
 *   **Rule 7: Blueprint Quality Gate**: Before a Blueprint is approved, it must be verified that it contains a complete file-by-file analysis table (mapping absolute/relative paths, operations, and responsibilities) and a verifiable implementation checklist. Any Blueprint containing placeholders or generic instructions must be rejected and returned to the draft phase.
 *   **Rule 8: Blueprint Review Evidence Gate**: Before a Blueprint is presented for approval, the Blueprint artifact itself MUST contain `Internal Review Evidence` with reviewer roles, source artifacts, checklist PASS/FAIL rows, failed-point repair history, document-compliance score, and relative-path scan result. A Blueprint without this section is not review-passed and cannot be sent to the user for approval.
