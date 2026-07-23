@@ -117,5 +117,59 @@ The framework divides agents into **Core Phase Owners** and **Specialist Assista
 - The Agent may ask the user to choose a workflow only when the request is genuinely ambiguous or required information is missing. Once a workflow is selected, the Agent must continue through the required pre-approval review loops until the reviewed Technical Design Blueprint is ready.
 - The Agent **MUST** use the runtime prompt bridge at the final Technical Design Blueprint Approval gate and wait for explicit user approval before implementation. This final approval gate must never be bypassed or replaced by an ad-hoc chat `Y/N` question.
 
+
+## Workflow Coordinator First Policy
+- **Mandatory Entry Gate**: Every user request, task, or bug fix MUST start by executing the `workflow-coordinator` skill to evaluate intent, load split-state files, and dispatch the correct workflow skill (`quick-feature`, `quick-fix`, `brainstorming`, etc.).
+- **Automatic Routing**: Direct manual skill invocation by the user is not required; the Agent MUST route natural language requests through `workflow-coordinator` automatically.
+- **Bypass Prohibition**: No code modification, document creation, or test execution may commence before `workflow-coordinator` completes its initialization tick and establishes the task context in `.agents/state/workflow.json`.
+
+## Mandatory 5-Agent Coordination & Zero-Trust Review Policy
+- **Minimum 5-Role Topology**: Every coordinated task MUST involve a minimum of 5 distinct operational roles:
+  1. **Planner**: Defines specifications, user requirements, project scope, and phase planning.
+  2. **Architect**: Designs system architecture, Technical Blueprints, API contracts, and data schemas.
+  3. **Coder**: Executes source code modifications, refactoring, and bug fixes strictly within Blueprint scope.
+  4. **Auditor**: Conducts independent code standard, architectural boundary, and compliance audits.
+  5. **Manager**: Controls workflow execution gates, release risk, final quality validation, and delivery approval.
+- **Zero-Trust Independent Review Rules**:
+  - The Auditor and Manager MUST conduct reviews independently and asynchronously.
+  - Rubber-stamping or trusting another agent's self-assessment is strictly prohibited.
+  - The Auditor MUST independently verify code quality, linting, unit tests, and blueprint adherence.
+  - The Manager MUST independently verify functional completion, integration readiness, risk factors, and compliance scores.
+  - Neither Auditor nor Manager may approve a phase based on the Coder's or Planner's self-certification. Both Auditor PASS and Manager PASS approvals are required before proceeding to user approval gates.
+
+## VIR Skills as Sensory Tools Policy
+- **Mandatory UI/Frontend Sensory Mechanism**: For any task touching frontend code, UI/UX design, visual layout, styling, DOM interaction, or web view rendering, agents MUST use the Visual Intelligence Runtime (`vir-*`) skills as their exclusive sensory tools ("hands, feet, eyes, nose, and brain").
+- **Approved Sensory Skill Inventory**:
+  1. `vir-runtime`: Executes sandboxed UI observations, captures visual states, and records runtime behavior without cognitive bias.
+  2. `vir-investigate`: Conducts root cause analysis (RCA), visual anomaly detection, and layout contradiction checks.
+  3. `vir-verify`: Performs final visual quality audits against design specifications and computes visual compliance scores.
+  4. `vir-memory-update`: Consolidates visual baselines, stores reference screenshots, and compiles lessons learned.
+- **Prohibition of Blind UI Claims**: Claiming frontend completion based solely on static source inspection, unit tests, or headless build outputs without executing `vir-runtime` and `vir-verify` visual evidence loops is strictly forbidden.
+
+## Strict Code-Build-Test Quality Loop Policy
+- **Post-Implementation Mandatory Loop**: Following any code modification by the Coder, the workflow MUST execute the closed Quality Loop:
+  `Code → Build → Test → IF Error → Fix → Build → Test`
+- **Zero-Error Standard**: The loop MUST repeat iteratively until ZERO errors (0 build errors, 0 linter warnings/errors, 0 test failures) are achieved.
+- **Dual Approval Gate**: Both Auditor AND Manager MUST independently audit the final build and test logs (`.agents/runtime/tests.log`), issuing explicit `Auditor: PASS` and `Manager: PASS` records before presenting any work to the user approval gate or release pipeline.
+
+## Multi-Engine Document Quality Loop Policy
+- **Planning Phase Document Loop**: All pre-implementation documentation (roadmaps, specs, plans, blueprints) MUST follow a strict multi-engine drafting and review loop:
+  - **Path A (AGY Available)**: AGY CLI writes draft documents → Antigravity (Reviewer) reviews independently → IF failed → fix → re-review.
+  - **Path B (AGY Unavailable)**: Subagent Planner writes draft documents → Antigravity (Reviewer) reviews independently → IF failed → fix → re-review.
+- **Quality Score Threshold**: The document iteration loop MUST repeat until a `document-compliance-assessment` score of ≥ 95/100 is achieved.
+- **Mandatory Skill Order**: Document generation MUST proceed through the exact sequential skill pipeline:
+  `brainstorming → brainstorming-to-plan → plan-to-blueprint`
+- **No Phase Bypassing**: No step in the sequence may be skipped or merged.
+
+## Zero-Placeholder Technical Blueprint Quality Standard
+- **Mandatory Blueprint Sections**: Every Technical Design Blueprint MUST explicitly specify:
+  1. **File-by-File Change Matrix**: Exact relative file paths, operation types (Create/Modify/Delete), and detailed responsibility summaries.
+  2. **API & Interface Signatures**: Complete function signatures including input parameters, data types, return types, and exception behavior.
+  3. **Data Schemas & Models**: Complete database schemas, JSON schemas, DTO structures, and state model definitions.
+  4. **Targeted Test Strategy**: Specific test suites, test cases, assertions, and mock boundaries.
+  5. **Risk & Mitigation Analysis**: Identified technical risks, impact levels, and concrete mitigation steps.
+  6. **Measurable Acceptance Criteria**: Testable, binary PASS/FAIL conditions.
+- **Placeholder Auto-FAIL Rule**: The presence of vague placeholders (such as `TBD`, `TODO`, `etc.`, `to be decided`, `implement later`, `refer to existing code`, or generic instructions) triggers an AUTOMATIC FAIL during internal review. Blueprints with placeholders CANNOT be submitted for user approval.
+
 GitHub Repository: https://github.com/kyleit/AI-Agent-Workflow
 <!-- AIWF:RULES:END -->

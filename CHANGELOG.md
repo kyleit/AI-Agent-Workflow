@@ -5,6 +5,24 @@ All notable changes to this project will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [6.19.6] - 2026-07-23
+
+### Added
+- **`aiwf doctor` command**:
+  - Added new CLI command to check workspace health (git status, python/node versions, `.agents/state`, project memory).
+  - Included JSON reporting mode (`--json`) and markdown table output.
+
+### Changed
+- **AIWF Framework Rules Update**:
+  - Updated 6 global policies in `AGENTS.md` covering workflow routing, 5-agent coordination, strict code-build-test loops, and zero-placeholder blueprints.
+  - Enforced `workflow-coordinator` first policy for all requests.
+
+### Fixed
+- **`aiwf doctor` workspace root resolution**:
+  - Fixed false-negative path resolution errors by detecting project root via `git rev-parse` instead of using the raw working directory.
+- **`make export` binary injection**:
+  - Fixed race condition where `tools/export.js` cleaned `public_export/` after binaries were injected, deleting them. Rewrote Makefile ordering to fix this.
+
 ## [6.19.5] - 2026-07-21
 
 ### Changed
