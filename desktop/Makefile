@@ -42,7 +42,7 @@ endif
 frontend:
 	npm --prefix frontend run build
 
-build:
+build: embed-aiwf
 ifeq ($(OS_NAME),darwin)
 	wails build -platform darwin/universal -clean
 else ifeq ($(OS_NAME),linux)
@@ -51,7 +51,7 @@ else
 	wails build -platform windows/amd64 -clean
 endif
 
-build-all:
+build-all: embed-aiwf
 ifeq ($(OS_NAME),darwin)
 	wails build -platform darwin/universal -clean
 	wails build -platform windows/amd64
@@ -91,7 +91,7 @@ else
 	$(MAKE) package-windows
 endif
 
-package-mac:
+package-mac: embed-aiwf
 	wails build -platform darwin/universal -clean
 	$(MAKE) package-mac-only
 
@@ -156,7 +156,7 @@ package-mac-only:
 	fi
 	@ls -lah $(DIST_DIR)
 
-package-windows:
+package-windows: embed-aiwf
 	wails build -platform windows/amd64 -clean
 	$(MAKE) package-windows-only
 
@@ -191,7 +191,7 @@ package-windows-only:
 	fi
 	@ls -lah $(DIST_DIR)
 
-package-linux:
+package-linux: embed-aiwf
 	wails build -platform linux/amd64 -clean
 	$(MAKE) package-linux-only
 
