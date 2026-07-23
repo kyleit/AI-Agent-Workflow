@@ -55,7 +55,9 @@ build-all: embed-aiwf
 ifeq ($(OS_NAME),darwin)
 	wails build -platform darwin/universal -clean
 	wails build -platform windows/amd64
-	@echo "Skipping linux/amd64 cross-build on macOS: Wails v2 does not support cross-compiling Linux from macOS."
+	@echo "==> Using Docker to compile Linux binary..."
+	docker build -t wails-linux-builder -f Dockerfile.linux .
+	docker run --rm -v "$$(pwd):/app" wails-linux-builder
 else ifeq ($(OS_NAME),linux)
 	wails build -platform linux/amd64 -clean
 else
@@ -84,7 +86,7 @@ package-all: clean-dist
 ifeq ($(OS_NAME),darwin)
 	$(MAKE) package-mac
 	$(MAKE) package-windows
-	@echo "Skipping Linux package locally on macOS. Use the GitHub Actions release matrix or run make package on Linux to produce .tar.gz/.deb artifacts."
+	$(MAKE) package-linux
 else ifeq ($(OS_NAME),linux)
 	$(MAKE) package-linux
 else
@@ -192,8 +194,15 @@ package-windows-only:
 	@ls -lah $(DIST_DIR)
 
 package-linux: embed-aiwf
+ifeq ($(OS_NAME),linux)
 	wails build -platform linux/amd64 -clean
 	$(MAKE) package-linux-only
+else
+	@echo "==> Detecting host OS is not Linux ($(OS_NAME)). Using Docker to build Linux binary..."
+	docker build -t wails-linux-builder -f Dockerfile.linux .
+	docker run --rm -v "$$(pwd):/app" wails-linux-builder
+	$(MAKE) package-linux-only
+endif
 
 package-linux-only:
 	mkdir -p $(DIST_DIR)
