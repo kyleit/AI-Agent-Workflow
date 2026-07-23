@@ -1,4 +1,4 @@
----
+﻿---
 name: skill-self-verification
 description: Automatically check and verify other Skills within the AI Skill Framework using Behavioral Acceptance Testing (BAT).
 command: /verify-skill
@@ -51,7 +51,7 @@ The objective is to automate behavioral validation to ensure:
 
 ## 4. Run Commands
 ```bash
-python skills/skill-self-verification/scripts/verify_skill.py verify --skill <skill-name>
+aiwf skill verify verify --skill <skill-name>
 ```
 
 ## 5. Completion Criteria

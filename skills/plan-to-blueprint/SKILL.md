@@ -1,4 +1,4 @@
----
+﻿---
 name: plan-to-blueprint
 command: blueprint
 aliases:
@@ -50,13 +50,13 @@ Upgrade the implementation plan into a production-grade Technical Blueprint. Do 
 
 ## 🔒 WORKFLOW RUNTIME & INITIALIZATION CHECK
 
-This Skill MUST interface with the centralized Python CLI Runtime Engine:
-- **Validate Checkpoint**: Run `python skills/workflow-runtime/scripts/workflow_runtime.py validate --checkpoint "exactly 3"` before taking any action. If validation fails, halt execution immediately.
+This Skill MUST interface with the aiwf Go Native CLI Engine (`aiwf`):
+- **Validate Checkpoint**: Run `aiwf validate --checkpoint "exactly 3"` before taking any action. If validation fails, halt execution immediately.
 - **Progress Tracking**:
-  - *Start*: Run `python skills/workflow-runtime/scripts/workflow_runtime.py start --skill "plan-to-blueprint" --command "blueprint" --checkpoint 4 --step "Starting execution..."`
-  - *Step Updates*: Run `python skills/workflow-runtime/scripts/workflow_runtime.py step --step "<step_desc>" --log "<progress_message>"` progressively during major steps.
-  - *Completion*: Run `python skills/workflow-runtime/scripts/workflow_runtime.py complete --checkpoint 4 --step "Step Complete" --next-skill "blueprint-to-implementation" --next-command "implement"` when execution finishes successfully.
-  - *Failure*: Run `python skills/workflow-runtime/scripts/workflow_runtime.py fail --step "<error_step>" --log "<error_details>"` if any phase fails.
+  - *Start*: Run `aiwf start --skill "plan-to-blueprint" --command "blueprint" --checkpoint 4 --step "Starting execution..."`
+  - *Step Updates*: Run `aiwf step --step "<step_desc>" --log "<progress_message>"` progressively during major steps.
+  - *Completion*: Run `aiwf complete --checkpoint 4 --step "Step Complete" --next-skill "blueprint-to-implementation" --next-command "implement"` when execution finishes successfully.
+  - *Failure*: Run `aiwf fail --step "<error_step>" --log "<error_details>"` if any phase fails.
 
 ## 🔒 GLOBAL POLICY REFERENCES
 
@@ -280,7 +280,7 @@ Same rule as §3: give the interface/API itself as a real fenced code block (the
   - **Data Exchanged / Outputs**: [...]
 
 ## 10. CLI & Runtime Contracts
-- **Command Syntax**: `python workflow_runtime.py subcommand --arg`
+- **Command Syntax**: `aiwf <subcommand> [--arg]`
   - **Parameters**: Option names, types, constraints
   - **Output**: JSON or text output schema
   - **Exit Codes**: 0 (success), 1 (general error)

@@ -1,4 +1,4 @@
----
+﻿---
 name: workflow-coordinator
 command: tick
 aliases:
@@ -32,7 +32,7 @@ runtime_requirements:
 The workflow-coordinator skill acts as the stateless entry gate and logical manager of the AI Engineering Workflow. It is invoked on every user tick to parse incoming instructions, enforce gates, load/verify split-state files, check active workflow resume priority, and output deterministic suggestions for the next skill to invoke. It explicitly prohibits the creation of background daemons, heartbeat monitors, or resident loops.
 
 ## Public APIs
-- `python .agents/skills/workflow-coordinator/scripts/coordinator.py tick --prompt "<prompt>" [--work-item "<work-item>"]`
+- `aiwf tick --prompt "<prompt>" [--work-item "<work-item>"]`
   Executes a single stateless tick. Returns a JSON string output.
 
 ## Workflow Integration
@@ -64,6 +64,8 @@ Managed via `.agents/workflow.config.json` under `coordinator` block. Supports:
 - Route quick work as Specification (`quick-feature` or `quick-fix`, Planner/Requirement Analyst) -> Internal Spec Review (Reviewer/QC) -> Blueprint (Architect) -> Internal Blueprint Review (Reviewer/QC + relevant specialists) -> Runtime Prompt Select Blueprint Approval.
 - Before advancing any pre-approval artifact, require an internal review loop and require the artifact to contain an `Internal Review Evidence` section. If review FAILS, the owning phase agent must state the exact failed points, revise only those points, and repeat review until PASS.
 - A phase review PASS requires: document-compliance score `>=95/100`, zero no-go findings, relative-path scan PASS, all checklist rows supported by concrete evidence, and no missing `Internal Review Evidence`.
+- Reviewer gates are strict blocking gates, not advisory comments. The coordinator must reject any review that says PASS without citing concrete artifact sections, tables, paths, phase coverage, traceability evidence, and path-scan evidence. A reviewer must return FAIL for thin, vague, incomplete, stale, wrongly scoped, out-of-order, or unsupported content even when the owning agent claims the artifact is complete.
+- When a review FAILS, the coordinator may only route the exact failed-point list back to the owning phase agent. Each failed point must name the artifact path, section/table/field, violated rule, failure reason, and minimum correction. The owning phase agent must revise only those failed points; the coordinator must not allow broad rewrites, downstream artifact creation, user approval, git/test actions, or implementation while any failed point remains open.
 - Large, multi-phase, system-level, cross-module, or high-risk features require a reviewed Roadmap under `docs/roadmaps/` before Planning. If the Roadmap is missing or review FAILS, keep routing back to `brainstorming` until the Roadmap passes.
 - Planning and Blueprint phases must preserve Roadmap phase order and coverage. If either phase discovers a missing capability or phase mismatch, route back to the Roadmap Gate instead of patching downstream artifacts directly.
 - If review FAILS, do not create the next artifact yet. The coordinator must return the work to the same phase owner with only the failed-point list and scope boundary.
@@ -79,8 +81,8 @@ Managed via `.agents/workflow.config.json` under `coordinator` block. Supports:
 - Routes legacy commands `orchestrate` and `orchestrator` to `workflow-coordinator tick`.
 
 ## Usage Examples
-- `python .agents/skills/workflow-coordinator/scripts/coordinator.py tick --prompt "continue"`
-- `python .agents/skills/workflow-coordinator/scripts/coordinator.py tick --prompt "fix ticket 25"`
+- `aiwf tick --prompt "continue"`
+- `aiwf tick --prompt "fix ticket 25"`
 
 ## Extension Points
 - Heuristic intent rules can be added in `coordinator.py` to route custom user workflows.

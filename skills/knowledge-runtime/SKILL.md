@@ -1,4 +1,4 @@
----
+﻿---
 name: knowledge-runtime
 command: knowledge
 aliases:
@@ -71,17 +71,17 @@ Cấu hình nhà cung cấp tri thức hỗ trợ hai cấp độ thông qua `pr
     *   Tự động sinh project folder Obsidian con dạng `{vault_root}/{project_folder_pattern}/` dựa trên Git repo hoặc tên thư mục dự án để tách biệt hoàn toàn tri thức giữa các dự án.
 
 ## 5. Runtime Commands
-- `python workflow_runtime.py provider list [--project]`
-- `python workflow_runtime.py provider add <name> [--project]`
-- `python workflow_runtime.py provider edit <name> [--project]`
-- `python workflow_runtime.py provider remove <name> [--project]`
-- `python workflow_runtime.py provider enable <name> [--project]`
-- `python workflow_runtime.py provider disable <name> [--project]`
-- `python workflow_runtime.py provider test <name> [--project]`
-- `python workflow_runtime.py provider resolve <name>`
-- `python workflow_runtime.py provider sync <name>`
-- `python workflow_runtime.py provider doctor [name]`
-- `python workflow_runtime.py provider path`
+- `aiwf knowledge provider list [--project]`
+- `aiwf knowledge provider add <name> [--project]`
+- `aiwf knowledge provider edit <name> [--project]`
+- `aiwf knowledge provider remove <name> [--project]`
+- `aiwf knowledge provider enable <name> [--project]`
+- `aiwf knowledge provider disable <name> [--project]`
+- `aiwf knowledge provider test <name> [--project]`
+- `aiwf knowledge provider resolve <name>`
+- `aiwf knowledge provider sync <name>`
+- `aiwf knowledge provider doctor [name]`
+- `aiwf knowledge provider path`
 
 ## 6. Provider Strategy
 Hệ thống sử dụng Markdown Provider làm gốc bắt buộc. Nếu các provider tùy chọn (SQLite, Qdrant, Obsidian) không sẵn sàng hoặc bị vô hiệu hóa, hệ thống tự động đưa ra cảnh báo nhẹ và định tuyến ngược về Markdown Provider.

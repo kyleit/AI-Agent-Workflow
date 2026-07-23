@@ -1,4 +1,4 @@
----
+﻿---
 name: orchestrator [DEPRECATED]
 command: orchestrate
 aliases:
@@ -44,8 +44,8 @@ runtime_requirements:
 
 ## 🔒 WORKFLOW RUNTIME & INITIALIZATION CHECK
 
-This Skill interfaces with the centralized Python CLI Runtime Engine:
-- **Validate Checkpoint**: Run `python skills/workflow-runtime/scripts/workflow_runtime.py validate --checkpoint "optional"` before taking any action.
+This Skill interfaces with the aiwf Go Native CLI Engine (`aiwf`):
+- **Validate Checkpoint**: Run `aiwf validate --checkpoint "optional"` before taking any action.
 - **Progress Tracking**: Update status and log progress using `workflow_runtime.py` when integrated in a workflow session.
 
 ---
@@ -79,7 +79,7 @@ The Orchestrator is the single entry point for all framework workflows. It autom
      * Immediately bypass reclassification.
      * Run the CLI to resume the active workflow:
        ```bash
-       python skills/workflow-runtime/scripts/workflow_runtime.py active-workflow resume
+       aiwf active-workflow resume
        ```
      * Immediately transfer control and execute the instructions of the resumed skill.
      * Stop processing.

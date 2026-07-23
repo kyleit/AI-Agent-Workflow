@@ -1,4 +1,4 @@
----
+﻿---
 name: initialize-workflow
 command: init
 aliases:
@@ -116,7 +116,7 @@ STOP — No memory load, no RAG, no env CLI, no workspace scan, no transcript sy
   - `current_command`: `"init"`
   - `current_step`: `"Starting lightweight workflow initialization..."`
   - `updated_at`: (current ISO-8601 timestamp)
-- Do not call `python skills/workflow-runtime/scripts/workflow_runtime.py start ...` during normal
+- Do not call `aiwf start ...` during normal
   initialization. Some IDEs ask for approval for every Python command. This Skill must use cached
   state files and runtime command-bus requests instead.
 
@@ -268,5 +268,5 @@ READY
   start, step, completion, and failure states.
 - Runtime cache refreshes must use `.agents/runtime/commands/runtime.request.json` when possible.
 - If a direct CLI fallback is explicitly allowed, use `aiwf ...` commands. Do not instruct the Agent
-  to call `python skills/workflow-runtime/scripts/workflow_runtime.py ...` directly during
+  to call `aiwf ...` directly during
   initialization.

@@ -15,9 +15,29 @@ MAC_INSTALLER_IDENTITY ?=
 MAC_NOTARIZE ?= false
 MAC_SIGNING_REQUIRED ?= false
 
-.PHONY: all frontend build build-all dev test package package-all package-mac package-mac-only package-windows package-windows-only package-linux package-linux-only release release-all release-dry-run release-dry release-all-dry-run release-all-dry clean clean-dist
+.PHONY: all frontend build build-all dev test embed-aiwf package package-all package-mac package-mac-only package-windows package-windows-only package-linux package-linux-only release release-all release-dry-run release-dry release-all-dry-run release-all-dry clean clean-dist
 
 all: build
+
+# embed-aiwf — delegate to go-src/aiwf/Makefile.
+# Cross-compiles aiwf for all 5 platforms and injects them into desktop/embedded/.
+# Run this ONCE before 'make build' or 'make package' to bundle aiwf inside the app.
+#
+# Workflow:
+#   (from desktop/)  make embed-aiwf   # inject all platform binaries
+#   (from desktop/)  make build         # wails build (binary already contains aiwf)
+#
+# Or in one step:
+#   (from go-src/aiwf/) make embed-aiwf && cd ../../desktop && make build
+embed-aiwf:
+ifeq ($(OS_NAME),darwin)
+	$(MAKE) -C ../go-src/aiwf embed-aiwf
+else ifeq ($(OS_NAME),linux)
+	$(MAKE) -C ../go-src/aiwf embed-aiwf
+else
+	@cd ..\go-src\aiwf && $(MAKE) embed-aiwf
+endif
+	@echo "==> desktop/embedded/ updated — ready to build with: make build"
 
 frontend:
 	npm --prefix frontend run build

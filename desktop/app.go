@@ -468,13 +468,13 @@ func (a *App) InstallFramework() (*domain.CommandResult, error) {
 }
 
 // UpdateFrameworkSource updates the AIWF framework/skills source, not the desktop app.
+// Uses: aiwf memory update
 func (a *App) UpdateFrameworkSource() (*domain.CommandResult, error) {
 	sourceRoot, err := a.ensureFrameworkSource()
 	if err != nil {
 		return nil, err
 	}
-	scriptPath := filepath.Join(sourceRoot, "skills", "workflow-runtime", "scripts", "workflow_runtime.py")
-	cmd, err := pythonCommand(scriptPath, "update-source", "--yes")
+	cmd, err := aiwfCommand("memory", "update")
 	if err != nil {
 		return nil, err
 	}
@@ -497,13 +497,13 @@ func (a *App) UpdateFrameworkSource() (*domain.CommandResult, error) {
 	}, nil
 }
 
-// RunCoordinatorTick triggers python coordinator.py tick in the selected project workspace.
+// RunCoordinatorTick triggers an aiwf coordinator tick in the selected project workspace.
+// Uses: aiwf tick --prompt <prompt>
 func (a *App) RunCoordinatorTick(prompt string) (string, error) {
 	if a.selectedProjectPath == "" {
 		return "", ErrProjectNotSelected
 	}
-	scriptPath := filepath.Join(a.workspaceRoot, "skills", "workflow-coordinator", "scripts", "coordinator.py")
-	cmd, err := pythonCommand(scriptPath, "tick", "--prompt", prompt)
+	cmd, err := aiwfCommand("tick", "--prompt", prompt)
 	if err != nil {
 		return "", err
 	}
@@ -516,12 +516,16 @@ func (a *App) RunCoordinatorTick(prompt string) (string, error) {
 }
 
 // SubmitPromptResponse submits a response to the active AIWF prompt gate in the selected project workspace.
+// Uses: aiwf prompt select --question "..." --options "<response>" --default "<response>"
 func (a *App) SubmitPromptResponse(response string) (string, error) {
 	if a.selectedProjectPath == "" {
 		return "", ErrProjectNotSelected
 	}
-	scriptPath := filepath.Join(a.workspaceRoot, "skills", "workflow-runtime", "scripts", "workflow_runtime.py")
-	cmd, err := pythonCommand(scriptPath, "prompt", "response", "--value", response)
+	cmd, err := aiwfCommand("prompt", "select",
+		"--question", "Pending prompt gate response",
+		"--options", response,
+		"--default", response,
+	)
 	if err != nil {
 		return "", err
 	}
@@ -533,18 +537,19 @@ func (a *App) SubmitPromptResponse(response string) (string, error) {
 	return string(out), nil
 }
 
-// RunGenericCommand runs a command via workflow_runtime.py in the selected project workspace.
+// RunGenericCommand runs an aiwf CLI command in the selected project workspace.
+// cmdGroup and cmdSub map directly to aiwf subcommand tokens.
+// Example: RunGenericCommand("runtime", "status", nil) → aiwf runtime status
 func (a *App) RunGenericCommand(cmdGroup string, cmdSub string, extraArgs []string) (*domain.CommandResult, error) {
-	// If it's a project registry action, we can bypass the project selection check or handle it in Go.
+	// If it's a project registry action, we can bypass the project selection check.
 	if cmdGroup != "project/registry" && a.selectedProjectPath == "" {
 		return nil, ErrProjectNotSelected
 	}
 
-	scriptPath := filepath.Join(a.workspaceRoot, "skills", "workflow-runtime", "scripts", "workflow_runtime.py")
-	args := []string{scriptPath, cmdGroup, cmdSub}
+	args := []string{cmdGroup, cmdSub}
 	args = append(args, extraArgs...)
 
-	cmd, err := pythonCommand(args...)
+	cmd, err := aiwfCommand(args...)
 	if err != nil {
 		return nil, err
 	}
@@ -670,12 +675,12 @@ func (a *App) DeleteProject(id string) error {
 }
 
 // SearchMemory searches the project RAG memory database.
+// Uses: aiwf knowledge search --query <query>
 func (a *App) SearchMemory(query string) ([]domain.MemoryMatch, error) {
 	if a.selectedProjectPath == "" {
 		return nil, ErrProjectNotSelected
 	}
-	scriptPath := filepath.Join(a.workspaceRoot, "skills", "workflow-runtime", "scripts", "workflow_runtime.py")
-	cmd, err := pythonCommand(scriptPath, "memory", "search", query)
+	cmd, err := aiwfCommand("knowledge", "search", "--query", query)
 	if err != nil {
 		return nil, err
 	}
@@ -724,13 +729,13 @@ func (a *App) SearchMemory(query string) ([]domain.MemoryMatch, error) {
 	}, nil
 }
 
-// RunDoctor calls live workspace doctor in active project.
+// RunDoctor calls the aiwf workspace doctor in the active project.
+// Uses: aiwf doctor report
 func (a *App) RunDoctor() (*domain.DoctorReport, error) {
 	if a.selectedProjectPath == "" {
 		return nil, ErrProjectNotSelected
 	}
-	scriptPath := filepath.Join(a.workspaceRoot, "skills", "workflow-runtime", "scripts", "workspace_doctor.py")
-	cmd, err := pythonCommand(scriptPath)
+	cmd, err := aiwfCommand("doctor", "report")
 	if err != nil {
 		return nil, err
 	}
@@ -785,13 +790,14 @@ func (a *App) CheckDaemonStatus(daemonType string) (string, error) {
 	return fmt.Sprintf("RUNNING (PID: %d)", pid), nil
 }
 
-// StartDaemon starts a daemon.
+// StartDaemon starts a daemon via the aiwf native CLI.
+// Uses: aiwf runtime start  (daemonType="runtime")
+//       aiwf notify telegram --message "daemon started"  (daemonType="telegram")
 func (a *App) StartDaemon(daemonType string) (string, error) {
 	if a.selectedProjectPath == "" {
 		return "", ErrProjectNotSelected
 	}
-	scriptPath := filepath.Join(a.workspaceRoot, "skills", "workflow-runtime", "scripts", "workflow_runtime.py")
-	cmd, err := pythonCommand(scriptPath, daemonType, "start")
+	cmd, err := aiwfCommand("runtime", "start")
 	if err != nil {
 		return "", err
 	}
@@ -803,13 +809,13 @@ func (a *App) StartDaemon(daemonType string) (string, error) {
 	return string(out), nil
 }
 
-// StopDaemon stops a daemon.
+// StopDaemon stops a daemon via the aiwf native CLI.
+// Uses: aiwf runtime stop
 func (a *App) StopDaemon(daemonType string) (string, error) {
 	if a.selectedProjectPath == "" {
 		return "", ErrProjectNotSelected
 	}
-	scriptPath := filepath.Join(a.workspaceRoot, "skills", "workflow-runtime", "scripts", "workflow_runtime.py")
-	cmd, err := pythonCommand(scriptPath, daemonType, "stop")
+	cmd, err := aiwfCommand("runtime", "stop")
 	if err != nil {
 		return "", err
 	}
@@ -821,13 +827,13 @@ func (a *App) StopDaemon(daemonType string) (string, error) {
 	return string(out), nil
 }
 
-// RestartDaemon restarts a daemon.
+// RestartDaemon restarts a daemon via the aiwf native CLI.
+// Uses: aiwf runtime restart
 func (a *App) RestartDaemon(daemonType string) (string, error) {
 	if a.selectedProjectPath == "" {
 		return "", ErrProjectNotSelected
 	}
-	scriptPath := filepath.Join(a.workspaceRoot, "skills", "workflow-runtime", "scripts", "workflow_runtime.py")
-	cmd, err := pythonCommand(scriptPath, daemonType, "restart")
+	cmd, err := aiwfCommand("runtime", "restart")
 	if err != nil {
 		return "", err
 	}

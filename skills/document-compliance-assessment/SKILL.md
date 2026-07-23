@@ -1,4 +1,4 @@
----
+﻿---
 name: document-compliance-assessment
 command: verify-doc
 aliases:
@@ -154,7 +154,7 @@ Báo cáo phải được ghi vào phần cuối của báo cáo nghiệm thu (`
 
 ## 🔒 WORKFLOW RUNTIME INTERFACE
 
-- **Start**: `python skills/workflow-runtime/scripts/workflow_runtime.py start --skill "document-compliance-assessment" --command "verify-doc" --checkpoint 9 --step "Starting document assessment..."`
-- **Step Updates**: `python skills/workflow-runtime/scripts/workflow_runtime.py step --step "<desc>" --log "<msg>"`
-- **Completion**: `python skills/workflow-runtime/scripts/workflow_runtime.py complete --checkpoint 9 --step "Document Assessment Complete" --next-skill "software-development-workflow" --next-command "workflow"`
-- **Failure**: `python skills/workflow-runtime/scripts/workflow_runtime.py fail --step "<error_step>" --log "<error_details>"`
+- **Start**: `aiwf start --skill "document-compliance-assessment" --command "verify-doc" --checkpoint 9 --step "Starting document assessment..."`
+- **Step Updates**: `aiwf step --step "<desc>" --log "<msg>"`
+- **Completion**: `aiwf complete --checkpoint 9 --step "Document Assessment Complete" --next-skill "software-development-workflow" --next-command "workflow"`
+- **Failure**: `aiwf fail --step "<error_step>" --log "<error_details>"`

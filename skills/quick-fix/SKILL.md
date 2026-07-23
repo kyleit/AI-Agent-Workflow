@@ -1,4 +1,4 @@
----
+﻿---
 name: quick-fix
 command: fix
 aliases:
@@ -36,13 +36,13 @@ Enforces a three-stage workflow (Specification, Blueprint, and Implementation) f
 
 ## 🔒 WORKFLOW RUNTIME & INITIALIZATION CHECK
 
-This Skill MUST interface with the centralized Python CLI Runtime Engine:
-- **Validate Checkpoint**: Run `python skills/workflow-runtime/scripts/workflow_runtime.py validate --checkpoint "exactly 2"` before taking any action. If validation fails, halt execution immediately.
+This Skill MUST interface with the aiwf Go Native CLI Engine (`aiwf`):
+- **Validate Checkpoint**: Run `aiwf validate --checkpoint "exactly 2"` before taking any action. If validation fails, halt execution immediately.
 - **Progress Tracking**:
-  - *Start*: Run `python skills/workflow-runtime/scripts/workflow_runtime.py start --skill "quick-fix" --command "fix" --checkpoint 5 --step "Starting execution..."`
-  - *Step Updates*: Run `python skills/workflow-runtime/scripts/workflow_runtime.py step --step "<step_desc>" --log "<progress_message>"` progressively during major steps.
-  - *Completion*: Run `python skills/workflow-runtime/scripts/workflow_runtime.py complete --checkpoint 5 --step "Step Complete" --next-skill "project-memory-update" --next-command "memory-sync"` when execution finishes successfully.
-  - *Failure*: Run `python skills/workflow-runtime/scripts/workflow_runtime.py fail --step "<error_step>" --log "<error_details>"` if any phase fails.
+  - *Start*: Run `aiwf start --skill "quick-fix" --command "fix" --checkpoint 5 --step "Starting execution..."`
+  - *Step Updates*: Run `aiwf step --step "<step_desc>" --log "<progress_message>"` progressively during major steps.
+  - *Completion*: Run `aiwf complete --checkpoint 5 --step "Step Complete" --next-skill "project-memory-update" --next-command "memory-sync"` when execution finishes successfully.
+  - *Failure*: Run `aiwf fail --step "<error_step>" --log "<error_details>"` if any phase fails.
 
 ## ⚠ MANDATORY FIRST ACTION — DO THIS BEFORE ANYTHING ELSE
 

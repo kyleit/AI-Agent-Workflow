@@ -1,4 +1,4 @@
----
+﻿---
 name: project-memory-bootstrap
 command: memory-init
 aliases:
@@ -30,7 +30,7 @@ Perform a complete, first-time analysis of the current project and generate all 
 ## Script Invocation
 Execute the Python CLI command:
 ```bash
-python3 .agents/runtime/scripts/project_memory/cli.py bootstrap
+aiwf memory bootstrap bootstrap
 ```
 
 ## Expected Output

@@ -1,4 +1,4 @@
----
+﻿---
 name: environment-bootstrap
 command: bootstrap
 aliases:
@@ -55,13 +55,13 @@ You follow a **safe-first installation policy**: install safe components automat
 
 ## 🔒 WORKFLOW RUNTIME & INITIALIZATION CHECK
 
-This Skill MUST interface with the centralized Python CLI Runtime Engine:
-- **Validate Checkpoint**: Run `python skills/workflow-runtime/scripts/workflow_runtime.py validate --checkpoint "at least 1"` before taking any action. If validation fails, halt execution immediately.
+This Skill MUST interface with the aiwf Go Native CLI Engine (`aiwf`):
+- **Validate Checkpoint**: Run `aiwf validate --checkpoint "at least 1"` before taking any action. If validation fails, halt execution immediately.
 - **Progress Tracking**:
-  - *Start*: Run `python skills/workflow-runtime/scripts/workflow_runtime.py start --skill "environment-bootstrap" --command "bootstrap" --checkpoint 1 --step "Starting execution..."`
-  - *Step Updates*: Run `python skills/workflow-runtime/scripts/workflow_runtime.py step --step "<step_desc>" --log "<progress_message>"` progressively during major steps.
-  - *Completion*: Run `python skills/workflow-runtime/scripts/workflow_runtime.py complete --checkpoint 1 --step "Step Complete" --next-skill "project-discovery" --next-command "discover"` when execution finishes successfully.
-  - *Failure*: Run `python skills/workflow-runtime/scripts/workflow_runtime.py fail --step "<error_step>" --log "<error_details>"` if any phase fails.
+  - *Start*: Run `aiwf start --skill "environment-bootstrap" --command "bootstrap" --checkpoint 1 --step "Starting execution..."`
+  - *Step Updates*: Run `aiwf step --step "<step_desc>" --log "<progress_message>"` progressively during major steps.
+  - *Completion*: Run `aiwf complete --checkpoint 1 --step "Step Complete" --next-skill "project-discovery" --next-command "discover"` when execution finishes successfully.
+  - *Failure*: Run `aiwf fail --step "<error_step>" --log "<error_details>"` if any phase fails.
 
 ## 🔒 GLOBAL POLICY REFERENCES
 
@@ -357,7 +357,7 @@ Docker is not installed.
 Docker enables running Qdrant (vector database) for semantic search.
 
 ```bash
-python3 .agents/skills/workflow-runtime/scripts/workflow_runtime.py prompt select --question "Install Docker?" --options "Yes|No" --default "No"
+aiwf prompt select --question "Install Docker?" --options "Yes|No" --default "No"
 ```
 
 If `y`:
@@ -377,7 +377,7 @@ If Docker is installed but not running:
 Docker is installed but the daemon is not running.
 
 ```bash
-python3 .agents/skills/workflow-runtime/scripts/workflow_runtime.py prompt select --question "Start Docker?" --options "Yes|No" --default "No"
+aiwf prompt select --question "Start Docker?" --options "Yes|No" --default "No"
 ```
 
 If `y`:
@@ -406,7 +406,7 @@ Qdrant vector database is not running.
 Qdrant enables semantic search via project-rag-search.
 
 ```bash
-python3 .agents/skills/workflow-runtime/scripts/workflow_runtime.py prompt select --question "Start Qdrant using Docker?" --options "Yes|No" --default "No"
+aiwf prompt select --question "Start Qdrant using Docker?" --options "Yes|No" --default "No"
 ```
 
 If `y`:
@@ -539,7 +539,7 @@ If collection missing:
 Collection "[name]" does not exist in Qdrant.
 
 ```bash
-python3 .agents/skills/workflow-runtime/scripts/workflow_runtime.py prompt select --question "Create collection?" --options "Yes|No" --default "No"
+aiwf prompt select --question "Create collection?" --options "Yes|No" --default "No"
 ```
 
 ---
@@ -573,7 +573,7 @@ Embedding providers are used for semantic search.
 ```
 
 ```bash
-python3 .agents/skills/workflow-runtime/scripts/workflow_runtime.py prompt select --question "Choose embedding provider to configure/install:" --options "Ollama (local, free)|Sentence Transformers (local Python)|OpenAI (cloud, paid)|Google Gemini (cloud)|Anthropic Claude (cloud)|None" --default "None"
+aiwf prompt select --question "Choose embedding provider to configure/install:" --options "Ollama (local, free)|Sentence Transformers (local Python)|OpenAI (cloud, paid)|Google Gemini (cloud)|Anthropic Claude (cloud)|None" --default "None"
 ```
 
 **Ollama installation (if user confirms):**
@@ -582,7 +582,7 @@ Installing Ollama and embedding model.
 This will download approximately 350MB.
 
 ```bash
-python3 .agents/skills/workflow-runtime/scripts/workflow_runtime.py prompt select --question "Proceed with Ollama installation?" --options "Yes|No" --default "No"
+aiwf prompt select --question "Proceed with Ollama installation?" --options "Yes|No" --default "No"
 ```
 
 If `y`:
@@ -618,7 +618,7 @@ If `.agents/` does not exist:
 .agents/ directory not found.
 
 ```bash
-python3 .agents/skills/workflow-runtime/scripts/workflow_runtime.py prompt select --question "Create project AI configuration directory?" --options "Yes|No" --default "No"
+aiwf prompt select --question "Create project AI configuration directory?" --options "Yes|No" --default "No"
 ```
 
 If `y`:
@@ -637,7 +637,7 @@ If `.agents/memory.config.json` does not exist:
 Project Memory configuration not found.
 
 ```bash
-python3 .agents/skills/workflow-runtime/scripts/workflow_runtime.py prompt select --question "Initialize .agents/memory.config.json?" --options "Yes|No" --default "No"
+aiwf prompt select --question "Initialize .agents/memory.config.json?" --options "Yes|No" --default "No"
 ```
 
 This will create:
@@ -675,7 +675,7 @@ If exists but fields are invalid/missing, print specific field errors:
   ❌ memory_root: missing
 
 ```bash
-python3 .agents/skills/workflow-runtime/scripts/workflow_runtime.py prompt select --question "Repair configuration?" --options "Yes|No" --default "No"
+aiwf prompt select --question "Repair configuration?" --options "Yes|No" --default "No"
 ```
 
 ---

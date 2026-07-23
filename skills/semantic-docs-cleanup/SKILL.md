@@ -1,4 +1,4 @@
----
+﻿---
 name: semantic-docs-cleanup
 description: Use when cleaning or migrating the project docs directory into semantic feature-family folders. Safely inventories legacy docs, classifies feature families, backs up files, migrates clean tracked artifacts into docs/features/<feature-family>/<stage>/, skips WIP, removes empty obsolete folders, and writes audit reports.
 command: /semantic-docs-cleanup
@@ -48,20 +48,20 @@ Use this skill when the user asks to clean, migrate, regroup, reorganize, audit,
 1. Read `AI_RULES.md` and `AGENTS.md` documentation governance rules.
 2. Run a dry-run inventory:
    ```bash
-   python skills/semantic-docs-cleanup/scripts/semantic_docs_cleanup.py --dry-run
+   aiwf docs cleanup --dry-run
    ```
 3. Review the generated dry-run report under `_to_delete/semantic-docs-cleanup/reports/`.
 4. If classification looks wrong, rerun with explicit overrides:
    ```bash
-   python skills/semantic-docs-cleanup/scripts/semantic_docs_cleanup.py --dry-run --override docs/path/file.md=workflow-runtime:reports
+   aiwf docs cleanup --dry-run --override docs/path/file.md=workflow-runtime:reports
    ```
 5. Apply only after the dry-run has no blocking failures and the user asked for cleanup:
    ```bash
-   python skills/semantic-docs-cleanup/scripts/semantic_docs_cleanup.py --apply
+   aiwf docs cleanup --apply
    ```
 6. Independently validate the result:
    ```bash
-   python skills/semantic-docs-cleanup/scripts/semantic_docs_cleanup.py --validate-only
+   aiwf docs cleanup --validate-only
    ```
 7. Report PASS only when:
    - no clean tracked legacy files remain outside `docs/features/`;

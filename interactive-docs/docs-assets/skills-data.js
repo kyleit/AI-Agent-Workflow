@@ -2,18 +2,18 @@
 const skillsData = [
   {
     "name": "architecture-review",
-    "command": "/audit-arch",
-    "category": "architecture",
+    "command": "/architecture-review",
+    "category": "quality",
     "checkpoint": "N/A",
-    "purpose": "Đánh giá kiến trúc thiết kế giải pháp thiết lập trước khi tạo Technical Design Blueprint.",
+    "purpose": "# Skill: Architecture Review",
     "input": "See the skill documentation for required inputs and runtime prerequisites.",
     "output": "Skill-specific artifacts, checks, reports, or runtime state updates.",
     "pitfall": "Follow AI_RULES.md, approval gates, and skill-specific hard rules before modifying files."
   },
   {
     "name": "blueprint-to-implementation",
-    "command": "/implement",
-    "category": "workflow",
+    "command": "/blueprint-to-implementation",
+    "category": "tooling",
     "checkpoint": "6",
     "purpose": "Enforces Blueprint validation as the sole inputs for implementation, upgraded to support v3.2 JSON blueprints.",
     "input": "See the skill documentation for required inputs and runtime prerequisites.",
@@ -22,20 +22,20 @@ const skillsData = [
   },
   {
     "name": "brainstorming",
-    "command": "/brainstorm",
-    "category": "workflow",
+    "command": "/brainstorming",
+    "category": "tooling",
     "checkpoint": "3",
-    "purpose": "Skill definition.",
+    "purpose": "Complete, self-contained prompt for the `brainstorming-to-plan` Skill. The Planning Agent must require no further clarification from this section.",
     "input": "See the skill documentation for required inputs and runtime prerequisites.",
     "output": "Skill-specific artifacts, checks, reports, or runtime state updates.",
     "pitfall": "Follow AI_RULES.md, approval gates, and skill-specific hard rules before modifying files."
   },
   {
     "name": "brainstorming-to-plan",
-    "command": "/plan",
-    "category": "workflow",
+    "command": "/brainstorming-to-plan",
+    "category": "tooling",
     "checkpoint": "4",
-    "purpose": "Convert a structured master brainstorming document into a formal Execution Plan (Markdown & JSON) using a Memory-First strategy and the FEAT-XXX Feature ID format.",
+    "purpose": "Execute a planning prompt from a master brainstorming document and generate a complete, production-ready Implementation Plan under `docs/plans/`.",
     "input": "See the skill documentation for required inputs and runtime prerequisites.",
     "output": "Skill-specific artifacts, checks, reports, or runtime state updates.",
     "pitfall": "Follow AI_RULES.md, approval gates, and skill-specific hard rules before modifying files."
@@ -52,10 +52,10 @@ const skillsData = [
   },
   {
     "name": "create-adr",
-    "command": "/adr",
-    "category": "architecture",
+    "command": "/create-adr",
+    "category": "tooling",
     "checkpoint": "N/A",
-    "purpose": "Create Architecture Decision Records (ADRs) only when explicitly invoked.",
+    "purpose": "This Skill is used to record and document critical architectural decisions and their trade-offs. It is invoked when `plan-to-blueprint` recommends an ADR, or when a developer determines a significant architecture decision is required.",
     "input": "See the skill documentation for required inputs and runtime prerequisites.",
     "output": "Skill-specific artifacts, checks, reports, or runtime state updates.",
     "pitfall": "Follow AI_RULES.md, approval gates, and skill-specific hard rules before modifying files."
@@ -72,40 +72,40 @@ const skillsData = [
   },
   {
     "name": "debug-to-verify",
-    "command": "/verify",
-    "category": "workflow",
+    "command": "/debug-to-verify",
+    "category": "quality",
     "checkpoint": "9",
-    "purpose": "Validate that the feature is production-ready. Enforce standards before release.",
+    "purpose": "Perform a final qualitative and quantitative audit on the active feature implementation to ensure it meets all acceptance criteria, technical design blueprints, and security/performance standards before staging for release.",
     "input": "See the skill documentation for required inputs and runtime prerequisites.",
     "output": "Skill-specific artifacts, checks, reports, or runtime state updates.",
     "pitfall": "Follow AI_RULES.md, approval gates, and skill-specific hard rules before modifying files."
   },
   {
     "name": "document-compliance-assessment",
-    "command": "/verify-doc",
-    "category": "quality",
+    "command": "/document-compliance-assessment",
+    "category": "tooling",
     "checkpoint": "N/A",
-    "purpose": "Use when reviewing workflow artifacts, traceability, relative-path compliance, and pre-approval document quality before a phase can pass.",
+    "purpose": "# Skill: document-compliance-assessment (Đánh giá tuân thủ tài liệu)",
     "input": "See the skill documentation for required inputs and runtime prerequisites.",
     "output": "Skill-specific artifacts, checks, reports, or runtime state updates.",
     "pitfall": "Follow AI_RULES.md, approval gates, and skill-specific hard rules before modifying files."
   },
   {
     "name": "environment-bootstrap",
-    "command": "/bootstrap",
+    "command": "/environment-bootstrap",
     "category": "environment",
     "checkpoint": "N/A",
-    "purpose": "Prepare the local machine for the AI Coding workflow. Installs and configures required tools (Git, Python, Node.js, SQLite, Tree-sitter, QMD), initializes Project Memory configuration, verifies AI Skills, and validates optional infrastructure (Docker, Qdrant, Ollama). Safe components are installed automatically. Unsafe components require explicit user confirmation.",
+    "purpose": "**Prepare and configure** the local machine for the full **Memory-Driven AI Coding Workflow**.",
     "input": "See the skill documentation for required inputs and runtime prerequisites.",
     "output": "Skill-specific artifacts, checks, reports, or runtime state updates.",
     "pitfall": "Follow AI_RULES.md, approval gates, and skill-specific hard rules before modifying files."
   },
   {
     "name": "environment-health",
-    "command": "/doctor",
+    "command": "/environment-health",
     "category": "environment",
     "checkpoint": "N/A",
-    "purpose": "Read-only inspection of the local AI Coding environment. Detects OS, Git, Python, Node.js, Docker, SQLite, Tree-sitter, Qdrant, embedding providers, Ollama, QMD, Project Memory, and required AI Skills. Never modifies anything. Returns a detailed Environment Health Report with actionable recommendations.",
+    "purpose": "Perform a **complete, read-only inspection** of the local development environment and return a detailed **Environment Health Report**.",
     "input": "See the skill documentation for required inputs and runtime prerequisites.",
     "output": "Skill-specific artifacts, checks, reports, or runtime state updates.",
     "pitfall": "Follow AI_RULES.md, approval gates, and skill-specific hard rules before modifying files."
@@ -122,10 +122,10 @@ const skillsData = [
   },
   {
     "name": "frontend-visual-debug",
-    "command": "/visual-debug",
-    "category": "workflow",
+    "command": "/frontend-visual-debug",
+    "category": "quality",
     "checkpoint": "8",
-    "purpose": "Validate frontend implementation visually. Uses browser tools when available to debug and verify frontend UI against the expected design and requirements.",
+    "purpose": "Validate frontend implementation visually. This Skill acts as the entry-point coordinator for the Visual Intelligence Runtime (VIR).",
     "input": "See the skill documentation for required inputs and runtime prerequisites.",
     "output": "Skill-specific artifacts, checks, reports, or runtime state updates.",
     "pitfall": "Follow AI_RULES.md, approval gates, and skill-specific hard rules before modifying files."
@@ -152,30 +152,30 @@ const skillsData = [
   },
   {
     "name": "implementation-to-debug",
-    "command": "/debug",
-    "category": "workflow",
+    "command": "/implementation-to-debug",
+    "category": "quality",
     "checkpoint": "7",
-    "purpose": "Review the implementation. Identify and resolve problems before verification.",
+    "purpose": "Review the implementation, verify code standards, run targeted validation, debug tests, exercise real runtime cases without mocks/fake data, capture browser evidence when UI is affected, and generate the post-implementation evidence report before final verification.",
     "input": "See the skill documentation for required inputs and runtime prerequisites.",
     "output": "Skill-specific artifacts, checks, reports, or runtime state updates.",
     "pitfall": "Follow AI_RULES.md, approval gates, and skill-specific hard rules before modifying files."
   },
   {
     "name": "implementation-to-release",
-    "command": "/release",
-    "category": "workflow",
+    "command": "/implementation-to-release",
+    "category": "tooling",
     "checkpoint": "10",
-    "purpose": "Enforces explicit user-driven releases with workflow-aware validation before any release activities.",
+    "purpose": "Enforces explicit user-driven releases with validation matched to the release context.",
     "input": "See the skill documentation for required inputs and runtime prerequisites.",
     "output": "Skill-specific artifacts, checks, reports, or runtime state updates.",
     "pitfall": "Follow AI_RULES.md, approval gates, and skill-specific hard rules before modifying files."
   },
   {
     "name": "initialize-workflow",
-    "command": "/init",
+    "command": "/initialize-workflow",
     "category": "runtime",
     "checkpoint": "1",
-    "purpose": "Lightweight runtime initializer for the AI Engineering Workflow. Loads mandatory guardrails, reads cached git/state/approval/dashboard context only. Does NOT load full memory, RAG, workspace scan, environment CLI checks, or transcript sync.",
+    "purpose": "The `initialize-workflow` Skill compiles a lightweight, unified runtime context so subsequent Skills do not duplicate checks. All expensive operations (memory load, RAG connect, workspace scan, env CLI checks) are deferred to the skills that actually need them via the Runtime Dependency Resolver.",
     "input": "See the skill documentation for required inputs and runtime prerequisites.",
     "output": "Skill-specific artifacts, checks, reports, or runtime state updates.",
     "pitfall": "Follow AI_RULES.md, approval gates, and skill-specific hard rules before modifying files."
@@ -211,9 +211,9 @@ const skillsData = [
     "pitfall": "Follow AI_RULES.md, approval gates, and skill-specific hard rules before modifying files."
   },
   {
-    "name": "orchestrator [DEPRECATED]",
-    "command": "/orchestrate",
-    "category": "orchestration",
+    "name": "orchestrator",
+    "command": "/orchestrator",
+    "category": "tooling",
     "checkpoint": "N/A",
     "purpose": "(DEPRECATED) Legacy autonomous execution orchestrator. Use workflow-coordinator instead.",
     "input": "See the skill documentation for required inputs and runtime prerequisites.",
@@ -222,8 +222,8 @@ const skillsData = [
   },
   {
     "name": "plan-to-blueprint",
-    "command": "/blueprint",
-    "category": "workflow",
+    "command": "/plan-to-blueprint",
+    "category": "tooling",
     "checkpoint": "5",
     "purpose": "Generate a production-grade Technical Blueprint (Markdown & JSON) from an approved Implementation Plan using a Memory-First strategy and the FEAT-XXX Feature ID format.",
     "input": "See the skill documentation for required inputs and runtime prerequisites.",
@@ -232,20 +232,20 @@ const skillsData = [
   },
   {
     "name": "post-release-lifecycle",
-    "command": "/post-release",
-    "category": "quality",
+    "command": "/post-release-lifecycle",
+    "category": "tooling",
     "checkpoint": "N/A",
-    "purpose": "Thực hiện quy trình vận hành và kiểm tra 10 bước nghiêm ngặt sau khi phát hành phiên bản.",
+    "purpose": "# Skill: Post-Release Lifecycle",
     "input": "See the skill documentation for required inputs and runtime prerequisites.",
     "output": "Skill-specific artifacts, checks, reports, or runtime state updates.",
     "pitfall": "Follow AI_RULES.md, approval gates, and skill-specific hard rules before modifying files."
   },
   {
     "name": "project-discovery",
-    "command": "/discover",
+    "command": "/project-discovery",
     "category": "environment",
     "checkpoint": "N/A",
-    "purpose": "Discover target project's tech stack (languages, frameworks, tools, platforms, databases, infrastructure) and generate project-profile.json to configure dynamic workflow checkpoints.",
+    "purpose": "Discover target project's technologies (languages, frameworks, compilers, test frameworks, lint tools, database systems, runtime environments, and infrastructure) and generate `.agents/project-profile.json`.",
     "input": "See the skill documentation for required inputs and runtime prerequisites.",
     "output": "Skill-specific artifacts, checks, reports, or runtime state updates.",
     "pitfall": "Follow AI_RULES.md, approval gates, and skill-specific hard rules before modifying files."
@@ -302,7 +302,7 @@ const skillsData = [
   },
   {
     "name": "quick-feature",
-    "command": "/feature",
+    "command": "/quick-feature",
     "category": "tooling",
     "checkpoint": "N/A",
     "purpose": "Enforces a three-stage workflow (Specification, Blueprint, and Implementation) for quick features, upgraded with v3.2 Mini Spec quality standards and rich planning sections.",
@@ -312,7 +312,7 @@ const skillsData = [
   },
   {
     "name": "quick-fix",
-    "command": "/fix",
+    "command": "/quick-fix",
     "category": "tooling",
     "checkpoint": "N/A",
     "purpose": "Enforces a three-stage workflow (Specification, Blueprint, and Implementation) for quick fixes, upgraded with v3.2 Mini Spec quality standards and rich planning sections.",
@@ -322,10 +322,10 @@ const skillsData = [
   },
   {
     "name": "resume-workflow",
-    "command": "/resume",
+    "command": "/resume-workflow",
     "category": "runtime",
     "checkpoint": "Runtime",
-    "purpose": "Resume the AI Engineering Workflow from the last recorded checkpoint by reading .agents/.session.json and validating the workspace environment.",
+    "purpose": "The **resume-workflow** Skill allows the user or orchestrator to recover and continue execution from the last valid checkpoint stored in `.agents/.session.json`. It prevents configuration loss, context drift, and branch misalignment.",
     "input": "See the skill documentation for required inputs and runtime prerequisites.",
     "output": "Skill-specific artifacts, checks, reports, or runtime state updates.",
     "pitfall": "Follow AI_RULES.md, approval gates, and skill-specific hard rules before modifying files."
@@ -333,9 +333,9 @@ const skillsData = [
   {
     "name": "semantic-docs-cleanup",
     "command": "/semantic-docs-cleanup",
-    "category": "governance",
+    "category": "tooling",
     "checkpoint": "N/A",
-    "purpose": "Use when cleaning or migrating the project docs directory into semantic feature-family folders. Safely inventories legacy docs, classifies feature families, backs up files, migrates clean tracked artifacts into docs/features/<feature-family>/<stage>/, skips WIP, removes empty obsolete folders, and writes audit reports.",
+    "purpose": "Clean the `docs/` tree by migrating legacy workflow artifacts into the canonical semantic layout:",
     "input": "See the skill documentation for required inputs and runtime prerequisites.",
     "output": "Skill-specific artifacts, checks, reports, or runtime state updates.",
     "pitfall": "Follow AI_RULES.md, approval gates, and skill-specific hard rules before modifying files."
@@ -352,10 +352,10 @@ const skillsData = [
   },
   {
     "name": "software-development-workflow",
-    "command": "/workflow",
-    "category": "workflow",
+    "command": "/software-development-workflow",
+    "category": "runtime",
     "checkpoint": "N/A",
-    "purpose": "Pure Workflow Orchestrator. Evaluates checkpoints and ensures Blueprint execution and manual Release gates.",
+    "purpose": "This Skill is the **central coordinator** of the entire AI Coding Platform. It acts as a **Project Manager** to determine the current phase, verify Quality Gates, check Blueprint approvals, perform raw request classification, and recommend the single correct next Skill to run.",
     "input": "See the skill documentation for required inputs and runtime prerequisites.",
     "output": "Skill-specific artifacts, checks, reports, or runtime state updates.",
     "pitfall": "Follow AI_RULES.md, approval gates, and skill-specific hard rules before modifying files."
@@ -412,10 +412,10 @@ const skillsData = [
   },
   {
     "name": "workflow-coordinator",
-    "command": "/tick",
-    "category": "workflow",
+    "command": "/workflow-coordinator",
+    "category": "runtime",
     "checkpoint": "N/A",
-    "purpose": "Acts as the stateless entry gate and logical manager of the AI Engineering Workflow.",
+    "purpose": "The workflow-coordinator skill acts as the stateless entry gate and logical manager of the AI Engineering Workflow. It is invoked on every user tick to parse incoming instructions, enforce gates, load/verify split-state files, check active workflow resume priority, and output deterministic suggestions for the next skill to invoke. It explicitly prohibits the creation of background daemons, heartbeat monitors, or resident loops.",
     "input": "See the skill documentation for required inputs and runtime prerequisites.",
     "output": "Skill-specific artifacts, checks, reports, or runtime state updates.",
     "pitfall": "Follow AI_RULES.md, approval gates, and skill-specific hard rules before modifying files."

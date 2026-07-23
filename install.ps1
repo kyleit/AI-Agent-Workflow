@@ -309,7 +309,20 @@ if (-not (Test-Path $SessionPath)) {
     Set-Content -Path $SessionPath -Value $DefaultSession -Encoding UTF8
 }
 
-# 5. Validation and Summary
+# 5. Install aiwf CLI binary
+Log-Info "Installing aiwf CLI binary..."
+$AiwfBinInstaller = Join-Path $ScriptDir "install-aiwf-bin.ps1"
+if (Test-Path $AiwfBinInstaller) {
+    try {
+        & $AiwfBinInstaller -BinSrcDir (Join-Path $ScriptDir "bin")
+    } catch {
+        Log-Warn "aiwf binary install failed: $_ — will use PATH or embedded fallback."
+    }
+} else {
+    Log-Warn "install-aiwf-bin.ps1 not found — ensure 'aiwf' is in PATH."
+}
+
+# 6. Validation
 $MissingFiles = 0
 $RequiredFiles = @("AGENTS.md", "AI_RULES.md", "MANIFEST.json", $SkillDir, $TemplateDir, "agents", "runtime", "docs/release-guide.md")
 foreach ($File in $RequiredFiles) {
@@ -325,9 +338,21 @@ if ($MissingFiles -gt 0) {
     exit 1
 }
 
-if (Get-Command python3 -ErrorAction SilentlyContinue) {
+# 7. Initialize workspace with aiwf CLI (replaces python3 workflow_runtime.py init)
+$AiwfBin = Get-Command aiwf -ErrorAction SilentlyContinue
+if ($AiwfBin) {
+    Log-Info "Initializing aiwf workspace..."
+    $env:AIWF_WORKSPACE_ROOT = $ProjectRoot
+    & aiwf init 2>&1 | ForEach-Object { Log-Info $_ }
+    & aiwf config --check-only 2>&1 | ForEach-Object { Log-Info $_ }
+    $env:AIWF_WORKSPACE_ROOT = $null
+} elseif (Get-Command python3 -ErrorAction SilentlyContinue) {
+    Log-Info "Falling back to Python runtime for initialization..."
     python3 (Join-Path (Join-Path $InstallTarget $SkillDir) "workflow-runtime/scripts/workflow_runtime.py") $InitArgs
     python3 (Join-Path (Join-Path $InstallTarget $SkillDir) "workflow-runtime/scripts/workflow_runtime.py") registry register --source install --framework-root $ScriptDir
+} else {
+    Log-Warn "Neither aiwf nor python3 found — skipping workspace initialization."
+    Log-Warn "Run 'aiwf init' manually after installing the aiwf CLI."
 }
 
 Log-Success "AI Skill Framework v$VERSION has been successfully installed!"

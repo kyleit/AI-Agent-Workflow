@@ -334,16 +334,24 @@ EOF
     fi
 fi
 
-# 5. Dependency Installation & Verification
-log_info "Verifying and installing Python dependencies..."
-if command -v pip3 &> /dev/null; then
-    pip3 install --quiet --upgrade pyyaml psutil pytest || log_warn "Failed to install dependencies via pip3."
-    log_success "Python dependencies verified/installed: pyyaml, psutil, pytest."
-elif command -v pip &> /dev/null; then
-    pip install --quiet --upgrade pyyaml psutil pytest || log_warn "Failed to install dependencies via pip."
-    log_success "Python dependencies verified/installed: pyyaml, psutil, pytest."
+# 5. Install aiwf CLI binary
+log_info "Installing aiwf CLI binary..."
+if [ -f "$SCRIPT_DIR/install-aiwf-bin.sh" ]; then
+    bash "$SCRIPT_DIR/install-aiwf-bin.sh" || log_warn "aiwf binary install skipped — will use PATH or embedded fallback."
 else
-    log_warn "pip/pip3 command not found. Please install PyYAML, psutil, and pytest manually."
+    log_warn "install-aiwf-bin.sh not found — aiwf binary not bundled. Ensure 'aiwf' is in PATH."
+fi
+
+# Legacy: install Python deps only if aiwf is NOT found (backward compat)
+if ! command -v aiwf &>/dev/null; then
+    log_info "aiwf not found in PATH — installing Python dependencies as fallback..."
+    if command -v pip3 &>/dev/null; then
+        pip3 install --quiet --upgrade pyyaml psutil pytest || log_warn "Failed to install dependencies via pip3."
+    elif command -v pip &>/dev/null; then
+        pip install --quiet --upgrade pyyaml psutil pytest || log_warn "Failed to install dependencies via pip."
+    else
+        log_warn "pip/pip3 not found. Install PyYAML, psutil, and pytest manually for Python fallback."
+    fi
 fi
 
 # If only installing dependencies, exit successfully here
@@ -366,14 +374,23 @@ if [ "$MISSING_FILES" -gt 0 ]; then
     exit 1
 fi
 
-if command -v python3 >/dev/null 2>&1; then
-    log_info "Synchronizing initial session state with SQLite..."
+# 6b. Initialize session with aiwf CLI (replaces workflow_runtime.py init)
+if command -v aiwf &>/dev/null; then
+    log_info "Initializing aiwf workspace..."
+    AIWF_WORKSPACE_ROOT="$PROJECT_ROOT" aiwf init || log_warn "aiwf init failed — workspace dirs may need manual creation."
+    log_info "Registering project in global registry..."
+    AIWF_WORKSPACE_ROOT="$PROJECT_ROOT" aiwf config --check-only || log_warn "aiwf config check failed."
+elif command -v python3 >/dev/null 2>&1; then
+    log_info "Falling back to Python runtime for initialization..."
     INIT_ARGS=""
     if [ -n "$PERMISSION" ]; then
         INIT_ARGS="--permission $PERMISSION"
     fi
     python3 "$INSTALL_TARGET/$SKILL_DIR/workflow-runtime/scripts/workflow_runtime.py" init $INIT_ARGS || log_warn "Failed to sync initial session with SQLite."
     python3 "$INSTALL_TARGET/$SKILL_DIR/workflow-runtime/scripts/workflow_runtime.py" registry register --source install --framework-root "$SCRIPT_DIR" || log_warn "Failed to register project in global registry."
+else
+    log_warn "Neither aiwf nor python3 found — skipping workspace initialization."
+    log_warn "Run 'aiwf init' manually after installing the aiwf CLI."
 fi
 
 log_success "AI Skill Framework v$VERSION has been successfully installed!"

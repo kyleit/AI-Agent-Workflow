@@ -1,4 +1,4 @@
----
+﻿---
 name: project-rag-search
 command: memory-search
 aliases:
@@ -32,7 +32,7 @@ Provide semantic retrieval of Project Memory in response to a natural language q
 ## Script Invocation
 Execute the Python CLI command:
 ```bash
-python3 .agents/runtime/scripts/project_memory/cli.py search "<query>"
+aiwf rag search search "<query>"
 ```
 
 ## Expected Output

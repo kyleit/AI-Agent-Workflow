@@ -1,4 +1,4 @@
----
+﻿---
 name: implementation-to-release
 command: release
 aliases:
@@ -37,7 +37,7 @@ Enforces explicit user-driven releases with validation matched to the release co
 
 ## 🔒 WORKFLOW RUNTIME & INITIALIZATION CHECK
 
-This Skill MUST interface with the centralized Python CLI Runtime Engine:
+This Skill MUST interface with the aiwf Go Native CLI Engine (`aiwf`):
 - **Validate Checkpoint (Workflow Release Mode only)**: If `.agents/state/workflow.json` has an active workflow or active work item, validate that the workflow has reached the post-verification release point before taking release action. Prefer `aiwf` runtime commands when available. If validation fails in Workflow Release Mode, halt execution immediately.
 - **Maintenance Release Mode**: If no active workflow exists and the current user turn explicitly requests release, do not require checkpoint 9 and do not abort only because `.agents/state/workflow.json` has `active_workflow: null`. Continue with explicit release request validation, reviewed Git diff, targeted tests, version/changelog update, public export, and release approval.
 - **Progress Tracking**:

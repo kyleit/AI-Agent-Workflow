@@ -1,4 +1,4 @@
----
+﻿---
 name: software-development-workflow
 command: workflow
 aliases:
@@ -39,8 +39,8 @@ It does NOT perform any engineering work, code modification, or file writing.
 
 ## 🔒 WORKFLOW RUNTIME & INITIALIZATION CHECK
 
-This Skill interfaces with the centralized Python CLI Runtime Engine:
-- **Validate Checkpoint**: Run `python skills/workflow-runtime/scripts/workflow_runtime.py validate --checkpoint "optional"` before taking any action.
+This Skill interfaces with the aiwf Go Native CLI Engine (`aiwf`):
+- **Validate Checkpoint**: Run `aiwf validate --checkpoint "optional"` before taking any action.
 - **Progress Tracking**: Update status and log progress using `workflow_runtime.py` when integrated in a workflow session.
 
 ---
@@ -159,7 +159,7 @@ Before classifying any user request, check the session file (`.agents/.session.j
    * Immediately bypass reclassification.
    * Run the CLI to resume the active workflow:
      ```bash
-     python skills/workflow-runtime/scripts/workflow_runtime.py active-workflow resume
+     aiwf active-workflow resume
      ```
    * Immediately transfer control and execute the instructions of the resumed skill.
    * Stop processing.
@@ -191,11 +191,11 @@ If there is no active workflow or the user's request is not a continue command, 
 Save the routing decision into `.agents/.session.json` under both `"orchestrator"` and `"suggestion_gate"` keys. Call the CLI:
 * To recommend a single skill:
   ```bash
-  python skills/workflow-runtime/scripts/workflow_runtime.py suggest --request "<request>" --recommend "<skill-name>"
+  aiwf suggest --request "<request>" --recommend "<skill-name>"
   ```
 * To suggest multiple ambiguous options:
   ```bash
-  python skills/workflow-runtime/scripts/workflow_runtime.py suggest --request "<request>" --options "quick-fix,quick-feature,brainstorming"
+  aiwf suggest --request "<request>" --options "quick-fix,quick-feature,brainstorming"
   ```
 
 Ensure the session block has:
@@ -219,12 +219,12 @@ If confidence is high (one workflow is clearly correct), do not ask the user to 
 
 Persist the routing decision:
 ```bash
-python skills/workflow-runtime/scripts/workflow_runtime.py suggest --request "<request>" --recommend "<skill-name>"
+aiwf suggest --request "<request>" --recommend "<skill-name>"
 ```
 
 Then dispatch immediately:
 ```bash
-python skills/workflow-runtime/scripts/workflow_runtime.py start --skill <recommended_skill> --command <recommended_command> --checkpoint <checkpoint> --step <step>
+aiwf start --skill <recommended_skill> --command <recommended_command> --checkpoint <checkpoint> --step <step>
 ```
 Immediately execute the target Skill's instructions. Continue through the pre-approval artifact and internal review loops until the Technical Design Blueprint passes review, then stop for final user approval before implementation.
 

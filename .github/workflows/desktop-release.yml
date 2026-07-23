@@ -116,6 +116,7 @@ jobs:
           APPLE_APP_SPECIFIC_PASSWORD: ${{ secrets.APPLE_APP_SPECIFIC_PASSWORD }}
         run: |
           cd desktop
+          make embed-aiwf
           make package
 
       - name: Package Windows Application
@@ -123,6 +124,7 @@ jobs:
         shell: pwsh
         run: |
           cd desktop
+          make embed-aiwf
           go run github.com/wailsapp/wails/v2/cmd/wails@v2.13.0 build -platform windows/amd64 -clean
           New-Item -ItemType Directory -Force -Path dist | Out-Null
           $version = (Get-Content ../MANIFEST.json | ConvertFrom-Json).version

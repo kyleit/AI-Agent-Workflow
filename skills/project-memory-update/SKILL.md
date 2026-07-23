@@ -1,4 +1,4 @@
----
+﻿---
 name: project-memory-update
 command: memory-sync
 aliases:
@@ -32,9 +32,9 @@ Perform an incremental update of Project Memory based on files changed since the
 ## Script Invocation
 Execute the Python CLI command:
 ```bash
-python3 .agents/runtime/scripts/project_memory/cli.py update
+aiwf memory update update
 ```
-*(Nếu muốn chạy full rebuild: `python3 .agents/runtime/scripts/project_memory/cli.py update --full`)*
+*(Nếu muốn chạy full rebuild: `aiwf memory update update --full`)*
 
 ## Expected Output
 The script returns a structured JSON payload:

@@ -1,4 +1,4 @@
----
+﻿---
 name: environment-health
 command: doctor
 aliases:
@@ -62,13 +62,13 @@ You have full **read-only** access to:
 
 ## 🔒 WORKFLOW RUNTIME & INITIALIZATION CHECK
 
-This Skill MUST interface with the centralized Python CLI Runtime Engine:
-- **Validate Checkpoint**: Run `python skills/workflow-runtime/scripts/workflow_runtime.py validate --checkpoint "at least 1"` before taking any action. If validation fails, halt execution immediately.
+This Skill MUST interface with the aiwf Go Native CLI Engine (`aiwf`):
+- **Validate Checkpoint**: Run `aiwf validate --checkpoint "at least 1"` before taking any action. If validation fails, halt execution immediately.
 - **Progress Tracking**:
-  - *Start*: Run `python skills/workflow-runtime/scripts/workflow_runtime.py start --skill "environment-health" --command "doctor" --checkpoint 1 --step "Starting execution..."`
-  - *Step Updates*: Run `python skills/workflow-runtime/scripts/workflow_runtime.py step --step "<step_desc>" --log "<progress_message>"` progressively during major steps.
-  - *Completion*: Run `python skills/workflow-runtime/scripts/workflow_runtime.py complete --checkpoint 1 --step "Step Complete" --next-skill "project-discovery" --next-command "discover"` when execution finishes successfully.
-  - *Failure*: Run `python skills/workflow-runtime/scripts/workflow_runtime.py fail --step "<error_step>" --log "<error_details>"` if any phase fails.
+  - *Start*: Run `aiwf start --skill "environment-health" --command "doctor" --checkpoint 1 --step "Starting execution..."`
+  - *Step Updates*: Run `aiwf step --step "<step_desc>" --log "<progress_message>"` progressively during major steps.
+  - *Completion*: Run `aiwf complete --checkpoint 1 --step "Step Complete" --next-skill "project-discovery" --next-command "discover"` when execution finishes successfully.
+  - *Failure*: Run `aiwf fail --step "<error_step>" --log "<error_details>"` if any phase fails.
 
 ## 🔒 GLOBAL POLICY REFERENCES
 
