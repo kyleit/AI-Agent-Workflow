@@ -1,0 +1,46 @@
+replicaCount: 1          # single replica by design (in-memory WS registry + single-writer store)
+
+image:
+  repository: registry.example.invalid/example/message-bus
+  tag: ""                # defaults to .Chart.appVersion when empty
+  pullPolicy: IfNotPresent
+
+# Pull secret copied from ns-waas (see README): kubectl get secret gitlab-registry-secret ...
+imagePullSecrets:
+  - name: gitlab-registry-secret
+
+# Auth token (shared secret). Either set `token` (chart creates the Secret) OR
+# point `existingSecret` at a Secret that has key MSGBUS_TOKEN.
+token: ""
+existingSecret: ""
+
+service:
+  port: 80
+
+persistence:
+  enabled: true
+  size: 5Gi
+  storageClass: ""       # "" = cluster default
+  accessMode: ReadWriteOnce
+
+ingress:
+  enabled: true
+  className: nginx
+  host: msgbus.example.com     # <-- your domain
+  annotations:
+    nginx.ingress.kubernetes.io/proxy-read-timeout: "3600"
+    nginx.ingress.kubernetes.io/proxy-send-timeout: "3600"
+    nginx.ingress.kubernetes.io/proxy-body-size: "0"
+  tls:
+    enabled: true
+    secretName: msgbus-ws-tls
+    # cert-manager (optional): set clusterIssuer to auto-issue TLS
+    clusterIssuer: ""
+
+resources:
+  requests:
+    cpu: "50m"
+    memory: "64Mi"
+  limits:
+    cpu: "500m"
+    memory: "256Mi"

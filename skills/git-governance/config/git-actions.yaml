@@ -1,0 +1,33 @@
+# AIWF Git Action Taxonomy Configuration
+version: "1.0.0"
+
+actions:
+  STAGE:
+    requires_approval: true
+    approval_type: "GIT_APPROVAL"
+    side_effect: "LOCAL_WRITE"
+
+  COMMIT:
+    requires_approval: true
+    approval_type: "GIT_APPROVAL"
+    side_effect: "LOCAL_WRITE"
+
+  PUSH:
+    requires_approval: true
+    approval_type: "GIT_APPROVAL"
+    side_effect: "NETWORK_WRITE"
+
+  CREATE_PR:
+    requires_approval: true
+    approval_type: "GIT_APPROVAL"
+    side_effect: "NETWORK_WRITE"
+
+  MERGE:
+    requires_approval: true
+    approval_type: "GIT_APPROVAL"
+    side_effect: "NETWORK_WRITE"
+
+  TAG:
+    requires_approval: true
+    approval_type: "GIT_APPROVAL"
+    side_effect: "LOCAL_WRITE"

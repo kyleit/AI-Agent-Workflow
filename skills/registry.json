@@ -1,0 +1,36 @@
+{
+  "brainstorming": {
+    "name": "brainstorming",
+    "phase": "discovery",
+    "inputs": [
+      "feature_request",
+      "project_context"
+    ],
+    "required_outputs": [
+      "docs/brainstorming/*.md"
+    ],
+    "next_phase": "planning"
+  },
+  "brainstorming-to-plan": {
+    "name": "brainstorming-to-plan",
+    "phase": "planning",
+    "inputs": [
+      "brainstorm_file"
+    ],
+    "required_outputs": [
+      "docs/plans/*_plan.md"
+    ],
+    "next_phase": "Gate1_PlanApproval"
+  },
+  "blueprint": {
+    "name": "blueprint-to-implementation",
+    "phase": "blueprint",
+    "inputs": [
+      "plan_file"
+    ],
+    "required_outputs": [
+      "docs/blueprints/*_blueprint.md"
+    ],
+    "next_phase": "Gate2_BlueprintApproval"
+  }
+}

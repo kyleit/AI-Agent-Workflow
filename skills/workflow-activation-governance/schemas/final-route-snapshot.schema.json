@@ -1,0 +1,19 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "title": "AIWF Final Route Snapshot Schema",
+  "type": "object",
+  "version": "1.0.0",
+  "required": [
+    "snapshot_id",
+    "canonical_entrypoint",
+    "canonical_route_chain",
+    "content_hash"
+  ],
+  "properties": {
+    "snapshot_id": { "type": "string" },
+    "canonical_entrypoint": { "type": "string", "default": "workflow-coordinator" },
+    "canonical_route_chain": { "type": "array", "items": { "type": "string" } },
+    "content_hash": { "type": "string" },
+    "hash_algorithm": { "type": "string", "default": "SHA-256" }
+  }
+}

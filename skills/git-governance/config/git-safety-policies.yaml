@@ -1,0 +1,14 @@
+# AIWF Git Safety & Inspection Policies Configuration
+version: "1.0.0"
+
+defaults:
+  git_write_authorized: false
+  release_authorized: false
+  force_push_forbidden: true
+  rebase_forbidden: true
+  delete_branch_forbidden: true
+
+inspection_rules:
+  block_protected_file_changes: true
+  block_mirror_direct_changes: true
+  block_secrets: true

@@ -1,0 +1,38 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "title": "AIWF Test Failure Classification Schema",
+  "type": "object",
+  "version": "1.0.0",
+  "required": [
+    "failure_id",
+    "test_run_id",
+    "classification",
+    "status"
+  ],
+  "properties": {
+    "failure_id": { "type": "string" },
+    "test_run_id": { "type": "string" },
+    "classification": {
+      "type": "string",
+      "enum": [
+        "ASSERTION_FAILURE",
+        "SETUP_FAILURE",
+        "ENVIRONMENT_FAILURE",
+        "DEPENDENCY_FAILURE",
+        "TIMEOUT",
+        "RESOURCE_EXHAUSTION",
+        "NETWORK_FAILURE",
+        "FLAKY_SUSPECTED",
+        "TEST_DEFECT",
+        "PRODUCT_DEFECT",
+        "DATA_FIXTURE_FAILURE",
+        "PERMISSION_FAILURE",
+        "CANCELLED",
+        "UNKNOWN"
+      ]
+    },
+    "description": { "type": "string" },
+    "evidence": { "type": "string" },
+    "status": { "type": "string" }
+  }
+}

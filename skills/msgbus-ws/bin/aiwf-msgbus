@@ -1,0 +1,9 @@
+#!/usr/bin/env bash
+# One-command entry to the msgbus-ws client. Auto-loads the saved profile at
+# ~/.aiwf/msgbus.json (set once via `aiwf-msgbus init ...`).
+#
+#   aiwf-msgbus init --host msgbus.example.invalid --tls --token <TOKEN>
+#   aiwf-msgbus join            # realtime listen
+#   aiwf-msgbus send "hi" --to "Bảo Ngọc"
+here="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
+exec python "$here/../scripts/msgbus_client.py" "$@"

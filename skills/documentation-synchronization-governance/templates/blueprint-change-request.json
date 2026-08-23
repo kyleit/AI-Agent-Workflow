@@ -1,0 +1,20 @@
+{
+  "request_id": "",
+  "workflow_id": "",
+  "blueprint_id": "",
+  "reason_for_change": "",
+  "affected_architectures": [],
+  "affected_interfaces": [],
+  "affected_schemas": [],
+  "affected_acceptance_criteria": [],
+  "invalidated_gates": [
+    "CODE_BLOCK_GATE",
+    "BLUEPRINT_APPROVAL",
+    "BLUEPRINT_FREEZE",
+    "IMPLEMENTATION_APPROVAL"
+  ],
+  "status": "PENDING_REVISION",
+  "created_at": "",
+  "content_hash": "",
+  "hash_algorithm": "SHA-256"
+}

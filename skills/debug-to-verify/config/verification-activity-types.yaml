@@ -1,0 +1,46 @@
+# AIWF Verification Activity Types Configuration
+version: "1.0.0"
+
+activity_types:
+  STATIC_CHECK:
+    category: "static"
+    requires_approval: false
+    side_effect: "READ_ONLY"
+
+  SCHEMA_VALIDATION:
+    category: "static"
+    requires_approval: false
+    side_effect: "READ_ONLY"
+
+  REFERENCE_VALIDATION:
+    category: "static"
+    requires_approval: false
+    side_effect: "READ_ONLY"
+
+  BUILD_CHECK:
+    category: "build"
+    requires_approval: false
+    side_effect: "LOCAL_WRITE"
+
+  UNIT_TEST:
+    category: "test"
+    requires_approval: true
+    approval_type: "TEST_EXECUTION_APPROVAL"
+    exclusive_owner: "TESTER"
+
+  INTEGRATION_TEST:
+    category: "test"
+    requires_approval: true
+    approval_type: "TEST_EXECUTION_APPROVAL"
+    exclusive_owner: "TESTER"
+
+  E2E_TEST:
+    category: "test"
+    requires_approval: true
+    approval_type: "TEST_EXECUTION_APPROVAL"
+    exclusive_owner: "TESTER"
+
+  ARCHITECTURE_CONFORMANCE:
+    category: "conformance"
+    requires_approval: false
+    review_type: "FINAL_CONFORMANCE"

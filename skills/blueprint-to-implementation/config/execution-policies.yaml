@@ -1,0 +1,28 @@
+# AIWF Implementation Execution Policies Configuration
+version: "1.0.0"
+default_collaboration_mode: "MODE_B_MULTI_AGENT_SINGLE_WRITER"
+default_writer: "Main Writer"
+
+policies:
+  main_orchestrator:
+    can_modify_source: false
+    can_execute_tests: false
+    can_write_git: false
+    can_release: false
+    role: "orchestrate_and_delegate"
+
+  writer_governance:
+    single_writer_required: true
+    allowed_writers: ["Main Writer"]
+    mode_c_eligibility_guard: "MODE_C_NOT_ELIGIBLE"
+
+  pre_write_checks:
+    verify_base_hash: true
+    verify_allowed_files: true
+    block_protected_files: true
+    block_mirror_direct_edits: true
+
+  tool_executor_boundary:
+    allowed_side_effects: ["READ_ONLY", "LOCAL_WRITE"]
+    blocked_side_effects: ["TEST", "GIT_WRITE", "NETWORK_WRITE", "RELEASE", "DESTRUCTIVE"]
+    subprocess_spawner: "Tool Executor"

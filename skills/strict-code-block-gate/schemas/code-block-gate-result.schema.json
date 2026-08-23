@@ -1,0 +1,46 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://aiwf.local/schemas/code-block-gate-result.schema.json",
+  "title": "Strict Code Block Gate Result",
+  "type": "object",
+  "required": [
+    "schema_version",
+    "gate",
+    "workflow_id",
+    "blueprint_path",
+    "blueprint_full_sha256",
+    "decision",
+    "per_code_block",
+    "profile_results",
+    "blocking_findings",
+    "test_status"
+  ],
+  "properties": {
+    "schema_version": { "type": "string", "const": "1.0.0" },
+    "gate": { "type": "string", "const": "CODE_BLOCK_GATE" },
+    "authority": { "type": "string", "const": "strict-code-block-gate" },
+    "workflow_id": { "type": "string", "minLength": 1 },
+    "blueprint_path": { "type": "string", "minLength": 1 },
+    "blueprint_full_sha256": { "type": "string", "pattern": "^[a-f0-9]{64}$" },
+    "decision": { "type": "string", "enum": ["PASS", "FAIL", "BLOCKED", "NOT_APPLICABLE"] },
+    "per_code_block": {
+      "type": "array",
+      "items": { "type": "object" }
+    },
+    "profile_results": {
+      "type": "array",
+      "items": { "type": "object" }
+    },
+    "materialized_scope": {
+      "type": "array",
+      "items": { "type": "object" }
+    },
+    "blocking_findings": {
+      "type": "array",
+      "items": { "type": "string" }
+    },
+    "result_sha256": { "type": "string", "pattern": "^[a-f0-9]{64}$" },
+    "test_status": { "type": "string", "const": "NOT_RUN" }
+  },
+  "additionalProperties": true
+}

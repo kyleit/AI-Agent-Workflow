@@ -1,0 +1,8 @@
+{
+  "_comment": "msgbus-ws connection profile. Copy to ~/.aiwf/msgbus.json (or set MSGBUS_CONFIG). Precedence: CLI flag > env MSGBUS_* > this file > default. Written automatically by: msgbus_client.py init / aiwf-msgbus init.",
+  "host": "msgbus.example.invalid",
+  "port": 443,
+  "tls": true,
+  "token": "<PUT-MSGBUS_TOKEN-HERE>",
+  "e2ee_key": ""
+}

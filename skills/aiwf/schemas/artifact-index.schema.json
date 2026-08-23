@@ -1,0 +1,81 @@
+{
+  "$schema": "http://json-schema.org/draft-07/schema#",
+  "title": "AIWFWorkflowArtifactIndex",
+  "description": "Canonical schema for AIWF Workflow Artifact Index persisted under docs/aiwf-runs/<workflow-id>/artifact-index.json",
+  "type": "object",
+  "required": [
+    "workflow_id",
+    "project_id",
+    "feature_id",
+    "workflow_variant",
+    "artifact_root",
+    "path_base",
+    "artifacts",
+    "required_artifacts",
+    "missing_required_artifacts",
+    "current_phase",
+    "current_state",
+    "last_updated_at",
+    "content_hash",
+    "hash_algorithm"
+  ],
+  "properties": {
+    "workflow_id": { "type": "string" },
+    "project_id": { "type": "string" },
+    "feature_id": { "type": "string" },
+    "workflow_variant": { "type": "string" },
+    "artifact_root": { "type": "string" },
+    "path_base": { "type": "string", "const": "REPOSITORY_ROOT" },
+    "artifacts": {
+      "type": "array",
+      "items": {
+        "type": "object",
+        "required": [
+          "artifact_id",
+          "artifact_type",
+          "phase",
+          "path",
+          "version",
+          "full_sha256",
+          "status",
+          "required",
+          "producer",
+          "consumer",
+          "created_at",
+          "updated_at"
+        ],
+        "properties": {
+          "artifact_id": { "type": "string" },
+          "artifact_type": { "type": "string" },
+          "phase": { "type": "string" },
+          "path": { "type": "string" },
+          "version": { "type": "string" },
+          "full_sha256": { "type": "string" },
+          "status": { "type": "string" },
+          "required": { "type": "boolean" },
+          "producer": { "type": "string" },
+          "consumer": { "type": "string" },
+          "created_at": { "type": "string" },
+          "updated_at": { "type": "string" },
+          "supersedes": { "type": ["string", "null"] },
+          "invalidation_status": { "type": ["string", "null"] },
+          "artifact_origin": { "type": ["string", "null"] }
+        }
+      }
+    },
+    "required_artifacts": {
+      "type": "array",
+      "items": { "type": "string" }
+    },
+    "missing_required_artifacts": {
+      "type": "array",
+      "items": { "type": "string" }
+    },
+    "current_phase": { "type": "string" },
+    "current_state": { "type": "string" },
+    "last_updated_at": { "type": "string" },
+    "content_hash": { "type": "string" },
+    "hash_algorithm": { "type": "string", "const": "SHA-256" }
+  },
+  "additionalProperties": false
+}

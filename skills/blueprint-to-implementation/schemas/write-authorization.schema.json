@@ -1,0 +1,35 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "title": "AIWF Write Authorization Schema",
+  "type": "object",
+  "version": "1.0.0",
+  "required": [
+    "write_operation_id",
+    "task_id",
+    "agent",
+    "file_path",
+    "original_full_sha256",
+    "decision"
+  ],
+  "properties": {
+    "write_operation_id": { "type": "string" },
+    "task_id": { "type": "string" },
+    "agent": { "type": "string" },
+    "file_path": { "type": "string" },
+    "original_full_sha256": { "type": "string" },
+    "expected_change": { "type": "string" },
+    "decision": {
+      "type": "string",
+      "enum": [
+        "AUTHORIZED",
+        "BLOCKED",
+        "STALE_BASE",
+        "OWNERSHIP_CONFLICT",
+        "OUT_OF_SCOPE",
+        "PROTECTED_FILE",
+        "MIRROR_DIRECT_EDIT",
+        "APPROVAL_INVALID"
+      ]
+    }
+  }
+}

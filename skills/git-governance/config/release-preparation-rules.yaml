@@ -1,0 +1,7 @@
+# AIWF Release Preparation Rules Configuration
+version: "1.0.0"
+
+preparation_rules:
+  versioning_scheme: "SEMVER"
+  require_final_verification: true
+  allow_release_without_approval: false

@@ -1,0 +1,16 @@
+python_version = "3.14"
+
+# Tell Pyrefly that the package root is the current directory (where workflow_runtime/ lives)
+search_path = ["."]
+
+# Exclude generated/cache/test dirs
+project_excludes = [
+  "**/__pycache__",
+  "**/tests",
+  "**/.agents",
+  "**/scratch",
+  "**/artifacts",
+  "**/data",
+  "**/adapters",
+  "**/references",
+]

@@ -1,0 +1,8 @@
+# AIWF Cross-Skill Compatibility Rules
+version: "1.0.0"
+
+rules:
+  require_producer_consumer_coverage: true
+  require_full_sha256_identity_propagation: true
+  require_invalidation_propagation: true
+  canonical_entrypoint_count_required: 1

@@ -1,0 +1,13 @@
+# AIWF Workflow Variant Matrix Configuration
+version: "1.0.0"
+
+variants:
+  - "STANDARD_FEATURE"
+  - "QUICK_FEATURE"
+  - "QUICK_FIX"
+  - "DOCUMENTATION_ONLY"
+  - "ANALYSIS_ONLY"
+  - "RELEASE_ONLY"
+  - "RESUME"
+  - "CANCEL"
+  - "RECOVERY"

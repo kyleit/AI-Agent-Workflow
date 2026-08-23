@@ -1,0 +1,29 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "title": "AIWF Acceptance Evidence Schema",
+  "type": "object",
+  "version": "1.0.0",
+  "required": [
+    "acceptance_id",
+    "requirement_ids",
+    "status"
+  ],
+  "properties": {
+    "acceptance_id": { "type": "string" },
+    "requirement_ids": { "type": "array", "items": { "type": "string" } },
+    "performed_methods": { "type": "array", "items": { "type": "string" } },
+    "evidence_ids": { "type": "array", "items": { "type": "string" } },
+    "status": {
+      "type": "string",
+      "enum": [
+        "SATISFIED",
+        "PARTIALLY_SATISFIED",
+        "NOT_SATISFIED",
+        "NOT_VERIFIED",
+        "BLOCKED",
+        "NOT_APPLICABLE"
+      ]
+    },
+    "limitations": { "type": "string" }
+  }
+}

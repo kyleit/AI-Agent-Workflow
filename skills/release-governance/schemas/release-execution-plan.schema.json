@@ -1,0 +1,28 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "title": "AIWF Release Execution Plan Schema",
+  "type": "object",
+  "version": "1.0.0",
+  "required": [
+    "release_execution_plan_id",
+    "release_readiness_id",
+    "candidate_version",
+    "actions",
+    "status"
+  ],
+  "properties": {
+    "release_execution_plan_id": { "type": "string" },
+    "release_readiness_id": { "type": "string" },
+    "candidate_version": { "type": "string" },
+    "actions": { "type": "array", "items": { "type": "object" } },
+    "status": {
+      "type": "string",
+      "enum": [
+        "PLANNED",
+        "AWAITING_APPROVAL",
+        "NOT_AUTHORIZED",
+        "NOT_EXECUTED"
+      ]
+    }
+  }
+}

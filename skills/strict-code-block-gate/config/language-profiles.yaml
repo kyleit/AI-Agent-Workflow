@@ -1,0 +1,112 @@
+version: 1.0.0
+registry: strict-code-block-gate
+profiles:
+  go:
+    profile: go-strict-v1
+    path: skills/strict-code-block-gate/profiles/go-strict-v1.yaml
+    extensions: [.go]
+    filenames: [go.mod, go.sum]
+  python:
+    profile: python-strict-v1
+    path: skills/strict-code-block-gate/profiles/python-strict-v1.yaml
+    extensions: [.py]
+  typescript:
+    profile: typescript-strict-v1
+    path: skills/strict-code-block-gate/profiles/typescript-strict-v1.yaml
+    extensions: [.ts, .tsx]
+  javascript:
+    profile: javascript-strict-v1
+    path: skills/strict-code-block-gate/profiles/javascript-strict-v1.yaml
+    extensions: [.js, .jsx, .mjs, .cjs]
+  csharp:
+    profile: csharp-strict-v1
+    path: skills/strict-code-block-gate/profiles/csharp-strict-v1.yaml
+    extensions: [.cs]
+  java:
+    profile: java-strict-v1
+    path: skills/strict-code-block-gate/profiles/java-strict-v1.yaml
+    extensions: [.java]
+  kotlin:
+    profile: kotlin-strict-v1
+    path: skills/strict-code-block-gate/profiles/kotlin-strict-v1.yaml
+    extensions: [.kt, .kts]
+  rust:
+    profile: rust-strict-v1
+    path: skills/strict-code-block-gate/profiles/rust-strict-v1.yaml
+    extensions: [.rs]
+  c:
+    profile: c-strict-v1
+    path: skills/strict-code-block-gate/profiles/c-strict-v1.yaml
+    extensions: [.c, .h]
+  cpp:
+    profile: cpp-strict-v1
+    path: skills/strict-code-block-gate/profiles/cpp-strict-v1.yaml
+    extensions: [.cc, .cpp, .cxx, .hpp, .hh, .hxx]
+  php:
+    profile: php-strict-v1
+    path: skills/strict-code-block-gate/profiles/php-strict-v1.yaml
+    extensions: [.php]
+  ruby:
+    profile: ruby-strict-v1
+    path: skills/strict-code-block-gate/profiles/ruby-strict-v1.yaml
+    extensions: [.rb]
+  swift:
+    profile: swift-strict-v1
+    path: skills/strict-code-block-gate/profiles/swift-strict-v1.yaml
+    extensions: [.swift]
+  dart:
+    profile: dart-strict-v1
+    path: skills/strict-code-block-gate/profiles/dart-strict-v1.yaml
+    extensions: [.dart]
+  shell:
+    profile: shell-strict-v1
+    path: skills/strict-code-block-gate/profiles/shell-strict-v1.yaml
+    extensions: [.sh, .bash, .zsh]
+  powershell:
+    profile: powershell-strict-v1
+    path: skills/strict-code-block-gate/profiles/powershell-strict-v1.yaml
+    extensions: [.ps1, .psm1, .psd1]
+  sql:
+    profile: sql-strict-v1
+    path: skills/strict-code-block-gate/profiles/sql-strict-v1.yaml
+    extensions: [.sql]
+  yaml:
+    profile: yaml-strict-v1
+    path: skills/strict-code-block-gate/profiles/yaml-strict-v1.yaml
+    extensions: [.yaml, .yml]
+  json:
+    profile: json-strict-v1
+    path: skills/strict-code-block-gate/profiles/json-strict-v1.yaml
+    extensions: [.json]
+  toml:
+    profile: toml-strict-v1
+    path: skills/strict-code-block-gate/profiles/toml-strict-v1.yaml
+    extensions: [.toml]
+  dockerfile:
+    profile: dockerfile-strict-v1
+    path: skills/strict-code-block-gate/profiles/dockerfile-strict-v1.yaml
+    filenames: [Dockerfile, Containerfile]
+  terraform:
+    profile: terraform-strict-v1
+    path: skills/strict-code-block-gate/profiles/terraform-strict-v1.yaml
+    extensions: [.tf, .tfvars]
+  markdown:
+    profile: markdown-strict-v1
+    path: skills/strict-code-block-gate/profiles/markdown-strict-v1.yaml
+    extensions: [.md, .mdx]
+  html:
+    profile: html-strict-v1
+    path: skills/strict-code-block-gate/profiles/html-strict-v1.yaml
+    extensions: [.html, .htm]
+  css:
+    profile: css-strict-v1
+    path: skills/strict-code-block-gate/profiles/css-strict-v1.yaml
+    extensions: [.css]
+  svelte:
+    profile: svelte-strict-v1
+    path: skills/strict-code-block-gate/profiles/svelte-strict-v1.yaml
+    extensions: [.svelte]
+  xml:
+    profile: xml-strict-v1
+    path: skills/strict-code-block-gate/profiles/xml-strict-v1.yaml
+    extensions: [.xml]

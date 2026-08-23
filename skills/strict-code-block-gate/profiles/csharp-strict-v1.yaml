@@ -1,0 +1,20 @@
+profile_id: csharp-strict-v1
+language: C#
+strict: true
+extensions: [.cs]
+filenames: []
+materialized_extension: .cs
+parser: profile-aware-static
+forbidden_patterns:
+  - "TODO_ONLY"
+  - "ELLIPSIS_AS_IMPLEMENTATION"
+  - "PLACEHOLDER_CODE"
+  - "TRUNCATED_SNIPPET"
+gate_checks:
+  - metadata_complete
+  - profile_resolved
+  - placeholder_scan
+  - materialize_only_under_agents_tmp
+  - architecture_boundary_check
+reference_tools_not_executed_by_default: [dotnet build, dotnet test]
+project_tests: NOT_RUN

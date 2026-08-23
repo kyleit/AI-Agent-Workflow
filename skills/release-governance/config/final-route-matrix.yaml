@@ -1,0 +1,14 @@
+# AIWF Final Route & Variant Matrix Configuration
+version: "1.0.0"
+
+variants:
+  STANDARD_FEATURE:
+    required_phases: ["raw-intent-normalization", "requirement-specification", "brainstorming", "brainstorming-to-plan", "plan-to-blueprint", "blueprint-to-implementation", "implementation-to-debug", "debug-to-verify", "test-execution-governance", "git-governance", "release-governance"]
+  QUICK_FEATURE:
+    required_phases: ["requirement-specification", "plan-to-blueprint", "blueprint-to-implementation", "debug-to-verify", "test-execution-governance", "git-governance", "release-governance"]
+  QUICK_FIX:
+    required_phases: ["requirement-specification", "plan-to-blueprint", "blueprint-to-implementation", "debug-to-verify", "test-execution-governance", "git-governance", "release-governance"]
+  DOCUMENTATION_ONLY:
+    terminal_state: "DOCUMENTATION_COMPLETED"
+  ANALYSIS_ONLY:
+    terminal_state: "ANALYSIS_COMPLETED"

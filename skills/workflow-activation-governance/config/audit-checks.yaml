@@ -1,0 +1,18 @@
+# AIWF Audit Checks Configuration
+version: "1.0.0"
+
+checks:
+  phase_handoff_chain:
+    required_phases: 14
+    must_pass: true
+
+  manifest_registry:
+    check_paths_exist: true
+    no_duplicates: true
+
+  canonical_entrypoint:
+    expected_entrypoint: "workflow-coordinator"
+    max_count: 1
+
+  approval_separation:
+    enforce_strict_separation: true

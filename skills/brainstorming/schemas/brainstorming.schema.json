@@ -1,0 +1,202 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "title": "AIWF Brainstorming Artifact Schema",
+  "type": "object",
+  "version": "1.0.0",
+  "required": [
+    "brainstorming_id",
+    "project_id",
+    "requirement_spec_id",
+    "requirement_version",
+    "requirement_full_hash",
+    "version",
+    "status",
+    "title",
+    "problem_summary",
+    "decision_drivers",
+    "options",
+    "trade_offs",
+    "risks",
+    "recommendation",
+    "content_hash"
+  ],
+  "properties": {
+    "brainstorming_id": { "type": "string" },
+    "project_id": { "type": "string" },
+    "requirement_spec_id": { "type": "string" },
+    "requirement_version": { "type": "string" },
+    "requirement_full_hash": { "type": "string" },
+    "version": { "type": "string" },
+    "status": {
+      "type": "string",
+      "enum": [
+        "DRAFT",
+        "ANALYZING",
+        "OPTIONS_GENERATED",
+        "COMPARING",
+        "RECOMMENDATION_READY",
+        "READY_FOR_REVIEW",
+        "REVIEWED",
+        "AWAITING_FEASIBILITY_REVIEW",
+        "FEASIBILITY_APPROVED",
+        "FEASIBILITY_APPROVED_WITH_CONDITIONS",
+        "NEEDS_CHANGES",
+        "BLOCKED",
+        "SUPERSEDED",
+        "CANCELLED"
+      ]
+    },
+    "title": { "type": "string" },
+    "problem_summary": { "type": "string" },
+    "approved_goals": {
+      "type": "array",
+      "items": { "type": "string" }
+    },
+    "approved_non_goals": {
+      "type": "array",
+      "items": { "type": "string" }
+    },
+    "constraints": {
+      "type": "array",
+      "items": { "type": "string" }
+    },
+    "decision_drivers": {
+      "type": "array",
+      "items": {
+        "type": "object",
+        "required": ["driver_id", "category", "description", "priority"],
+        "properties": {
+          "driver_id": { "type": "string" },
+          "category": { "type": "string" },
+          "description": { "type": "string" },
+          "source": { "type": "string" },
+          "priority": { "type": "string" },
+          "mandatory": { "type": "boolean" }
+        }
+      }
+    },
+    "options": {
+      "type": "array",
+      "items": {
+        "type": "object",
+        "required": ["option_id", "title", "summary", "approach", "status"],
+        "properties": {
+          "option_id": { "type": "string" },
+          "title": { "type": "string" },
+          "summary": { "type": "string" },
+          "approach": { "type": "string" },
+          "requirement_coverage": { "type": "string" },
+          "constraints_satisfied": { "type": "array", "items": { "type": "string" } },
+          "constraints_violated": { "type": "array", "items": { "type": "string" } },
+          "dependencies": { "type": "array", "items": { "type": "string" } },
+          "complexity": { "type": "string" },
+          "reversibility": { "type": "string" },
+          "status": {
+            "type": "string",
+            "enum": [
+              "CANDIDATE",
+              "RECOMMENDED",
+              "REJECTED",
+              "DEFERRED",
+              "NOT_FEASIBLE",
+              "NEEDS_EVIDENCE"
+            ]
+          }
+        }
+      }
+    },
+    "trade_offs": {
+      "type": "array",
+      "items": {
+        "type": "object",
+        "required": ["option_id", "driver_id", "rating", "reason"],
+        "properties": {
+          "option_id": { "type": "string" },
+          "driver_id": { "type": "string" },
+          "rating": {
+            "type": "string",
+            "enum": ["STRONG", "ACCEPTABLE", "WEAK", "UNACCEPTABLE", "UNKNOWN"]
+          },
+          "evidence": { "type": "string" },
+          "confidence": { "type": "string" },
+          "reason": { "type": "string" }
+        }
+      }
+    },
+    "risks": {
+      "type": "array",
+      "items": {
+        "type": "object",
+        "required": ["risk_id", "option_id", "category", "description", "severity", "mitigation_direction"],
+        "properties": {
+          "risk_id": { "type": "string" },
+          "option_id": { "type": "string" },
+          "category": { "type": "string" },
+          "description": { "type": "string" },
+          "likelihood": { "type": "string" },
+          "impact": { "type": "string" },
+          "severity": { "type": "string" },
+          "mitigation_direction": { "type": "string" },
+          "blocking": { "type": "boolean" }
+        }
+      }
+    },
+    "recommendation": {
+      "type": "object",
+      "required": ["recommended_option_id", "summary", "why_recommended", "key_trade_offs"],
+      "properties": {
+        "recommended_option_id": { "type": "string" },
+        "summary": { "type": "string" },
+        "why_recommended": { "type": "string" },
+        "key_trade_offs": { "type": "string" },
+        "accepted_risks": { "type": "array", "items": { "type": "string" } },
+        "owner_decisions_required": { "type": "array", "items": { "type": "string" } },
+        "architect_questions": { "type": "array", "items": { "type": "string" } }
+      }
+    },
+    "rejected_options": {
+      "type": "array",
+      "items": {
+        "type": "object",
+        "required": ["option_id", "rejection_reason"],
+        "properties": {
+          "option_id": { "type": "string" },
+          "rejection_reason": { "type": "string" },
+          "evidence": { "type": "string" }
+        }
+      }
+    },
+    "open_decisions": {
+      "type": "array",
+      "items": {
+        "type": "object",
+        "required": ["decision_id", "question", "blocking", "decision_owner"],
+        "properties": {
+          "decision_id": { "type": "string" },
+          "question": { "type": "string" },
+          "why_it_matters": { "type": "string" },
+          "blocking": { "type": "boolean" },
+          "decision_owner": { "type": "string" },
+          "recommended_option": { "type": "string" },
+          "safe_default": { "type": "string" }
+        }
+      }
+    },
+    "architecture_questions": {
+      "type": "array",
+      "items": {
+        "type": "object",
+        "required": ["architecture_question_id", "category", "question", "blocking"],
+        "properties": {
+          "architecture_question_id": { "type": "string" },
+          "category": { "type": "string" },
+          "question": { "type": "string" },
+          "context": { "type": "string" },
+          "blocking": { "type": "boolean" }
+        }
+      }
+    },
+    "content_hash": { "type": "string" },
+    "hash_algorithm": { "type": "string", "default": "SHA-256" }
+  }
+}

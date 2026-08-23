@@ -1,0 +1,7 @@
+# AIWF Operational Validation Checks Configuration
+version: "1.0.0"
+
+checks:
+  positive_dry_runs_required: 9
+  negative_path_validations_required: 18
+  execute_unit_tests: false

@@ -1,0 +1,20 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "title": "AIWF Final Artifact Index Schema",
+  "type": "object",
+  "version": "1.0.0",
+  "required": [
+    "index_id",
+    "total_artifacts",
+    "status"
+  ],
+  "properties": {
+    "index_id": { "type": "string" },
+    "total_artifacts": { "type": "integer" },
+    "artifacts": {
+      "type": "array",
+      "items": { "type": "object" }
+    },
+    "status": { "type": "string", "default": "INDEX_COMPLETE" }
+  }
+}

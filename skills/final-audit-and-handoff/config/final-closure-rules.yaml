@@ -1,0 +1,8 @@
+# AIWF Final Closure Rules Configuration
+version: "1.0.0"
+
+rules:
+  allow_open_blockers: false
+  default_closure_decision: "PROJECT_CLOSED_WITH_CONDITIONS"
+  default_project_status: "AIWF_REDESIGN_COMPLETED_WITH_CONDITIONS"
+  workflow_redesign_closed: true

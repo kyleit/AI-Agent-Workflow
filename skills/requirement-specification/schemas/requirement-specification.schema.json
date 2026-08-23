@@ -1,0 +1,257 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "title": "AIWF Requirement Specification Schema",
+  "type": "object",
+  "version": "1.0.0",
+  "required": [
+    "requirement_spec_id",
+    "project_id",
+    "intent_id",
+    "version",
+    "status",
+    "title",
+    "problem_statement",
+    "goals",
+    "non_goals",
+    "functional_requirements",
+    "acceptance_criteria",
+    "content_hash"
+  ],
+  "properties": {
+    "requirement_spec_id": {
+      "type": "string",
+      "description": "Unique identifier for the requirement specification"
+    },
+    "project_id": {
+      "type": "string",
+      "description": "Project ID"
+    },
+    "feature_or_fix_id": {
+      "type": "string",
+      "description": "Feature or Fix ticket ID (e.g. FEAT-101, FIX-202)"
+    },
+    "intent_id": {
+      "type": "string",
+      "description": "Traceable Normalized Intent ID"
+    },
+    "version": {
+      "type": "string",
+      "description": "Version string of the spec (e.g. v1.0)"
+    },
+    "status": {
+      "type": "string",
+      "enum": [
+        "DRAFT",
+        "CLARIFYING",
+        "READY_FOR_REVIEW",
+        "REVIEWED",
+        "AWAITING_OWNER_APPROVAL",
+        "APPROVED",
+        "APPROVED_WITH_CONDITIONS",
+        "REJECTED",
+        "SUPERSEDED",
+        "CANCELLED",
+        "BLOCKED"
+      ],
+      "description": "Lifecycle status of the requirement specification"
+    },
+    "title": {
+      "type": "string",
+      "description": "Descriptive title of the requirement specification"
+    },
+    "summary": {
+      "type": "string",
+      "description": "High-level summary of the specification"
+    },
+    "owner": {
+      "type": "string",
+      "description": "Owner role (Planner)"
+    },
+    "problem_statement": {
+      "type": "object",
+      "required": ["id", "statement", "affected_actors"],
+      "properties": {
+        "id": { "type": "string" },
+        "statement": { "type": "string" },
+        "affected_actors": {
+          "type": "array",
+          "items": { "type": "string" }
+        },
+        "observed_evidence": { "type": "string" },
+        "current_impact": { "type": "string" }
+      }
+    },
+    "goals": {
+      "type": "array",
+      "items": {
+        "type": "object",
+        "required": ["id", "description", "priority"],
+        "properties": {
+          "id": { "type": "string" },
+          "description": { "type": "string" },
+          "priority": { "type": "string" }
+        }
+      }
+    },
+    "non_goals": {
+      "type": "array",
+      "items": {
+        "type": "object",
+        "required": ["id", "description", "reason"],
+        "properties": {
+          "id": { "type": "string" },
+          "description": { "type": "string" },
+          "reason": { "type": "string" }
+        }
+      }
+    },
+    "actors": {
+      "type": "array",
+      "items": {
+        "type": "object",
+        "required": ["id", "name", "type"],
+        "properties": {
+          "id": { "type": "string" },
+          "name": { "type": "string" },
+          "type": { "type": "string" }
+        }
+      }
+    },
+    "use_cases": {
+      "type": "array",
+      "items": {
+        "type": "object",
+        "required": ["id", "title", "primary_actor", "main_flow"],
+        "properties": {
+          "id": { "type": "string" },
+          "title": { "type": "string" },
+          "primary_actor": { "type": "string" },
+          "main_flow": {
+            "type": "array",
+            "items": { "type": "string" }
+          }
+        }
+      }
+    },
+    "functional_requirements": {
+      "type": "array",
+      "items": {
+        "type": "object",
+        "required": ["id", "statement", "priority", "acceptance_criteria_ids"],
+        "properties": {
+          "id": { "type": "string" },
+          "title": { "type": "string" },
+          "statement": { "type": "string" },
+          "priority": {
+            "type": "string",
+            "enum": ["MUST", "SHOULD", "COULD", "WONT_NOW"]
+          },
+          "acceptance_criteria_ids": {
+            "type": "array",
+            "items": { "type": "string" }
+          }
+        }
+      }
+    },
+    "non_functional_requirements": {
+      "type": "array",
+      "items": {
+        "type": "object",
+        "required": ["id", "category", "statement", "metric"],
+        "properties": {
+          "id": { "type": "string" },
+          "category": { "type": "string" },
+          "statement": { "type": "string" },
+          "metric": { "type": "string" },
+          "threshold": { "type": "string" }
+        }
+      }
+    },
+    "constraints": {
+      "type": "array",
+      "items": {
+        "type": "object",
+        "required": ["id", "type", "description"],
+        "properties": {
+          "id": { "type": "string" },
+          "type": { "type": "string" },
+          "description": { "type": "string" }
+        }
+      }
+    },
+    "acceptance_criteria": {
+      "type": "array",
+      "items": {
+        "type": "object",
+        "required": ["id", "requirement_id", "given", "when", "then", "verification_method"],
+        "properties": {
+          "id": { "type": "string" },
+          "requirement_id": { "type": "string" },
+          "given": { "type": "string" },
+          "when": { "type": "string" },
+          "then": { "type": "string" },
+          "verification_method": {
+            "type": "string",
+            "enum": [
+              "STATIC_CHECK",
+              "BUILD_CHECK",
+              "MANUAL_REVIEW",
+              "UNIT_TEST",
+              "INTEGRATION_TEST",
+              "E2E_TEST",
+              "OBSERVATION",
+              "LOG_EVIDENCE",
+              "STATE_INSPECTION",
+              "NOT_YET_DEFINED"
+            ]
+          }
+        }
+      }
+    },
+    "assumptions": {
+      "type": "array",
+      "items": { "type": "string" }
+    },
+    "open_questions": {
+      "type": "array",
+      "items": { "type": "string" }
+    },
+    "out_of_scope": {
+      "type": "array",
+      "items": { "type": "string" }
+    },
+    "dependencies": {
+      "type": "array",
+      "items": { "type": "string" }
+    },
+    "risks": {
+      "type": "array",
+      "items": { "type": "string" }
+    },
+    "traceability": {
+      "type": "object",
+      "required": ["intent_id", "source_artifacts"],
+      "properties": {
+        "intent_id": { "type": "string" },
+        "source_artifacts": {
+          "type": "array",
+          "items": { "type": "string" }
+        }
+      }
+    },
+    "approval": {
+      "type": "object",
+      "required": ["required", "status"],
+      "properties": {
+        "required": { "type": "boolean" },
+        "status": { "type": "string" },
+        "approver": { "type": ["string", "null"] },
+        "timestamp": { "type": ["string", "null"] }
+      }
+    },
+    "content_hash": {
+      "type": "string",
+      "description": "Full SHA-256 content hash of this requirement specification JSON"
+    }
+  }
+}

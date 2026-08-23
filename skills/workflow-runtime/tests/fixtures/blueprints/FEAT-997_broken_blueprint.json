@@ -1,0 +1,31 @@
+{
+  "feature_id": "FEAT-997",
+  "feature_name": "Broken Blueprint (For Validation Tests)",
+  "_note": "This blueprint intentionally contains errors for test_dag_planner validation tests",
+  "implementation_packages": [
+    {
+      "task_id": "Task A",
+      "module": "Phase 1",
+      "write_set": ["src/a.py"],
+      "dependencies": ["Task B"],
+      "_note": "CYCLE: A depends on B"
+    },
+    {
+      "task_id": "Task B",
+      "module": "Phase 1",
+      "write_set": ["/etc/hosts"],
+      "dependencies": ["Task A"],
+      "_note": "CYCLE: B depends on A; ABSOLUTE PATH in write_set"
+    },
+    {
+      "task_id": "Task C",
+      "module": "Phase 1",
+      "write_set": ["../outside_workspace/secret.txt"],
+      "dependencies": ["Task Z"],
+      "_note": "PATH TRAVERSAL in write_set; MISSING DEPENDENCY Task Z"
+    },
+    {
+      "_note": "MISSING task_id field"
+    }
+  ]
+}

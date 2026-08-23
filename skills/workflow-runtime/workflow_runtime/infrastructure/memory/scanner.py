@@ -1,0 +1,117 @@
+from __future__ import annotations
+
+import os
+from collections import Counter
+from typing import Any, Optional, cast
+
+from .common import get_project_root
+from .filesystem import get_project_files
+
+LANG_EXT_MAP: dict[str, str] = {
+    ".py": "Python",
+    ".js": "JavaScript",
+    ".ts": "TypeScript",
+    ".go": "Go",
+    ".rs": "Rust",
+    ".java": "Java",
+    ".cpp": "C++",
+    ".c": "C",
+    ".cs": "C#",
+    ".sh": "Shell",
+    ".ps1": "PowerShell",
+    ".html": "HTML",
+    ".css": "CSS"
+}
+
+
+class ProjectScanner:
+    def __init__(self, root_dir: Optional[str] = None) -> None:
+        self.root_dir = root_dir or get_project_root()
+        self._files: Optional[list[str]] = None
+
+    @property
+    def files(self) -> list[str]:
+        if self._files is None:
+            self._files = get_project_files(self.root_dir)
+        return self._files
+
+    def detect_languages(self) -> list[str]:
+        exts: list[str] = []
+        for file in self.files:
+            _, ext = os.path.splitext(file)
+            if ext in LANG_EXT_MAP:
+                exts.append(LANG_EXT_MAP[ext])
+
+        if not exts:
+            return ["Unknown"]
+
+        counter = Counter(exts)
+        sorted_langs: list[str] = [str(item[0]) for item in counter.most_common()]
+        return sorted_langs
+
+    def detect_frameworks(self, languages: list[str]) -> list[str]:
+        _ = languages
+        frameworks: list[str] = []
+
+        package_json_path = os.path.join(self.root_dir, "package.json")
+        if os.path.exists(package_json_path):
+            frameworks.append("Node.js")
+            try:
+                with open(package_json_path, "r", encoding="utf-8") as f:
+                    import json
+                    raw_pkg = json.load(f)
+                    pkg: dict[str, Any] = cast(dict[str, Any], raw_pkg) if isinstance(raw_pkg, dict) else {}
+                    raw_deps = pkg.get("dependencies", {})
+                    raw_dev = pkg.get("devDependencies", {})
+                    deps: dict[str, Any] = {
+                        **(cast(dict[str, Any], raw_deps) if isinstance(raw_deps, dict) else {}),
+                        **(cast(dict[str, Any], raw_dev) if isinstance(raw_dev, dict) else {})
+                    }
+                    if "vscode" in deps or "@types/vscode" in deps or "vscode-test" in deps:
+                        frameworks.append("VS Code Extension API")
+                    if "react" in deps:
+                        frameworks.append("React")
+                    if "vue" in deps:
+                        frameworks.append("Vue")
+            except Exception:
+                pass
+
+        go_mod_path = os.path.join(self.root_dir, "go.mod")
+        if os.path.exists(go_mod_path):
+            frameworks.append("Go Modules")
+
+        pyproject_toml = os.path.join(self.root_dir, "pyproject.toml")
+        requirements_txt = os.path.join(self.root_dir, "requirements.txt")
+        if os.path.exists(pyproject_toml) or os.path.exists(requirements_txt):
+            frameworks.append("Python Pip/Poetry")
+
+        return frameworks
+
+    def detect_build_commands(self) -> list[dict[str, Any]]:
+        commands: list[dict[str, Any]] = []
+        makefile_path = os.path.join(self.root_dir, "Makefile")
+        if os.path.exists(makefile_path):
+            commands.append({"name": "Makefile Build", "command": "make"})
+
+        package_json_path = os.path.join(self.root_dir, "package.json")
+        if os.path.exists(package_json_path):
+            try:
+                with open(package_json_path, "r", encoding="utf-8") as f:
+                    import json
+                    raw_pkg = json.load(f)
+                    pkg: dict[str, Any] = cast(dict[str, Any], raw_pkg) if isinstance(raw_pkg, dict) else {}
+                    raw_scripts = pkg.get("scripts", {})
+                    scripts: dict[str, Any] = cast(dict[str, Any], raw_scripts) if isinstance(raw_scripts, dict) else {}
+                    for name in ["compile", "build", "package", "test"]:
+                        if name in scripts:
+                            commands.append({"name": f"npm run {name}", "command": f"npm run {name}"})
+            except Exception:
+                pass
+
+        return commands
+
+
+__all__ = [
+    "LANG_EXT_MAP",
+    "ProjectScanner",
+]

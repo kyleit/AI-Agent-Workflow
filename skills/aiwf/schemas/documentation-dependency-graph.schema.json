@@ -1,0 +1,62 @@
+{
+  "$schema": "http://json-schema.org/draft-07/schema#",
+  "title": "AIWFDocumentationDependencyGraph",
+  "description": "Canonical schema for documentation-dependency-graph.json persisted under docs/aiwf-runs/<workflow-id>/documentation-dependency-graph.json",
+  "type": "object",
+  "required": [
+    "workflow_id",
+    "feature_id",
+    "nodes",
+    "content_hash",
+    "hash_algorithm"
+  ],
+  "properties": {
+    "workflow_id": { "type": "string" },
+    "feature_id": { "type": "string" },
+    "nodes": {
+      "type": "array",
+      "items": {
+        "type": "object",
+        "required": [
+          "artifact_id",
+          "path",
+          "type",
+          "depends_on",
+          "consumed_by",
+          "invalidated_by",
+          "required_for_states",
+          "required_for_commands"
+        ],
+        "properties": {
+          "artifact_id": { "type": "string" },
+          "path": { "type": "string" },
+          "type": { "type": "string" },
+          "depends_on": {
+            "type": "array",
+            "items": { "type": "string" }
+          },
+          "consumed_by": {
+            "type": "array",
+            "items": { "type": "string" }
+          },
+          "invalidated_by": {
+            "type": "array",
+            "items": { "type": "string" }
+          },
+          "required_for_states": {
+            "type": "array",
+            "items": { "type": "string" }
+          },
+          "required_for_commands": {
+            "type": "array",
+            "items": { "type": "string" }
+          }
+        },
+        "additionalProperties": false
+      }
+    },
+    "content_hash": { "type": "string" },
+    "hash_algorithm": { "type": "string", "const": "SHA-256" }
+  },
+  "additionalProperties": false
+}

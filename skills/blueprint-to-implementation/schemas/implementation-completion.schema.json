@@ -1,0 +1,44 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "title": "AIWF Implementation Completion Record Schema",
+  "type": "object",
+  "version": "1.0.0",
+  "required": [
+    "completion_id",
+    "execution_id",
+    "blueprint_identity",
+    "implementation_approval_identity",
+    "status",
+    "tasks_total",
+    "tasks_completed",
+    "files_changed",
+    "change_ledger_hash",
+    "test_status",
+    "content_hash"
+  ],
+  "properties": {
+    "completion_id": { "type": "string" },
+    "execution_id": { "type": "string" },
+    "blueprint_identity": { "type": "object" },
+    "implementation_approval_identity": { "type": "object" },
+    "status": {
+      "type": "string",
+      "enum": [
+        "COMPLETED",
+        "COMPLETED_WITH_FINDINGS",
+        "BLOCKED",
+        "FAILED",
+        "CANCELLED"
+      ]
+    },
+    "tasks_total": { "type": "integer" },
+    "tasks_completed": { "type": "integer" },
+    "tasks_failed": { "type": "integer" },
+    "tasks_blocked": { "type": "integer" },
+    "files_changed": { "type": "array", "items": { "type": "string" } },
+    "change_ledger_hash": { "type": "string" },
+    "test_status": { "type": "string", "default": "NOT_RUN" },
+    "content_hash": { "type": "string" },
+    "hash_algorithm": { "type": "string", "default": "SHA-256" }
+  }
+}

@@ -1,0 +1,15 @@
+# AIWF Test Safety & Resource Policies Configuration
+version: "1.0.0"
+
+safety_defaults:
+  network_allowed: false
+  destructive_allowed: false
+  production_allowed: false
+  max_parallelism: 1
+  timeout_seconds: 300
+
+tester_governance:
+  exclusive_owner: "TESTER"
+  can_modify_source: false
+  can_modify_tests: false
+  can_self_approve: false

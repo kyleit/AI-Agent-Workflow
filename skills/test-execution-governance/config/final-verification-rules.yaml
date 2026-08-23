@@ -1,0 +1,12 @@
+# AIWF Final Verification & Reconciliation Rules
+version: "1.0.0"
+
+strict_rules:
+  unrun_required_test_behavior: "NOT_VERIFIED"
+  default_decision_without_tests: "VERIFIED_WITHOUT_TESTS"
+  override_blocker_with_score: false
+
+reconciliation_matrix:
+  architecture_conformance_required: true
+  review_type: "FINAL_CONFORMANCE"
+  git_release_readiness_candidate: true

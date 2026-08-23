@@ -1,0 +1,32 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "title": "AIWF Debug Hypothesis Schema",
+  "type": "object",
+  "version": "1.0.0",
+  "required": [
+    "hypothesis_id",
+    "statement",
+    "supporting_evidence",
+    "confidence",
+    "status"
+  ],
+  "properties": {
+    "hypothesis_id": { "type": "string" },
+    "statement": { "type": "string" },
+    "supporting_evidence": { "type": "array", "items": { "type": "string" } },
+    "contradicting_evidence": { "type": "array", "items": { "type": "string" } },
+    "affected_components": { "type": "array", "items": { "type": "string" } },
+    "confidence": { "type": "string" },
+    "status": {
+      "type": "string",
+      "enum": [
+        "PROPOSED",
+        "SUPPORTED",
+        "WEAKENED",
+        "REJECTED",
+        "CONFIRMED",
+        "NOT_VERIFIED"
+      ]
+    }
+  }
+}

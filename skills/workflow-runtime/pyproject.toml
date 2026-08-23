@@ -1,0 +1,119 @@
+[build-system]
+requires = ["setuptools>=68"]
+build-backend = "setuptools.backends.legacy:build"
+
+[project]
+name = "workflow-runtime"
+version = "3.5.0"
+description = "AI Engineering Workflow Runtime Engine"
+requires-python = ">=3.11"
+
+[tool.setuptools.packages.find]
+where = ["."]
+include = ["workflow_runtime*"]
+
+[tool.pyrefly]
+python_version = "3.14"
+search_path = ["."]
+project_excludes = ["**/__pycache__", "**/tests", "**/.agents", "**/scratch", "**/artifacts", "**/data"]
+
+[tool.pyright]
+pythonVersion = "3.11"
+pythonPlatform = "All"
+typeCheckingMode = "basic"
+extraPaths = ["."]
+reportMissingImports = "warning"
+reportMissingModuleSource = "none"
+reportAttributeAccessIssue = "none"
+include = ["workflow_runtime"]
+exclude = ["**/__pycache__", "**/tests"]
+
+# ---------------------------------------------------------------------------
+# Import Linter — Architecture Boundary Enforcement
+# ---------------------------------------------------------------------------
+[tool.importlinter]
+root_package = "workflow_runtime"
+include_external_packages = true
+
+# CONTRACT A — Domain Layer Isolation
+# Domain MUST NOT import from Application, Infrastructure, or Presentation.
+[[tool.importlinter.contracts]]
+name = "Domain Isolation"
+type = "forbidden"
+source_modules = ["workflow_runtime.domain"]
+forbidden_modules = [
+    "workflow_runtime.application",
+    "workflow_runtime.infrastructure",
+    "workflow_runtime.presentation",
+]
+
+# CONTRACT B — Domain Framework Independence
+# Domain MUST NOT depend on external frameworks (web, DB, HTTP, DI containers).
+[[tool.importlinter.contracts]]
+name = "Domain Framework Independence"
+type = "forbidden"
+source_modules = ["workflow_runtime.domain"]
+forbidden_modules = [
+    "fastapi",
+    "flask",
+    "django",
+    "sqlalchemy",
+    "redis",
+    "requests",
+    "httpx",
+    "aiohttp",
+    "dependency_injector",
+    "injector",
+    "celery",
+    "kafka",
+]
+
+# CONTRACT C — Application Does Not Import Infrastructure
+# Application MUST NOT import concrete Infrastructure adapters.
+[[tool.importlinter.contracts]]
+name = "Application Does Not Import Infrastructure"
+type = "forbidden"
+source_modules = ["workflow_runtime.application"]
+forbidden_modules = ["workflow_runtime.infrastructure"]
+
+# CONTRACT D — Application Framework Independence
+# Application MUST NOT depend on web/DB/HTTP frameworks.
+[[tool.importlinter.contracts]]
+name = "Application Framework Independence"
+type = "forbidden"
+source_modules = ["workflow_runtime.application"]
+forbidden_modules = [
+    "fastapi",
+    "flask",
+    "django",
+    "sqlalchemy",
+    "redis",
+    "requests",
+    "httpx",
+    "aiohttp",
+    "dependency_injector",
+    "injector",
+]
+
+# CONTRACT E — Presentation CLI Handler Dispatch Does Not Bypass Application Services
+# CLI top-level handler dispatch (handlers.py, session_command_handlers.py, workflow_command_handlers.py) SHOULD call Application services,
+# not access Infrastructure adapters directly for business logic.
+# NOTE: bootstrap.py IS the Composition Root and legitimately imports all providers.
+# NOTE: CLI commands/_impl/* are glue code with legitimate infrastructure access.
+# This contract enforces the handler dispatch boundary only.
+# Violations are documented tech debt — tracked in FIX-412 for future DI refactoring.
+[[tool.importlinter.contracts]]
+name = "Presentation Cannot Bypass Application"
+type = "forbidden"
+
+# CONTRACT F — Shared Layer Independence
+# Shared cross-cutting utilities MUST NOT import from outer layers.
+[[tool.importlinter.contracts]]
+name = "Shared Layer Independence"
+type = "forbidden"
+source_modules = ["workflow_runtime.shared"]
+forbidden_modules = [
+    "workflow_runtime.application",
+    "workflow_runtime.infrastructure",
+    "workflow_runtime.presentation",
+]

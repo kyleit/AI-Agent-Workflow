@@ -1,0 +1,58 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "title": "AIWF Implementation Entry Handoff Schema",
+  "type": "object",
+  "version": "1.0.0",
+  "required": [
+    "requirement_identity",
+    "blueprint_identity",
+    "blueprint_freeze_record",
+    "architecture_approval_record",
+    "implementation_scope",
+    "allowed_files",
+    "protected_files",
+    "writer_owner",
+    "collaboration_mode",
+    "implementation_authorized"
+  ],
+  "properties": {
+    "requirement_identity": {
+      "type": "object",
+      "required": ["spec_id", "full_hash"],
+      "properties": {
+        "spec_id": { "type": "string" },
+        "full_hash": { "type": "string" }
+      }
+    },
+    "blueprint_identity": {
+      "type": "object",
+      "required": ["blueprint_id", "full_hash"],
+      "properties": {
+        "blueprint_id": { "type": "string" },
+        "full_hash": { "type": "string" }
+      }
+    },
+    "blueprint_freeze_record": {
+      "type": "object",
+      "required": ["freeze_id", "frozen_at"],
+      "properties": {
+        "freeze_id": { "type": "string" },
+        "frozen_at": { "type": "string" }
+      }
+    },
+    "architecture_approval_record": {
+      "type": "object",
+      "required": ["approval_id", "approval_type"],
+      "properties": {
+        "approval_id": { "type": "string" },
+        "approval_type": { "type": "string" }
+      }
+    },
+    "implementation_scope": { "type": "array", "items": { "type": "string" } },
+    "allowed_files": { "type": "array", "items": { "type": "string" } },
+    "protected_files": { "type": "array", "items": { "type": "string" } },
+    "writer_owner": { "type": "string", "default": "Main Writer" },
+    "collaboration_mode": { "type": "string" },
+    "implementation_authorized": { "type": "boolean", "default": false }
+  }
+}

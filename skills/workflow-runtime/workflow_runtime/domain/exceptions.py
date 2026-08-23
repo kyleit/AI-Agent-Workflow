@@ -1,0 +1,2 @@
+class InvalidPatchError(Exception):
+    pass

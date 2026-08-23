@@ -1,0 +1,32 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "title": "AIWF Root Cause Record Schema",
+  "type": "object",
+  "version": "1.0.0",
+  "required": [
+    "root_cause_id",
+    "description",
+    "evidence",
+    "confidence",
+    "status"
+  ],
+  "properties": {
+    "root_cause_id": { "type": "string" },
+    "failure_ids": { "type": "array", "items": { "type": "string" } },
+    "description": { "type": "string" },
+    "causal_chain": { "type": "array", "items": { "type": "string" } },
+    "affected_components": { "type": "array", "items": { "type": "string" } },
+    "affected_files": { "type": "array", "items": { "type": "string" } },
+    "evidence": { "type": "string" },
+    "confidence": { "type": "string" },
+    "status": {
+      "type": "string",
+      "enum": [
+        "CONFIRMED",
+        "PROBABLE",
+        "NOT_CONFIRMED",
+        "MULTIPLE_POSSIBLE_CAUSES"
+      ]
+    }
+  }
+}

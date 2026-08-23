@@ -1,0 +1,7 @@
+# Build context = skills/msgbus-ws ; only scripts/ is copied into the image.
+**/__pycache__/
+**/*.pyc
+tests/
+deploy/
+docs/
+*.md

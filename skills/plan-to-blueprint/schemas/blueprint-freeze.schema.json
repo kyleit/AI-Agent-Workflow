@@ -1,0 +1,38 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "title": "AIWF Blueprint Freeze Record Schema",
+  "type": "object",
+  "version": "1.0.0",
+  "required": [
+    "freeze_id",
+    "blueprint_id",
+    "version",
+    "full_sha256",
+    "hash_algorithm",
+    "baseline_commit",
+    "frozen_at",
+    "frozen_by",
+    "approval_record_id",
+    "allowed_files",
+    "protected_files",
+    "collaboration_mode"
+  ],
+  "properties": {
+    "freeze_id": { "type": "string" },
+    "blueprint_id": { "type": "string" },
+    "version": { "type": "string" },
+    "full_sha256": { "type": "string" },
+    "hash_algorithm": { "type": "string", "default": "SHA-256" },
+    "baseline_commit": { "type": "string" },
+    "frozen_at": { "type": "string" },
+    "frozen_by": { "type": "string" },
+    "approval_record_id": { "type": "string" },
+    "conditions": { "type": "array", "items": { "type": "string" } },
+    "allowed_files": { "type": "array", "items": { "type": "string" } },
+    "protected_files": { "type": "array", "items": { "type": "string" } },
+    "collaboration_mode": { "type": "string" },
+    "verification_matrix_hash": { "type": "string" },
+    "rollback_design_hash": { "type": "string" },
+    "status": { "type": "string", "default": "FROZEN" }
+  }
+}

@@ -1,0 +1,51 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "title": "AIWF Brainstorming Handoff Schema",
+  "type": "object",
+  "version": "1.0.0",
+  "required": [
+    "approved_requirement_identity",
+    "brainstorming_artifact_identity",
+    "selected_option",
+    "accepted_trade_offs",
+    "readiness_status",
+    "feasibility_approval_status"
+  ],
+  "properties": {
+    "approved_requirement_identity": {
+      "type": "object",
+      "required": ["spec_id", "version", "full_hash"],
+      "properties": {
+        "spec_id": { "type": "string" },
+        "version": { "type": "string" },
+        "full_hash": { "type": "string" }
+      }
+    },
+    "brainstorming_artifact_identity": {
+      "type": "object",
+      "required": ["artifact_id", "version", "full_hash"],
+      "properties": {
+        "artifact_id": { "type": "string" },
+        "version": { "type": "string" },
+        "full_hash": { "type": "string" }
+      }
+    },
+    "selected_option": { "type": "string" },
+    "accepted_trade_offs": {
+      "type": "array",
+      "items": { "type": "string" }
+    },
+    "accepted_risks": {
+      "type": "array",
+      "items": { "type": "string" }
+    },
+    "architecture_constraints": {
+      "type": "array",
+      "items": { "type": "string" }
+    },
+    "readiness_status": { "type": "string" },
+    "feasibility_approval_status": { "type": "string" },
+    "roadmap_inputs": { "type": "array", "items": { "type": "string" } },
+    "plan_inputs": { "type": "array", "items": { "type": "string" } }
+  }
+}

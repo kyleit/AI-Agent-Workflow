@@ -1,0 +1,55 @@
+{
+  "$schema": "http://json-schema.org/draft-07/schema#",
+  "title": "AIWFSourceDocumentChangeset",
+  "description": "Canonical schema for SOURCE_DOCUMENT_CHANGESET bound to a single transaction",
+  "type": "object",
+  "required": [
+    "changeset_id",
+    "workflow_id",
+    "phase_id",
+    "task_id",
+    "blueprint_id",
+    "blueprint_full_sha256",
+    "implementation_approval_id",
+    "documentation_impact_analysis_id",
+    "source_files",
+    "document_files",
+    "state_before",
+    "artifact_hashes_before",
+    "status",
+    "main_writer",
+    "content_hash",
+    "hash_algorithm"
+  ],
+  "properties": {
+    "changeset_id": { "type": "string" },
+    "workflow_id": { "type": "string" },
+    "phase_id": { "type": "string" },
+    "task_id": { "type": "string" },
+    "blueprint_id": { "type": "string" },
+    "blueprint_full_sha256": { "type": "string" },
+    "implementation_approval_id": { "type": "string" },
+    "documentation_impact_analysis_id": { "type": "string" },
+    "source_files": {
+      "type": "array",
+      "items": { "type": "string" }
+    },
+    "document_files": {
+      "type": "array",
+      "items": { "type": "string" }
+    },
+    "state_before": { "type": "string" },
+    "artifact_hashes_before": {
+      "type": "object",
+      "additionalProperties": { "type": "string" }
+    },
+    "status": {
+      "type": "string",
+      "enum": ["PREPARED", "COMMITTING", "COMMITTED", "ROLLBACK", "FAILED"]
+    },
+    "main_writer": { "type": "string" },
+    "content_hash": { "type": "string" },
+    "hash_algorithm": { "type": "string", "const": "SHA-256" }
+  },
+  "additionalProperties": false
+}

@@ -1,0 +1,175 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "title": "AIWF Technical Blueprint Schema",
+  "type": "object",
+  "version": "1.0.0",
+  "required": [
+    "blueprint_id",
+    "project_id",
+    "requirement_spec_id",
+    "requirement_full_hash",
+    "brainstorming_id",
+    "brainstorming_full_hash",
+    "roadmap_id",
+    "roadmap_full_hash",
+    "plan_id",
+    "plan_full_hash",
+    "plan_architecture_review_id",
+    "version",
+    "status",
+    "title",
+    "components",
+    "interfaces",
+    "data_models",
+    "file_impact_map",
+    "implementation_sequence",
+    "verification_matrix",
+    "rollback_design",
+    "content_hash"
+  ],
+  "properties": {
+    "blueprint_id": { "type": "string" },
+    "project_id": { "type": "string" },
+    "requirement_spec_id": { "type": "string" },
+    "requirement_version": { "type": "string" },
+    "requirement_full_hash": { "type": "string" },
+    "brainstorming_id": { "type": "string" },
+    "brainstorming_full_hash": { "type": "string" },
+    "roadmap_id": { "type": "string" },
+    "roadmap_full_hash": { "type": "string" },
+    "plan_id": { "type": "string" },
+    "plan_version": { "type": "string" },
+    "plan_full_hash": { "type": "string" },
+    "plan_architecture_review_id": { "type": "string" },
+    "version": { "type": "string" },
+    "status": {
+      "type": "string",
+      "enum": [
+        "DRAFT",
+        "CURRENT_STATE_ANALYZING",
+        "TARGET_STATE_DESIGNING",
+        "CONTRACTS_DEFINING",
+        "RISKS_VALIDATING",
+        "READY_FOR_REVIEW",
+        "REVIEWED",
+        "AWAITING_ARCHITECTURE_APPROVAL",
+        "ARCHITECTURE_APPROVED",
+        "ARCHITECTURE_APPROVED_WITH_CONDITIONS",
+        "FROZEN",
+        "NEEDS_CHANGES",
+        "BLOCKED",
+        "INVALIDATED",
+        "SUPERSEDED",
+        "CANCELLED"
+      ]
+    },
+    "title": { "type": "string" },
+    "summary": { "type": "string" },
+    "current_state": { "type": "object" },
+    "target_state": { "type": "object" },
+    "components": {
+      "type": "array",
+      "items": {
+        "type": "object",
+        "required": ["component_id", "name", "type", "responsibility"],
+        "properties": {
+          "component_id": { "type": "string" },
+          "name": { "type": "string" },
+          "type": { "type": "string" },
+          "responsibility": { "type": "string" },
+          "inputs": { "type": "array", "items": { "type": "string" } },
+          "outputs": { "type": "array", "items": { "type": "string" } }
+        }
+      }
+    },
+    "interfaces": {
+      "type": "array",
+      "items": {
+        "type": "object",
+        "required": ["interface_id", "name", "provider", "consumers"],
+        "properties": {
+          "interface_id": { "type": "string" },
+          "name": { "type": "string" },
+          "provider": { "type": "string" },
+          "consumers": { "type": "array", "items": { "type": "string" } },
+          "input_schema": { "type": "object" },
+          "output_schema": { "type": "object" }
+        }
+      }
+    },
+    "data_models": {
+      "type": "array",
+      "items": {
+        "type": "object",
+        "required": ["model_id", "name", "type"],
+        "properties": {
+          "model_id": { "type": "string" },
+          "name": { "type": "string" },
+          "type": { "type": "string" }
+        }
+      }
+    },
+    "file_impact_map": {
+      "type": "array",
+      "items": {
+        "type": "object",
+        "required": ["path", "category", "write_allowed"],
+        "properties": {
+          "path": { "type": "string" },
+          "category": { "type": "string" },
+          "write_allowed": { "type": "boolean" },
+          "reason": { "type": "string" }
+        }
+      }
+    },
+    "implementation_sequence": {
+      "type": "array",
+      "items": {
+        "type": "object",
+        "required": ["step_id", "objective", "components", "files_or_modules"],
+        "properties": {
+          "step_id": { "type": "string" },
+          "objective": { "type": "string" },
+          "components": { "type": "array", "items": { "type": "string" } },
+          "files_or_modules": { "type": "array", "items": { "type": "string" } }
+        }
+      }
+    },
+    "verification_matrix": {
+      "type": "array",
+      "items": {
+        "type": "object",
+        "required": ["requirement_id", "acceptance_criteria_id", "verification_method"],
+        "properties": {
+          "requirement_id": { "type": "string" },
+          "acceptance_criteria_id": { "type": "string" },
+          "verification_method": { "type": "string" },
+          "owner": { "type": "string" }
+        }
+      }
+    },
+    "rollback_design": {
+      "type": "object",
+      "required": ["rollback_scope", "rollback_trigger"],
+      "properties": {
+        "rollback_scope": { "type": "string" },
+        "rollback_trigger": { "type": "string" },
+        "steps": { "type": "array", "items": { "type": "string" } }
+      }
+    },
+    "placeholders": {
+      "type": "array",
+      "items": {
+        "type": "object",
+        "required": ["placeholder_id", "blocking"],
+        "properties": {
+          "placeholder_id": { "type": "string" },
+          "description": { "type": "string" },
+          "blocking": { "type": "boolean" }
+        }
+      }
+    },
+    "content_hash": { "type": "string" },
+    "hash_algorithm": { "type": "string", "default": "SHA-256" }
+  }
+}

@@ -1,0 +1,26 @@
+#!/bin/sh
+# AIWF universal source-write gate (pre-commit).
+# Deterministic, tool-agnostic: blocks committing SOURCE changes unless the
+# active work item has an approved AIWF blueprint. Works for ANY AI/editor
+# because git runs this in the harness, not the model.
+#
+# Bypass (emergency/bootstrap): AIWF_BYPASS=1 git commit ...
+
+ROOT="$(git rev-parse --show-toplevel 2>/dev/null)"
+[ -z "$ROOT" ] && exit 0
+
+GATE=""
+for c in "$ROOT/.agents/aiwf-hooks/aiwf_gate.py" "$ROOT/tools/aiwf-hooks/aiwf_gate.py"; do
+  [ -f "$c" ] && { GATE="$c"; break; }
+done
+[ -n "$GATE" ] || exit 0
+
+if command -v python >/dev/null 2>&1; then PY=python;
+elif command -v python3 >/dev/null 2>&1; then PY=python3;
+else
+  echo "[aiwf-gate] python not found — cannot enforce gate; allowing commit." >&2
+  exit 0
+fi
+
+"$PY" "$GATE" check-git
+exit $?

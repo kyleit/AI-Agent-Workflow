@@ -1,0 +1,19 @@
+{
+  "pythonVersion": "3.11",
+  "pythonPlatform": "All",
+  "typeCheckingMode": "strict",
+  "extraPaths": [
+    "."
+  ],
+  "include": [
+    "workflow_runtime"
+  ],
+  "exclude": [
+    "**/__pycache__",
+    "**/tests",
+    "**/.agents",
+    "**/scratch",
+    "**/artifacts",
+    "**/data"
+  ]
+}

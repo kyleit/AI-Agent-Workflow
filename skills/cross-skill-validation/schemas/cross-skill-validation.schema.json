@@ -1,0 +1,33 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "title": "AIWF Cross-Skill Validation Schema",
+  "type": "object",
+  "version": "1.0.0",
+  "required": [
+    "cross_skill_validation_id",
+    "workflow_version",
+    "readiness_score",
+    "decision",
+    "content_hash"
+  ],
+  "properties": {
+    "cross_skill_validation_id": { "type": "string" },
+    "workflow_version": { "type": "string", "default": "3.15.0" },
+    "authoritative_skills_count": { "type": "integer", "default": 45 },
+    "manifest_entries_count": { "type": "integer", "default": 45 },
+    "canonical_entrypoint": { "type": "string", "default": "workflow-coordinator" },
+    "readiness_score": { "type": "integer", "minimum": 0, "maximum": 100, "default": 100 },
+    "decision": {
+      "type": "string",
+      "enum": [
+        "CROSS_SKILL_VALID",
+        "CROSS_SKILL_VALID_WITH_CONDITIONS",
+        "NOT_READY",
+        "BLOCKED",
+        "INVALIDATED"
+      ]
+    },
+    "content_hash": { "type": "string" },
+    "hash_algorithm": { "type": "string", "default": "SHA-256" }
+  }
+}

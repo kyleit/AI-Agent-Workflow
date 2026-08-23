@@ -1,0 +1,26 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "title": "AIWF Git Approval Request Schema",
+  "type": "object",
+  "version": "1.0.0",
+  "required": [
+    "request_id",
+    "repository_snapshot_id",
+    "requested_actions",
+    "status"
+  ],
+  "properties": {
+    "request_id": { "type": "string" },
+    "repository_snapshot_id": { "type": "string" },
+    "requested_actions": { "type": "array", "items": { "type": "string" } },
+    "file_scope": { "type": "array", "items": { "type": "string" } },
+    "status": {
+      "type": "string",
+      "enum": [
+        "AWAITING_APPROVAL",
+        "GIT_ACTION_NOT_AUTHORIZED",
+        "GIT_ACTION_AUTHORIZED"
+      ]
+    }
+  }
+}

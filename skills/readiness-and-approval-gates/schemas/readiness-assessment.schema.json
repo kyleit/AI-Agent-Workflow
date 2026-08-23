@@ -1,0 +1,62 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "title": "AIWF Readiness Assessment Schema",
+  "type": "object",
+  "version": "1.0.0",
+  "required": [
+    "assessment_id",
+    "artifact_id",
+    "artifact_type",
+    "artifact_version",
+    "artifact_full_hash",
+    "overall_score",
+    "gate_decision",
+    "dimensions",
+    "blocking_conditions"
+  ],
+  "properties": {
+    "assessment_id": { "type": "string" },
+    "artifact_id": { "type": "string" },
+    "artifact_type": { "type": "string" },
+    "artifact_version": { "type": "string" },
+    "artifact_full_hash": { "type": "string" },
+    "overall_score": { "type": "number", "minimum": 0, "maximum": 100 },
+    "readiness_threshold": { "type": "number", "default": 95 },
+    "gate_decision": {
+      "type": "string",
+      "enum": [
+        "PASS",
+        "PASS_WITH_CONDITIONS",
+        "FAIL",
+        "BLOCKED",
+        "AWAITING_APPROVAL",
+        "REVIEW_REQUIRED",
+        "INVALIDATED"
+      ]
+    },
+    "dimensions": {
+      "type": "array",
+      "items": {
+        "type": "object",
+        "required": ["id", "name", "score", "weight", "blocking"],
+        "properties": {
+          "id": { "type": "string" },
+          "name": { "type": "string" },
+          "score": { "type": "number" },
+          "weight": { "type": "number" },
+          "blocking": { "type": "boolean" },
+          "evidence": { "type": "string" }
+        }
+      }
+    },
+    "blocking_conditions": {
+      "type": "array",
+      "items": { "type": "string" }
+    },
+    "remediations": {
+      "type": "array",
+      "items": { "type": "string" }
+    },
+    "next_allowed_transition": { "type": ["string", "null"] }
+  }
+}

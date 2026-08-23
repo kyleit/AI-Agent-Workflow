@@ -1,0 +1,33 @@
+# AIWF Test Types Configuration
+version: "1.0.0"
+
+test_types:
+  UNIT:
+    description: "Isolated unit tests"
+    requires_approval: true
+    exclusive_owner: "TESTER"
+    side_effect: "LOCAL_WRITE"
+
+  INTEGRATION:
+    description: "Component integration tests"
+    requires_approval: true
+    exclusive_owner: "TESTER"
+    side_effect: "LOCAL_WRITE"
+
+  CONTRACT:
+    description: "Interface contract tests"
+    requires_approval: true
+    exclusive_owner: "TESTER"
+    side_effect: "READ_ONLY"
+
+  E2E:
+    description: "End-to-end user path tests"
+    requires_approval: true
+    exclusive_owner: "TESTER"
+    side_effect: "LOCAL_WRITE"
+
+  REGRESSION:
+    description: "Regression suite tests"
+    requires_approval: true
+    exclusive_owner: "TESTER"
+    side_effect: "LOCAL_WRITE"

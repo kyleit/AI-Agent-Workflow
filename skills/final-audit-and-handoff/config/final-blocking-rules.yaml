@@ -1,0 +1,9 @@
+# AIWF Final Blocking Rules Configuration
+version: "1.0.0"
+
+strict_blockers:
+  - "PHASE_AUDIT_FAIL"
+  - "TRACEABILITY_CHAIN_BROKEN"
+  - "AUTHORITY_CONFLICT"
+  - "UNAUTHORIZED_SIDE_EFFECT"
+  - "MISSING_REQUIRED_ARTIFACT"

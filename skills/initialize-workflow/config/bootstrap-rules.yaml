@@ -1,0 +1,41 @@
+version: "3.16.0"
+bootstrap_policy:
+  mandatory_bootstrap: true
+  bootstrap_skill: "initialize-workflow"
+  canonical_entrypoint: "workflow-coordinator"
+  state_authority: ".agents/state"
+  deprecated_state: ".agents/.session.json"
+  root_resolution_method: "git rev-parse --show-toplevel"
+  fail_closed_on_missing_receipt: true
+  hash_algorithm: "SHA-256"
+
+bootstrap_modes:
+  - NEW_REQUEST
+  - RESUME
+  - STATUS_READ_ONLY
+  - HELP_READ_ONLY
+  - NEXT
+  - CONTINUE
+  - DEBUG
+  - VERIFY
+  - CANCEL
+  - RECOVER
+
+workflow_actions:
+  - NEW
+  - ATTACH
+  - RESUME
+  - READ_ONLY
+  - CANCEL
+  - RECOVER
+  - BLOCKED
+
+forbidden_direct_routes:
+  - "aiwf -> workflow-coordinator"
+  - "aiwf -> quick-fix"
+  - "aiwf -> quick-feature"
+  - "aiwf -> implementation"
+  - "aiwf -> debug"
+  - "aiwf -> verify"
+  - "aiwf -> git-governance"
+  - "aiwf -> release-governance"

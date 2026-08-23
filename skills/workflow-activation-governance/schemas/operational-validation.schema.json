@@ -1,0 +1,25 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "title": "AIWF Operational Validation Schema",
+  "type": "object",
+  "version": "1.0.0",
+  "required": [
+    "validation_id",
+    "positive_dry_runs_passed",
+    "negative_path_validations_blocked",
+    "status"
+  ],
+  "properties": {
+    "validation_id": { "type": "string" },
+    "positive_dry_runs_passed": { "type": "integer", "default": 9 },
+    "negative_path_validations_blocked": { "type": "integer", "default": 18 },
+    "status": {
+      "type": "string",
+      "enum": [
+        "VALIDATION_PASSED",
+        "VALIDATION_FAILED",
+        "VALIDATION_BLOCKED"
+      ]
+    }
+  }
+}

@@ -1,0 +1,22 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "title": "AIWF Activation Completion Handoff Schema",
+  "type": "object",
+  "version": "1.0.0",
+  "required": [
+    "activation_completion_handoff_id",
+    "workflow_version",
+    "status",
+    "next_allowed_actions"
+  ],
+  "properties": {
+    "activation_completion_handoff_id": { "type": "string" },
+    "workflow_version": { "type": "string" },
+    "status": { "type": "string", "default": "ACTIVATED_WITH_CONDITIONS" },
+    "next_allowed_actions": {
+      "type": "array",
+      "items": { "type": "string" },
+      "default": ["POST_ACTIVATION_SOAK_REVIEW"]
+    }
+  }
+}

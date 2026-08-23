@@ -1,0 +1,28 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "title": "AIWF Commit Package Schema",
+  "type": "object",
+  "version": "1.0.0",
+  "required": [
+    "commit_package_id",
+    "repository_snapshot_id",
+    "commit_message",
+    "files",
+    "status"
+  ],
+  "properties": {
+    "commit_package_id": { "type": "string" },
+    "repository_snapshot_id": { "type": "string" },
+    "commit_message": { "type": "string" },
+    "commit_body": { "type": "string" },
+    "files": { "type": "array", "items": { "type": "string" } },
+    "status": {
+      "type": "string",
+      "enum": [
+        "PLANNED",
+        "NOT_AUTHORIZED",
+        "NOT_EXECUTED"
+      ]
+    }
+  }
+}

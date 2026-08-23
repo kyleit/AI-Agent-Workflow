@@ -1,0 +1,43 @@
+"""Backward-compatible re-exports."""
+from .orchestrator_core import (create_authorization, resolve_auth_orch_path,
+                                resolve_auth_path, resolve_cp_dir,
+                                resolve_state_dir)
+from .orchestrator_delivery import run_autonomous_delivery
+from .orchestrator_status_presenter import (follow_orchestrator_status,
+                                            get_orchestrator_health,
+                                            get_orchestrator_status,
+                                            print_agents, print_agents_extended,
+                                            print_defects, print_graph,
+                                            print_locks_extended,
+                                            print_logs_extended,
+                                            print_metrics_extended,
+                                            print_queue_extended, print_status,
+                                            print_tasks,
+                                            print_timeline_extended,
+                                            print_workflows_extended,
+                                            render_graph_dag)
+
+__all__ = [
+    "resolve_state_dir",
+    "resolve_cp_dir",
+    "resolve_auth_path",
+    "resolve_auth_orch_path",
+    "create_authorization",
+    "run_autonomous_delivery",
+    "print_status",
+    "print_agents",
+    "print_tasks",
+    "print_graph",
+    "print_defects",
+    "get_orchestrator_status",
+    "follow_orchestrator_status",
+    "get_orchestrator_health",
+    "print_agents_extended",
+    "print_workflows_extended",
+    "render_graph_dag",
+    "print_queue_extended",
+    "print_locks_extended",
+    "print_timeline_extended",
+    "print_metrics_extended",
+    "print_logs_extended",
+]

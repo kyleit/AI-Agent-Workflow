@@ -1,0 +1,26 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "title": "AIWF Final Workflow Handoff Schema",
+  "type": "object",
+  "version": "1.0.0",
+  "required": [
+    "final_workflow_handoff_id",
+    "workflow_id",
+    "project_id",
+    "current_phase",
+    "release_approval_status",
+    "release_status",
+    "content_hash"
+  ],
+  "properties": {
+    "final_workflow_handoff_id": { "type": "string" },
+    "workflow_id": { "type": "string" },
+    "project_id": { "type": "string" },
+    "current_phase": { "type": "string", "default": "implementation-phase-14" },
+    "release_approval_status": { "type": "string", "default": "NOT_PROVIDED" },
+    "release_status": { "type": "string", "default": "NOT_RUN" },
+    "next_allowed_actions": { "type": "array", "items": { "type": "string" } },
+    "content_hash": { "type": "string" },
+    "hash_algorithm": { "type": "string", "default": "SHA-256" }
+  }
+}

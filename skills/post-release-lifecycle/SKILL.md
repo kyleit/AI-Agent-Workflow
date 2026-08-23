@@ -1,0 +1,100 @@
+---
+name: post-release-lifecycle
+command: post-release
+aliases:
+  - post-ship
+  - post-lifecycle
+category: review
+tags:
+  - release
+  - post-release
+  - operational
+  - monitoring
+  - maintenance
+version: 1.0.0
+license: MIT
+created_at: 2026-07-17
+updated_at: 2026-07-17
+description: Thực hiện quy trình vận hành và kiểm tra 10 bước nghiêm ngặt sau khi phát hành phiên bản.
+runtime_requirements:
+  rules: required
+  state: required
+  approvals: optional
+  git: cached
+  memory: cached
+  rag: cached
+---
+
+# Skill: Post-Release Lifecycle
+
+Thực hiện quy trình vận hành, giám sát và kiểm tra 10 bước nghiêm ngặt sau khi phát hành mã nguồn để đảm bảo tính ổn định của hệ thống production.
+
+---
+
+## 🔒 WORKFLOW RUNTIME & INITIALIZATION CHECK
+
+Skill này kết nối trực tiếp với Go Native CLI (`aiwf`):
+- **Validate Checkpoint**: Xác nhận checkpoint hiện tại trước khi thực thi.
+- **Tiến trình**:
+  - *Start*: `aiwf start --skill "post-release-lifecycle" --command "post-release" --checkpoint 11 --step "Starting post-release validation..."`
+  - *Complete*: `aiwf complete --checkpoint 11 --step "Post-Release Lifecycle Complete"`
+
+---
+
+## 📋 Quy trình 10 bước Hậu Phát hành (Post-Release Lifecycle)
+
+Quy trình bắt buộc đi qua đầy đủ 10 bước hành động sau để lập báo cáo vận hành:
+
+### Bước 1: Chạy Post-Release Validation
+Thực thi kiểm tra khói (smoke check) bằng script kiểm tra tự động để đảm bảo hệ thống runtime khởi động bình thường.
+```bash
+# Kiểm tra trạng thái release hiện tại
+aiwf release status
+
+# Validate toàn bộ điều kiện post-release
+aiwf release validate --version <version>
+```
+
+### Bước 2: Tạo báo cáo Post-Release Validation Report
+Hệ thống tự động xuất tệp tin `docs/verification/post_release_validation_report.md` chứa kết quả chạy thử nghiệm và cấu hình.
+
+### Bước 3: Thiết lập Production Monitoring
+Kích hoạt các tác vụ giám sát nền (cron job/health checker) để giám sát tài nguyên và lỗi.
+
+### Bước 4: Tạo báo cáo Production Monitoring Report
+Xuất tệp tin `docs/verification/production_monitoring_report.md` ghi nhận xu hướng sử dụng tài nguyên (CPU/RAM) và tỷ lệ lỗi.
+
+### Bước 5: Thực hiện Maintenance Transition
+Thực hiện dọn dẹp hệ thống, vacuum cơ sở dữ liệu SQLite và kiểm tra zombie process.
+
+### Bước 6: Tạo báo cáo Maintenance Status Report
+Xuất tệp tin `docs/verification/maintenance_status_report.md` liệt kê các giới hạn vận hành hiện tại và các lỗi ngoại lệ phát hiện.
+
+### Bước 7: Đánh giá Runtime Governance
+Kiểm tra tính bảo mật, cấu hình quyền hạn và phân loại mức độ thay đổi của phiên bản vừa release.
+* Báo cáo ghi nhận tại `docs/verification/runtime_governance_report.md`.
+
+### Bước 8: Phân tích Cải tiến Liên tục (Continuous Improvement)
+Nhận diện các điểm nghẽn hiệu năng phát sinh trong phiên bản mới và lưu báo cáo cải tiến tại `docs/verification/continuous_improvement_report.md`.
+
+### Bước 9: Đánh giá độ trưởng thành vận hành (Operational Maturity Assessment)
+Chấm điểm các thước đo vận hành gồm: Reliability, Security, và Observability.
+* Yêu cầu đạt mức điểm tối thiểu 95/100 điểm tổng thể.
+* Báo cáo ghi nhận tại `docs/verification/operational_maturity_assessment.md`.
+
+### Bước 10: Xây dựng Runtime Roadmap
+Thiết lập lộ trình phát triển và các thứ tự ưu tiên của các tính năng tiếp theo tại `docs/verification/runtime_roadmap.md`.
+
+---
+
+## 🛑 Điều kiện bắt buộc chặn (NO-GO)
+
+Hệ thống sẽ bị coi là lỗi vận hành nghiêm trọng và đánh trạng thái FAILED nếu:
+1. Gặp lỗi khi chạy kiểm tra khói ở Bước 1.
+2. Tỷ lệ lỗi (Error Rate) của runtime vượt quá 0.5%.
+3. Điểm Operational Maturity Assessment đạt dưới 90/100 điểm.
+4. Phát hiện tiến trình zombie không tự động dọn dẹp sau khi kiểm tra.
+
+## 📝 MANDATORY WALKTHROUGH UPDATE
+
+After generating any artifact, executing code, or completing this phase, you **ABSOLUTELY MUST** write or update `.agents/state/walkthrough.md`. Document what was accomplished, which files were generated/modified, decisions made, and the next steps. This guarantees context is preserved across new chat sessions.

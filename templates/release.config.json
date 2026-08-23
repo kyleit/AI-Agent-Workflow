@@ -1,0 +1,13 @@
+{
+  "project_type": "single",
+  "modules": [
+    {
+      "name": "core",
+      "path": ".",
+      "version_file": "package.json",
+      "changelog_file": "CHANGELOG.md"
+    }
+  ],
+  "default_branch": "main",
+  "remote_name": "origin"
+}

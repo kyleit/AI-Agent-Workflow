@@ -1,0 +1,26 @@
+version: 1.0.0
+gate: CODE_BLOCK_GATE
+authority: strict-code-block-gate
+default_decision: BLOCKED
+aggregate_decisions:
+  - PASS
+  - FAIL
+  - BLOCKED
+  - NOT_APPLICABLE
+status_precedence:
+  - BLOCKED
+  - FAIL
+  - PASS
+  - NOT_APPLICABLE
+rules:
+  missing_profile: BLOCKED
+  ambiguous_profile: BLOCKED
+  non_strict_profile: BLOCKED
+  incomplete_metadata: BLOCKED
+  placeholder_code: FAIL
+  product_source_write: BLOCKED
+  project_test_execution: NOT_APPLICABLE
+materialization_root: .agents/tmp/code-block-gate
+canonical_result_paths:
+  - docs/aiwf-runs/<workflow-id>/05-blueprint/code-block-gate.json
+  - .agents/state/code-block-gate.json

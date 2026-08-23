@@ -1,0 +1,17 @@
+# AIWF Release Safety & Inspection Policies Configuration
+version: "1.0.0"
+
+defaults:
+  release_authorized: false
+  deploy_authorized: false
+  production_migration_authorized: false
+  readiness_threshold: 95
+
+strict_blockers:
+  - "MISSING_RELEASE_APPROVAL"
+  - "INVALID_ARTIFACT_HASH"
+  - "UNKNOWN_RELEASE_TARGET"
+  - "MISSING_ROLLBACK_PLAN"
+  - "CRITICAL_OPEN_FINDINGS"
+  - "ARCHITECTURE_NON_CONFORMANT"
+  - "SECRET_EXPOSURE_RISK"

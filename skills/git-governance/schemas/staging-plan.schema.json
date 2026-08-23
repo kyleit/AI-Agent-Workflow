@@ -1,0 +1,26 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "title": "AIWF Staging Plan Schema",
+  "type": "object",
+  "version": "1.0.0",
+  "required": [
+    "staging_plan_id",
+    "repository_snapshot_id",
+    "files_to_stage",
+    "status"
+  ],
+  "properties": {
+    "staging_plan_id": { "type": "string" },
+    "repository_snapshot_id": { "type": "string" },
+    "files_to_stage": { "type": "array", "items": { "type": "string" } },
+    "files_excluded": { "type": "array", "items": { "type": "string" } },
+    "status": {
+      "type": "string",
+      "enum": [
+        "PLANNED",
+        "NOT_AUTHORIZED",
+        "NOT_EXECUTED"
+      ]
+    }
+  }
+}

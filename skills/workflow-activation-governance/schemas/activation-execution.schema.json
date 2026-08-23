@@ -1,0 +1,29 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "title": "AIWF Activation Execution Schema",
+  "type": "object",
+  "version": "1.0.0",
+  "required": [
+    "activation_execution_id",
+    "activation_approval_identity",
+    "status",
+    "content_hash"
+  ],
+  "properties": {
+    "activation_execution_id": { "type": "string" },
+    "activation_approval_identity": { "type": "string" },
+    "status": {
+      "type": "string",
+      "enum": [
+        "ACTIVATED",
+        "ACTIVATED_WITH_CONDITIONS",
+        "BLOCKED",
+        "ROLLED_BACK",
+        "ROLLBACK_FAILED",
+        "FAILED"
+      ]
+    },
+    "content_hash": { "type": "string" },
+    "hash_algorithm": { "type": "string", "default": "SHA-256" }
+  }
+}

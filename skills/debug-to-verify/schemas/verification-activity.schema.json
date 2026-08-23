@@ -1,0 +1,53 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "title": "AIWF Verification Activity Schema",
+  "type": "object",
+  "version": "1.0.0",
+  "required": [
+    "activity_id",
+    "type",
+    "owner",
+    "approval_required",
+    "status"
+  ],
+  "properties": {
+    "activity_id": { "type": "string" },
+    "type": {
+      "type": "string",
+      "enum": [
+        "STATIC_CHECK",
+        "SCHEMA_VALIDATION",
+        "REFERENCE_VALIDATION",
+        "ROUTE_VALIDATION",
+        "HASH_VALIDATION",
+        "DIFF_SCOPE_VALIDATION",
+        "BUILD_CHECK",
+        "MANUAL_REVIEW",
+        "STATE_INSPECTION",
+        "LOG_EVIDENCE",
+        "UNIT_TEST",
+        "INTEGRATION_TEST",
+        "E2E_TEST",
+        "PERFORMANCE_TEST",
+        "SECURITY_TEST",
+        "ARCHITECTURE_CONFORMANCE"
+      ]
+    },
+    "owner": { "type": "string" },
+    "method_or_command": { "type": "string" },
+    "approval_required": { "type": "boolean" },
+    "status": {
+      "type": "string",
+      "enum": [
+        "NOT_RUN",
+        "PASS",
+        "FAIL",
+        "BLOCKED",
+        "NOT_APPLICABLE",
+        "INCONCLUSIVE"
+      ]
+    },
+    "evidence": { "type": "string" },
+    "limitations": { "type": "string" }
+  }
+}

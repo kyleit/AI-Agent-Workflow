@@ -1,0 +1,67 @@
+{
+  "$schema": "http://json-schema.org/draft-07/schema#",
+  "title": "AIWFPhaseHandoff",
+  "description": "Canonical schema for phase-handoff.json generated after every implementation phase",
+  "type": "object",
+  "required": [
+    "workflow_id",
+    "feature_id",
+    "implementation_phase",
+    "phase_index",
+    "status",
+    "gate",
+    "blueprint_identity",
+    "implementation_approval_identity",
+    "completed_tasks",
+    "changed_files",
+    "change_ledger",
+    "static_validation",
+    "known_findings",
+    "known_limitations",
+    "blocking_findings",
+    "test_status",
+    "next_phase",
+    "next_phase_eligible",
+    "content_hash",
+    "hash_algorithm"
+  ],
+  "properties": {
+    "workflow_id": { "type": "string" },
+    "feature_id": { "type": "string" },
+    "implementation_phase": { "type": "string" },
+    "phase_index": { "type": "integer" },
+    "status": { "type": "string" },
+    "gate": { "type": "string" },
+    "blueprint_identity": { "type": "string" },
+    "implementation_approval_identity": { "type": "string" },
+    "completed_tasks": {
+      "type": "array",
+      "items": { "type": "string" }
+    },
+    "changed_files": {
+      "type": "array",
+      "items": { "type": "string" }
+    },
+    "change_ledger": { "type": "string" },
+    "static_validation": { "type": "string" },
+    "known_findings": {
+      "type": "array",
+      "items": { "type": "string" }
+    },
+    "known_limitations": {
+      "type": "array",
+      "items": { "type": "string" }
+    },
+    "blocking_findings": {
+      "type": "array",
+      "items": { "type": "string" }
+    },
+    "test_status": { "type": "string" },
+    "next_phase": { "type": "string" },
+    "next_phase_eligible": { "type": "boolean" },
+    "artifact_origin": { "type": ["string", "null"] },
+    "content_hash": { "type": "string" },
+    "hash_algorithm": { "type": "string", "const": "SHA-256" }
+  },
+  "additionalProperties": false
+}

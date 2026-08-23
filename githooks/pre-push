@@ -1,0 +1,42 @@
+#!/bin/sh
+# AIWF universal gate (pre-push) — backstop for:
+#   1. source changes that bypassed pre-commit (e.g. --no-verify)
+#   2. release tag (v*) pushes that did not go through the release orchestrator
+# Deterministic, tool-agnostic (git runs this, not the model).
+#
+# Bypass (emergency): AIWF_BYPASS=1 git push ...
+
+ROOT="$(git rev-parse --show-toplevel 2>/dev/null)"
+[ -z "$ROOT" ] && exit 0
+
+GATE=""
+for c in "$ROOT/.agents/aiwf-hooks/aiwf_gate.py" "$ROOT/tools/aiwf-hooks/aiwf_gate.py"; do
+  [ -f "$c" ] && { GATE="$c"; break; }
+done
+[ -n "$GATE" ] || exit 0
+
+if command -v python >/dev/null 2>&1; then PY=python;
+elif command -v python3 >/dev/null 2>&1; then PY=python3;
+else exit 0; fi
+
+# Read the pre-push ref lines once; reuse for both checks.
+REFS="$(cat)"
+
+# 1. Release tag backstop: v* tag must have a release receipt.
+printf '%s\n' "$REFS" | "$PY" "$GATE" check-release-tags || exit 1
+
+# 2. Source-write backstop: collect files in the outgoing commits.
+files=""
+printf '%s\n' "$REFS" | while IFS= read -r line; do
+  set -- $line
+  local_sha=$2; remote_sha=$4
+  [ -z "$local_sha" ] && continue
+  case "$local_sha" in *0000000000000000000000000000000000000000) continue ;; esac
+  case "$remote_sha" in
+    ""|*0000000000000000000000000000000000000000)
+      git show --name-only --pretty=format: --diff-filter=ACM "$local_sha" 2>/dev/null ;;
+    *)
+      git diff --name-only --diff-filter=ACM "$remote_sha..$local_sha" 2>/dev/null ;;
+  esac
+done | "$PY" "$GATE" check-files
+exit $?

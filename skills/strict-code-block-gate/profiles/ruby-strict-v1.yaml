@@ -1,0 +1,20 @@
+profile_id: ruby-strict-v1
+language: Ruby
+strict: true
+extensions: [.rb]
+filenames: []
+materialized_extension: .rb
+parser: profile-aware-static
+forbidden_patterns:
+  - "TODO_ONLY"
+  - "ELLIPSIS_AS_IMPLEMENTATION"
+  - "PLACEHOLDER_CODE"
+  - "TRUNCATED_SNIPPET"
+gate_checks:
+  - metadata_complete
+  - profile_resolved
+  - placeholder_scan
+  - materialize_only_under_agents_tmp
+  - architecture_boundary_check
+reference_tools_not_executed_by_default: [ruby -c, rspec]
+project_tests: NOT_RUN

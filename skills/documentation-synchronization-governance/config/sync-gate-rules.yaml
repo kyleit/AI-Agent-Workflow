@@ -1,0 +1,39 @@
+version: "1.0.0"
+policy:
+  gate: DOCUMENTATION_SYNC_GATE
+  fail_closed: true
+  hash_algorithm: SHA-256
+
+gate_execution_points:
+  - after_every_source_document_changeset
+  - before_phase_completion
+  - before_next_command
+  - inside_continue_per_phase
+  - before_feature_implementation_completed
+  - before_ready_for_debug
+
+required_conditions:
+  all_required_documents_exist: true
+  all_affected_documents_updated: true
+  zero_missing_documents: true
+  zero_stale_documents: true
+  zero_invalidated_documents: true
+  no_invalid_approval_reused: true
+  blueprint_matches_source_contracts: true
+  implementation_report_matches_actual_source: true
+  changed_files_matches_actual_source: true
+  change_ledger_covers_every_source_change: true
+  traceability_is_current: true
+  artifact_index_is_current: true
+  all_sha256_hashes_verify: true
+  all_paths_are_repository_relative: true
+  independent_sync_validation_pass: true
+
+allowed_decisions:
+  - PASS
+  - BLOCKED
+  - STALE_DOCUMENTS
+  - MISSING_DOCUMENTS
+  - HASH_MISMATCH
+  - BLUEPRINT_CHANGE_REQUIRED
+  - PERSISTENCE_FAILED

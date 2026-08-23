@@ -1,0 +1,71 @@
+version: "3.16.0"
+artifact_root_pattern: "docs/aiwf-runs/<workflow-id>"
+path_base: "REPOSITORY_ROOT"
+allow_absolute_paths: false
+atomic_write_required: true
+readback_verification_required: true
+calculate_sha256_after_sanitization: true
+
+required_artifacts_by_command:
+  help:
+    - command_receipt
+  status:
+    - command_receipt
+  new-request:
+    - workflow_summary
+    - workflow_state_snapshot
+    - artifact_index
+    - command_receipt
+  resume:
+    - command_receipt
+  next:
+    - current_phase_completion_report
+    - current_phase_handoff
+    - changed_files_report
+    - change_ledger
+    - workflow_state_snapshot
+    - artifact_index
+    - command_receipt
+  continue:
+    - continuation_report
+    - workflow_state_snapshot
+    - artifact_index
+    - command_receipt
+  debug:
+    - debug_session
+    - debug_findings
+    - debug_handoff
+    - artifact_index
+    - command_receipt
+  verify:
+    - verification_report
+    - acceptance_evidence
+    - verification_handoff
+    - artifact_index
+    - command_receipt
+  cancel:
+    - cancellation_report
+    - cancellation_handoff
+    - workflow_state_snapshot
+    - artifact_index
+    - command_receipt
+  recover:
+    - recovery_analysis
+    - recovery_plan
+    - recovery_handoff
+    - workflow_state_snapshot
+    - artifact_index
+    - command_receipt
+
+required_phase_implementation_artifacts:
+  - implementation-report.md
+  - phase-handoff.json
+  - changed-files.md
+  - change-ledger.json
+  - static-validation.md
+
+required_final_implementation_artifacts:
+  - feature-implementation-completion.md
+  - feature-implementation-completion.json
+  - consolidated-change-ledger.json
+  - debug-handoff.json

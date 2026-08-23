@@ -1,0 +1,11 @@
+# AIWF Cross-Skill Blocking Rules
+version: "1.0.0"
+
+strict_blockers:
+  - "ORPHAN_PRODUCER"
+  - "ORPHAN_CONSUMER"
+  - "APPROVAL_NAME_MISMATCH"
+  - "GATE_NAME_MISMATCH"
+  - "AUTHORITY_CONFLICT"
+  - "HASH_IDENTITY_DROPPED"
+  - "INVALIDATION_NOT_PROPAGATED"

@@ -1,0 +1,29 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "title": "AIWF Pull Request Plan Schema",
+  "type": "object",
+  "version": "1.0.0",
+  "required": [
+    "pull_request_plan_id",
+    "source_branch",
+    "target_branch",
+    "title",
+    "status"
+  ],
+  "properties": {
+    "pull_request_plan_id": { "type": "string" },
+    "source_branch": { "type": "string" },
+    "target_branch": { "type": "string" },
+    "title": { "type": "string" },
+    "summary": { "type": "string" },
+    "draft": { "type": "boolean", "default": true },
+    "status": {
+      "type": "string",
+      "enum": [
+        "PLANNED",
+        "NOT_AUTHORIZED",
+        "NOT_EXECUTED"
+      ]
+    }
+  }
+}

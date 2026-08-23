@@ -1,0 +1,35 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "title": "AIWF Change Ledger Record Schema",
+  "type": "object",
+  "version": "1.0.0",
+  "required": [
+    "change_id",
+    "execution_id",
+    "task_id",
+    "agent",
+    "writer",
+    "file",
+    "change_type",
+    "original_hash",
+    "new_hash",
+    "timestamp"
+  ],
+  "properties": {
+    "change_id": { "type": "string" },
+    "execution_id": { "type": "string" },
+    "task_id": { "type": "string" },
+    "agent": { "type": "string" },
+    "writer": { "type": "string" },
+    "file": { "type": "string" },
+    "change_type": {
+      "type": "string",
+      "enum": ["CREATE", "MODIFY", "DELETE", "RENAME", "GENERATE"]
+    },
+    "original_hash": { "type": "string" },
+    "new_hash": { "type": "string" },
+    "diff_summary": { "type": "string" },
+    "blueprint_reference": { "type": "string" },
+    "timestamp": { "type": "string" }
+  }
+}

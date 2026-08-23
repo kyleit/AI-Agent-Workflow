@@ -1,0 +1,25 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "title": "AIWF Release Approval Request Schema",
+  "type": "object",
+  "version": "1.0.0",
+  "required": [
+    "request_id",
+    "release_preparation_id",
+    "candidate_version",
+    "status"
+  ],
+  "properties": {
+    "request_id": { "type": "string" },
+    "release_preparation_id": { "type": "string" },
+    "candidate_version": { "type": "string" },
+    "status": {
+      "type": "string",
+      "enum": [
+        "AWAITING_APPROVAL",
+        "RELEASE_NOT_AUTHORIZED",
+        "RELEASE_AUTHORIZED"
+      ]
+    }
+  }
+}

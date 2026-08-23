@@ -1,0 +1,26 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "title": "AIWF Activation Approval Request Schema",
+  "type": "object",
+  "version": "1.0.0",
+  "required": [
+    "request_id",
+    "activation_readiness_id",
+    "activation_plan_id",
+    "status"
+  ],
+  "properties": {
+    "request_id": { "type": "string" },
+    "activation_readiness_id": { "type": "string" },
+    "activation_plan_id": { "type": "string" },
+    "requested_scope": { "type": "array", "items": { "type": "string" } },
+    "status": {
+      "type": "string",
+      "enum": [
+        "AWAITING_APPROVAL",
+        "ACTIVATION_NOT_AUTHORIZED",
+        "ACTIVATION_AUTHORIZED"
+      ]
+    }
+  }
+}

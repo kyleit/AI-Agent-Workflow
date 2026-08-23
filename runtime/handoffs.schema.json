@@ -1,0 +1,40 @@
+{
+  "$schema": "http://json-schema.org/draft-07/schema#",
+  "title": "Handoff",
+  "type": "object",
+  "properties": {
+    "handoff_id": { "type": "string" },
+    "from_agent": { "type": "string" },
+    "to_agent": { "type": "string" },
+    "work_item_id": { "type": "string" },
+    "status": {
+      "type": "string",
+      "enum": ["pending", "ready", "accepted", "blocked", "completed"]
+    },
+    "input_artifacts": {
+      "type": "array",
+      "items": { "type": "string" }
+    },
+    "expected_outputs": {
+      "type": "array",
+      "items": { "type": "string" }
+    },
+    "blocking_issues": {
+      "type": "array",
+      "items": { "type": "string" }
+    },
+    "created_at": { "type": "string" },
+    "updated_at": { "type": "string" }
+  },
+  "required": [
+    "handoff_id",
+    "from_agent",
+    "to_agent",
+    "work_item_id",
+    "status",
+    "input_artifacts",
+    "expected_outputs",
+    "created_at",
+    "updated_at"
+  ]
+}

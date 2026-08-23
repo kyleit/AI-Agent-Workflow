@@ -1,0 +1,89 @@
+# AIWF Blueprint Readiness Dimensions Configuration
+version: "1.0.0"
+default_readiness_threshold: 95
+
+dimensions:
+  - id: "CURRENT_STATE_ACCURACY"
+    name: "Current-State Accuracy & Evidence Alignment"
+    weight: 0.05
+    blocking: true
+
+  - id: "TARGET_STATE_COMPLETENESS"
+    name: "Target-State Architecture Completeness"
+    weight: 0.10
+    blocking: true
+
+  - id: "BOUNDARY_CLARITY"
+    name: "Component & Module Boundary Clarity"
+    weight: 0.05
+    blocking: true
+
+  - id: "INTERFACE_CONTRACT_COMPLETENESS"
+    name: "Interface & API Contract Completeness"
+    weight: 0.10
+    blocking: true
+
+  - id: "DATA_MODEL_COMPLETENESS"
+    name: "Data Model & Schema Completeness"
+    weight: 0.05
+    blocking: true
+
+  - id: "DATA_FLOW_COMPLETENESS"
+    name: "Data-Flow & Transformation Completeness"
+    weight: 0.05
+    blocking: true
+
+  - id: "PERSISTENCE_STATE_CLARITY"
+    name: "Persistence & State Management Clarity"
+    weight: 0.05
+    blocking: true
+
+  - id: "CONCURRENCY_SAFE_WRITE"
+    name: "Concurrency & Safe-Write Strategy Clarity"
+    weight: 0.05
+    blocking: true
+
+  - id: "ERROR_RECOVERY_HANDLING"
+    name: "Error Taxonomy & Recovery Design"
+    weight: 0.05
+    blocking: true
+
+  - id: "SECURITY_PRIVACY"
+    name: "Security & Privacy Design"
+    weight: 0.05
+    blocking: true
+
+  - id: "OBSERVABILITY_CONFIG_DEPLOY"
+    name: "Observability, Configuration & Deployment Design"
+    weight: 0.05
+    blocking: false
+
+  - id: "MIGRATION_COMPATIBILITY"
+    name: "Migration Strategy & Backward Compatibility"
+    weight: 0.05
+    blocking: true
+
+  - id: "FILE_IMPACT_MAP"
+    name: "File Impact Map Accuracy & File Authorization"
+    weight: 0.05
+    blocking: true
+
+  - id: "IMPLEMENTATION_SEQUENCE"
+    name: "Implementation Sequence Clarity"
+    weight: 0.05
+    blocking: true
+
+  - id: "VERIFICATION_MATRIX"
+    name: "Verification Matrix Traceability"
+    weight: 0.05
+    blocking: true
+
+  - id: "ROLLBACK_DESIGN"
+    name: "Rollback Strategy & Recovery Design"
+    weight: 0.05
+    blocking: true
+
+  - id: "PLACEHOLDER_CONTROL"
+    name: "Zero Unresolved Blocking Placeholders"
+    weight: 0.05
+    blocking: true

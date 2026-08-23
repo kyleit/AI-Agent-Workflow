@@ -1,0 +1,95 @@
+{
+  "$schema": "http://json-schema.org/draft-07/schema#",
+  "title": "AIWFDocumentationImpactAnalysis",
+  "description": "Canonical schema for DOCUMENTATION_IMPACT_ANALYSIS generated before any source code modification",
+  "type": "object",
+  "required": [
+    "analysis_id",
+    "workflow_id",
+    "feature_id",
+    "phase_id",
+    "task_id",
+    "requested_source_changes",
+    "change_classification",
+    "affected_requirements",
+    "affected_acceptance_criteria",
+    "affected_documents",
+    "documents_to_create",
+    "documents_to_update",
+    "documents_to_invalidate",
+    "blueprint_change_required",
+    "approval_invalidation_required",
+    "source_write_allowed",
+    "blocking_findings",
+    "content_hash",
+    "hash_algorithm"
+  ],
+  "properties": {
+    "analysis_id": { "type": "string" },
+    "workflow_id": { "type": "string" },
+    "feature_id": { "type": "string" },
+    "phase_id": { "type": "string" },
+    "task_id": { "type": "string" },
+    "requested_source_changes": {
+      "type": "array",
+      "items": { "type": "string" }
+    },
+    "change_classification": {
+      "type": "array",
+      "items": {
+        "type": "string",
+        "enum": [
+          "IMPLEMENTATION_DETAIL_ONLY",
+          "DOCUMENTATION_ONLY",
+          "CONTRACT_CHANGE",
+          "BEHAVIOR_CHANGE",
+          "ARCHITECTURE_CHANGE",
+          "SCHEMA_CHANGE",
+          "DATA_MODEL_CHANGE",
+          "SECURITY_CHANGE",
+          "CONFIGURATION_CHANGE",
+          "OBSERVABILITY_CHANGE",
+          "MIGRATION_CHANGE",
+          "COMPATIBILITY_CHANGE",
+          "SCOPE_CHANGE",
+          "BUG_FIX_WITHIN_BLUEPRINT",
+          "BUG_FIX_OUTSIDE_BLUEPRINT"
+        ]
+      }
+    },
+    "affected_requirements": {
+      "type": "array",
+      "items": { "type": "string" }
+    },
+    "affected_acceptance_criteria": {
+      "type": "array",
+      "items": { "type": "string" }
+    },
+    "affected_documents": {
+      "type": "array",
+      "items": { "type": "string" }
+    },
+    "documents_to_create": {
+      "type": "array",
+      "items": { "type": "string" }
+    },
+    "documents_to_update": {
+      "type": "array",
+      "items": { "type": "string" }
+    },
+    "documents_to_invalidate": {
+      "type": "array",
+      "items": { "type": "string" }
+    },
+    "blueprint_change_required": { "type": "boolean" },
+    "approval_invalidation_required": { "type": "boolean" },
+    "source_write_allowed": { "type": "boolean" },
+    "blocking_findings": {
+      "type": "array",
+      "items": { "type": "string" }
+    },
+    "content_hash": { "type": "string" },
+    "hash_algorithm": { "type": "string", "const": "SHA-256" }
+  },
+  "additionalProperties": false
+}

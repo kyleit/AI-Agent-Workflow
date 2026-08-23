@@ -1,0 +1,147 @@
+{
+  "$schema": "http://json-schema.org/draft-07/schema#",
+  "title": "WorkspaceDoctorReport",
+  "type": "object",
+  "properties": {
+    "status": {
+      "type": "string",
+      "enum": ["READY", "FAIL"]
+    },
+    "workspace": {
+      "type": "object",
+      "properties": {
+        "path": { "type": "string" },
+        "project_type": { "type": "string" },
+        "languages": {
+          "type": "array",
+          "items": { "type": "string" }
+        },
+        "frameworks": {
+          "type": "array",
+          "items": { "type": "string" }
+        }
+      },
+      "required": ["path", "project_type", "languages", "frameworks"]
+    },
+    "environment": {
+      "type": "object",
+      "properties": {
+        "os": { "type": "string" },
+        "virtual_env": { "type": "string" }
+      },
+      "required": ["os", "virtual_env"]
+    },
+    "toolchain": {
+      "type": "object",
+      "properties": {
+        "python": {
+          "type": "object",
+          "properties": {
+            "installed": { "type": "boolean" },
+            "version": { "type": "string" }
+          },
+          "required": ["installed", "version"]
+        },
+        "golang": {
+          "type": "object",
+          "properties": {
+            "installed": { "type": "boolean" },
+            "version": { "type": "string" },
+            "compat": { "type": "string" }
+          },
+          "required": ["installed", "version"]
+        },
+        "node": {
+          "type": "object",
+          "properties": {
+            "installed": { "type": "boolean" },
+            "version": { "type": "string" },
+            "package_manager": { "type": "string" }
+          },
+          "required": ["installed", "version"]
+        },
+        "git": {
+          "type": "object",
+          "properties": {
+            "installed": { "type": "boolean" },
+            "version": { "type": "string" },
+            "is_repository": { "type": "boolean" },
+            "branch": { "type": "string" }
+          },
+          "required": ["installed", "version", "is_repository", "branch"]
+        },
+        "docker": {
+          "type": "object",
+          "properties": {
+            "installed": { "type": "boolean" },
+            "daemon_running": { "type": "boolean" }
+          },
+          "required": ["installed", "daemon_running"]
+        },
+        "wails": {
+          "type": "object",
+          "properties": {
+            "installed": { "type": "boolean" },
+            "version": { "type": "string" }
+          },
+          "required": ["installed", "version"]
+        }
+      },
+      "required": ["python", "git", "docker"]
+    },
+    "runtime": {
+      "type": "object",
+      "properties": {
+        "api_version": { "type": "string" },
+        "state_dir_exists": { "type": "boolean" },
+        "config_dir_exists": { "type": "boolean" }
+      },
+      "required": ["api_version", "state_dir_exists", "config_dir_exists"]
+    },
+    "permissions": {
+      "type": "object",
+      "properties": {
+        "permissions_json_exists": { "type": "boolean" },
+        "initialized": { "type": "boolean" },
+        "mode": { "type": "string" }
+      },
+      "required": ["permissions_json_exists", "initialized", "mode"]
+    },
+    "skills": {
+      "type": "object",
+      "properties": {
+        "registry_exists": { "type": "boolean" },
+        "skills_count": { "type": "integer" }
+      },
+      "required": ["registry_exists", "skills_count"]
+    },
+    "workflow": {
+      "type": "object",
+      "properties": {
+        "config_exists": { "type": "boolean" },
+        "supervisor_available": { "type": "boolean" }
+      },
+      "required": ["config_exists", "supervisor_available"]
+    },
+    "issues": {
+      "type": "array",
+      "items": { "type": "string" }
+    },
+    "recommendations": {
+      "type": "array",
+      "items": { "type": "string" }
+    }
+  },
+  "required": [
+    "status",
+    "workspace",
+    "environment",
+    "toolchain",
+    "runtime",
+    "permissions",
+    "skills",
+    "workflow",
+    "issues",
+    "recommendations"
+  ]
+}

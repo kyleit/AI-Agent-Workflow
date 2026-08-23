@@ -1,0 +1,32 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "title": "AIWF Final Audit Schema",
+  "type": "object",
+  "version": "1.0.0",
+  "required": [
+    "final_audit_id",
+    "workflow_version",
+    "phases_audited",
+    "final_readiness_score",
+    "decision",
+    "content_hash"
+  ],
+  "properties": {
+    "final_audit_id": { "type": "string" },
+    "workflow_version": { "type": "string", "default": "3.15.0" },
+    "phases_audited": { "type": "integer", "default": 18 },
+    "phases_passed": { "type": "integer", "default": 18 },
+    "final_readiness_score": { "type": "integer", "minimum": 0, "maximum": 100, "default": 100 },
+    "decision": {
+      "type": "string",
+      "enum": [
+        "FINAL_AUDIT_PASS",
+        "FINAL_AUDIT_PASS_WITH_CONDITIONS",
+        "FINAL_AUDIT_BLOCKED",
+        "INVALIDATED"
+      ]
+    },
+    "content_hash": { "type": "string" },
+    "hash_algorithm": { "type": "string", "default": "SHA-256" }
+  }
+}

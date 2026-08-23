@@ -1,0 +1,39 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "title": "AIWF Final Project Closure Schema",
+  "type": "object",
+  "version": "1.0.0",
+  "required": [
+    "closure_id",
+    "workflow_version",
+    "decision",
+    "project_status",
+    "workflow_redesign_closed",
+    "content_hash"
+  ],
+  "properties": {
+    "closure_id": { "type": "string" },
+    "workflow_version": { "type": "string", "default": "3.15.0" },
+    "decision": {
+      "type": "string",
+      "enum": [
+        "PROJECT_CLOSED",
+        "PROJECT_CLOSED_WITH_CONDITIONS",
+        "PROJECT_NOT_READY_FOR_CLOSURE",
+        "PROJECT_CLOSURE_BLOCKED"
+      ]
+    },
+    "project_status": {
+      "type": "string",
+      "enum": [
+        "AIWF_REDESIGN_COMPLETED",
+        "AIWF_REDESIGN_COMPLETED_WITH_CONDITIONS",
+        "AIWF_REDESIGN_BLOCKED",
+        "AIWF_REDESIGN_INVALIDATED"
+      ]
+    },
+    "workflow_redesign_closed": { "type": "boolean", "default": true },
+    "content_hash": { "type": "string" },
+    "hash_algorithm": { "type": "string", "default": "SHA-256" }
+  }
+}

@@ -1,0 +1,19 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "title": "AIWF Final Artifact Index Schema",
+  "type": "object",
+  "version": "1.0.0",
+  "required": [
+    "artifact_index_id",
+    "workflow_id",
+    "entries",
+    "content_hash"
+  ],
+  "properties": {
+    "artifact_index_id": { "type": "string" },
+    "workflow_id": { "type": "string" },
+    "entries": { "type": "array", "items": { "type": "object" } },
+    "content_hash": { "type": "string" },
+    "hash_algorithm": { "type": "string", "default": "SHA-256" }
+  }
+}

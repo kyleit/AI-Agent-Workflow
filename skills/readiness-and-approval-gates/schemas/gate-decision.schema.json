@@ -1,0 +1,51 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "title": "AIWF Gate Decision Schema",
+  "type": "object",
+  "version": "1.0.0",
+  "required": [
+    "gate_evaluation_id",
+    "gate_type",
+    "evaluation_mode",
+    "decision",
+    "reason",
+    "allowed_transition"
+  ],
+  "properties": {
+    "gate_evaluation_id": { "type": "string" },
+    "gate_type": { "type": "string" },
+    "evaluation_mode": {
+      "type": "string",
+      "enum": ["SCORED", "BINARY"]
+    },
+    "readiness_score": { "type": ["number", "null"] },
+    "blocking_conditions": {
+      "type": "array",
+      "items": { "type": "string" }
+    },
+    "required_approval_type": { "type": "string" },
+    "approval_validation": { "type": "string" },
+    "decision": {
+      "type": "string",
+      "enum": [
+        "PASS",
+        "PASS_WITH_CONDITIONS",
+        "FAIL",
+        "BLOCKED",
+        "AWAITING_APPROVAL",
+        "REVIEW_REQUIRED",
+        "INVALIDATED"
+      ]
+    },
+    "reason": { "type": "string" },
+    "remediations": {
+      "type": "array",
+      "items": { "type": "string" }
+    },
+    "allowed_transition": { "type": ["string", "null"] },
+    "forbidden_transitions": {
+      "type": "array",
+      "items": { "type": "string" }
+    }
+  }
+}

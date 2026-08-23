@@ -1,0 +1,17 @@
+# AIWF Required Cross-Skill Routes
+version: "1.0.0"
+
+routes:
+  - "workflow-coordinator -> raw-intent-normalization"
+  - "raw-intent-normalization -> requirement-specification"
+  - "requirement-specification -> brainstorming"
+  - "brainstorming -> brainstorming-to-plan"
+  - "brainstorming-to-plan -> plan-to-blueprint"
+  - "plan-to-blueprint -> blueprint-to-implementation"
+  - "blueprint-to-implementation -> implementation-to-debug"
+  - "implementation-to-debug -> debug-to-verify"
+  - "debug-to-verify -> test-execution-governance"
+  - "test-execution-governance -> git-governance"
+  - "git-governance -> release-governance"
+  - "release-governance -> workflow-activation-governance"
+  - "workflow-activation-governance -> cross-skill-validation"

@@ -1,0 +1,32 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "title": "AIWF Activation Readiness Schema",
+  "type": "object",
+  "version": "1.0.0",
+  "required": [
+    "activation_readiness_id",
+    "project_id",
+    "readiness_score",
+    "decision",
+    "content_hash"
+  ],
+  "properties": {
+    "activation_readiness_id": { "type": "string" },
+    "project_id": { "type": "string" },
+    "readiness_score": { "type": "number", "default": 95 },
+    "strict_blockers": { "type": "array", "items": { "type": "string" } },
+    "decision": {
+      "type": "string",
+      "enum": [
+        "READY_FOR_ACTIVATION_APPROVAL",
+        "READY_WITH_CONDITIONS",
+        "NOT_READY",
+        "BLOCKED",
+        "INVALIDATED"
+      ]
+    },
+    "reason": { "type": "string" },
+    "content_hash": { "type": "string" },
+    "hash_algorithm": { "type": "string", "default": "SHA-256" }
+  }
+}

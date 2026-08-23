@@ -1,0 +1,24 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "title": "AIWF Post-Release Verification Schema",
+  "type": "object",
+  "version": "1.0.0",
+  "required": [
+    "post_release_verification_id",
+    "candidate_version",
+    "verification_checks",
+    "status"
+  ],
+  "properties": {
+    "post_release_verification_id": { "type": "string" },
+    "candidate_version": { "type": "string" },
+    "verification_checks": { "type": "array", "items": { "type": "object" } },
+    "status": {
+      "type": "string",
+      "enum": [
+        "PLANNED",
+        "NOT_EXECUTED"
+      ]
+    }
+  }
+}

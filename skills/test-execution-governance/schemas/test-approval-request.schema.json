@@ -1,0 +1,29 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "title": "AIWF Test Execution Approval Request Schema",
+  "type": "object",
+  "version": "1.0.0",
+  "required": [
+    "request_id",
+    "test_matrix_id",
+    "test_matrix_full_sha256",
+    "owner",
+    "status"
+  ],
+  "properties": {
+    "request_id": { "type": "string" },
+    "test_matrix_id": { "type": "string" },
+    "test_matrix_full_sha256": { "type": "string" },
+    "owner": { "type": "string", "default": "TESTER" },
+    "network_allowed": { "type": "boolean", "default": false },
+    "destructive_allowed": { "type": "boolean", "default": false },
+    "status": {
+      "type": "string",
+      "enum": [
+        "AWAITING_APPROVAL",
+        "TEST_EXECUTION_NOT_AUTHORIZED",
+        "TEST_EXECUTION_AUTHORIZED"
+      ]
+    }
+  }
+}

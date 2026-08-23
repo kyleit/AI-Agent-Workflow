@@ -1,0 +1,14 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "title": "AIWF Document Authority Index Schema",
+  "type": "object",
+  "version": "1.0.0",
+  "required": [
+    "authority_index_id",
+    "status"
+  ],
+  "properties": {
+    "authority_index_id": { "type": "string" },
+    "status": { "type": "string", "default": "AUTHORITY_INDEX_VALIDATED" }
+  }
+}

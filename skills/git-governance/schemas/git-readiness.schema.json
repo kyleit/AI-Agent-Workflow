@@ -1,0 +1,29 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "title": "AIWF Git Readiness Schema",
+  "type": "object",
+  "version": "1.0.0",
+  "required": [
+    "git_readiness_id",
+    "repository_snapshot_id",
+    "decision",
+    "content_hash"
+  ],
+  "properties": {
+    "git_readiness_id": { "type": "string" },
+    "repository_snapshot_id": { "type": "string" },
+    "decision": {
+      "type": "string",
+      "enum": [
+        "READY_FOR_GIT_APPROVAL",
+        "READY_WITH_CONDITIONS",
+        "NOT_READY",
+        "BLOCKED",
+        "INVALIDATED"
+      ]
+    },
+    "reason": { "type": "string" },
+    "content_hash": { "type": "string" },
+    "hash_algorithm": { "type": "string", "default": "SHA-256" }
+  }
+}

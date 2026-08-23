@@ -1,0 +1,20 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "title": "AIWF Maintenance Backlog Schema",
+  "type": "object",
+  "version": "1.0.0",
+  "required": [
+    "backlog_id",
+    "total_items",
+    "status"
+  ],
+  "properties": {
+    "backlog_id": { "type": "string" },
+    "total_items": { "type": "integer", "default": 2 },
+    "items": {
+      "type": "array",
+      "items": { "type": "object" }
+    },
+    "status": { "type": "string", "default": "BACKLOG_REGISTERED" }
+  }
+}

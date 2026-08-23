@@ -1,0 +1,34 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "title": "AIWF Test Matrix Schema",
+  "type": "object",
+  "version": "1.0.0",
+  "required": [
+    "test_matrix_id",
+    "requirement_identity",
+    "blueprint_identity",
+    "version",
+    "status",
+    "test_entries",
+    "content_hash"
+  ],
+  "properties": {
+    "test_matrix_id": { "type": "string" },
+    "requirement_identity": { "type": "object" },
+    "blueprint_identity": { "type": "object" },
+    "version": { "type": "string" },
+    "status": {
+      "type": "string",
+      "enum": [
+        "PLANNED",
+        "AWAITING_APPROVAL",
+        "APPROVED",
+        "NOT_AUTHORIZED",
+        "NOT_RUN"
+      ]
+    },
+    "test_entries": { "type": "array", "items": { "type": "object" } },
+    "content_hash": { "type": "string" },
+    "hash_algorithm": { "type": "string", "default": "SHA-256" }
+  }
+}

@@ -1,0 +1,32 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "title": "AIWF Release Preparation Schema",
+  "type": "object",
+  "version": "1.0.0",
+  "required": [
+    "release_preparation_id",
+    "project_id",
+    "repository_snapshot_id",
+    "candidate_version",
+    "status",
+    "content_hash"
+  ],
+  "properties": {
+    "release_preparation_id": { "type": "string" },
+    "project_id": { "type": "string" },
+    "repository_snapshot_id": { "type": "string" },
+    "candidate_version": { "type": "string" },
+    "changelog_draft": { "type": "string" },
+    "status": {
+      "type": "string",
+      "enum": [
+        "PREPARED",
+        "AWAITING_RELEASE_APPROVAL",
+        "NOT_AUTHORIZED",
+        "NOT_RELEASED"
+      ]
+    },
+    "content_hash": { "type": "string" },
+    "hash_algorithm": { "type": "string", "default": "SHA-256" }
+  }
+}

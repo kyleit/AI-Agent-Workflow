@@ -1,0 +1,189 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "title": "AIWF Normalized Raw Intent Schema",
+  "type": "object",
+  "version": "1.0.0",
+  "required": [
+    "intent_id",
+    "version",
+    "status",
+    "raw_request",
+    "intent_type",
+    "user_goal",
+    "desired_outcomes",
+    "normalization_readiness",
+    "next_phase",
+    "content_hash"
+  ],
+  "properties": {
+    "intent_id": {
+      "type": "string",
+      "description": "Unique identifier for the raw intent session"
+    },
+    "version": {
+      "type": "string",
+      "description": "Version string of the intent (e.g. v1, v2)"
+    },
+    "status": {
+      "type": "string",
+      "enum": [
+        "RAW",
+        "DISCOVERING",
+        "INTERPRETING",
+        "CLARIFYING",
+        "RESTATED",
+        "NORMALIZED",
+        "BLOCKED",
+        "CANCELLED",
+        "FAILED"
+      ],
+      "description": "Current state of the raw intent normalization lifecycle"
+    },
+    "raw_request": {
+      "type": "string",
+      "description": "The exact original user prompt text as received"
+    },
+    "intent_type": {
+      "type": "string",
+      "enum": [
+        "QUICK_FIX",
+        "BUG_FIX",
+        "QUICK_FEATURE",
+        "STANDARD_FEATURE",
+        "REFACTOR",
+        "ARCHITECTURE_CHANGE",
+        "INFRASTRUCTURE_CHANGE",
+        "SECURITY_CHANGE",
+        "DOCUMENTATION_ONLY",
+        "ANALYSIS_ONLY",
+        "RELEASE_ONLY",
+        "RESUME",
+        "CANCEL",
+        "RECOVERY",
+        "UNKNOWN",
+        "MIXED"
+      ],
+      "description": "Classified intent type"
+    },
+    "user_goal": {
+      "type": "string",
+      "description": "Abstracted functional goal desired by the user"
+    },
+    "desired_outcomes": {
+      "type": "array",
+      "items": { "type": "string" },
+      "description": "Expected observable outcomes or user-visible behaviors"
+    },
+    "actors": {
+      "type": "array",
+      "items": { "type": "string" },
+      "description": "Target users or system components interacting with the feature"
+    },
+    "user_proposed_solutions": {
+      "type": "array",
+      "items": { "type": "string" },
+      "description": "Mechanisms or technical solutions explicitly mentioned by the user"
+    },
+    "constraints": {
+      "type": "array",
+      "items": { "type": "string" },
+      "description": "Explicit constraints (e.g. backward compatibility, performance limit)"
+    },
+    "preferences": {
+      "type": "array",
+      "items": { "type": "string" },
+      "description": "User preferences that are not strict requirements"
+    },
+    "known_facts": {
+      "type": "array",
+      "items": { "type": "string" },
+      "description": "Confirmed empirical facts from conversation or prompt"
+    },
+    "discoverable_facts": {
+      "type": "array",
+      "items": {
+        "type": "object",
+        "required": ["fact", "source"],
+        "properties": {
+          "fact": { "type": "string" },
+          "source": { "type": "string" }
+        }
+      },
+      "description": "Facts discovered directly from the workspace repository without asking the user"
+    },
+    "assumptions": {
+      "type": "array",
+      "items": { "type": "string" },
+      "description": "Safe working assumptions made by the system"
+    },
+    "ambiguities": {
+      "type": "array",
+      "items": {
+        "type": "object",
+        "required": ["id", "type", "description", "blocking"],
+        "properties": {
+          "id": { "type": "string" },
+          "type": { "type": "string" },
+          "description": { "type": "string" },
+          "blocking": { "type": "boolean" }
+        }
+      },
+      "description": "Identified ambiguities (17 types supported)"
+    },
+    "blocking_questions": {
+      "type": "array",
+      "items": { "type": "string" },
+      "description": "High-impact questions requiring user input"
+    },
+    "non_blocking_unknowns": {
+      "type": "array",
+      "items": { "type": "string" },
+      "description": "Inferrable unknowns using conventions"
+    },
+    "out_of_scope_candidates": {
+      "type": "array",
+      "items": { "type": "string" },
+      "description": "Items explicitly or implicitly out of scope for this request"
+    },
+    "referenced_artifacts": {
+      "type": "array",
+      "items": { "type": "string" },
+      "description": "Files, issues, or blueprints referenced in the intent"
+    },
+    "repository_evidence": {
+      "type": "array",
+      "items": { "type": "string" },
+      "description": "Relative paths to source code files or configs verified in workspace"
+    },
+    "risk_flags": {
+      "type": "array",
+      "items": { "type": "string" },
+      "description": "Identified safety or destructive risk flags (8 types supported)"
+    },
+    "approval_signals": {
+      "type": "array",
+      "items": { "type": "string" },
+      "description": "Detected approval or confirmation statements in conversation"
+    },
+    "clarification_rounds": {
+      "type": "integer",
+      "minimum": 0,
+      "description": "Number of clarification Q&A turns executed"
+    },
+    "normalization_readiness": {
+      "type": "number",
+      "minimum": 0,
+      "maximum": 100,
+      "description": "Readiness score for proceeding to Phase 05 (0-100)"
+    },
+    "next_phase": {
+      "type": "string",
+      "default": "phase-05",
+      "description": "Target phase after normalization completes"
+    },
+    "content_hash": {
+      "type": "string",
+      "description": "Content hash of this normalized intent JSON"
+    }
+  }
+}

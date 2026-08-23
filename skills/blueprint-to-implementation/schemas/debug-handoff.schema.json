@@ -1,0 +1,29 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "title": "AIWF Debug Handoff Schema",
+  "type": "object",
+  "version": "1.0.0",
+  "required": [
+    "debug_handoff_id",
+    "execution_id",
+    "completion_record_id",
+    "blueprint_identity",
+    "files_changed",
+    "change_records",
+    "test_status",
+    "content_hash"
+  ],
+  "properties": {
+    "debug_handoff_id": { "type": "string" },
+    "execution_id": { "type": "string" },
+    "completion_record_id": { "type": "string" },
+    "blueprint_identity": { "type": "object" },
+    "files_changed": { "type": "array", "items": { "type": "string" } },
+    "change_records": { "type": "array", "items": { "type": "object" } },
+    "test_status": { "type": "string", "default": "NOT_RUN" },
+    "known_failures": { "type": "array", "items": { "type": "string" } },
+    "open_findings": { "type": "array", "items": { "type": "string" } },
+    "content_hash": { "type": "string" },
+    "hash_algorithm": { "type": "string", "default": "SHA-256" }
+  }
+}

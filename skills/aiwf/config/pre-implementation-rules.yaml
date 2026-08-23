@@ -1,0 +1,107 @@
+version: "3.16.0"
+policy:
+  no_blueprint_no_code: true
+  documentation_first: true
+  min_blueprint_readiness_score: 95
+  fail_closed_on_missing_documentation: true
+  infer_approval: false
+  code_block_gate_authority: strict-code-block-gate
+  code_block_gate_fail_closed: true
+  code_block_gate_requires_blueprint_hash_match: true
+  code_block_gate_allows_project_tests: false
+
+pre_implementation_document_structure:
+  00-intake:
+    - raw-intent.md
+    - normalized-intent.md
+    - workflow-classification.json
+  01-requirements:
+    - requirement-specification.md
+    - acceptance-criteria.md
+    - non-functional-requirements.md
+    - scope-boundaries.md
+    - assumptions-and-open-questions.md
+    - requirement-traceability.json
+  02-brainstorming:
+    - brainstorming.md
+    - options-analysis.md
+    - decision-log.md
+    - feasibility-assessment.md
+    - risk-register.md
+  03-plan:
+    - plan.md
+    - task-breakdown.md
+    - dependency-map.md
+    - phase-plan.md
+    - resource-and-concurrency-plan.md
+    - rollback-plan.md
+  04-technical:
+    - architecture-overview.md
+    - component-design.md
+    - data-model.md
+    - interface-contracts.md
+    - error-handling.md
+    - security-design.md
+    - observability-design.md
+    - configuration-design.md
+    - deployment-impact.md
+    - migration-and-rollback.md
+    - testing-strategy.md
+    - compatibility-analysis.md
+    - technical-decisions.md
+  05-blueprint:
+    - blueprint.md
+    - blueprint.json
+    - file-change-plan.md
+    - implementation-phases.md
+    - traceability-matrix.md
+    - blueprint-validation.md
+    - code-block-gate.json
+    - blueprint-approval-request.json
+    - blueprint-freeze.json
+    - implementation-approval-request.json
+
+gates_sequence:
+  - RAW_INTENT
+  - REQUIREMENTS
+  - BRAINSTORMING
+  - FEASIBILITY
+  - PLAN
+  - TECHNICAL_DOCUMENTS
+  - TECHNICAL_DOCUMENT_COMPLETENESS_GATE
+  - BLUEPRINT
+  - BLUEPRINT_VALIDATION
+  - CODE_BLOCK_GATE
+  - AWAITING_BLUEPRINT_APPROVAL
+  - BLUEPRINT_FROZEN
+  - AWAITING_IMPLEMENTATION_APPROVAL
+  - IMPLEMENTATION_ENTRY
+  - IMPLEMENTATION
+
+code_block_gate:
+  authority: skills/strict-code-block-gate/SKILL.md
+  runtime_authority: .agents/skills/strict-code-block-gate/SKILL.md
+  result_schema: skills/strict-code-block-gate/schemas/code-block-gate-result.schema.json
+  result_paths:
+    - docs/aiwf-runs/<workflow-id>/05-blueprint/code-block-gate.json
+    - .agents/state/code-block-gate.json
+  language_profile_registry:
+    source: skills/strict-code-block-gate/config/language-profiles.yaml
+    runtime: .agents/config/code-quality/language-profiles.yaml
+  decisions:
+    aggregate:
+      - PASS
+      - FAIL
+      - BLOCKED
+      - NOT_APPLICABLE
+    pass_only_unlocks_source_writes: true
+  fail_closed_conditions:
+    - missing_code_block_gate_result
+    - stale_blueprint_full_sha256
+    - missing_language_profile
+    - ambiguous_language_profile
+    - non_strict_language_profile
+    - implementation_ready_block_missing_metadata
+    - per_code_block_fail_or_blocked
+    - product_source_materialization
+  test_status: NOT_RUN

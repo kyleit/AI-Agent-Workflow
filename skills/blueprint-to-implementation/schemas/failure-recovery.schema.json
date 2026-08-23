@@ -1,0 +1,45 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "title": "AIWF Failure Recovery Record Schema",
+  "type": "object",
+  "version": "1.0.0",
+  "required": [
+    "failure_id",
+    "type",
+    "task_id",
+    "agent",
+    "evidence",
+    "recovery_required"
+  ],
+  "properties": {
+    "failure_id": { "type": "string" },
+    "type": {
+      "type": "string",
+      "enum": [
+        "ENTRY_VALIDATION_FAILURE",
+        "DEPENDENCY_FAILURE",
+        "OWNERSHIP_CONFLICT",
+        "STALE_BASE",
+        "OUT_OF_SCOPE_WRITE",
+        "PROTECTED_FILE_WRITE",
+        "MIRROR_DIRECT_EDIT",
+        "TOOL_EXECUTION_FAILURE",
+        "RESOURCE_LIMIT",
+        "TIMEOUT",
+        "CANCELLED",
+        "PARTIAL_WRITE",
+        "STATIC_VALIDATION_FAILURE",
+        "BLUEPRINT_DEVIATION",
+        "APPROVAL_INVALIDATED",
+        "RECOVERY_REQUIRED",
+        "ROLLBACK_FAILURE",
+        "INTERNAL_ERROR"
+      ]
+    },
+    "task_id": { "type": "string" },
+    "agent": { "type": "string" },
+    "evidence": { "type": "string" },
+    "recovery_required": { "type": "boolean" },
+    "rollback_required": { "type": "boolean" }
+  }
+}

@@ -1,0 +1,37 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "title": "AIWF Release Failure Taxonomy Schema",
+  "type": "object",
+  "version": "1.0.0",
+  "required": [
+    "failure_id",
+    "failure_category",
+    "impact"
+  ],
+  "properties": {
+    "failure_id": { "type": "string" },
+    "failure_category": {
+      "type": "string",
+      "enum": [
+        "APPROVAL_INVALID",
+        "ARTIFACT_MISMATCH",
+        "VERSION_MISMATCH",
+        "SIGNATURE_FAILURE",
+        "UPLOAD_FAILURE",
+        "PUBLISH_FAILURE",
+        "DEPLOYMENT_FAILURE",
+        "MIGRATION_FAILURE",
+        "CONFIGURATION_FAILURE",
+        "HEALTH_CHECK_FAILURE",
+        "POST_RELEASE_VERIFICATION_FAILURE",
+        "NETWORK_FAILURE",
+        "TIMEOUT",
+        "RESOURCE_LIMIT",
+        "ROLLBACK_FAILURE",
+        "SECURITY_BLOCKER",
+        "UNKNOWN"
+      ]
+    },
+    "impact": { "type": "string" }
+  }
+}

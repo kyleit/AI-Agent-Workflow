@@ -1,0 +1,32 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "title": "AIWF Debug Patch Authorization Schema",
+  "type": "object",
+  "version": "1.0.0",
+  "required": [
+    "authorization_id",
+    "debug_session_id",
+    "root_cause_id",
+    "affected_files",
+    "writer_owner",
+    "status"
+  ],
+  "properties": {
+    "authorization_id": { "type": "string" },
+    "debug_session_id": { "type": "string" },
+    "root_cause_id": { "type": "string" },
+    "affected_files": { "type": "array", "items": { "type": "string" } },
+    "protected_files": { "type": "array", "items": { "type": "string" } },
+    "base_hashes": { "type": "object" },
+    "writer_owner": { "type": "string", "default": "Main Writer" },
+    "status": {
+      "type": "string",
+      "enum": [
+        "PATCH_AUTHORIZED",
+        "PATCH_NOT_AUTHORIZED",
+        "BLUEPRINT_DEVIATION_REQUIRED",
+        "REQUIREMENT_CHANGE_REQUIRED"
+      ]
+    }
+  }
+}

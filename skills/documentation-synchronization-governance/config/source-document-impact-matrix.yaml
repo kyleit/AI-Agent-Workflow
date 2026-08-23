@@ -1,0 +1,79 @@
+version: "1.0.0"
+policy:
+  transactional_sync_required: true
+  fail_closed_on_stale_documents: true
+  allow_source_only_completion: false
+
+impact_matrix:
+  file_tree_change:
+    - Plan
+    - Blueprint file tree
+    - File Change Plan
+    - Implementation Report
+    - Changed Files
+    - Change Ledger
+  public_interface_signature_change:
+    - Interface Contracts
+    - Blueprint
+    - Traceability
+    - Implementation Report
+    - Change Ledger
+  api_ipc_cli_event_schema_change:
+    - Contract document
+    - Data Model
+    - Error Handling
+    - Compatibility
+    - Blueprint
+    - Testing Strategy
+    - Change Ledger
+  business_behavior_change:
+    - Requirement Specification
+    - Acceptance Criteria
+    - Plan
+    - Blueprint
+    - Traceability
+    - Implementation Report
+  architecture_dependency_change:
+    - Architecture Overview
+    - Component Design
+    - Technical Decisions
+    - Blueprint
+    - Migration/Rollback
+    - Compatibility
+  data_model_storage_migration_change:
+    - Data Model
+    - Persistence Design
+    - Migration/Rollback
+    - Security
+    - Blueprint
+    - Testing Strategy
+  concurrency_job_queue_change:
+    - Concurrency Model
+    - State Machine
+    - Error Handling
+    - Observability
+    - Blueprint
+    - Testing Strategy
+  security_permission_change:
+    - Security Design
+    - Threat Model
+    - Interface Contracts
+    - Blueprint
+    - Testing Strategy
+  configuration_change:
+    - Configuration Design
+    - Deployment Impact
+    - Migration/Rollback
+    - Blueprint
+  observability_change:
+    - Observability Design
+    - Error Handling
+    - Blueprint
+  internal_implementation_only_change:
+    - Implementation Report
+    - Changed Files
+    - Change Ledger
+    - Static Validation
+    - Phase Handoff
+    - Artifact Index
+    - Documentation Sync State

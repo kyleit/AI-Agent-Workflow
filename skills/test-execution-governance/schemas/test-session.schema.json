@@ -1,0 +1,44 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "title": "AIWF Test Session Schema",
+  "type": "object",
+  "version": "1.0.0",
+  "required": [
+    "test_session_id",
+    "project_id",
+    "workflow_id",
+    "test_matrix_identity",
+    "tester_agent",
+    "status",
+    "content_hash"
+  ],
+  "properties": {
+    "test_session_id": { "type": "string" },
+    "project_id": { "type": "string" },
+    "workflow_id": { "type": "string" },
+    "test_matrix_identity": { "type": "object" },
+    "tester_agent": { "type": "string", "default": "TESTER" },
+    "status": {
+      "type": "string",
+      "enum": [
+        "NOT_STARTED",
+        "APPROVAL_VALIDATING",
+        "NOT_AUTHORIZED",
+        "AUTHORIZED",
+        "ENVIRONMENT_VALIDATING",
+        "READY",
+        "EXECUTING",
+        "PAUSED",
+        "CANCELLED",
+        "COMPLETED",
+        "COMPLETED_WITH_FINDINGS",
+        "FAILED",
+        "BLOCKED",
+        "INVALIDATED"
+      ]
+    },
+    "test_runs": { "type": "array", "items": { "type": "object" } },
+    "content_hash": { "type": "string" },
+    "hash_algorithm": { "type": "string", "default": "SHA-256" }
+  }
+}

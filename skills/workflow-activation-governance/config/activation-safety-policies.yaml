@@ -1,0 +1,11 @@
+# AIWF Activation Safety Policies Configuration
+version: "1.0.0"
+
+defaults:
+  activation_authorized: false
+  workflow_activation_performed: false
+  runtime_activation_performed: false
+  mirror_force_sync_performed: false
+  test_status: "NOT_RUN"
+  git_write_authorized: false
+  release_authorized: false

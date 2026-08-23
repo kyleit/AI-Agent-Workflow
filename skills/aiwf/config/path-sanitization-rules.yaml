@@ -1,0 +1,35 @@
+version: "3.16.0"
+path_sanitization_policy:
+  default_representation: "REPOSITORY_RELATIVE"
+  repository_root_representation: "."
+  path_base: "REPOSITORY_ROOT"
+  allow_absolute_paths: false
+  use_posix_separators: true
+  sanitize_before_hash: true
+
+external_path_aliases:
+  home_directory: "<HOME>"
+  workspace_root: "<WORKSPACE_ROOT>"
+  temp_directory: "<TEMP_DIR>"
+  cache_directory: "<CACHE_DIR>"
+  runtime_directory: "<RUNTIME_DIR>"
+  unknown_external: "<UNKNOWN_EXTERNAL_PATH>"
+
+leak_detection_patterns:
+  - "file:///"
+  - "/Volumes/"
+  - "/Users/"
+  - "/home/"
+  - "/mnt/"
+  - "/private/"
+  - "/tmp/"
+  - "/var/folders/"
+  - "/opt/"
+  - "/workspace/"
+  - "[a-zA-Z]:\\\\"
+
+excluded_patterns:
+  - "^/properties/"
+  - "^/definitions/"
+  - "^/api/v1/"
+  - "^/schemas/"

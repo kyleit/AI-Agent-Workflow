@@ -1,0 +1,10 @@
+# AIWF Condition Classification Configuration
+version: "1.0.0"
+
+categories:
+  - "BLOCKING"
+  - "ACCEPTED_OPERATIONAL_CONDITION"
+  - "KNOWN_LIMITATION"
+  - "MAINTENANCE_ITEM"
+  - "DEFERRED_ENHANCEMENT"
+  - "RESOLVED"

@@ -1,0 +1,62 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "title": "AIWF Approval Record Schema",
+  "type": "object",
+  "version": "1.0.0",
+  "required": [
+    "approval_id",
+    "approval_type",
+    "artifact",
+    "artifact_version",
+    "artifact_hash",
+    "full_artifact_hash",
+    "hash_algorithm",
+    "approver",
+    "decision",
+    "timestamp"
+  ],
+  "properties": {
+    "approval_id": { "type": "string" },
+    "approval_type": {
+      "type": "string",
+      "enum": [
+        "REQUIREMENT_APPROVAL",
+        "FEASIBILITY_APPROVAL",
+        "PLAN_APPROVAL",
+        "BLUEPRINT_APPROVAL",
+        "IMPLEMENTATION_APPROVAL",
+        "TEST_EXECUTION_APPROVAL",
+        "GIT_APPROVAL",
+        "RELEASE_APPROVAL"
+      ]
+    },
+    "artifact": { "type": "string" },
+    "artifact_version": { "type": "string" },
+    "artifact_hash": { "type": "string" },
+    "full_artifact_hash": { "type": "string" },
+    "hash_algorithm": { "type": "string", "default": "SHA-256" },
+    "approver": { "type": "string" },
+    "authority": { "type": "string" },
+    "decision": {
+      "type": "string",
+      "enum": [
+        "APPROVED",
+        "APPROVED_WITH_CONDITIONS",
+        "REJECTED",
+        "NEEDS_CHANGES",
+        "PENDING",
+        "REVOKED",
+        "EXPIRED",
+        "INVALIDATED"
+      ]
+    },
+    "conditions": {
+      "type": "array",
+      "items": { "type": "string" }
+    },
+    "timestamp": { "type": "string" },
+    "expires_at": { "type": ["string", "null"] },
+    "revoked": { "type": "boolean", "default": false },
+    "revocation_reason": { "type": ["string", "null"] }
+  }
+}

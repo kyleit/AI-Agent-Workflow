@@ -1,0 +1,17 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "title": "AIWF Cross-Skill Finding Schema",
+  "type": "object",
+  "version": "1.0.0",
+  "required": [
+    "finding_id",
+    "severity",
+    "status"
+  ],
+  "properties": {
+    "finding_id": { "type": "string" },
+    "severity": { "type": "string", "enum": ["CRITICAL", "HIGH", "MEDIUM", "LOW", "INFO"] },
+    "description": { "type": "string" },
+    "status": { "type": "string", "default": "RESOLVED" }
+  }
+}

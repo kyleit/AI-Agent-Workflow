@@ -1,0 +1,61 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "title": "AIWF Debug Session Schema",
+  "type": "object",
+  "version": "1.0.0",
+  "required": [
+    "debug_session_id",
+    "project_id",
+    "workflow_id",
+    "execution_id",
+    "completion_record_id",
+    "blueprint_identity",
+    "version",
+    "status",
+    "hypotheses",
+    "root_cause",
+    "remediation_options",
+    "patch_authorization",
+    "content_hash"
+  ],
+  "properties": {
+    "debug_session_id": { "type": "string" },
+    "project_id": { "type": "string" },
+    "workflow_id": { "type": "string" },
+    "execution_id": { "type": "string" },
+    "completion_record_id": { "type": "string" },
+    "blueprint_identity": { "type": "object" },
+    "version": { "type": "string" },
+    "status": {
+      "type": "string",
+      "enum": [
+        "NOT_STARTED",
+        "ENTRY_VALIDATING",
+        "INTAKE_READY",
+        "REPRODUCTION_ANALYZING",
+        "HYPOTHESES_GENERATING",
+        "HYPOTHESES_EVALUATING",
+        "ROOT_CAUSE_IDENTIFIED",
+        "REMEDIATION_DESIGNING",
+        "PATCH_AUTHORIZATION_REQUIRED",
+        "PATCH_AUTHORIZED",
+        "PATCH_NOT_AUTHORIZED",
+        "STATIC_REVERIFYING",
+        "READY_FOR_VERIFICATION",
+        "BLOCKED",
+        "NEEDS_MORE_INFORMATION",
+        "RECOVERY_REQUIRED",
+        "CANCELLED",
+        "INVALIDATED",
+        "SUPERSEDED"
+      ]
+    },
+    "reproduction_evidence": { "type": "object" },
+    "hypotheses": { "type": "array", "items": { "type": "object" } },
+    "root_cause": { "type": "object" },
+    "remediation_options": { "type": "array", "items": { "type": "object" } },
+    "patch_authorization": { "type": "object" },
+    "content_hash": { "type": "string" },
+    "hash_algorithm": { "type": "string", "default": "SHA-256" }
+  }
+}

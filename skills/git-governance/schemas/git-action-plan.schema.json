@@ -1,0 +1,26 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "title": "AIWF Git Action Plan Schema",
+  "type": "object",
+  "version": "1.0.0",
+  "required": [
+    "action_plan_id",
+    "repository_snapshot_id",
+    "proposed_actions",
+    "status"
+  ],
+  "properties": {
+    "action_plan_id": { "type": "string" },
+    "repository_snapshot_id": { "type": "string" },
+    "proposed_actions": { "type": "array", "items": { "type": "object" } },
+    "status": {
+      "type": "string",
+      "enum": [
+        "PLANNED",
+        "AWAITING_APPROVAL",
+        "NOT_AUTHORIZED",
+        "NOT_EXECUTED"
+      ]
+    }
+  }
+}

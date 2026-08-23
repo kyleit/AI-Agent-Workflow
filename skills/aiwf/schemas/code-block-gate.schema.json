@@ -1,0 +1,64 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "title": "AIWFStrictCodeBlockGate",
+  "description": "Canonical strict polyglot CODE_BLOCK_GATE decision persisted under docs/aiwf-runs/<workflow-id>/05-blueprint/code-block-gate.json",
+  "type": "object",
+  "required": [
+    "schema_version",
+    "gate",
+    "authority",
+    "workflow_id",
+    "blueprint_path",
+    "blueprint_full_sha256",
+    "decision",
+    "per_code_block",
+    "profile_results",
+    "blocking_findings",
+    "test_status"
+  ],
+  "properties": {
+    "schema_version": { "type": "string", "const": "1.0.0" },
+    "gate": { "type": "string", "const": "CODE_BLOCK_GATE" },
+    "authority": { "type": "string", "const": "strict-code-block-gate" },
+    "workflow_id": { "type": "string" },
+    "feature_id": { "type": "string" },
+    "blueprint_id": { "type": "string" },
+    "blueprint_path": { "type": "string" },
+    "blueprint_version": { "type": "string" },
+    "blueprint_full_sha256": { "type": "string", "pattern": "^[a-f0-9]{64}$" },
+    "readiness_score": { "type": "integer", "minimum": 0, "maximum": 100 },
+    "technical_documents_complete": { "type": "boolean" },
+    "traceability_complete": { "type": "boolean" },
+    "acceptance_criteria_coverage": { "type": "string" },
+    "required_code_blocks_present": { "type": "boolean" },
+    "per_code_block": {
+      "type": "array",
+      "items": { "type": "object" }
+    },
+    "profile_results": {
+      "type": "array",
+      "items": { "type": "object" }
+    },
+    "materialized_scope": {
+      "type": "array",
+      "items": { "type": "object" }
+    },
+    "open_questions": {
+      "type": "array",
+      "items": { "type": "string" }
+    },
+    "blocking_findings": {
+      "type": "array",
+      "items": { "type": "string" }
+    },
+    "decision": { "type": "string", "enum": ["PASS", "FAIL", "BLOCKED", "NOT_APPLICABLE", "INVALIDATED"] },
+    "implementation_source_write_allowed": { "type": "boolean" },
+    "reviewed_by": { "type": "string" },
+    "created_at": { "type": "string" },
+    "content_hash": { "type": "string" },
+    "result_sha256": { "type": "string", "pattern": "^[a-f0-9]{64}$" },
+    "hash_algorithm": { "type": "string", "const": "SHA-256" },
+    "test_status": { "type": "string", "const": "NOT_RUN" }
+  },
+  "additionalProperties": true
+}

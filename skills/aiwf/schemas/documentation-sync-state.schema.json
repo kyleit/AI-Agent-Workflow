@@ -1,0 +1,70 @@
+{
+  "$schema": "http://json-schema.org/draft-07/schema#",
+  "title": "AIWFDocumentationSyncState",
+  "description": "Canonical schema for documentation-sync-state.json persisted under docs/aiwf-runs/<workflow-id>/documentation-sync-state.json",
+  "type": "object",
+  "required": [
+    "workflow_id",
+    "feature_id",
+    "current_phase",
+    "source_snapshot_sha256",
+    "required_documents",
+    "current_documents",
+    "missing_documents",
+    "stale_documents",
+    "invalidated_documents",
+    "pending_document_updates",
+    "blueprint_status",
+    "code_block_gate_status",
+    "blueprint_approval_status",
+    "implementation_approval_status",
+    "documentation_sync_gate",
+    "last_changeset_id",
+    "last_synced_at",
+    "content_hash",
+    "hash_algorithm"
+  ],
+  "properties": {
+    "workflow_id": { "type": "string" },
+    "feature_id": { "type": "string" },
+    "current_phase": { "type": "string" },
+    "source_snapshot_sha256": { "type": "string" },
+    "required_documents": {
+      "type": "array",
+      "items": { "type": "string" }
+    },
+    "current_documents": {
+      "type": "array",
+      "items": { "type": "string" }
+    },
+    "missing_documents": {
+      "type": "array",
+      "items": { "type": "string" }
+    },
+    "stale_documents": {
+      "type": "array",
+      "items": { "type": "string" }
+    },
+    "invalidated_documents": {
+      "type": "array",
+      "items": { "type": "string" }
+    },
+    "pending_document_updates": {
+      "type": "array",
+      "items": { "type": "string" }
+    },
+    "blueprint_status": { "type": "string" },
+    "code_block_gate_status": { "type": "string" },
+    "blueprint_approval_status": { "type": "string" },
+    "implementation_approval_status": { "type": "string" },
+    "documentation_sync_gate": {
+      "type": "string",
+      "enum": ["PASS", "BLOCKED", "STALE_DOCUMENTS", "MISSING_DOCUMENTS", "HASH_MISMATCH", "BLUEPRINT_CHANGE_REQUIRED", "PERSISTENCE_FAILED"]
+    },
+    "last_changeset_id": { "type": "string" },
+    "last_synced_at": { "type": "string" },
+    "content_hash": { "type": "string" },
+    "hash_algorithm": { "type": "string", "const": "SHA-256" }
+  },
+  "additionalProperties": false
+}

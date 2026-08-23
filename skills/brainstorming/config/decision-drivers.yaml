@@ -1,0 +1,67 @@
+# AIWF Decision Drivers Configuration
+version: "1.0.0"
+
+categories:
+  - id: "FUNCTIONAL_FIT"
+    name: "Functional Requirement Coverage"
+    mandatory: true
+
+  - id: "SECURITY"
+    name: "Security & Threat Mitigation"
+    mandatory: true
+
+  - id: "PRIVACY"
+    name: "Privacy & Data Protection"
+    mandatory: true
+
+  - id: "COMPATIBILITY"
+    name: "Backward Compatibility & Integration"
+    mandatory: true
+
+  - id: "PERFORMANCE"
+    name: "Performance & Latency Impact"
+    mandatory: false
+
+  - id: "RELIABILITY"
+    name: "Reliability & Fault Tolerance"
+    mandatory: false
+
+  - id: "OPERABILITY"
+    name: "Operational & Observability Impact"
+    mandatory: false
+
+  - id: "MAINTAINABILITY"
+    name: "Code Maintainability & Clean Architecture"
+    mandatory: false
+
+  - id: "COMPLEXITY"
+    name: "Implementation & Technical Complexity"
+    mandatory: false
+
+  - id: "MIGRATION_RISK"
+    name: "Migration & Rollback Risk"
+    mandatory: false
+
+  - id: "DELIVERY_RISK"
+    name: "Delivery Schedule & Complexity Risk"
+    mandatory: false
+
+  - id: "RESOURCE_USAGE"
+    name: "Resource Consumption (CPU, Memory, Network)"
+    mandatory: false
+
+  - id: "USER_EXPERIENCE"
+    name: "User Experience & UI Impact"
+    mandatory: false
+
+  - id: "PORTABILITY"
+    name: "Cross-Platform Portability"
+    mandatory: false
+
+  - id: "OBSERVABILITY"
+    name: "Logging, Tracing & Metrics"
+    mandatory: false
+
+  - id: "REVERSIBILITY"
+    name: "Feature Reversibility & Rollback Capability"
+    mandatory: false

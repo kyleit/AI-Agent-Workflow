@@ -1,0 +1,41 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "title": "AIWF Final Verification Decision Schema",
+  "type": "object",
+  "version": "1.0.0",
+  "required": [
+    "final_verification_id",
+    "requirement_identity",
+    "blueprint_identity",
+    "implementation_identity",
+    "debug_identity",
+    "verification_identity",
+    "decision",
+    "content_hash"
+  ],
+  "properties": {
+    "final_verification_id": { "type": "string" },
+    "requirement_identity": { "type": "object" },
+    "blueprint_identity": { "type": "object" },
+    "implementation_identity": { "type": "object" },
+    "debug_identity": { "type": "object" },
+    "verification_identity": { "type": "object" },
+    "architecture_conformance_identity": { "type": "object" },
+    "decision": {
+      "type": "string",
+      "enum": [
+        "VERIFIED",
+        "VERIFIED_WITH_CONDITIONS",
+        "VERIFIED_WITHOUT_TESTS",
+        "VERIFICATION_INCOMPLETE",
+        "FAILED",
+        "BLOCKED",
+        "INVALIDATED"
+      ]
+    },
+    "test_status": { "type": "string", "default": "NOT_RUN" },
+    "unverified_items": { "type": "array", "items": { "type": "string" } },
+    "content_hash": { "type": "string" },
+    "hash_algorithm": { "type": "string", "default": "SHA-256" }
+  }
+}

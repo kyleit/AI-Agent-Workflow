@@ -1,0 +1,7 @@
+# AIWF Post-Activation Checks Configuration
+version: "1.0.0"
+
+checks:
+  required_checkpoints: 3
+  canonical_entrypoint_count_required: 1
+  execute_workload_tests: false

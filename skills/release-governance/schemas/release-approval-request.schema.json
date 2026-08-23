@@ -1,0 +1,27 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "title": "AIWF Release Approval Request Schema",
+  "type": "object",
+  "version": "1.0.0",
+  "required": [
+    "request_id",
+    "release_readiness_id",
+    "candidate_version",
+    "status"
+  ],
+  "properties": {
+    "request_id": { "type": "string" },
+    "release_readiness_id": { "type": "string" },
+    "candidate_version": { "type": "string" },
+    "target_channel": { "type": "string", "default": "production" },
+    "requested_actions": { "type": "array", "items": { "type": "string" } },
+    "status": {
+      "type": "string",
+      "enum": [
+        "AWAITING_APPROVAL",
+        "RELEASE_NOT_AUTHORIZED",
+        "RELEASE_AUTHORIZED"
+      ]
+    }
+  }
+}

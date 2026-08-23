@@ -1,0 +1,13 @@
+# AIWF Activation Stop Conditions Configuration
+version: "1.0.0"
+
+stop_triggers:
+  - "hash_drift"
+  - "manifest_mismatch"
+  - "duplicate_canonical_entrypoint"
+  - "authority_conflict"
+  - "approval_bypass"
+  - "gate_bypass"
+  - "unexpected_source_write"
+  - "unexpected_mirror_write"
+  - "critical_or_high_finding"

@@ -1,0 +1,118 @@
+[
+  {
+    "use_case": "UC-1: Bắt đầu brainstorm feature mới",
+    "mode": "OLD",
+    "latency_ms": 120.6,
+    "bytes_read": 2487,
+    "heavy_ops": 5,
+    "accuracy_score": 0.89,
+    "fields_missing": [
+      "work_item_id"
+    ],
+    "notes": "Developer mở project, chưa có work item active, cần khởi tạo workflow"
+  },
+  {
+    "use_case": "UC-1: Bắt đầu brainstorm feature mới",
+    "mode": "NEW",
+    "latency_ms": 82.2,
+    "bytes_read": 2748,
+    "heavy_ops": 0,
+    "accuracy_score": 0.78,
+    "fields_missing": [
+      "is_git_repository",
+      "work_item_id"
+    ],
+    "notes": "Developer mở project, chưa có work item active, cần khởi tạo workflow"
+  },
+  {
+    "use_case": "UC-2: Tiếp tục implement sau review",
+    "mode": "OLD",
+    "latency_ms": 114.5,
+    "bytes_read": 62530,
+    "heavy_ops": 6,
+    "accuracy_score": 1.0,
+    "fields_missing": [],
+    "notes": "Developer resume workflow sau khi blueprint approved, cần load state nhanh"
+  },
+  {
+    "use_case": "UC-2: Tiếp tục implement sau review",
+    "mode": "NEW",
+    "latency_ms": 91.6,
+    "bytes_read": 2888,
+    "heavy_ops": 0,
+    "accuracy_score": 0.89,
+    "fields_missing": [
+      "is_git_repository"
+    ],
+    "notes": "Developer resume workflow sau khi blueprint approved, cần load state nhanh"
+  },
+  {
+    "use_case": "UC-3: Quick-fix sau lỗi CI",
+    "mode": "OLD",
+    "latency_ms": 135.0,
+    "bytes_read": 62530,
+    "heavy_ops": 6,
+    "accuracy_score": 1.0,
+    "fields_missing": [],
+    "notes": "CI báo lỗi, developer cần init nhanh để bắt đầu quick-fix ngay"
+  },
+  {
+    "use_case": "UC-3: Quick-fix sau lỗi CI",
+    "mode": "NEW",
+    "latency_ms": 95.6,
+    "bytes_read": 2888,
+    "heavy_ops": 0,
+    "accuracy_score": 0.89,
+    "fields_missing": [
+      "is_git_repository"
+    ],
+    "notes": "CI báo lỗi, developer cần init nhanh để bắt đầu quick-fix ngay"
+  },
+  {
+    "use_case": "UC-4: Cold start sau khi restart máy",
+    "mode": "OLD",
+    "latency_ms": 125.0,
+    "bytes_read": 2487,
+    "heavy_ops": 5,
+    "accuracy_score": 0.89,
+    "fields_missing": [
+      "work_item_id"
+    ],
+    "notes": "Machine restart, tất cả cache mất, env snapshot stale > 24h"
+  },
+  {
+    "use_case": "UC-4: Cold start sau khi restart máy",
+    "mode": "NEW",
+    "latency_ms": 88.0,
+    "bytes_read": 2748,
+    "heavy_ops": 0,
+    "accuracy_score": 0.78,
+    "fields_missing": [
+      "is_git_repository",
+      "work_item_id"
+    ],
+    "notes": "Machine restart, tất cả cache mất, env snapshot stale > 24h"
+  },
+  {
+    "use_case": "UC-5: Switch branch và re-init",
+    "mode": "OLD",
+    "latency_ms": 145.0,
+    "bytes_read": 62556,
+    "heavy_ops": 6,
+    "accuracy_score": 1.0,
+    "fields_missing": [],
+    "notes": "Developer switch sang feature branch, cần detect branch mới + checkpoint"
+  },
+  {
+    "use_case": "UC-5: Switch branch và re-init",
+    "mode": "NEW",
+    "latency_ms": 92.9,
+    "bytes_read": 2914,
+    "heavy_ops": 0,
+    "accuracy_score": 0.89,
+    "fields_missing": [
+      "is_git_repository"
+    ],
+    "notes": "Developer switch sang feature branch, cần detect branch mới + checkpoint"
+  }
+]

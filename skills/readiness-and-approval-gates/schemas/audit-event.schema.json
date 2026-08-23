@@ -1,0 +1,40 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "title": "AIWF Gate Audit Event Schema",
+  "type": "object",
+  "version": "1.0.0",
+  "required": [
+    "event_id",
+    "event_type",
+    "workflow_id",
+    "session_id",
+    "artifact_id",
+    "artifact_version",
+    "artifact_full_hash",
+    "actor",
+    "role",
+    "timestamp",
+    "decision",
+    "reason"
+  ],
+  "properties": {
+    "event_id": { "type": "string" },
+    "event_type": { "type": "string" },
+    "workflow_id": { "type": "string" },
+    "session_id": { "type": "string" },
+    "project_id": { "type": "string" },
+    "artifact_id": { "type": "string" },
+    "artifact_version": { "type": "string" },
+    "artifact_full_hash": { "type": "string" },
+    "actor": { "type": "string" },
+    "role": { "type": "string" },
+    "timestamp": { "type": "string" },
+    "state_before": { "type": "string" },
+    "state_after": { "type": "string" },
+    "decision": { "type": "string" },
+    "reason": { "type": "string" },
+    "evidence": { "type": "array", "items": { "type": "string" } },
+    "conditions": { "type": "array", "items": { "type": "string" } },
+    "correlation_id": { "type": "string" }
+  }
+}

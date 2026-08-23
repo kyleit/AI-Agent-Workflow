@@ -1,0 +1,20 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "title": "AIWF Producer Consumer Map Schema",
+  "type": "object",
+  "version": "1.0.0",
+  "required": [
+    "map_id",
+    "total_artifacts",
+    "status"
+  ],
+  "properties": {
+    "map_id": { "type": "string" },
+    "total_artifacts": { "type": "integer" },
+    "artifacts": {
+      "type": "array",
+      "items": { "type": "object" }
+    },
+    "status": { "type": "string", "default": "COVERAGE_COMPLETE" }
+  }
+}

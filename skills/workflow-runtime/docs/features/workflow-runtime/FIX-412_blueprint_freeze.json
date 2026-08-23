@@ -1,0 +1,30 @@
+{
+  "blueprint_id": "BP-FIX-412-v2",
+  "fix_id": "FIX-412",
+  "blueprint_path": "docs/features/workflow-runtime/blueprints/FIX-412_arch_type_safety_remediation_blueprint.md",
+  "full_sha256": "b55f81eb895cdb664f71fa8ab36c5c4e186607e6ae817f56a422a285effc3e54",
+  "baseline_commit": "7dcead5",
+  "freeze_status": "FROZEN",
+  "approved_by": "user",
+  "approval_method": "native_ui_prompt",
+  "frozen_at": "2026-08-08T01:08:35Z",
+  "implementation_authorized": true,
+  "allowed_files": [
+    "workflow_runtime/application/analytics/usage_record_port.py",
+    "workflow_runtime/application/analytics/usage_sync_service.py",
+    "workflow_runtime/pyproject.toml",
+    "workflow_runtime/presentation/cli/commands/_impl/workflow/workflow_routing.py",
+    "workflow_runtime/presentation/cli/commands/_impl/workflow/workflow_routing_handlers.py",
+    "workflow_runtime/application/dependency/dependency_resolver.py",
+    "workflow_runtime/application/dependency/dependency_resolver_p2.py",
+    "workflow_runtime/presentation/cli/commands/_impl/session/session_init_wizard.py",
+    "workflow_runtime/presentation/cli/commands/_impl/session/session_init_wizard_http.py",
+    "workflow_runtime/presentation/cli/commands/_impl/**/*.py (batch fallback removal)"
+  ],
+  "protected_files": [
+    "workflow_runtime/domain/**/*",
+    "workflow_runtime/infrastructure/persistence/db_schema.py",
+    "workflow_runtime/infrastructure/persistence/db_connections.py",
+    "workflow_runtime/tests/**/*"
+  ]
+}

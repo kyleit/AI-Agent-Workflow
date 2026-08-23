@@ -1,0 +1,14 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "title": "AIWF Cross-Skill Remediation Request Schema",
+  "type": "object",
+  "version": "1.0.0",
+  "required": [
+    "remediation_request_id",
+    "status"
+  ],
+  "properties": {
+    "remediation_request_id": { "type": "string" },
+    "status": { "type": "string", "default": "NO_REMEDIATION_REQUIRED" }
+  }
+}

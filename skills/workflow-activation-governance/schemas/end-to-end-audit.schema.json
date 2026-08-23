@@ -1,0 +1,33 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "title": "AIWF End-to-End Audit Schema",
+  "type": "object",
+  "version": "1.0.0",
+  "required": [
+    "audit_id",
+    "phase_handoffs_audited",
+    "phase_handoffs_passed",
+    "canonical_entrypoint_count",
+    "status",
+    "content_hash"
+  ],
+  "properties": {
+    "audit_id": { "type": "string" },
+    "phase_handoffs_audited": { "type": "integer", "default": 14 },
+    "phase_handoffs_passed": { "type": "integer", "default": 14 },
+    "canonical_entrypoint_count": { "type": "integer", "default": 1 },
+    "unregistered_skills": { "type": "array", "items": { "type": "string" } },
+    "stale_manifest_entries": { "type": "array", "items": { "type": "string" } },
+    "authority_conflicts": { "type": "array", "items": { "type": "string" } },
+    "status": {
+      "type": "string",
+      "enum": [
+        "AUDIT_PASSED",
+        "AUDIT_FAILED",
+        "AUDIT_BLOCKED"
+      ]
+    },
+    "content_hash": { "type": "string" },
+    "hash_algorithm": { "type": "string", "default": "SHA-256" }
+  }
+}

@@ -1,0 +1,26 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "title": "AIWF Activation Rollback Plan Schema",
+  "type": "object",
+  "version": "1.0.0",
+  "required": [
+    "activation_rollback_id",
+    "activation_plan_id",
+    "trigger_conditions",
+    "status"
+  ],
+  "properties": {
+    "activation_rollback_id": { "type": "string" },
+    "activation_plan_id": { "type": "string" },
+    "trigger_conditions": { "type": "array", "items": { "type": "string" } },
+    "status": {
+      "type": "string",
+      "enum": [
+        "READY",
+        "READY_WITH_CONDITIONS",
+        "NOT_READY",
+        "BLOCKED"
+      ]
+    }
+  }
+}

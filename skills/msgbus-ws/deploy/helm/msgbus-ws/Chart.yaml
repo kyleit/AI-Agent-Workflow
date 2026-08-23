@@ -1,0 +1,7 @@
+apiVersion: v2
+name: msgbus-ws
+description: LAN/edge realtime message + file bus (HTTP + WebSocket + tus) relay server
+type: application
+version: 1.0.0          # chart version
+appVersion: "1.0.0"    # image tag default
+home: https://example.invalid/message-bus

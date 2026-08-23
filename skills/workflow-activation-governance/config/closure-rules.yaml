@@ -1,0 +1,8 @@
+# AIWF Closure Rules Configuration
+version: "1.0.0"
+
+rules:
+  allow_open_blockers: false
+  allow_unresolved_criticals: false
+  default_closure_decision: "CLOSED_WITH_CONDITIONS"
+  workflow_redesign_closed: true

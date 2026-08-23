@@ -1,0 +1,74 @@
+# AIWF Workflow Gate Matrix Configuration
+version: "1.0.0"
+default_readiness_threshold: 95
+hash_algorithm: "SHA-256"
+
+gates:
+  requirement_readiness:
+    mode: "SCORED"
+    threshold: 95
+    required_approval: "REQUIREMENT_APPROVAL"
+    approver: "Repository Owner"
+    strict_blocking: true
+
+  brainstorming_readiness:
+    mode: "SCORED"
+    threshold: 95
+    required_approval: "FEASIBILITY_APPROVAL"
+    approver: "Architect"
+    strict_blocking: true
+
+  plan_readiness:
+    mode: "SCORED"
+    threshold: 95
+    required_approval: "PLAN_APPROVAL"
+    approver: "Planner"
+    strict_blocking: true
+
+  blueprint_readiness:
+    mode: "SCORED"
+    threshold: 95
+    required_approval: "BLUEPRINT_APPROVAL"
+    approver: "Repository Owner"
+    strict_blocking: true
+
+  architecture_feasibility:
+    mode: "BINARY"
+    required_approval: "FEASIBILITY_APPROVAL"
+    approver: "Architect"
+
+  plan_architecture_review:
+    mode: "BINARY"
+    required_approval: "PLAN_APPROVAL"
+    approver: "Architect"
+
+  blueprint_architecture_approval:
+    mode: "BINARY"
+    required_approval: "BLUEPRINT_APPROVAL"
+    approver: "Repository Owner"
+
+  final_architecture_conformance:
+    mode: "BINARY"
+    required_approval: "FINAL_CONFORMANCE_APPROVAL"
+    approver: "Architect"
+
+  implementation_entry:
+    mode: "BINARY"
+    required_approval: "IMPLEMENTATION_APPROVAL"
+    approver: "Repository Owner"
+
+  test_execution_approval:
+    mode: "BINARY"
+    required_approval: "TEST_EXECUTION_APPROVAL"
+    approver: "TESTER"
+    exclusive_owner: "TESTER"
+
+  git_approval:
+    mode: "BINARY"
+    required_approval: "GIT_APPROVAL"
+    approver: "Repository Owner"
+
+  release_approval:
+    mode: "BINARY"
+    required_approval: "RELEASE_APPROVAL"
+    approver: "Repository Owner"

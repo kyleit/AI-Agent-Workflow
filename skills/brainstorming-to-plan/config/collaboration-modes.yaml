@@ -1,0 +1,27 @@
+# AIWF Collaboration Modes Configuration
+version: "1.0.0"
+default_mode: "MODE_B_MULTI_AGENT_SINGLE_WRITER"
+
+modes:
+  MODE_A_SINGLE_AGENT:
+    name: "Single Agent Mode"
+    single_writer: true
+    description: "Used for small, isolated tasks managed by a single agent."
+
+  MODE_B_MULTI_AGENT_SINGLE_WRITER:
+    name: "Multi-Agent Single Writer Mode"
+    single_writer: true
+    default: true
+    description: "Default mode. Multiple specialist agents analyze/review, but only Main Writer modifies source files."
+
+  MODE_C_SAFE_MULTI_WRITE:
+    name: "Safe Multi-Write Mode"
+    single_writer: false
+    prerequisites_required:
+      - clear_file_ownership
+      - no_overlap_or_leases
+      - base_hash_check
+      - occ_runtime_engine
+      - atomic_write
+      - rollback_recovery
+    eligibility_guard: "MODE_C_NOT_ELIGIBLE"

@@ -1,0 +1,53 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "title": "AIWF Test Requirement Schema",
+  "type": "object",
+  "version": "1.0.0",
+  "required": [
+    "test_requirement_id",
+    "requirement_ids",
+    "acceptance_criteria_ids",
+    "test_type",
+    "objective",
+    "owner",
+    "status"
+  ],
+  "properties": {
+    "test_requirement_id": { "type": "string" },
+    "requirement_ids": { "type": "array", "items": { "type": "string" } },
+    "acceptance_criteria_ids": { "type": "array", "items": { "type": "string" } },
+    "risk_ids": { "type": "array", "items": { "type": "string" } },
+    "test_type": {
+      "type": "string",
+      "enum": [
+        "UNIT",
+        "INTEGRATION",
+        "CONTRACT",
+        "E2E",
+        "REGRESSION",
+        "PERFORMANCE",
+        "LOAD",
+        "STRESS",
+        "SECURITY",
+        "MIGRATION",
+        "RECOVERY",
+        "COMPATIBILITY",
+        "SMOKE",
+        "MANUAL",
+        "NOT_APPLICABLE"
+      ]
+    },
+    "objective": { "type": "string" },
+    "owner": { "type": "string", "default": "TESTER" },
+    "status": {
+      "type": "string",
+      "enum": [
+        "PLANNED",
+        "NOT_AUTHORIZED",
+        "AUTHORIZED",
+        "EXECUTED",
+        "NOT_RUN"
+      ]
+    }
+  }
+}

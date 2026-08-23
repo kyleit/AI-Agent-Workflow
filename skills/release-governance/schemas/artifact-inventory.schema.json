@@ -1,0 +1,24 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "title": "AIWF Release Artifact Inventory Schema",
+  "type": "object",
+  "version": "1.0.0",
+  "required": [
+    "artifact_inventory_id",
+    "project_id",
+    "release_preparation_id",
+    "candidate_version",
+    "artifacts",
+    "content_hash"
+  ],
+  "properties": {
+    "artifact_inventory_id": { "type": "string" },
+    "project_id": { "type": "string" },
+    "release_preparation_id": { "type": "string" },
+    "candidate_version": { "type": "string" },
+    "artifacts": { "type": "array", "items": { "type": "object" } },
+    "integrity_summary": { "type": "string" },
+    "content_hash": { "type": "string" },
+    "hash_algorithm": { "type": "string", "default": "SHA-256" }
+  }
+}

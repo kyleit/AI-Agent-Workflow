@@ -1,0 +1,7 @@
+# AIWF Activation Readiness Rules Configuration
+version: "1.0.0"
+
+rules:
+  readiness_threshold: 95
+  strict_blocking_enabled: true
+  allow_activation_without_approval: false

@@ -1,0 +1,31 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "title": "AIWF Change Scope Reconciliation Schema",
+  "type": "object",
+  "version": "1.0.0",
+  "required": [
+    "reconciliation_id",
+    "repository_snapshot_id",
+    "authorized_files",
+    "unauthorized_files",
+    "protected_files_changed",
+    "status"
+  ],
+  "properties": {
+    "reconciliation_id": { "type": "string" },
+    "repository_snapshot_id": { "type": "string" },
+    "authorized_files": { "type": "array", "items": { "type": "string" } },
+    "unauthorized_files": { "type": "array", "items": { "type": "string" } },
+    "protected_files_changed": { "type": "array", "items": { "type": "string" } },
+    "mirror_files_changed": { "type": "array", "items": { "type": "string" } },
+    "status": {
+      "type": "string",
+      "enum": [
+        "CLEAN_AUTHORIZED",
+        "UNAUTHORIZED_OUT_OF_SCOPE",
+        "PROTECTED_FILE_CHANGE_BLOCKED",
+        "MIRROR_DIRECT_CHANGE_BLOCKED"
+      ]
+    }
+  }
+}

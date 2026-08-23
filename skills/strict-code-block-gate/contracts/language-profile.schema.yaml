@@ -1,0 +1,21 @@
+version: 1.0.0
+required_fields:
+  - profile_id
+  - language
+  - strict
+  - extensions
+  - gate_checks
+field_contract:
+  profile_id: string
+  language: string
+  strict: boolean
+  extensions: string_list
+  filenames: string_list
+  parser: string
+  gate_checks: string_list
+  forbidden_patterns: string_list
+  materialized_extension: string
+strict_requirements:
+  strict_must_be_true: true
+  at_least_one_extension_or_filename: true
+  no_project_tests_in_gate_checks: true

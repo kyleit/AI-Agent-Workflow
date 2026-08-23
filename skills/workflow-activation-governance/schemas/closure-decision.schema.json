@@ -1,0 +1,30 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "title": "AIWF Closure Decision Schema",
+  "type": "object",
+  "version": "1.0.0",
+  "required": [
+    "closure_decision_id",
+    "workflow_version",
+    "decision",
+    "content_hash"
+  ],
+  "properties": {
+    "closure_decision_id": { "type": "string" },
+    "workflow_version": { "type": "string", "default": "3.15.0" },
+    "decision": {
+      "type": "string",
+      "enum": [
+        "CLOSED_OPERATIONAL",
+        "CLOSED_WITH_CONDITIONS",
+        "KEEP_OPEN_FOR_OBSERVATION",
+        "ROLLBACK_REQUIRED",
+        "BLOCKED",
+        "INVALIDATED"
+      ]
+    },
+    "reason": { "type": "string" },
+    "content_hash": { "type": "string" },
+    "hash_algorithm": { "type": "string", "default": "SHA-256" }
+  }
+}

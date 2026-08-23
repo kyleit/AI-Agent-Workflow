@@ -1,0 +1,7 @@
+# AIWF Final Audit Checks Configuration
+version: "1.0.0"
+
+checks:
+  required_phases_audited: 18
+  canonical_entrypoint_count_required: 1
+  require_full_traceability_chain: true

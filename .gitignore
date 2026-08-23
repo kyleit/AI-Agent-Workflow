@@ -1,0 +1,46 @@
+node_modules
+__pycache__/
+*.pyc
+*.db
+*.db-journal
+*.db-wal
+*.db-shm
+*.tmp
+*.bak
+.agents/
+public_export/
+**/__pycache__/
+
+# Temporary scratch directory
+scratch/
+
+# Local runtime choices and transient data
+.agents/runtime/choice-response.json
+.agents/runtime/pending-choice.json
+.agents/inbox/*
+!.agents/inbox/.gitkeep
+.agents/skills/workflow-runtime/tests/integration/temp_full_access_test/
+skills/workflow-runtime/tests/integration/temp_full_access_test/
+
+# Performance soak/stress testing evidence and local lease logs
+docs/brainstorming/stale_leases/
+artifacts/adaptive-agent-team/conflict_resolution_evidence.json
+artifacts/adaptive-agent-team/ownership_evidence.json
+artifacts/adaptive-agent-team/stale_write_evidence.json
+artifacts/full-access-autonomous-delivery/
+
+qdrant_storage
+
+# Telegram Bot Credentials
+.agents/config/.env.telegram-notify
+.agents/config/.env*
+*.env*
+
+# Temporary test cleanup folder
+_to_delete/
+
+# DevTeam (FEAT-420) runtime mailboxes — generated, not tracked
+.agents/session-mail/
+.agents/devteam/locks.json
+.agents/devteam/*.lock
+.agents/session-mail/*.lock

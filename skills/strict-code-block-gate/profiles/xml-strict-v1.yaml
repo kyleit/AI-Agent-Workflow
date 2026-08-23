@@ -1,0 +1,20 @@
+profile_id: xml-strict-v1
+language: XML
+strict: true
+extensions: [.xml]
+filenames: []
+materialized_extension: .xml
+parser: profile-aware-static
+forbidden_patterns:
+  - "TODO_ONLY"
+  - "ELLIPSIS_AS_IMPLEMENTATION"
+  - "PLACEHOLDER_CODE"
+  - "TRUNCATED_SNIPPET"
+gate_checks:
+  - metadata_complete
+  - profile_resolved
+  - placeholder_scan
+  - materialize_only_under_agents_tmp
+  - architecture_boundary_check
+reference_tools_not_executed_by_default: [xml parser]
+project_tests: NOT_RUN

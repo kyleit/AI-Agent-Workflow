@@ -1,0 +1,32 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "title": "AIWF Repository Snapshot Schema",
+  "type": "object",
+  "version": "1.0.0",
+  "required": [
+    "repository_snapshot_id",
+    "repository_root",
+    "current_branch",
+    "head_commit",
+    "baseline_commit",
+    "working_tree_status",
+    "content_hash"
+  ],
+  "properties": {
+    "repository_snapshot_id": { "type": "string" },
+    "repository_root": { "type": "string" },
+    "current_branch": { "type": "string" },
+    "detached_head": { "type": "boolean", "default": false },
+    "head_commit": { "type": "string" },
+    "baseline_commit": { "type": "string" },
+    "working_tree_status": { "type": "string" },
+    "staged_changes": { "type": "array", "items": { "type": "string" } },
+    "unstaged_changes": { "type": "array", "items": { "type": "string" } },
+    "untracked_files": { "type": "array", "items": { "type": "string" } },
+    "generated_files": { "type": "array", "items": { "type": "string" } },
+    "mirror_files": { "type": "array", "items": { "type": "string" } },
+    "protected_files": { "type": "array", "items": { "type": "string" } },
+    "content_hash": { "type": "string" },
+    "hash_algorithm": { "type": "string", "default": "SHA-256" }
+  }
+}
