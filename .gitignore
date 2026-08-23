@@ -13,6 +13,11 @@ public_export/
 
 # Temporary scratch directory
 scratch/
+skills/workflow-runtime/scratch/
+skills/workflow-runtime/.agents/
+skills/workflow-runtime/.vscode/
+skills/workflow-runtime/.ruff_cache/
+skills/workflow-runtime/.import_linter_cache/
 
 # Local runtime choices and transient data
 .agents/runtime/choice-response.json
