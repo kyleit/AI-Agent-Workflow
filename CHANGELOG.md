@@ -5,6 +5,9 @@
 ### Features
 - **agent-os**: implement AgentOS core features, UI components, and seamless git gate (fc4d7efd)
 
+### Bug Fixes
+- **release**: support force push for branch in repo_release step (0571d548)
+
 
 ## v6.24.4 - 2026-08-23
 

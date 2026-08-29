@@ -75,7 +75,8 @@ def repo_release(
 
     tag_args = ["tag", "-f", tag] if force else ["tag", tag]
     logs.append(_run(repo, tag_args, dry))
-    logs.append(_run(repo, ["push", "-u", remote, branch], dry))
+    push_branch = ["push", "-u", remote, branch] + (["--force"] if force else [])
+    logs.append(_run(repo, push_branch, dry))
     push_tag = ["push", remote, tag] + (["--force"] if force else [])
     logs.append(_run(repo, push_tag, dry))
 
