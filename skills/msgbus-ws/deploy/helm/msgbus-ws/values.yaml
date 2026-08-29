@@ -1,7 +1,7 @@
 replicaCount: 1          # single replica by design (in-memory WS registry + single-writer store)
 
 image:
-  repository: registry.example.invalid/example/message-bus
+  repository: registry.gitlab.com/hngan.it/message-bus
   tag: ""                # defaults to .Chart.appVersion when empty
   pullPolicy: IfNotPresent
 

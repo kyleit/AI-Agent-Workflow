@@ -1,5 +1,11 @@
 # Changelog
 
+## v6.25.0 - 2026-08-29
+
+### Features
+- **agent-os**: implement AgentOS core features, UI components, and seamless git gate (fc4d7efd)
+
+
 ## v6.24.4 - 2026-08-23
 
 ### Fixed

@@ -1,6 +1,6 @@
 # msgbus-ws relay server — stdlib only, no pip install needed.
 # Build from the repo root:
-#   docker build -t registry.example.invalid/example/message-bus:1.0.0 .
+#   docker build -t registry.gitlab.com/hngan.it/message-bus:1.0.0 .
 FROM python:3.12-slim
 
 # Run as non-root; store lives on a mounted volume so data survives restarts.

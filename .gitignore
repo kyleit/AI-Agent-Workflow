@@ -18,6 +18,11 @@ skills/workflow-runtime/.agents/
 skills/workflow-runtime/.vscode/
 skills/workflow-runtime/.ruff_cache/
 skills/workflow-runtime/.import_linter_cache/
+.agents/skills/workflow-runtime/scratch/
+.agents/skills/workflow-runtime/.agents/
+.agents/skills/workflow-runtime/.vscode/
+.agents/skills/workflow-runtime/.ruff_cache/
+.agents/skills/workflow-runtime/.import_linter_cache/
 
 # Local runtime choices and transient data
 .agents/runtime/choice-response.json

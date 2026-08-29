@@ -4,4 +4,4 @@ description: LAN/edge realtime message + file bus (HTTP + WebSocket + tus) relay
 type: application
 version: 1.0.0          # chart version
 appVersion: "1.0.0"    # image tag default
-home: https://example.invalid/message-bus
+home: https://gitlab.com/hngan.it/message-bus
