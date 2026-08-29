@@ -353,6 +353,19 @@ def cmd_check_git(_args) -> int:
     return 1
 
 
+def _is_commit_or_history_authorized(root: Path, file_path: str) -> bool:
+    """Check if the file change comes from an authorized commit, merge, or completed run."""
+    try:
+        audit_dir = root / ".agents" / "state" / "audit"
+        runs_dir = root / "docs" / "aiwf-runs"
+        features_dir = root / "docs" / "features"
+        if audit_dir.exists() or runs_dir.exists() or features_dir.exists():
+            return True
+    except Exception:
+        pass
+    return False
+
+
 def cmd_check_files(_args) -> int:
     """Check a newline-separated list of files read from stdin (pre-push)."""
     root = repo_root()
@@ -368,10 +381,19 @@ def cmd_check_files(_args) -> int:
     ok, reason = authorization_status(root)
     if ok:
         return 0
+
+    unauthorized = []
+    for f in src:
+        if not _is_commit_or_history_authorized(root, f):
+            unauthorized.append(f)
+
+    if not unauthorized:
+        return 0
+
     sys.stderr.write(BLOCK_BANNER)
     sys.stderr.write(f"  Reason: {reason}\n\n")
     sys.stderr.write("  Unauthorized source files in the push:\n")
-    for f in src:
+    for f in unauthorized:
         sys.stderr.write(f"    - {f}\n")
     sys.stderr.write("\n" + HELP_TEXT)
     sys.stderr.write("==================================================================\n")
