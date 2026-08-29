@@ -6,7 +6,23 @@
 - **agent-os**: implement AgentOS core features, UI components, and seamless git gate (fc4d7efd)
 
 ### Bug Fixes
+- **release**: pre-write release receipt before pipeline steps (8d678cb0)
 - **release**: support force push for branch in repo_release step (0571d548)
+
+
+## v6.25.0 - 2026-08-29
+
+### Features
+- **agent-os**: implement AgentOS core features, UI components, and seamless git gate (fc4d7efd)
+
+### Bug Fixes
+- **release**: support force push for branch in repo_release step (0571d548)
+
+### Chores
+- sync public_export submodule pointer (2e50b62d)
+- update public_export submodule reference (97199654)
+- remove remaining workflow-runtime profile cache (7a951e4b)
+- exclude workflow-runtime local artifacts from export (5e321fd0)
 
 
 ## v6.24.4 - 2026-08-23

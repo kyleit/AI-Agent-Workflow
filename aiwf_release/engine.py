@@ -116,6 +116,10 @@ def run(root: Path, cfg: dict, override_part: str | None, dry: bool) -> dict:
 
     receipt["gates"] = _preflight(root, cfg, plan, dry)
 
+    # Pre-write receipt before running release pipeline so that pre-push hook can verify it
+    if not dry:
+        _write_receipt(root, cfg, receipt)
+
     for step in cfg["pipeline"]:
         name = step["step"]
         if name == "bump-version":
