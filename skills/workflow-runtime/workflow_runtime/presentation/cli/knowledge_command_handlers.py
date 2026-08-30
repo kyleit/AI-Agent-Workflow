@@ -82,40 +82,30 @@ def handle_search(args: argparse.Namespace) -> int:
 def handle_memory(args: argparse.Namespace) -> int:
     import os
     import subprocess
-    mem_act = getattr(args, "memory_action", None)
+    mem_act = getattr(args, "memory_action", None) or getattr(args, "subaction", None) or getattr(args, "action", None)
     if mem_act == "update":
-        script_path = os.path.abspath(os.path.join(os.path.dirname(__file__), "..", "..", "infrastructure", "memory", "update.py"))
-        cmd = [sys.executable, script_path]
-        if getattr(args, "full", False):
-            cmd.append("--full")
-        res = subprocess.run(cmd)
-        return res.returncode
+        from workflow_runtime.infrastructure.memory.update import run_update
+        res = run_update()
+        return 0 if res.get("status") == "success" else 1
     elif mem_act == "bootstrap":
-        script_path = os.path.abspath(os.path.join(os.path.dirname(__file__), "..", "..", "infrastructure", "memory", "bootstrap.py"))
-        cmd = [sys.executable, script_path]
-        res = subprocess.run(cmd)
-        return res.returncode
-    elif mem_act == "query":
-        from workflow_runtime.application.knowledge.memory_service import (
-            MemoryService)
-        from workflow_runtime.application.ports.locator import (
-            InfrastructureLocator)
-        if getattr(InfrastructureLocator, "MemoryStoreAdapter", None) is not None:
-            mem_cls: Any = getattr(InfrastructureLocator, "MemoryStoreAdapter")
-            mem_store = mem_cls()
-        else:
-            import importlib
-            mod = importlib.import_module("workflow_runtime.infrastructure.knowledge.memory_store_adapter")
-            mem_cls: Any = getattr(mod, "MemoryStoreAdapter")
-            mem_store = mem_cls()
-        service = MemoryService(memory_store=mem_store)
-        q_val = str(getattr(args, "query", ""))
-        cat_val = str(getattr(args, "category", ""))
-        results = service.query(query=q_val, category=cat_val)
-        for entry in results:
-            print(f"[{entry.scope.value}] {entry.entry_id} ({entry.title}): {entry.content}")
+        from workflow_runtime.infrastructure.memory.bootstrap import run_bootstrap
+        res = run_bootstrap()
+        return 0 if res.get("status") == "success" else 1
+    elif mem_act in ("query", "search"):
+        from workflow_runtime.infrastructure.memory.search import RAGSearcher
+        searcher = RAGSearcher()
+        q_val = str(getattr(args, "query", "") or "")
+        results = searcher.local_search(q_val)
+        if not results:
+            print("No memory matches found.")
+            return 0
+        limit = int(getattr(args, "limit", 10) or 10)
+        for idx, entry in enumerate(results[:limit], start=1):
+            file_name = entry.get("file", "unknown")
+            snippet = entry.get("snippet", entry.get("text", ""))
+            print(f"[{idx}] {file_name} (score: {entry.get('score', 0.0)})\n    {snippet}")
         return 0
-    return 1
+    return 0
 
 
 def handle_state(args: argparse.Namespace) -> int:
@@ -149,136 +139,77 @@ def handle_telegram(args: argparse.Namespace) -> int:
         extra.extend(["--chat-id", str(args.chat_id)])
     if getattr(args, "token", None):
         extra.extend(["--token", str(args.token)])
-    if getattr(args, "proxy", None):
-        extra.extend(["--proxy", str(args.proxy)])
-    sub_val = str(getattr(args, "subcommand", ""))
-    return svc.run(sub_val, extra)
+    if getattr(args, "message", None):
+        extra.extend(["--message", str(args.message)])
+    if getattr(args, "dry_run", False):
+        extra.append("--dry-run")
+    sub = getattr(args, "subaction", "status")
+    result = svc.dispatch(command=str(sub), args=extra)
+    print(result.get("message", "Telegram action completed."))
+    return 0 if result.get("success", True) else 1
 
 
 def handle_registry(args: argparse.Namespace) -> int:
-    from workflow_runtime.application.ports.locator import (
-        InfrastructureLocator)
-    if getattr(InfrastructureLocator, "RegistryAdapter", None) is not None:
-        reg_cls: Any = getattr(InfrastructureLocator, "RegistryAdapter")
-        reg: Any = reg_cls()
-    else:
-        import importlib
-        mod = importlib.import_module("workflow_runtime.infrastructure.registry.registry_adapter")
-        reg_cls: Any = getattr(mod, "RegistryAdapter")
-        reg: Any = reg_cls()
-    sub = getattr(args, "subcommand", None)
-
+    from workflow_runtime.application.registry.registry_service import (
+        RegistryService)
+    svc = RegistryService()
+    sub = str(getattr(args, "subaction", "list") or "list")
     if sub == "list":
-        raw_projects = reg.list_projects()
-        projects = cast(list[dict[str, Any]], raw_projects) if isinstance(raw_projects, list) else []
-        if not projects:
-            print("No projects registered.")
-            return 0
+        projects = svc.list_projects()
         for p in projects:
-            print(f"  [{p.get('id', '?')}] {p.get('name', '?')} — {p.get('path', '?')}")
+            print(f"- {p.get('name')} ({p.get('path')}): status={p.get('status')}")
         return 0
-
     elif sub == "register":
-        path_val = getattr(args, "path", None)
-        if not path_val:
-            print("--path is required for register", file=sys.stderr)
-            return 2
-        raw_result = reg.register(str(path_val), force=bool(getattr(args, "force", False)))
-        result = cast(dict[str, Any], raw_result) if isinstance(raw_result, dict) else {}
-        print(f"Registered: {result.get('name')} (id={result.get('id')})")
+        path_val = str(getattr(args, "path", ".") or ".")
+        name_val = getattr(args, "name", None)
+        res = svc.register(path=path_val, name=str(name_val) if name_val else None)
+        print(f"Registered project: {res.get('name')} (id={res.get('id')})")
         return 0
-
     elif sub == "unregister":
-        path_val = getattr(args, "path", None)
-        if not path_val:
-            print("--path is required for unregister", file=sys.stderr)
-            return 2
-        ok = bool(reg.unregister(str(path_val)))
-        print("Unregistered." if ok else "Project not found.")
+        pid = str(getattr(args, "project_id", "") or "")
+        ok = svc.unregister(project_id=pid)
+        print(f"Unregistered project {pid}: {ok}")
         return 0 if ok else 1
+    return 0
 
-    elif sub == "doctor":
-        raw_report = reg.doctor()
-        report = cast(dict[str, Any], raw_report) if isinstance(raw_report, dict) else {}
-        for k, v in report.items():
-            print(f"  {k}: {v}")
-        return 0
 
-    elif sub == "cleanup":
-        raw_report = reg.cleanup()
-        report = cast(dict[str, Any], raw_report) if isinstance(raw_report, dict) else {}
-        removed = report.get("removed", 0)
-        print(f"Cleanup complete: {removed} stale entries removed.")
-        return 0
-
-    elif sub == "update-all":
-        raw_report = reg.update_all()
-        report = cast(dict[str, Any], raw_report) if isinstance(raw_report, dict) else {}
-        print(f"Updated {report.get('updated', 0)} projects.")
-        return 0
-
+def handle_execution(args: argparse.Namespace) -> int:
+    from workflow_runtime.application.execution.execution_control_service import (
+        ExecutionControlService)
+    svc = ExecutionControlService()
+    sub = str(getattr(args, "subaction", "status") or "status")
+    if sub == "pause":
+        svc.pause()
+        print("Workflow execution paused.")
+    elif sub == "resume":
+        svc.resume()
+        print("Workflow execution resumed.")
+    elif sub == "cancel":
+        svc.cancel()
+        print("Workflow execution cancelled.")
+    else:
+        st = svc.status()
+        print(f"Execution status: {st}")
     return 0
 
 
 def handle_provider(args: argparse.Namespace) -> int:
-    from workflow_runtime.application.knowledge.knowledge_api import sync
-    sub = getattr(args, "subcommand", None)
+    from workflow_runtime.application.provider.provider_config_service import (
+        ProviderConfigService)
+    svc = ProviderConfigService()
+    sub = str(getattr(args, "subaction", "list") or "list")
     if sub == "list":
-        print("Providers managed by new API (Markdown is default).")
+        provs = svc.list_providers()
+        for p in provs:
+            print(f"- {p.get('name')}: enabled={p.get('enabled')}")
         return 0
-    elif sub == "sync":
-        name = str(getattr(args, "name", None) or "obsidian")
-        res = sync(name)
-        print(f"Sync result for {name}: {res}")
-        return 0 if res.get("status") == "success" else 1
-    elif sub in ["config", "status"]:
-        print(f"Provider {sub} not yet fully ported to DDD API. Check memory.config.json directly.")
-        return 0
-    return 1
+    return 0
 
 
 def handle_visual(args: argparse.Namespace) -> int:
-    """Route to ported VIR CLI."""
-    try:
-        from workflow_runtime.application.visual.core.cli import CLIRunner
-        runner = CLIRunner()
-        argv: list[str] = []
-        mode_val = getattr(args, "mode", None)
-        if mode_val:
-            argv.extend(["--mode", str(mode_val)])
-        feat_val = getattr(args, "feature_id", None)
-        if feat_val:
-            argv.extend(["--feature-id", str(feat_val)])
-        if getattr(args, "ci", False):
-            argv.append("--ci")
-
-        subcmd_val = getattr(args, "subcommand", "")
-        argv.append(str(subcmd_val))
-
-        url_val = getattr(args, "url", None)
-        if url_val:
-            argv.extend(["--url", str(url_val)])
-        goal_val = getattr(args, "goal", None)
-        if goal_val:
-            argv.extend(["--goal", str(goal_val)])
-        iter_val = getattr(args, "max_iter", None)
-        if iter_val:
-            argv.extend(["--max-iter", str(iter_val)])
-        return runner.main(argv)
-    except Exception as e:
-        print(f"[ERROR] visual: {e}", file=sys.stderr)
-        return 1
-
-
-__all__ = [
-    "handle_notify",
-    "handle_cleanup",
-    "handle_verify",
-    "handle_search",
-    "handle_memory",
-    "handle_state",
-    "handle_telegram",
-    "handle_registry",
-    "handle_provider",
-    "handle_visual",
-]
+    from workflow_runtime.application.visual.visual_debug_service import (
+        VisualDebugService)
+    svc = VisualDebugService()
+    res = svc.run_checks()
+    print(f"Visual Debug Status: {res.get('status')}")
+    return 0

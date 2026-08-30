@@ -9,7 +9,8 @@ from .common import get_project_root, to_posix_path
 IGNORE_DIRS = {
     ".git", "node_modules", "venv", ".venv", "env", ".pytest_cache",
     ".vscode", ".agents", "public_export", "dist", "out", "build",
-    "__pycache__", "tmp", "temp"
+    "__pycache__", "tmp", "temp", "_to_delete", "artifacts",
+    "python-runtime-dev", ".qdrant_data", ".qmd"
 }
 
 IGNORE_FILES = {
@@ -18,12 +19,12 @@ IGNORE_FILES = {
 
 
 def get_project_files(root_dir: str | None = None) -> list[str]:
-    """Trả về danh sách các tệp tin trong dự án (đã lọc các tệp/thư mục cần ignore). Path tương đối."""
+    """Tra ve danh sach cac tep tin trong du an (da loc cac tep/thu muc can ignore). Path tuong doi."""
     base_dir = root_dir or get_project_root()
     project_files: list[str] = []
 
     for root, dirs, files in os.walk(base_dir):
-        dirs[:] = [d for d in dirs if d not in IGNORE_DIRS]
+        dirs[:] = [d for d in dirs if d not in IGNORE_DIRS and not d.startswith(".tmp_")]
 
         for file in files:
             if file in IGNORE_FILES:
@@ -31,7 +32,10 @@ def get_project_files(root_dir: str | None = None) -> list[str]:
 
             full_path = os.path.join(root, file)
             rel_path = os.path.relpath(full_path, base_dir)
-            project_files.append(to_posix_path(rel_path))
+            posix_path = to_posix_path(rel_path)
+            if any(posix_path.startswith(ign + "/") or f"/{ign}/" in posix_path for ign in IGNORE_DIRS):
+                continue
+            project_files.append(posix_path)
 
     return project_files
 
@@ -45,7 +49,7 @@ def get_file_timestamp(rel_path: str, root_dir: str | None = None) -> float:
 
 
 def get_changed_files_by_timestamp(since_timestamp_iso: str, root_dir: str | None = None) -> list[str]:
-    """Tìm các tệp tin sửa đổi dựa trên thời gian sửa đổi (filesystem timestamp fallback)."""
+    """Tim cac tep tin sua doi dua tren thoi gian sua doi (filesystem timestamp fallback)."""
     try:
         since_dt = datetime.fromisoformat(since_timestamp_iso)
         since_time = since_dt.timestamp()
@@ -58,17 +62,3 @@ def get_changed_files_by_timestamp(since_timestamp_iso: str, root_dir: str | Non
         if mtime > since_time:
             changed.append(file)
     return changed
-
-
-def ensure_directory(path: str) -> None:
-    os.makedirs(path, exist_ok=True)
-
-
-__all__ = [
-    "IGNORE_DIRS",
-    "IGNORE_FILES",
-    "get_project_files",
-    "get_file_timestamp",
-    "get_changed_files_by_timestamp",
-    "ensure_directory",
-]

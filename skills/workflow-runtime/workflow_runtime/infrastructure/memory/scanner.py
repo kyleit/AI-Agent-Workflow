@@ -73,17 +73,28 @@ class ProjectScanner:
                         frameworks.append("React")
                     if "vue" in deps:
                         frameworks.append("Vue")
+                    if "electron" in deps:
+                        frameworks.append("Electron")
             except Exception:
                 pass
 
         go_mod_path = os.path.join(self.root_dir, "go.mod")
         if os.path.exists(go_mod_path):
             frameworks.append("Go Modules")
+            try:
+                with open(go_mod_path, "r", encoding="utf-8") as f:
+                    mod_text = f.read()
+                    if "wails" in mod_text:
+                        frameworks.append("Wails v2")
+                    if "gin-gonic" in mod_text:
+                        frameworks.append("Gin Web Framework")
+            except Exception:
+                pass
 
         pyproject_toml = os.path.join(self.root_dir, "pyproject.toml")
         requirements_txt = os.path.join(self.root_dir, "requirements.txt")
         if os.path.exists(pyproject_toml) or os.path.exists(requirements_txt):
-            frameworks.append("Python Pip/Poetry")
+            frameworks.append("Python / PyPI")
 
         return frameworks
 
@@ -93,25 +104,28 @@ class ProjectScanner:
         if os.path.exists(makefile_path):
             commands.append({"name": "Makefile Build", "command": "make"})
 
+        go_mod_path = os.path.join(self.root_dir, "go.mod")
+        if os.path.exists(go_mod_path):
+            commands.append({"name": "Go Build", "command": "go build ./..."})
+            commands.append({"name": "Go Test", "command": "go test -v ./..."})
+
+        if os.path.exists(os.path.join(self.root_dir, "pyproject.toml")) or os.path.exists(os.path.join(self.root_dir, "pytest.ini")):
+            commands.append({"name": "Pytest Suite", "command": "pytest"})
+
         package_json_path = os.path.join(self.root_dir, "package.json")
         if os.path.exists(package_json_path):
             try:
                 with open(package_json_path, "r", encoding="utf-8") as f:
                     import json
                     raw_pkg = json.load(f)
-                    pkg: dict[str, Any] = cast(dict[str, Any], raw_pkg) if isinstance(raw_pkg, dict) else {}
-                    raw_scripts = pkg.get("scripts", {})
-                    scripts: dict[str, Any] = cast(dict[str, Any], raw_scripts) if isinstance(raw_scripts, dict) else {}
-                    for name in ["compile", "build", "package", "test"]:
-                        if name in scripts:
-                            commands.append({"name": f"npm run {name}", "command": f"npm run {name}"})
+                    if isinstance(raw_pkg, dict):
+                        scripts = raw_pkg.get("scripts", {})
+                        if isinstance(scripts, dict):
+                            if "build" in scripts:
+                                commands.append({"name": "NPM Build", "command": "npm run build"})
+                            if "test" in scripts:
+                                commands.append({"name": "NPM Test", "command": "npm test"})
             except Exception:
                 pass
 
         return commands
-
-
-__all__ = [
-    "LANG_EXT_MAP",
-    "ProjectScanner",
-]

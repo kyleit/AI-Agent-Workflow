@@ -3,17 +3,79 @@ from __future__ import annotations
 import json
 import os
 import re
+from dataclasses import dataclass, field
+from pathlib import Path
 from datetime import datetime
 from typing import Any, cast
 
 from workflow_runtime.application.ports.locator import InfrastructureLocator
+from workflow_runtime.infrastructure.memory.common import read_text_safe
+
+
+@dataclass(frozen=True)
+class MemoryReadiness:
+    status: str
+    files_changed: int = 0
+    summary_path: str | None = None
+    details: dict[str, object] = field(default_factory=dict)
+
+
+@dataclass(frozen=True)
+class AgentContext:
+    summary: str
+    query: str
+    evidence: tuple[str, ...] = ()
+
+
+def _summary_path(root: Path) -> Path:
+    return root / ".agents" / "memory" / "project-summary.md"
+
+
+def bootstrap_project_memory(root: Path, mode: str = "compact_ai_context") -> dict[str, object]:
+    from workflow_runtime.infrastructure.memory.bootstrap import run_bootstrap
+    return cast(dict[str, object], run_bootstrap(str(root), enable_ai=True))
+
+
+def update_project_memory_from_git_diff(root: Path) -> dict[str, object]:
+    from workflow_runtime.infrastructure.memory.update import run_update
+    return cast(dict[str, object], run_update(target_dir=str(root)))
+
+
+def ensure_project_memory(root: Path | str) -> MemoryReadiness:
+    root_path = Path(root)
+    summary = _summary_path(root_path)
+    if not summary.exists():
+        result = bootstrap_project_memory(root_path, mode="compact_ai_context")
+        status = "bootstrapped" if str(result.get("status")) == "success" else "degraded"
+        return MemoryReadiness(status, summary_path=str(summary), details=dict(result))
+    result = update_project_memory_from_git_diff(root_path)
+    changed = int(result.get("data", {}).get("files_changed_count", 0)) if isinstance(result.get("data"), dict) else 0
+    status = "updated" if str(result.get("status")) == "success" else "degraded"
+    return MemoryReadiness(status, changed, str(summary), dict(result))
+
+
+def build_agent_context(root: Path | str, query: str) -> AgentContext:
+    root_path = Path(root)
+    summary = read_text_safe(_summary_path(root_path))
+    evidence: list[str] = []
+    query_lower = query.strip().lower()
+    rag_root = root_path / ".agents" / "memory" / "rag"
+    if query_lower and rag_root.exists():
+        for candidate in sorted(rag_root.rglob("*")):
+            if candidate.is_file() and query_lower in read_text_safe(candidate, max_chars=20000).lower():
+                evidence.append(candidate.relative_to(root_path).as_posix())
+    return AgentContext(summary=summary, query=query, evidence=tuple(evidence[:8]))
 
 
 class WorkflowEntryGateway:
     def __init__(self, workspace_root: str = "."):
         self.workspace_root = workspace_root
         log_fn: Any = getattr(InfrastructureLocator, "get_logger", None)
-        self.logger: Any = log_fn(workspace_root) if callable(log_fn) else None
+        if callable(log_fn):
+            self.logger: Any = log_fn(workspace_root)
+        else:
+            from workflow_runtime.infrastructure.events.event_logger import EventLogger
+            self.logger = EventLogger(workspace_root)
 
     def detect_intent(self, request_text: str) -> str:
         """
@@ -121,12 +183,75 @@ class WorkflowEntryGateway:
 
     def extract_workflow_id(self, request_text: str) -> str:
         """
-        Extracts FEAT-xxx or QUICK-xxx from text, or returns FEAT-AUTO.
+        Extracts an explicit work item ID, or returns a marker for generation.
         """
         m = re.search(r"\b(feat-\d+|quick-\d+)\b", request_text, re.IGNORECASE)
         if m:
             return m.group(1).upper()
         return "FEAT-AUTO"
+
+    def _next_generated_workflow_id(self) -> str:
+        """Allocate a new feature ID without inheriting the active workflow."""
+        max_num = 0
+        scan_roots = [
+            os.path.join(self.workspace_root, "docs"),
+            os.path.join(self.workspace_root, ".agents", "state"),
+        ]
+        for scan_root in scan_roots:
+            if not os.path.exists(scan_root):
+                continue
+            for root, _dirs, files in os.walk(scan_root):
+                for filename in files:
+                    match = re.search(r"FEAT-(\d+)", filename, re.IGNORECASE)
+                    if match:
+                        max_num = max(max_num, int(match.group(1)))
+        return f"FEAT-{max_num + 1:03d}"
+
+    def _read_only_status(self, request_id: str, source: str | None, session_id: str) -> dict[str, Any]:
+        state_dir = os.path.join(self.workspace_root, ".agents", "state")
+        path = os.path.join(state_dir, "workflow.json")
+        state: dict[str, Any] = {}
+        try:
+            with open(path, "r", encoding="utf-8") as stream:
+                loaded = json.load(stream)
+            if isinstance(loaded, dict):
+                state = cast(dict[str, Any], loaded)
+        except (OSError, ValueError):
+            pass
+        return {
+            "status": "READ_ONLY",
+            "request_id": request_id,
+            "intent": "read_only",
+            "workflow_id": state.get("active_workflow"),
+            "current_phase": state.get("active_phase"),
+            "next_skill": state.get("suggested_next_skill"),
+            "next_command": state.get("suggested_next_command"),
+            "source": source or "system",
+            "session_id": session_id,
+            "side_effects": [],
+        }
+
+    def _write_workflow_state(self, state_dir: str, patch: dict[str, Any], *, mutation: bool) -> None:
+        path = os.path.join(state_dir, "workflow.json")
+        current: dict[str, Any] = {}
+        if os.path.exists(path):
+            try:
+                with open(path, "r", encoding="utf-8") as stream:
+                    loaded = json.load(stream)
+                if isinstance(loaded, dict):
+                    current = cast(dict[str, Any], loaded)
+            except (OSError, ValueError):
+                pass
+        response = dict(current)
+        if mutation:
+            response.update(patch)
+        else:
+            response.update({"read_only": True, "requested_action": patch.get("requested_action", "status")})
+        os.makedirs(state_dir, exist_ok=True)
+        temporary = f"{path}.tmp"
+        with open(temporary, "w", encoding="utf-8") as stream:
+            json.dump(response, stream, indent=2, ensure_ascii=False)
+        os.replace(temporary, path)
 
     def handle_request(self, request_text: str, source: str | None = None, session_id: str | None = None) -> dict[str, Any]:
         """
@@ -137,6 +262,10 @@ class WorkflowEntryGateway:
         req_id = self.generate_request_id()
         active_session_id = session_id or "default_session"
 
+        if intent == "read_only":
+            return self._read_only_status(req_id, source, active_session_id)
+
+        memory_readiness = ensure_project_memory(self.workspace_root)
         emit_fn: Any = getattr(self.logger, "emit", None)
 
         if callable(emit_fn):
@@ -147,19 +276,7 @@ class WorkflowEntryGateway:
 
         workflow_id = self.extract_workflow_id(request_text)
         if workflow_id == "FEAT-AUTO":
-            max_num = 0
-            for d in ["docs/brainstorming", "docs/blueprints", "docs/plans", "docs/verification"]:
-                d_path = os.path.join(self.workspace_root, d)
-                if os.path.exists(d_path):
-                    for _root, _dirs, files in os.walk(d_path):
-                        for f in files:
-                            match = re.search(r"FEAT-(\d+)", f)
-                            if match:
-                                num = int(match.group(1))
-                                if num > max_num:
-                                    max_num = num
-            feat_id = max_num + 1 if max_num > 0 else 312
-            workflow_id = f"FEAT-{feat_id:03d}"
+            workflow_id = self._next_generated_workflow_id()
 
         coord_res = self._run_coordinator_tick(workflow_id, active_session_id)
         entry_phase = "status" if intent == "read_only" else "brainstorming"
@@ -201,8 +318,7 @@ class WorkflowEntryGateway:
             "suggested_next_skill": next_skill_info["skill"],
             "suggested_next_command": next_skill_info["command"]
         })
-        with open(wf_path, "w", encoding="utf-8") as f:
-            json.dump(wf_data, f, indent=2, ensure_ascii=False)
+        self._write_workflow_state(state_dir, wf_data, mutation=True)
 
         ctx_path = os.path.join(state_dir, "context.json")
         ctx_data: dict[str, Any] = {}
@@ -259,9 +375,21 @@ class WorkflowEntryGateway:
             "execution_mode": "workflow",
             "current_phase": entry_phase,
             "next_skill": next_skill_info["skill"],
+            "next_command": next_skill_info["command"],
+            "memory": {
+                "status": memory_readiness.status,
+                "files_changed": memory_readiness.files_changed,
+                "summary_path": ".agents/memory/project-summary.md",
+            },
             "source": source or "system",
             "session_id": active_session_id
         }
 
 
-__all__ = ["WorkflowEntryGateway"]
+__all__ = [
+    "AgentContext",
+    "MemoryReadiness",
+    "WorkflowEntryGateway",
+    "build_agent_context",
+    "ensure_project_memory",
+]

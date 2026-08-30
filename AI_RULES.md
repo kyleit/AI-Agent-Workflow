@@ -4,6 +4,12 @@ This document is the single source of truth for all shared behaviors, constraint
 
 ---
 
+### AI-First Execution Contract
+
+In autonomous workflow mode, every Skill and script MUST return one structured command envelope containing status, side effects, evidence, and next action. The Workflow Supervisor MUST execute automatic next actions until completion, failure, a cycle, a budget limit, or a strategic human gate. Internal CLI commands MUST NOT be presented as instructions for the user to type.
+
+Local read, compile, lint, and test activities are runtime-owned safe capabilities. Network, destructive, production, and release activities remain explicit approval capabilities.
+
 ### 1. Approval Gate Policy
 
 The framework is strictly **approval-driven**, but allows dual execution modes depending on project configurations:

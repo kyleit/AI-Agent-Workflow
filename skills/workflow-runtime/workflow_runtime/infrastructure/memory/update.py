@@ -80,7 +80,7 @@ def parse_new_lessons(file_path: str) -> list[dict[str, Any]]:
     return lessons
 
 
-def run_update(force_full: bool = False) -> dict[str, Any]:
+def run_update(force_full: bool = False, target_dir: str | None = None) -> dict[str, Any]:
     session_start(
         skill="project-memory-update",
         command="memory-sync",
@@ -89,8 +89,9 @@ def run_update(force_full: bool = False) -> dict[str, Any]:
     )
 
     try:
-        config = load_memory_config()
-        paths = get_memory_paths(config)
+        root_dir = os.path.abspath(target_dir or os.getcwd())
+        config = load_memory_config(root_dir=root_dir)
+        paths = get_memory_paths(config, root_dir=root_dir)
 
         last_hash = ""
         last_updated = ""
@@ -110,21 +111,21 @@ def run_update(force_full: bool = False) -> dict[str, Any]:
         detection_method = "user-specified"
 
         if force_full:
-            changed_files = get_project_files()
+            changed_files = get_project_files(root_dir=root_dir)
             detection_method = "full-scan"
-        elif is_git_repository():
+        elif is_git_repository(root_dir):
             detection_method = "git-diff"
             if last_hash:
-                changed_files = get_changed_files(last_hash)
+                changed_files = get_changed_files(last_hash, root_dir=root_dir)
             else:
-                changed_files = get_project_files()
-            changed_files = list(set(changed_files + get_uncommitted_files()))
+                changed_files = get_project_files(root_dir=root_dir)
+            changed_files = list(set(changed_files + get_uncommitted_files(root_dir=root_dir)))
         else:
             detection_method = "filesystem-timestamp"
             if last_updated:
-                changed_files = get_changed_files_by_timestamp(last_updated)
+                changed_files = get_changed_files_by_timestamp(last_updated, root_dir=root_dir)
             else:
-                changed_files = get_project_files()
+                changed_files = get_project_files(root_dir=root_dir)
 
         if not changed_files:
             session_complete(
@@ -152,12 +153,16 @@ def run_update(force_full: bool = False) -> dict[str, Any]:
             except Exception:
                 pass
         if not file_map:
-            file_map = generate_file_map(get_project_files())
+            file_map = generate_file_map(get_project_files(root_dir=root_dir))
 
         new_lessons: list[dict[str, Any]] = []
         for file in changed_files:
-            if file.startswith("docs/issues/") or file.startswith("docs/quick/"):
-                full_path = os.path.join(os.getcwd(), file)
+            if (
+                file.startswith("docs/issues/")
+                or file.startswith("docs/quick/")
+                or file.startswith("docs/features/")
+            ):
+                full_path = os.path.join(root_dir, file)
                 new_lessons.extend(parse_new_lessons(full_path))
 
         lessons_updated = 0
@@ -199,7 +204,7 @@ def run_update(force_full: bool = False) -> dict[str, Any]:
                 log_warn(f"Failed to update known-problems.md: {e}")
 
         if upsert_chunks:
-            proj_id = str(config.get("project_id", os.path.basename(os.getcwd()) if os.path.basename(os.getcwd()) else "unknown_project"))
+            proj_id = str(config.get("project_id", os.path.basename(root_dir) if os.path.basename(root_dir) else "unknown_project"))
             write_vector_sync_plan(
                 paths["vector_sync_plan"],
                 proj_id,
@@ -207,7 +212,7 @@ def run_update(force_full: bool = False) -> dict[str, Any]:
             )
             files_written.append(paths["vector_sync_plan"])
 
-        current_hash = get_latest_commit_hash()
+        current_hash = get_latest_commit_hash(root_dir=root_dir)
         update_memory_state(paths["state"], cast(Any, {
             "last_git_hash": current_hash or last_hash,
             "last_run_mode": "incremental",

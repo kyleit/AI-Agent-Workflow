@@ -1,23 +1,33 @@
 # common.py
 from __future__ import annotations
 
+import json
 import os
+import re
 from typing import Any, cast
 
 
 def log_info(msg: str) -> None:
+    if os.environ.get("AIWF_JSON_OUTPUT", "").lower() in {"1", "true", "yes"}:
+        return
     print(f"\033[1;34m[INFO]\033[0m {msg}", flush=True)
 
 
 def log_success(msg: str) -> None:
+    if os.environ.get("AIWF_JSON_OUTPUT", "").lower() in {"1", "true", "yes"}:
+        return
     print(f"\033[1;32m[SUCCESS]\033[0m {msg}", flush=True)
 
 
 def log_warn(msg: str) -> None:
+    if os.environ.get("AIWF_JSON_OUTPUT", "").lower() in {"1", "true", "yes"}:
+        return
     print(f"\033[1;33m[WARN]\033[0m {msg}", flush=True)
 
 
 def log_error(msg: str) -> None:
+    if os.environ.get("AIWF_JSON_OUTPUT", "").lower() in {"1", "true", "yes"}:
+        return
     print(f"\033[1;31m[ERROR]\033[0m {msg}", flush=True)
 
 
@@ -28,6 +38,62 @@ def get_project_root() -> str:
 def to_posix_path(path_str: str) -> str:
     """Chuẩn hóa đường dẫn về dạng POSIX với ký tự '/' (tránh lỗi Windows path trong metadata)."""
     return path_str.replace("\\", "/")
+
+
+def sanitize_clean_text(content: str) -> str:
+    """Loại bỏ ký tự điều khiển lạ (ASCII bell \x07, NULL, v.v.) và BOM, giữ lại \n, \r, \t chuẩn."""
+    if not content:
+        return ""
+    # Strip leading BOM
+    clean = content.lstrip("\ufeff")
+    # Filter out control characters below ord 32 (except \n=10, \r=13, \t=9)
+    sanitized = "".join(c for c in clean if ord(c) >= 32 or c in ("\n", "\r", "\t"))
+    return sanitized
+
+
+def read_text_safe(path: str | os.PathLike[str], max_chars: int | None = None) -> str:
+    """Reads text safely, auto-stripping BOM (utf-8-sig), control chars, and replacing invalid sequences."""
+    if not os.path.exists(path):
+        return ""
+    try:
+        with open(path, "r", encoding="utf-8-sig", errors="replace") as f:
+            raw = f.read(max_chars) if max_chars is not None else f.read()
+            return sanitize_clean_text(raw)
+    except Exception:
+        try:
+            with open(path, "rb") as fb:
+                raw_bytes = fb.read(max_chars * 4 if max_chars else None)
+                if raw_bytes.startswith(b"\xef\xbb\xbf"):
+                    raw_bytes = raw_bytes[3:]
+                decoded = raw_bytes.decode("utf-8", errors="replace")
+                return sanitize_clean_text(decoded[:max_chars] if max_chars else decoded)
+        except Exception:
+            return ""
+
+
+def write_text_safe(path: str | os.PathLike[str], content: str) -> None:
+    """Writes text strictly in UTF-8 without BOM, sanitized of control characters, with normalized \n."""
+    os.makedirs(os.path.dirname(os.path.abspath(path)), exist_ok=True)
+    clean_content = sanitize_clean_text(content)
+    with open(path, "w", encoding="utf-8", errors="replace", newline="\n") as f:
+        f.write(clean_content)
+
+
+def read_json_safe(path: str | os.PathLike[str], default: Any = None) -> Any:
+    """Reads JSON safely with BOM auto-strip, character sanitization, and error recovery."""
+    raw = read_text_safe(path)
+    if not raw.strip():
+        return default
+    try:
+        return json.loads(raw)
+    except Exception:
+        return default
+
+
+def write_json_safe(path: str | os.PathLike[str], data: Any, indent: int = 2) -> None:
+    """Writes JSON strictly in UTF-8 without BOM, ensure_ascii=False."""
+    payload = json.dumps(data, indent=indent, ensure_ascii=False)
+    write_text_safe(path, payload)
 
 
 def integrate_runtime_api() -> bool:
@@ -91,7 +157,8 @@ def session_step(step: str, log_msg: str) -> None:
         log_warn(f"Failed to call runtime step API: {e}")
 
 
-def session_complete(checkpoint: int, step: str, next_skill: str, next_cmd: str) -> None:
+def session_complete(checkpoint: int, step: str, next_skill: str, next_cmd: str = "", next_command: str = "") -> None:
+    cmd = next_cmd or next_command
     try:
         from workflow_runtime.infrastructure.session.session_io import (
             load_session, save_session_atomic)
@@ -116,7 +183,7 @@ def session_complete(checkpoint: int, step: str, next_skill: str, next_cmd: str)
             logs_list.append("> Completed successfully.")
             session["current_logs"] = logs_list
             session["suggested_next_skill"] = next_skill
-            session["suggested_next_command"] = next_cmd
+            session["suggested_next_command"] = cmd
             update_context_health(session)
             save_session_atomic(session)
             log_success(f"Session completed: checkpoint {checkpoint} reached.")
@@ -157,6 +224,11 @@ __all__ = [
     "log_error",
     "get_project_root",
     "to_posix_path",
+    "sanitize_clean_text",
+    "read_text_safe",
+    "write_text_safe",
+    "read_json_safe",
+    "write_json_safe",
     "integrate_runtime_api",
     "session_start",
     "session_step",

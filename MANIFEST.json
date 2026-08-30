@@ -1,7 +1,7 @@
 {
   "name": "ai-workflow-skills",
   "description": "A reusable collection of engineering skills for AI coding agents to manage SDLC lifecycle",
-  "version": "6.25.0",
+  "version": "6.26.0",
   "min_ai_platform_version": "1.0.0",
   "author": {
     "name": "Maintainer",

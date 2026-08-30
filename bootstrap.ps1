@@ -130,14 +130,34 @@ switch (`$Command) {
     "--help" {
         Show-Help
     }
-    default {
-        `$oldPythonPath = `$env:PYTHONPATH
-        `$env:PYTHONPATH = Join-Path `$FrameworkRoot "skills/workflow-runtime"
-        python -m workflow_runtime `$Command @args
-        `$exitCode = `$LASTEXITCODE
-        `$env:PYTHONPATH = `$oldPythonPath
-        exit `$exitCode
-    }
+     default {
+         function Resolve-FrameworkRoot([string]`$FallbackRoot) {
+             `$probe = (Get-Location).Path
+             while (`$probe) {
+                 `$localRuntime = Join-Path `$probe "skills/workflow-runtime"
+                 `$mirrorRuntime = Join-Path `$probe ".agents/skills/workflow-runtime"
+                 if (Test-Path (Join-Path `$localRuntime "workflow_runtime/__main__.py")) { return `$probe }
+                 if (Test-Path (Join-Path `$mirrorRuntime "workflow_runtime/__main__.py")) { return `$probe }
+                 `$parent = Split-Path -Parent `$probe
+                 if (`$parent -eq `$probe) { break }
+                 `$probe = `$parent
+             }
+             return `$FallbackRoot
+         }
+
+         `$resolvedRoot = Resolve-FrameworkRoot `$FrameworkRoot
+         `$runtimeRoot = Join-Path `$resolvedRoot "skills/workflow-runtime"
+         if (-not (Test-Path (Join-Path `$runtimeRoot "workflow_runtime/__main__.py"))) {
+             `$runtimeRoot = Join-Path `$resolvedRoot ".agents/skills/workflow-runtime"
+         }
+         `$oldPythonPath = `$env:PYTHONPATH
+         `$env:PYTHONPATH = `$runtimeRoot
+         `$runtimeArgs = @(`$Command) + @(`$args)
+         python -m workflow_runtime @runtimeArgs
+         `$exitCode = `$LASTEXITCODE
+         `$env:PYTHONPATH = `$oldPythonPath
+         exit `$exitCode
+     }
 }
 "@
 

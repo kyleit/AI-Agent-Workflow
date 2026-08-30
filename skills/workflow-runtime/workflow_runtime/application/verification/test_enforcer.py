@@ -6,9 +6,27 @@ import subprocess
 import sys
 from typing import Any, List, Tuple, cast
 
+from workflow_runtime.application.security.capability_policy import (
+    Capability,
+    CapabilityDecision,
+    decide_capability,
+)
+
 # Backup original subprocess functions
 _orig_run = subprocess.run
 _orig_Popen = subprocess.Popen
+
+
+def authorize_validation(capability: Capability, mode: str) -> CapabilityDecision:
+    """Use the shared capability policy for local validation decisions."""
+    return decide_capability(mode, capability, blueprint_approved=True)
+
+
+def _autonomous_validation_enabled() -> bool:
+    return (
+        os.environ.get("AIWF_WORKFLOW_MODE", "").lower() == "autonomous"
+        or os.environ.get("AIWF_AUTONOMOUS_VALIDATION") == "true"
+    )
 
 def is_test_command(cmd: Any) -> bool:
     if not cmd:
@@ -200,6 +218,8 @@ def patched_run(*args: Any, **kwargs: Any) -> Any:
     if is_caller_authorized():
         # Double check test ownership inside Execution Manager
         if is_test_command(cmd) and not is_cli_test_gateway_caller():
+            if _autonomous_validation_enabled():
+                return cast(Any, _orig_run)(*args, **kwargs)
             allowed, msg = verify_tester_ownership(cmd)
             if not allowed:
                 err_msg = f"Policy Violation: Test execution blocked. Reason: {msg} (Command: {cmd})"
@@ -280,6 +300,8 @@ def patched_Popen(*args: Any, **kwargs: Any) -> Any:
     if is_caller_authorized():
         # Double check test ownership inside Execution Manager
         if is_test_command(cmd) and not is_cli_test_gateway_caller():
+            if _autonomous_validation_enabled():
+                return cast(Any, _orig_Popen)(*args, **kwargs)
             allowed, msg = verify_tester_ownership(cmd)
             if not allowed:
                 err_msg = f"Policy Violation: Test execution blocked. Reason: {msg} (Command: {cmd})"

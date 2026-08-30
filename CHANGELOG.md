@@ -1,5 +1,11 @@
 # Changelog
 
+## v6.26.0 - 2026-08-31
+
+### Features
+- implement AI-first workflow governance (131d617e)
+
+
 ## v6.25.0 - 2026-08-29
 
 ### Features
@@ -8,6 +14,14 @@
 ### Bug Fixes
 - **release**: pre-write release receipt before pipeline steps (8d678cb0)
 - **release**: support force push for branch in repo_release step (0571d548)
+
+### Chores
+- reset version to 6.24.4 for release orchestrator run (ec28032f)
+- **release**: publish v6.25.0 (7223a98d)
+- sync public_export submodule pointer (2e50b62d)
+- update public_export submodule reference (97199654)
+- remove remaining workflow-runtime profile cache (7a951e4b)
+- exclude workflow-runtime local artifacts from export (5e321fd0)
 
 
 ## v6.25.0 - 2026-08-29

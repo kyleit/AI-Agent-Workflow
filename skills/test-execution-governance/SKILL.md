@@ -20,8 +20,8 @@ activation_mode: delegated
 canonical_entrypoint: workflow-coordinator
 input_contract: valid_verification_handoff
 output_contract: final_verification_decision_and_git_release_readiness_handoff
-test_execution_authorized: false
-test_execution_owner: TESTER
+test_execution_authorized: policy
+test_execution_owner: TESTER_OR_WORKFLOW_SUPERVISOR
 tester_source_write_access: false
 test_status: NOT_RUN
 required_unrun_test_behavior: NOT_VERIFIED
@@ -50,8 +50,8 @@ runtime_requirements:
 - **Output Contracts**:
   - `Final Verification Decision` (`schemas/final-verification.schema.json` v1.0.0)
   - `Git & Release Readiness Handoff` (`schemas/git-release-readiness-handoff.schema.json` v1.0.0)
-- **Test Execution Authorized**: `false` (Test Execution Approval IS NOT PROVIDED in Phase 12)
-- **Test Execution Owner**: `TESTER` Agent (Exclusive owner when approved)
+- **Test Execution Authorized**: resolved by the shared capability policy. Autonomous local validation proceeds without an additional manual command.
+- **Test Execution Owner**: `TESTER` Agent for delegated test work, or `Workflow Supervisor` for autonomous local validation.
 - **TESTER Source Write Access**: `false` (TESTER Agent CANNOT edit source code or test files directly)
 - **Test Status**: `NOT_RUN` (Mandatory default in Phase 12)
 - **Required Unrun Test Behavior**: `NOT_VERIFIED` (Unrun test criteria MUST be marked `NOT_VERIFIED`)
@@ -66,7 +66,7 @@ runtime_requirements:
 The `test-execution-governance` skill manages test requirement analysis, test matrix construction, approval validation, TESTER agent task ownership, test execution safety, flaky/retry policies, acceptance reconciliation, final verification decision, and Git/Release readiness handoff.
 
 ### Core Principles
-1. **Requires Explicit Approval for Execution**: Test suite execution CANNOT take place without explicit `TEST_EXECUTION_APPROVAL` issued to `TESTER` Agent with full SHA-256 hash binding. In Phase 12, approval is NOT PROVIDED and test status remains `NOT_RUN`.
+1. **Capability-Driven Execution**: The runtime consults the shared capability policy. Autonomous local validation proceeds without an additional manual command; delegated, network, destructive, and production test work still requires the appropriate approval and ownership evidence.
 2. **TESTER Agent ≠ Code Writer**: The `TESTER` Agent is the exclusive owner of test execution tasks. It MUST NOT write or modify source code or test files.
 3. **Honest Acceptance Reconciliation**: Acceptance criteria requiring test suite execution that have not been run MUST BE MARKED **`NOT_VERIFIED`**.
 4. **No Gate Override by Scores**: Weighted readiness or test scores MUST NOT override unfulfilled blocking conditions or unrun required tests.
@@ -84,7 +84,7 @@ The `test-execution-governance` skill manages test requirement analysis, test ma
 
 - Validates `TEST_EXECUTION_APPROVAL` against `approval-record.schema.json`.
 - Requires exact full SHA-256 match of `test_matrix_id` and `test_matrix_version`.
-- In Phase 12, approval is NOT PROVIDED. Status transitions to `TEST_EXECUTION_NOT_AUTHORIZED` and tests remain `NOT_RUN`.
+- When autonomous local validation is unavailable, the result must explicitly record `TEST_EXECUTION_UNAVAILABLE` and retain the reason; the Agent must not silently convert a missing manual command into `NOT_RUN`.
 
 ---
 

@@ -6,6 +6,7 @@ Task command dispatcher for CLI subcommands: task, blueprint, suggest, compact, 
 from __future__ import annotations
 
 import argparse
+import hashlib
 import json
 import os
 import subprocess
@@ -18,6 +19,7 @@ from workflow_runtime.infrastructure.session.session_io import (
 from workflow_runtime.presentation.cli.commands._impl import shared_helpers
 from workflow_runtime.presentation.cli.commands._impl.shared_helpers import (
     extract_work_item_id_from_text)
+from workflow_runtime.application.command_contract import CommandResult, NextAction, emit_result
 from workflow_runtime.presentation.cli.commands._impl.workflow.task_state_synchronizer import (
     sync_execution_state_to_session)
 from workflow_runtime.presentation.cli.workflow_runtime_shared import (
@@ -108,39 +110,57 @@ def do_task(args: argparse.Namespace) -> None:
         print(f"Task {task_id} failed.")
 
     sync_execution_state_to_session()
-
-
 def do_blueprint(args: Any) -> int:
     session = load_session()
     if not session:
-        print("Error: session file missing.", file=sys.stderr)
-        sys.exit(1)
+        return emit_result(CommandResult(
+            command="blueprint",
+            status="blocked",
+            summary="Workflow session is missing.",
+            blocking_findings=("session_missing",),
+            next_action=NextAction(command="init", required=True),
+        ), sys.stdout)
 
-    bp_path = str(getattr(args, 'path', '') or '')
-    exists = os.path.exists(bp_path)
+    action = "approve" if getattr(args, "approve", False) else str(getattr(args, "action", "") or "status")
     raw_wi = session.get("work_item")
     wi_dict = cast(dict[str, Any], raw_wi) if isinstance(raw_wi, dict) else {}
-    work_item_id = str(wi_dict.get("id", ""))
+    work_item_id = str(getattr(args, "work_item", "") or wi_dict.get("id", ""))
+    current_blueprint = session.get("blueprint")
+    current_data = current_blueprint if isinstance(current_blueprint, dict) else {}
+    bp_path = str(getattr(args, "path", "") or current_data.get("path", ""))
+    if not bp_path:
+        return emit_result(CommandResult(
+            command="blueprint",
+            status="invalid_input",
+            summary="A blueprint path is required.",
+            blocking_findings=("blueprint_path_missing",),
+            next_action=NextAction(command="blueprint --path <path>", required=True),
+        ), sys.stdout)
 
+    exists = os.path.isfile(bp_path)
     extract_artifact_fn: Any = getattr(shared_helpers, "extract_work_item_id_from_artifact", None)
     parsed_id = extract_work_item_id_from_text(bp_path)
     if exists and not parsed_id and callable(extract_artifact_fn):
         parsed_id = str(extract_artifact_fn(bp_path))
     bp_work_item_id = str(parsed_id or "")
-
     bp_data: dict[str, Any] = {
         "path": bp_path,
         "exists": exists,
-        "approved": False,
-        "approved_at": "",
-        "approved_by": "",
+        "approved": bool(current_data.get("approved")) if current_data.get("path") == bp_path else False,
+        "approved_at": str(current_data.get("approved_at", "")) if current_data.get("path") == bp_path else "",
+        "approved_by": str(current_data.get("approved_by", "")) if current_data.get("path") == bp_path else "",
         "work_item_id": bp_work_item_id or work_item_id
     }
-
     if getattr(args, "approve", False):
         if not exists:
-            print(f"Error: Blueprint file does not exist at {bp_path}.", file=sys.stderr)
-            sys.exit(1)
+            return emit_result(CommandResult(
+                command="blueprint",
+                status="blocked",
+                summary="The blueprint file does not exist.",
+                data={"blueprint": bp_path},
+                blocking_findings=("blueprint_not_found",),
+                next_action=NextAction(command="blueprint --path <path>", required=True),
+            ), sys.stdout)
         validate_scope_fn: Any = getattr(shared_helpers, "validate_blueprint_scope", None)
         scope_ok = True
         scope_reason = ""
@@ -153,24 +173,54 @@ def do_blueprint(args: Any) -> int:
                 if len(res_list) > 1:
                     scope_reason = str(res_list[1])
         if not scope_ok:
-            print(f"Error: Cannot approve blueprint for {work_item_id}. {scope_reason}", file=sys.stderr)
-            sys.exit(1)
+            return emit_result(CommandResult(
+                command="blueprint",
+                status="blocked",
+                summary="Blueprint scope does not match the active work item.",
+                blocking_findings=(scope_reason or "blueprint_scope_mismatch",),
+                next_action=NextAction(command="blueprint --path <path>", required=True),
+            ), sys.stdout)
         bp_data["approved"] = True
         bp_data["approved_at"] = datetime.now().astimezone().isoformat()
         bp_data["approved_by"] = "user"
         bp_data["approval_source"] = "runtime_blueprint_approve"
 
-    session["blueprint"] = bp_data
-    update_context_health(session)
-    save_session_atomic(session)
+        with open(bp_path, "rb") as stream:
+            bp_data["sha256"] = hashlib.sha256(stream.read()).hexdigest()
+        session["blueprint"] = bp_data
+        session["active_phase"] = "implementation"
+        session["current_skill"] = "blueprint-to-implementation"
+        session["current_command"] = "implement"
+        session["checkpoint"] = max(int(session.get("checkpoint", 1) or 1), 6)
+        update_context_health(session)
+        save_session_atomic(session)
+    elif action in ("generate", "freeze"):
+        session["blueprint"] = bp_data
+        update_context_health(session)
+        save_session_atomic(session)
 
-    if getattr(args, "approve", False):
-        print(f"Blueprint {bp_path} approved.")
-    else:
-        print(f"Blueprint {bp_path} registered (exists={exists}).")
-    return 0
-
-
+    result_status = "success" if exists else "blocked"
+    findings = () if exists else ("blueprint_not_found",)
+    return emit_result(CommandResult(
+        command="blueprint",
+        status=result_status,
+        summary="Blueprint approved and persisted." if getattr(args, "approve", False) else "Blueprint inspected.",
+        data={
+            "path": bp_path,
+            "exists": exists,
+            "approved": bp_data["approved"],
+            "work_item_id": bp_data["work_item_id"],
+            "action": action,
+        },
+        artifacts=(bp_path,) if exists else (),
+        blocking_findings=findings,
+        side_effects=(((f".agents/state/work-items/{work_item_id}/approvals.json" if work_item_id else ".agents/state/approvals.json"),) if getattr(args, "approve", False) else ()),
+        next_action=NextAction(
+            skill="blueprint-to-implementation" if bp_data["approved"] else None,
+            command="implement --blueprint <path>" if bp_data["approved"] else "blueprint --path <path> --approve",
+            required=not bp_data["approved"],
+        ),
+    ), sys.stdout)
 def do_suggest(args: Any) -> int:
     session = load_session()
     if not session:
@@ -327,8 +377,6 @@ def do_suggest(args: Any) -> int:
     }
     print(json.dumps(output_dict, indent=2, ensure_ascii=False))
     return 0
-
-
 def do_compact(_args: argparse.Namespace) -> None:
     session = load_session()
     if not session:
@@ -430,8 +478,6 @@ def do_compact(_args: argparse.Namespace) -> None:
     except IOError as e:
         print(f"Error: failed to write snapshot: {e}", file=sys.stderr)
         sys.exit(1)
-
-
 def do_work_item_cached(args: argparse.Namespace) -> None:
     sys.path.insert(0, os.path.dirname(os.path.abspath(__file__)))
     from workflow_runtime.application.verification.validator import (

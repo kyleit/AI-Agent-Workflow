@@ -154,6 +154,8 @@ Every approval gate in **Phase 8 (Release Summary)**, **Phase 9 (Commit Release)
 
 ## Workflow Sequence
 
+In autonomous mode, the Workflow Supervisor prepares the complete release plan and pauses once at the plan-bound Release Approval Gate. After approval, it follows the approved plan automatically; the Agent must not ask the user to type internal commit, tag, push, or update commands.
+
 The release process runs in 12 sequential phases:
 
 ```

@@ -2,6 +2,8 @@ from __future__ import annotations
 
 import re
 from dataclasses import dataclass, field
+import hashlib
+import json
 from pathlib import Path
 from typing import Any
 
@@ -14,6 +16,47 @@ class ReleaseGateResult:
     score: int
     details: dict[str, Any] = field(default_factory=dict[str, Any])
     errors: list[str] = field(default_factory=list[str])
+
+
+@dataclass(frozen=True)
+class ReleasePlan:
+    version: str
+    files: tuple[str, ...]
+    tag: str
+    export_targets: tuple[str, ...] = ()
+    rollback: str = "restore previous release tag"
+    push_targets: tuple[str, ...] = ()
+
+    @property
+    def sha256(self) -> str:
+        payload = {
+            "version": self.version,
+            "files": list(self.files),
+            "tag": self.tag,
+            "export_targets": list(self.export_targets),
+            "rollback": self.rollback,
+            "push_targets": list(self.push_targets),
+        }
+        encoded = json.dumps(payload, sort_keys=True, separators=(",", ":")).encode("utf-8")
+        return hashlib.sha256(encoded).hexdigest()
+
+
+@dataclass(frozen=True)
+class ReleaseApproval:
+    plan_hash: str
+
+
+@dataclass(frozen=True)
+class ReleaseResult:
+    status: str
+    reason: str = ""
+    plan_hash: str | None = None
+
+
+def continue_release_after_approval(plan: ReleasePlan, approval: ReleaseApproval) -> ReleaseResult:
+    if approval.plan_hash != plan.sha256:
+        return ReleaseResult("blocked", "approval_plan_hash_mismatch", plan.sha256)
+    return ReleaseResult("ready", plan_hash=plan.sha256)
 
 
 class ReleaseGateService:

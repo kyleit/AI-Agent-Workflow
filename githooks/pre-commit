@@ -10,7 +10,7 @@ ROOT="$(git rev-parse --show-toplevel 2>/dev/null)"
 [ -z "$ROOT" ] && exit 0
 
 GATE=""
-for c in "$ROOT/.agents/aiwf-hooks/aiwf_gate.py" "$ROOT/tools/aiwf-hooks/aiwf_gate.py"; do
+for c in "$ROOT/tools/aiwf-hooks/aiwf_gate.py" "$ROOT/.agents/aiwf-hooks/aiwf_gate.py"; do
   [ -f "$c" ] && { GATE="$c"; break; }
 done
 [ -n "$GATE" ] || exit 0

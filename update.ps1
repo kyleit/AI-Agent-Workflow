@@ -15,6 +15,7 @@ param(
     [switch]$Force,
     [switch]$All,
     [switch]$Current,
+    [switch]$Json,
     [Parameter(ValueFromRemainingArguments = $true)]
     [string[]]$Remaining
 )
@@ -26,15 +27,65 @@ foreach ($a in $Remaining) {
         "--all"     { $All     = $true }
         "--force"   { $Force   = $true }
         "--current" { $Current = $true }
+        "--json"    { $Json    = $true }
     }
 }
 
 
+$script:JsonEvents = @()
+
+function Emit-JsonResult {
+    param(
+        [string]$Status,
+        [string]$Reason = "",
+        [object]$Data = @{}
+    )
+    [pscustomobject]@{
+        schema = "aiwf.command.v1"
+        command = "update"
+        status = $Status
+        reason = $Reason
+        data = $Data
+        warnings = @($script:JsonEvents | Where-Object { $_.level -eq "warning" })
+    } | ConvertTo-Json -Depth 20 -Compress
+}
+
+function Stop-WithJson {
+    param([int]$Code, [string]$Reason, [string]$Status = "failure")
+    if ($Json) { Emit-JsonResult -Status $Status -Reason $Reason }
+    exit $Code
+}
+
+
 # Logging helpers
-function Log-Info ($msg) { Write-Host "[INFO] $msg" -ForegroundColor Blue }
-function Log-Warn ($msg) { Write-Host "[WARN] $msg" -ForegroundColor Yellow }
-function Log-Error ($msg) { Write-Error "[ERROR] $msg" }
-function Log-Success ($msg) { Write-Host "[SUCCESS] $msg" -ForegroundColor Green }
+function Log-Info ($msg) {
+    if ($Json) { $script:JsonEvents += [pscustomobject]@{ level = "info"; message = [string]$msg } }
+    else { Write-Host "[INFO] $msg" -ForegroundColor Blue }
+}
+function Log-Warn ($msg) {
+    $script:JsonEvents += [pscustomobject]@{ level = "warning"; message = [string]$msg }
+    if (-not $Json) { Write-Host "[WARN] $msg" -ForegroundColor Yellow }
+}
+function Log-Error ($msg) {
+    $script:JsonEvents += [pscustomobject]@{ level = "error"; message = [string]$msg }
+    if (-not $Json) { Write-Error "[ERROR] $msg" }
+}
+function Log-Success ($msg) {
+    if ($Json) { $script:JsonEvents += [pscustomobject]@{ level = "success"; message = [string]$msg } }
+    else { Write-Host "[SUCCESS] $msg" -ForegroundColor Green }
+}
+
+function Normalize-RegistryEntries ($value) {
+    foreach ($entry in @($value)) {
+        if ($entry -is [string]) {
+            foreach ($candidate in ($entry -split '(?=[A-Za-z]:\\)')) {
+                if (-not [string]::IsNullOrWhiteSpace($candidate)) { $candidate.Trim() }
+            }
+        } elseif ($null -ne $entry) {
+            [string]$entry
+        }
+    }
+}
 
 # Locate Script Directory
 $ScriptDir = Split-Path -Parent $MyInvocation.MyCommand.Path
@@ -48,12 +99,15 @@ if ($All) {
     if (Test-Path $RegistryFile) {
         try {
             $reg = Get-Content -Raw $RegistryFile | ConvertFrom-Json
-            if ($reg) { $found = @($reg) | Where-Object { Test-Path (Join-Path $_ ".agents\MANIFEST.json") } }
+            if ($reg) {
+                $registered = @(Normalize-RegistryEntries $reg)
+                $found = @($registered | Where-Object { Test-Path (Join-Path $_ ".agents\MANIFEST.json") })
+            }
         } catch {}
     }
 
     # 2. Fallback: filesystem scan if registry is empty
-    if ($found.Count -eq 0) {
+    if (@($found).Count -eq 0) {
         Log-Info "Registry empty or not found. Scanning drives for AIWF-managed projects..."
         $searchRoots = [System.Collections.Generic.List[string]]::new()
         foreach ($sub in @("", "source", "projects", "dev", "repos", "workspace", "code", "work", "git")) {
@@ -87,41 +141,64 @@ if ($All) {
         }
     }
 
-    if ($found.Count -eq 0) {
+    if (@($found).Count -eq 0) {
         Log-Warn "No AIWF-managed projects found."
         Log-Warn "Run 'aiwf install' inside a project directory to register it."
+        if ($Json) { Emit-JsonResult -Status "skipped" -Reason "no_projects" -Data @{ projects = @() } }
         exit 0
     }
 
-    Log-Info "Found $($found.Count) registered project(s):"
-    $found | ForEach-Object { Write-Host "  - $_" }
-    Write-Host ""
+    Log-Info "Found $(@($found).Count) registered project(s):"
+    if (-not $Json) {
+        $found | ForEach-Object { Write-Host "  - $_" }
+        Write-Host ""
+    }
 
     $ok = 0; $fail = 0
+    $projectResults = @()
     foreach ($proj in $found) {
         if (-not (Test-Path $proj)) {
             Log-Warn "Skipping (path not found): $proj"
-            $fail++; continue
+            $fail++
+            $projectResults += [pscustomobject]@{ path = $proj; status = "skipped"; reason = "path_not_found" }
+            continue
         }
         Log-Info "Updating: $proj"
         Push-Location $proj
         try {
-            & $MyInvocation.MyCommand.Path $(if ($Force) { "-Force" })
-            if ($LASTEXITCODE -eq 0) { $ok++ } else { $fail++ }
+            $childArgs = @()
+            if ($Force) { $childArgs += "-Force" }
+            if ($Json) { $childArgs += "-Json" }
+            $childOutput = & $MyInvocation.MyCommand.Path @childArgs
+            $childExit = $LASTEXITCODE
+            if ($Json) {
+                try { $projectResults += ($childOutput -join "`n" | ConvertFrom-Json) }
+                catch { $projectResults += [pscustomobject]@{ path = $proj; status = "failure"; reason = "invalid_child_result" } }
+            }
+            if ($childExit -eq 0) { $ok++ } else { $fail++ }
         } finally {
             Pop-Location
         }
     }
 
-    Write-Host ""
-    Log-Success "Update-All complete. Success: $ok  Skipped/Failed: $fail"
-    exit 0
+    if ($Json) {
+        $status = if ($fail -gt 0) { "failure" } else { "success" }
+        Emit-JsonResult -Status $status -Reason "all_projects_processed" -Data @{
+            projects = @($projectResults)
+            success_count = $ok
+            failure_or_skipped_count = $fail
+        }
+    } else {
+        Write-Host ""
+        Log-Success "Update-All complete. Success: $ok  Skipped/Failed: $fail"
+    }
+    exit $(if ($fail -gt 0) { 1 } else { 0 })
 }
 
 $ManifestPath = Join-Path $ScriptDir "MANIFEST.json"
 if (-not (Test-Path $ManifestPath)) {
     Log-Error "MANIFEST.json not found in source directory ($ScriptDir)."
-    exit 1
+    Stop-WithJson -Code 1 -Reason "source_manifest_missing"
 }
 
 # Read Source Manifest
@@ -130,7 +207,7 @@ try {
 }
 catch {
     Log-Error "Failed to parse MANIFEST.json in source directory. Details: $_"
-    exit 1
+    Stop-WithJson -Code 1 -Reason "source_manifest_invalid"
 }
 
 $InstallTarget = $SrcManifest.installation_target
@@ -174,6 +251,7 @@ $ResolvedProjectRoot = (Resolve-Path (Get-Location)).Path
 $ResolvedScriptDir = (Resolve-Path $ScriptDir).Path
 if ($ResolvedProjectRoot -eq $ResolvedScriptDir) {
     Log-Success "Target is the framework source repository itself. Skipping update."
+    if ($Json) { Emit-JsonResult -Status "skipped" -Reason "source_repository" -Data @{ path = $ResolvedProjectRoot } }
     exit 0
 }
 
@@ -181,7 +259,7 @@ $TargetManifestPath = Join-Path $InstallTarget "MANIFEST.json"
 if (-not (Test-Path $TargetManifestPath)) {
     Log-Error "No active installation found at $TargetManifestPath."
     Log-Error "Please run .\install.ps1 first to set up the framework."
-    exit 1
+    Stop-WithJson -Code 1 -Reason "target_manifest_missing"
 }
 
 # Read Target Manifest
@@ -191,7 +269,7 @@ try {
 }
 catch {
     Log-Error "Failed to parse target MANIFEST.json. Details: $_"
-    exit 1
+    Stop-WithJson -Code 1 -Reason "target_manifest_invalid"
 }
 
 Log-Info "Detected Installed Version: v$TargetVersion"
@@ -199,6 +277,7 @@ Log-Info "Available Repository Version: v$SrcVersion"
 
 if ($SrcVersion -eq $TargetVersion -and -not $Force) {
     Log-Success "AI Skill Framework is already up to date (v$TargetVersion)."
+    if ($Json) { Emit-JsonResult -Status "skipped" -Reason "already_current" -Data @{ version = $TargetVersion } }
     exit 0
 }
 
@@ -515,23 +594,33 @@ if (Test-Path (Join-Path $ScriptDir $TemplateDir)) {
 
 if ($SkillErrors -gt 0) {
     Log-Error "Update completed with warnings: $SkillErrors skill(s) skipped due to invalid SKILL.md frontmatter."
-    exit 1
+    Stop-WithJson -Code 1 -Reason "invalid_skill_frontmatter"
 }
 
 Log-Success "AI Skill Framework has been successfully updated to v$SrcVersion!"
-Write-Host "--------------------------------------------------"
-Write-Host "Upgrade Summary:"
-if ($NewSkills.Count -gt 0) {
-    Write-Host "  New Skills:     $($NewSkills -join ', ')"
-}
-if ($UpdatedSkills.Count -gt 0) {
-    Write-Host "  Updated Skills: $($UpdatedSkills -join ', ')"
-}
-if ($RemovedSkills.Count -gt 0) {
-    Write-Host "  [DEPRECATED] Legacy skills found in installation target (safe deletion recommended):" -ForegroundColor Yellow
-    foreach ($rskill in $RemovedSkills) {
-        Write-Host "    - $(Join-Path (Join-Path $InstallTarget $SkillDir) $rskill)" -ForegroundColor Yellow
+if ($Json) {
+    Emit-JsonResult -Status "success" -Reason "updated" -Data @{
+        version = $SrcVersion
+        path = $ResolvedProjectRoot
+        new_skills = @($NewSkills)
+        updated_skills = @($UpdatedSkills)
+        removed_skills = @($RemovedSkills)
     }
+} else {
+    Write-Host "--------------------------------------------------"
+    Write-Host "Upgrade Summary:"
+    if ($NewSkills.Count -gt 0) {
+        Write-Host "  New Skills:     $($NewSkills -join ', ')"
+    }
+    if ($UpdatedSkills.Count -gt 0) {
+        Write-Host "  Updated Skills: $($UpdatedSkills -join ', ')"
+    }
+    if ($RemovedSkills.Count -gt 0) {
+        Write-Host "  [DEPRECATED] Legacy skills found in installation target (safe deletion recommended):" -ForegroundColor Yellow
+        foreach ($rskill in $RemovedSkills) {
+            Write-Host "    - $(Join-Path (Join-Path $InstallTarget $SkillDir) $rskill)" -ForegroundColor Yellow
+        }
+    }
+    Write-Host "--------------------------------------------------"
+    Log-Info "Run aiwf doctor to confirm workspace integrity."
 }
-Write-Host "--------------------------------------------------"
-Log-Info "Run aiwf doctor to confirm workspace integrity."

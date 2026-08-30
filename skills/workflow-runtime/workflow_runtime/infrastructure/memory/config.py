@@ -1,9 +1,9 @@
 from __future__ import annotations
-import json
+
 import os
 from typing import Any
 
-from .common import get_project_root, log_warn
+from .common import get_project_root, log_warn, read_json_safe
 
 DEFAULT_CONFIG = {
     "project_id": "ai-skill-framework",
@@ -13,37 +13,38 @@ DEFAULT_CONFIG = {
     "qmd_index": ".agents/memory/qmd.index"
 }
 
-def load_memory_config(config_path: str | None = None) -> dict[str, Any]:
-    root = get_project_root()
+
+def load_memory_config(config_path: str | None = None, root_dir: str | None = None) -> dict[str, Any]:
+    root = root_dir or get_project_root()
 
     if not config_path:
         config_path = os.path.join(root, ".agents", "memory.config.json")
 
     if not os.path.exists(config_path):
-        # Fallback to root directory check
         alt_path = os.path.join(root, "memory.config.json")
         if os.path.exists(alt_path):
             config_path = alt_path
         else:
-            return DEFAULT_CONFIG
+            merged = dict(DEFAULT_CONFIG)
+            merged["project_id"] = os.path.basename(os.path.abspath(root)) or "ai-skill-framework"
+            return merged
 
-    try:
-        with open(config_path, "r", encoding="utf-8") as f:
-            config = json.load(f)
-            # Merge with default to ensure all keys present
-            for k, v in DEFAULT_CONFIG.items():
-                if k not in config:
-                    config[k] = v
-            return config
-    except Exception as e:
-        log_warn(f"Failed to load memory configuration: {e}. Using defaults.")
-        return DEFAULT_CONFIG
+    config = read_json_safe(config_path)
+    if isinstance(config, dict):
+        for k, v in DEFAULT_CONFIG.items():
+            if k not in config:
+                config[k] = v
+        return config
 
-def get_memory_paths(config: dict[str, Any]) -> dict[str, Any]:
-    root = get_project_root()
+    log_warn("Failed to load memory configuration. Using defaults.")
+    merged = dict(DEFAULT_CONFIG)
+    merged["project_id"] = os.path.basename(os.path.abspath(root)) or "ai-skill-framework"
+    return merged
+
+
+def get_memory_paths(config: dict[str, Any], root_dir: str | None = None) -> dict[str, Any]:
+    root = root_dir or get_project_root()
     mem_root = config.get("memory_root", ".agents/memory")
-
-    # Resolve relative path to absolute or project root relative
     full_mem_root = os.path.join(root, mem_root)
 
     return {
@@ -57,3 +58,6 @@ def get_memory_paths(config: dict[str, Any]) -> dict[str, Any]:
         "known_problems": os.path.join(full_mem_root, "lessons", "known-problems.md"),
         "architectural_decisions": os.path.join(full_mem_root, "lessons", "architectural-decisions.md")
     }
+
+
+__all__ = ["DEFAULT_CONFIG", "load_memory_config", "get_memory_paths"]

@@ -470,14 +470,25 @@ $RegistryFile = Join-Path $RegistryDir "registry.json"
 if (-not (Test-Path $RegistryDir)) { New-Item -ItemType Directory -Path $RegistryDir -Force | Out-Null }
 $projects = @()
 if (Test-Path $RegistryFile) {
-    try { $projects = (Get-Content -Raw $RegistryFile | ConvertFrom-Json) } catch { $projects = @() }
+    try {
+        $parsedProjects = Get-Content -Raw $RegistryFile | ConvertFrom-Json
+        foreach ($projectEntry in @($parsedProjects)) {
+            if ($projectEntry -is [string]) {
+                foreach ($candidate in ($projectEntry -split '(?=[A-Za-z]:\\)')) {
+                    if (-not [string]::IsNullOrWhiteSpace($candidate)) { $projects += $candidate.Trim() }
+                }
+            } elseif ($null -ne $projectEntry) {
+                $projects += [string]$projectEntry
+            }
+        }
+    } catch { $projects = @() }
     if ($null -eq $projects) { $projects = @() }
 }
 $entry = (Resolve-Path $ProjectRoot).Path
 if ($projects -notcontains $entry) {
     $projects += $entry
-    $projects | ConvertTo-Json -Compress | Set-Content -Path $RegistryFile -Encoding UTF8
     Log-Info "Project registered in AIWF registry: $entry"
 } else {
     Log-Info "Project already in AIWF registry: $entry"
 }
+ConvertTo-Json -InputObject @($projects) -Compress | Set-Content -Path $RegistryFile -Encoding UTF8

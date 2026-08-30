@@ -42,3 +42,18 @@ def test_plain_ambiguous_prompt_fails_closed_into_workflow(tmp_path, monkeypatch
     assert result["status"] == "ROUTED"
     assert result["intent"] == "natural_workflow_request"
     assert result["next_skill"] == "brainstorming"
+
+
+def test_new_request_does_not_inherit_stale_default_workflow_id(tmp_path, monkeypatch):
+    monkeypatch.chdir(tmp_path)
+    (tmp_path / ".agents" / "state").mkdir(parents=True)
+    (tmp_path / "docs" / "features" / "legacy").mkdir(parents=True)
+    (tmp_path / "docs" / "features" / "legacy" / "FEAT-312_old.md").write_text("legacy", encoding="utf-8")
+    (tmp_path / ".agents" / "state" / "workflow.json").write_text(
+        '{"active_workflow":"FEAT-312","status":"IN_PROGRESS"}', encoding="utf-8"
+    )
+
+    gateway = WorkflowEntryGateway(str(tmp_path))
+    result = gateway.handle_request("làm một thay đổi mới")
+
+    assert result["workflow_id"] == "FEAT-313"

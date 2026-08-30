@@ -8,7 +8,17 @@ policy:
   code_block_gate_authority: strict-code-block-gate
   code_block_gate_fail_closed: true
   code_block_gate_requires_blueprint_hash_match: true
-  code_block_gate_allows_project_tests: false
+ code_block_gate_allows_project_tests: false
+
+execution_modes:
+  autonomous:
+    safe_capabilities: [read, compile, lint, local_test, approved_local_write]
+    approval_capabilities: [network, destructive, release, production]
+    continuation_owner: workflow-supervisor
+  legacy:
+    safe_capabilities: [read, compile, lint, local_test]
+    approval_capabilities: [local_write, network, destructive, release, production]
+    continuation_owner: agent
 
 pre_implementation_document_structure:
   00-intake:

@@ -21,7 +21,10 @@ class UpdateCommand:
         p = subparsers.add_parser("update", help=self.meta().help)
         p.add_argument("action", nargs="?",
                        choices=["framework", "skills", "runtime", "all"])
-        p.add_argument("--force", action="store_true")
+        p.add_argument("--force", "-Force", action="store_true")
+        p.add_argument("--all", "-All", action="store_true")
+        p.add_argument("--current", "-Current", action="store_true")
+        p.add_argument("--json", action="store_true")
         p.add_argument("--dry-run", action="store_true")
         p.add_argument("--version", help="Target version")
         self._parser = p

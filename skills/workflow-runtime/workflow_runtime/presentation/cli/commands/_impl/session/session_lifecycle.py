@@ -13,6 +13,8 @@ from workflow_runtime.infrastructure.persistence.checkpoint import (
 from workflow_runtime.infrastructure.persistence.lease import WorkflowLease
 from workflow_runtime.infrastructure.session.session_io import (
     load_session, save_session_atomic)
+from workflow_runtime.application.command_contract import (
+    CommandResult, NextAction, emit_result)
 from workflow_runtime.presentation.cli.commands._impl.shared_helpers import (
     get_current_project_context, sync_analysis_agents_to_session)
 from workflow_runtime.presentation.cli.workflow_runtime_shared import (
@@ -40,9 +42,13 @@ def do_start(args: Any) -> int:
     checkpoint = int(chk_val) if chk_val is not None else None
 
     if not WorkflowLease.acquire(skill_name, work_item_id):
-        print("Another workflow is already running.", file=sys.stderr)
-        print("Do not continue.", file=sys.stderr)
-        sys.exit(1)
+        return emit_result(CommandResult(
+            command="start",
+            status="blocked",
+            summary="Another workflow is already running.",
+            blocking_findings=("workflow_lease_held",),
+            next_action=NextAction(command="status", required=True),
+        ), sys.stdout)
 
     is_impl = (skill_name == "blueprint-to-implementation") or (checkpoint is not None and checkpoint >= 6)
     if is_impl:
@@ -50,9 +56,14 @@ def do_start(args: Any) -> int:
         bp: dict[str, Any] = cast(dict[str, Any], raw_bp) if isinstance(raw_bp, dict) else {}
         scope_ok, scope_reason = validate_blueprint_scope(bp, work_item_id)
         if not bool(bp.get("approved")) or not scope_ok:
-            print(f"Error: Cannot start implementation. Technical Design Blueprint is not approved for {work_item_id}. {scope_reason}", file=sys.stderr)
             WorkflowLease.release()
-            sys.exit(1)
+            return emit_result(CommandResult(
+                command="start",
+                status="blocked",
+                summary="Implementation cannot start until the approved Blueprint is in scope.",
+                blocking_findings=("blueprint_not_approved", scope_reason),
+                next_action=NextAction(command="blueprint --path <path> --approve", required=True),
+            ), sys.stdout)
 
     session["status"] = "in_progress"
     if checkpoint is not None:
@@ -60,7 +71,18 @@ def do_start(args: Any) -> int:
     session["current_skill"] = skill_name
     session["current_command"] = str(getattr(args, "command", "") or "")
     session["current_step"] = str(getattr(args, "step", "") or "")
+    session["suggested_next_skill"] = skill_name
+    session["suggested_next_command"] = str(getattr(args, "command", "") or "")
     session["autonomous_delivery"] = bool(getattr(args, "autonomous", False))
+    if is_impl:
+        session["active_phase"] = "implementation"
+    blueprint_path = str(getattr(args, "blueprint", "") or "").strip()
+    if blueprint_path:
+        current_blueprint = session.get("blueprint")
+        blueprint = cast(dict[str, Any], current_blueprint) if isinstance(current_blueprint, dict) else {}
+        blueprint["path"] = blueprint_path
+        blueprint["exists"] = os.path.isfile(blueprint_path)
+        session["blueprint"] = blueprint
     session["current_logs"] = [f"> Starting {skill_name}..."]
 
     update_context_health(session)
@@ -72,8 +94,19 @@ def do_start(args: Any) -> int:
     except Exception:
         pass
 
-    print(f"Skill {skill_name} started.")
-    return 0
+    return emit_result(CommandResult(
+        command="start",
+        status="success",
+        summary=f"Skill {skill_name} started.",
+        data={
+            "skill": skill_name,
+            "command": str(getattr(args, "command", "") or ""),
+            "checkpoint": session.get("checkpoint"),
+            "blueprint": session.get("blueprint", {}),
+        },
+        side_effects=(".agents/state",),
+        next_action=NextAction(skill=skill_name, command=str(getattr(args, "command", "") or "")),
+    ), sys.stdout)
 
 
 def do_step(args: Any) -> int:

@@ -5,9 +5,57 @@ import os
 import re
 import subprocess
 import sys
+from dataclasses import dataclass, field
+from pathlib import Path
 from typing import Any
 
 DEFAULT_REPO_URL = "https://github.com/your-org/AI-Agent-Workflow.git"
+
+
+@dataclass(frozen=True)
+class ProjectUpdateResult:
+    path: str
+    status: str
+    version: str | None = None
+    changed_artifacts: tuple[str, ...] = ()
+    failure: str | None = None
+
+
+@dataclass(frozen=True)
+class UpdateResult:
+    status: str
+    projects: tuple[ProjectUpdateResult, ...] = ()
+    warnings: tuple[str, ...] = ()
+
+    def payload(self) -> dict[str, object]:
+        return {
+            "status": self.status,
+            "projects": [
+                {
+                    "path": item.path,
+                    "status": item.status,
+                    "version": item.version,
+                    "changed_artifacts": list(item.changed_artifacts),
+                    "failure": item.failure,
+                }
+                for item in self.projects
+            ],
+            "warnings": list(self.warnings),
+        }
+
+
+def update_projects(projects: list[Path] | tuple[Path, ...], force: bool = False) -> UpdateResult:
+    """Return one deterministic, machine-readable result per project."""
+    results: list[ProjectUpdateResult] = []
+    for project in projects:
+        path = Path(project)
+        if not path.exists() or not path.is_dir():
+            results.append(ProjectUpdateResult(str(path), "missing", failure="project_directory_missing"))
+            continue
+        status = "ready" if force else "skipped"
+        results.append(ProjectUpdateResult(str(path), status))
+    overall = "failure" if any(item.status == "missing" for item in results) else "success"
+    return UpdateResult(overall, tuple(results))
 
 
 class SourceRepositoryService:
@@ -254,6 +302,9 @@ def handle_update_source(args: Any) -> int:
 
 __all__ = [
     "DEFAULT_REPO_URL",
+    "ProjectUpdateResult",
     "SourceRepositoryService",
+    "UpdateResult",
     "handle_update_source",
+    "update_projects",
 ]

@@ -24,6 +24,8 @@ class StartCommand:
         p.add_argument("--command", required=True, help="Command being executed")
         p.add_argument("--checkpoint", type=int, default=1)
         p.add_argument("--step", default="Starting...")
+        p.add_argument("--blueprint", help="Blueprint path carried into implementation entry")
+        p.add_argument("--autonomous", action="store_true")
         self._parser = p
         return p
 

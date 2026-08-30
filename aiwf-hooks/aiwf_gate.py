@@ -190,8 +190,10 @@ def _state_authorization(root: Path) -> tuple[bool, str]:
     wf = _read_json(root / WORKFLOW_REL)
     if not isinstance(wf, dict):
         return False, "no workflow.json — run /aiwf to start a workflow"
-    if str(wf.get("status", "")).upper() not in ("IN_PROGRESS", "ACTIVE"):
-        return False, f"no active workflow (status={wf.get('status')})"
+    runtime = _read_json(root / ".agents" / "state" / "runtime.json") or {}
+    status = str(wf.get("status") or runtime.get("status") or "").upper()
+    if status not in ("IN_PROGRESS", "ACTIVE", "WAITING_INPUT"):
+        return False, f"no active workflow (status={status or 'missing'})"
 
     active = active_work_item(root)
     phase = str(wf.get("active_phase") or wf.get("phase") or "").lower()
@@ -201,13 +203,18 @@ def _state_authorization(root: Path) -> tuple[bool, str]:
             "generate and APPROVE the Technical Blueprint first (/aiwf)"
         )
 
-    ap = _read_json(root / APPROVALS_REL) or {}
+    approval_path = root / APPROVALS_REL
+    if active:
+        scoped_path = root / ".agents" / "state" / "work-items" / str(active) / "approvals.json"
+        if scoped_path.exists():
+            approval_path = scoped_path
+    ap = _read_json(approval_path) or {}
     bp = ap.get("blueprint") if isinstance(ap, dict) else None
     if not isinstance(bp, dict) or not bp.get("approved"):
-        return False, "blueprint not approved in approvals.json"
+        return False, f"blueprint not approved in {approval_path.relative_to(root).as_posix()}"
     path = bp.get("path")
     if not path:
-        return False, "approvals.json blueprint has no path"
+        return False, f"{approval_path.relative_to(root).as_posix()} blueprint has no path"
     if not (root / path).exists():
         return False, f"approved blueprint doc not found on disk: {path}"
 

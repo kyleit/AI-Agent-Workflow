@@ -2,6 +2,7 @@
 import atexit
 import json
 import os
+import re
 import tempfile
 import uuid
 from datetime import datetime
@@ -79,8 +80,8 @@ class AtomicFileStateStore(StateStore):
             base = base + ".json"
 
         scoped_keys = [
-            "workflow", "tasks", "agents", "locks", "handoffs",
-            "checkpoints", "timeline", "authorization", "approvals", "usage"
+            "tasks", "agents", "locks", "handoffs", "checkpoints", "timeline",
+            "authorization", "approvals", "usage"
         ]
         if key in scoped_keys:
             work_item_id = get_active_work_item_id()
@@ -93,8 +94,8 @@ class AtomicFileStateStore(StateStore):
         path = self._get_path(key)
 
         scoped_keys = [
-            "workflow", "tasks", "agents", "locks", "handoffs",
-            "checkpoints", "timeline", "authorization", "approvals", "usage"
+            "tasks", "agents", "locks", "handoffs", "checkpoints", "timeline",
+            "authorization", "approvals", "usage"
         ]
         if key in scoped_keys:
             work_item_id = get_active_work_item_id()
@@ -105,15 +106,24 @@ class AtomicFileStateStore(StateStore):
                         with open(legacy_path, "r", encoding="utf-8") as f:
                             legacy_data = json.load(f)
 
-                        # Only migrate if the legacy state belongs to this work item
+                        # Never let an unrelated legacy approval unlock a new item.
                         legacy_id = None
                         if isinstance(legacy_data, dict):
                             legacy_dict = cast(dict[str, Any], legacy_data)
                             wi = legacy_dict.get("work_item")
                             wi_dict = cast(dict[str, Any], wi) if isinstance(wi, dict) else {}
                             legacy_id = wi_dict.get("id") or legacy_dict.get("work_item_id")
+                            if key == "approvals":
+                                blueprint = legacy_dict.get("blueprint")
+                                blueprint_dict = cast(dict[str, Any], blueprint) if isinstance(blueprint, dict) else {}
+                                legacy_id = blueprint_dict.get("work_item_id") or blueprint_dict.get("work_item")
+                                if not legacy_id:
+                                    blueprint_path = str(blueprint_dict.get("path", ""))
+                                    match = re.search(r"(?:FEAT|FIX|QUICK)-\d+", blueprint_path, re.IGNORECASE)
+                                    legacy_id = match.group(0).upper() if match else None
 
-                        if not legacy_id or legacy_id == work_item_id:
+                        approval_without_identity = key == "approvals" and not legacy_id
+                        if not approval_without_identity and (not legacy_id or legacy_id == work_item_id):
                             # Scope it
                             os.makedirs(os.path.dirname(path), exist_ok=True)
                             with open(path, "w", encoding="utf-8") as f:
@@ -122,9 +132,11 @@ class AtomicFileStateStore(StateStore):
                             # Cache immediately
                             self._cache[key] = cast(dict[str, Any], legacy_data)
                             self._last_write[key + "_mtime"] = os.path.getmtime(path)
-                            print(f"Migrated legacy state for '{key}' to scoped work item '{work_item_id}'")
+                            if os.environ.get("AIWF_JSON_OUTPUT", "").lower() not in {"1", "true", "yes"}:
+                                print(f"Migrated legacy state for '{key}' to scoped work item '{work_item_id}'")
                     except Exception as e:
-                        print(f"Error migrating legacy state for '{key}': {e}")
+                        if os.environ.get("AIWF_JSON_OUTPUT", "").lower() not in {"1", "true", "yes"}:
+                            print(f"Error migrating legacy state for '{key}': {e}")
 
         try:
             mtime = os.path.getmtime(path)
@@ -287,6 +299,16 @@ def get_active_work_item_id() -> str | None:
         return env_id
 
     root_dir = os.environ.get("AIWF_STATE_ROOT", os.path.join(".agents", "state"))
+    workflow_path = os.path.join(root_dir, "workflow.json")
+    try:
+        with open(workflow_path, "r", encoding="utf-8") as f:
+            workflow = json.load(f)
+        active = workflow.get("active_workflow") if isinstance(workflow, dict) else None
+        if active:
+            return str(active)
+    except (OSError, ValueError):
+        pass
+
     active_path = os.path.join(root_dir, "active-work-items.json")
     if os.path.exists(active_path):
         try:

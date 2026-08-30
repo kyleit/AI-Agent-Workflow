@@ -55,8 +55,11 @@ class BlueprintCommand:
         p = subparsers.add_parser("blueprint", help=self.meta().help)
         p.add_argument("action", nargs="?",
                        choices=["generate", "validate", "freeze", "status"])
+        p.add_argument("--path", help="Blueprint file path")
         p.add_argument("--work-item", help="Work item ID")
         p.add_argument("--skill", help="Target skill")
+        p.add_argument("--approve", action="store_true", help="Record explicit blueprint approval")
+        p.add_argument("--json", action="store_true", help="Emit a machine-readable result")
         self._parser = p
         return p
 

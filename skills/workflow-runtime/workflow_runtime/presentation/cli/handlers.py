@@ -2,18 +2,17 @@
 from __future__ import annotations
 
 from .knowledge_command_handlers import (
-    handle_cleanup, handle_coordinator, handle_execution, handle_memory,
-    handle_notify, handle_provider, handle_registry, handle_search,
-    handle_state, handle_telegram, handle_visual)
+    handle_cleanup, handle_execution, handle_memory, handle_notify,
+    handle_provider, handle_registry, handle_search, handle_state,
+    handle_telegram, handle_visual)
 from .runtime_command_handlers import (
-    handle_config, handle_deps, handle_doctor, handle_migration,
-    handle_permissions, handle_release, handle_runtime)
+    handle_config, handle_deps, handle_doctor, handle_init, handle_migration,
+    handle_permissions, handle_release, handle_runbook, handle_runtime)
 from .session_command_handlers import (
-    handle_heartbeat, handle_init, handle_mail, handle_prompt, handle_runbook,
-    handle_session)
+    handle_heartbeat, handle_mail, handle_prompt, handle_session)
 from .workflow_command_handlers import (
-    handle_blueprint, handle_complete, handle_dispatch, handle_fail,
-    handle_start, handle_step, handle_suggest, handle_validate,
+    handle_blueprint, handle_complete, handle_coordinator, handle_dispatch,
+    handle_fail, handle_start, handle_step, handle_suggest, handle_validate,
     handle_verify, handle_workflow)
 
 __all__ = [
