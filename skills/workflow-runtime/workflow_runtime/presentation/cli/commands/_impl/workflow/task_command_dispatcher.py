@@ -6,7 +6,6 @@ Task command dispatcher for CLI subcommands: task, blueprint, suggest, compact, 
 from __future__ import annotations
 
 import argparse
-import hashlib
 import json
 import os
 import subprocess
@@ -18,7 +17,7 @@ from workflow_runtime.infrastructure.session.session_io import (
     load_session, save_session_atomic)
 from workflow_runtime.presentation.cli.commands._impl import shared_helpers
 from workflow_runtime.presentation.cli.commands._impl.shared_helpers import (
-    extract_work_item_id_from_text)
+    extract_work_item_id_from_text, sync_blueprint_approval_metadata)
 from workflow_runtime.application.command_contract import CommandResult, NextAction, emit_result
 from workflow_runtime.presentation.cli.commands._impl.workflow.task_state_synchronizer import (
     sync_execution_state_to_session)
@@ -143,6 +142,9 @@ def do_blueprint(args: Any) -> int:
     if exists and not parsed_id and callable(extract_artifact_fn):
         parsed_id = str(extract_artifact_fn(bp_path))
     bp_work_item_id = str(parsed_id or "")
+    same_approved_blueprint = (
+        current_data.get("path") == bp_path and bool(current_data.get("approved"))
+    )
     bp_data: dict[str, Any] = {
         "path": bp_path,
         "exists": exists,
@@ -185,13 +187,29 @@ def do_blueprint(args: Any) -> int:
         bp_data["approved_by"] = "user"
         bp_data["approval_source"] = "runtime_blueprint_approve"
 
-        with open(bp_path, "rb") as stream:
-            bp_data["sha256"] = hashlib.sha256(stream.read()).hexdigest()
+        bp_data["sha256"] = sync_blueprint_approval_metadata(
+            bp_path,
+            approved_at=str(bp_data["approved_at"]),
+            approved_by=str(bp_data["approved_by"]),
+        )
         session["blueprint"] = bp_data
-        session["active_phase"] = "implementation"
-        session["current_skill"] = "blueprint-to-implementation"
-        session["current_command"] = "implement"
-        session["checkpoint"] = max(int(session.get("checkpoint", 1) or 1), 6)
+        session["status"] = "in_progress"
+        if same_approved_blueprint:
+            session["current_step"] = "Blueprint approval state synchronized."
+            if (
+                int(session.get("checkpoint", 1) or 1) >= 9
+                and session.get("suggested_next_skill") == "implementation-to-release"
+            ):
+                session["current_skill"] = "implementation-to-release"
+                session["current_command"] = str(
+                    session.get("suggested_next_command") or "release"
+                )
+        else:
+            session["current_step"] = "Blueprint approved; implementation is ready."
+            session["active_phase"] = "implementation"
+            session["current_skill"] = "blueprint-to-implementation"
+            session["current_command"] = "implement"
+            session["checkpoint"] = max(int(session.get("checkpoint", 1) or 1), 6)
         update_context_health(session)
         save_session_atomic(session)
     elif action in ("generate", "freeze"):

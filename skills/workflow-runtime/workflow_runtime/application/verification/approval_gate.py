@@ -21,9 +21,16 @@ def _read_json(path: str) -> dict[str, Any]:
 
 def _choice_context() -> dict[str, str]:
     workflow = _read_json(os.path.join(".agents", "state", "workflow.json"))
-    approvals = _read_json(os.path.join(".agents", "state", "approvals.json"))
     raw_work_item = workflow.get("active_workflow") or workflow.get("work_item")
     work_item = raw_work_item.get("id") if isinstance(raw_work_item, dict) else raw_work_item
+    approvals_path = os.path.join(".agents", "state", "approvals.json")
+    if work_item:
+        scoped_path = os.path.join(
+            ".agents", "state", "work-items", str(work_item), "approvals.json"
+        )
+        if os.path.isfile(scoped_path):
+            approvals_path = scoped_path
+    approvals = _read_json(approvals_path)
     blueprint_data = approvals.get("blueprint")
     blueprint = blueprint_data.get("path") if isinstance(blueprint_data, dict) else ""
     blueprint_hash = ""

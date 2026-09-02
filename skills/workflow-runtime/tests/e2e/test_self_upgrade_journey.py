@@ -52,6 +52,39 @@ def test_source_upgrade_blocks_dirty_source_without_mutation(tmp_path: Path) -> 
     assert (source / "README.md").read_text(encoding="utf-8") == "local change\n"
 
 
+def test_source_upgrade_blocks_diverged_source_without_mutation(tmp_path: Path) -> None:
+    source, remote = _source_with_remote(tmp_path)
+    (source / "README.md").write_text("local commit\n", encoding="utf-8")
+    _git(source, "add", "README.md")
+    _git(source, "commit", "-m", "local change")
+
+    remote_work = tmp_path / "remote-work"
+    _git(tmp_path, "clone", str(remote), str(remote_work))
+    _git(remote_work, "config", "user.email", "aiwf-test@example.invalid")
+    _git(remote_work, "config", "user.name", "AIWF Test")
+    (remote_work / "README.md").write_text("remote commit\n", encoding="utf-8")
+    _git(remote_work, "add", "README.md")
+    _git(remote_work, "commit", "-m", "remote change")
+    _git(remote_work, "push", "origin", "main")
+
+    service = SourceUpgradeService(str(source), "upstream", str(remote), "main")
+    result = service.execute(UpgradeRequest(
+        source_path=str(source),
+        repository_url=str(remote),
+        remote_name="upstream",
+        branch="main",
+        tag=None,
+        check=False,
+        dry_run=False,
+        yes=True,
+        json_output=True,
+    ))
+
+    assert result.status == "blocked"
+    assert result.code == "DIVERGED_SOURCE_BLOCKED"
+    assert (source / "README.md").read_text(encoding="utf-8") == "local commit\n"
+
+
 def test_source_upgrade_fast_forwards_clean_source(tmp_path: Path) -> None:
     source, remote = _source_with_remote(tmp_path)
     remote_work = tmp_path / "remote-work"

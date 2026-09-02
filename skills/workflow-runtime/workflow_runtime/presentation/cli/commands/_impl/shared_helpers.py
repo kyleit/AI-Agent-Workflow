@@ -37,6 +37,53 @@ def extract_work_item_id_from_text(value: str) -> str:
     return match.group(0) if match else ""
 
 
+def sync_blueprint_approval_metadata(
+    blueprint_path: str,
+    approved_at: str,
+    approved_by: str = "user",
+) -> str:
+    """Persist approval metadata in the Blueprint and return its new SHA-256."""
+    import hashlib
+
+    path = Path(blueprint_path)
+    content = path.read_text(encoding="utf-8")
+    had_trailing_newline = content.endswith(("\n", "\r"))
+    lines = content.splitlines()
+
+    metadata = {
+        "status": "APPROVED",
+        "approved_at": approved_at,
+        "approved_by": approved_by,
+    }
+    if lines and lines[0].strip() == "---":
+        closing_index = next(
+            (index for index, line in enumerate(lines[1:], start=1) if line.strip() == "---"),
+            -1,
+        )
+    else:
+        closing_index = -1
+
+    if closing_index < 0:
+        lines = ["---", *[f"{key}: {value}" for key, value in metadata.items()], "---", *lines]
+    else:
+        frontmatter = lines[1:closing_index]
+        seen: set[str] = set()
+        for index, line in enumerate(frontmatter):
+            key, separator, _value = line.partition(":")
+            normalized_key = key.strip()
+            if separator and normalized_key in metadata:
+                frontmatter[index] = f"{normalized_key}: {metadata[normalized_key]}"
+                seen.add(normalized_key)
+        missing = [f"{key}: {value}" for key, value in metadata.items() if key not in seen]
+        lines = [lines[0], *frontmatter, *missing, *lines[closing_index:]]
+
+    updated = "\n".join(lines)
+    if had_trailing_newline or not updated.endswith("\n"):
+        updated += "\n"
+    path.write_text(updated, encoding="utf-8")
+    return hashlib.sha256(path.read_bytes()).hexdigest()
+
+
 def get_current_project_context() -> dict[str, Any]:
     project_root = _resolve_aiwf_project_root()
     context: dict[str, Any] = {

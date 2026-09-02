@@ -14,23 +14,46 @@ from workflow_runtime.shared.errors import (ForbiddenAISourceError,
 
 
 def do_prompt(args: Any) -> int:
-    from workflow_runtime.shared.utils import PROMPT_UNAVAILABLE, prompt_select
+    from workflow_runtime.shared.utils import (
+        PROMPT_UNAVAILABLE,
+        prompt_choice_id,
+        prompt_select,
+    )
     opt_str = str(getattr(args, "options", "") or "")
     options_list = [o.strip() for o in opt_str.split("|")]
+    question = str(getattr(args, "question", ""))
+    default = str(getattr(args, "default", ""))
     res = prompt_select(
-        str(getattr(args, "question", "")),
+        question,
         options_list,
-        str(getattr(args, "default", "")),
+        default,
         response=str(getattr(args, "response", "") or "") or None,
     )
-    print(res)
     if res == PROMPT_UNAVAILABLE:
+        # A missing host response is a resumable pending interaction, not a
+        # Cancel decision and not a reason to ask the AI to type a magic token.
+        choice_id = prompt_choice_id(question, options_list)
+        print(json.dumps({
+            "status": "awaiting_input",
+            "choice_id": choice_id,
+            "question": question,
+            "options": options_list,
+            "default": default,
+            "request_file": ".agents/runtime/prompt-request.json",
+            "response_file": ".agents/runtime/prompt-response.json",
+            "response_schema": {
+                "choice_id": choice_id,
+                "selected_option": "<one exact option>",
+            },
+            "next_action": "Host/Agent presents the options and writes a matching response, then resumes the workflow.",
+        }, ensure_ascii=False))
         print(
-            "Prompt bridge unavailable: no native UI or stdin answer was received. "
-            "This is not a Cancel selection.",
+            "Prompt pending: no native UI response or stdin answer was received; "
+            "workflow remains stopped until the host submits a structured choice.",
             file=sys.stderr,
         )
-        sys.exit(2)
+        return 2
+    print(res)
     return 0
 
 

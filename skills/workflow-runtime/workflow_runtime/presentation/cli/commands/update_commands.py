@@ -33,10 +33,10 @@ class UpdateCommand:
 
     def parse(self, argv: list[str]) -> argparse.Namespace: return self._parser.parse_args(argv)
 
-    def run(self, args: argparse.Namespace) -> None:
+    def run(self, args: argparse.Namespace) -> int:
         from workflow_runtime.presentation.cli.workflow_runtime import \
             do_update
-        do_update(args)
+        return int(do_update(args) or 0)
 
     def print_help(self) -> None: self._parser.print_help()
 
@@ -76,10 +76,10 @@ class UpdateSourceCommand:
 
     def parse(self, argv: list[str]) -> argparse.Namespace: return self._parser.parse_args(argv)
 
-    def run(self, args: argparse.Namespace) -> None:
+    def run(self, args: argparse.Namespace) -> int:
         from workflow_runtime.presentation.cli.workflow_runtime import \
             do_update_source
-        do_update_source(args)
+        return int(do_update_source(args) or 0)
 
     def print_help(self) -> None: self._parser.print_help()
 

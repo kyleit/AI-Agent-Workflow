@@ -43,14 +43,12 @@ def _preflight(root: Path, cfg: dict, plan: dict, dry: bool) -> list[dict]:
         raise ReleaseError(f"preflight: on branch '{branch}', expected '{want}'")
     results.append({"gate": "branch", "ok": True, "detail": branch})
 
-    if not dry and not gitsteps.is_release_ready(root):
-        raise ReleaseError(
-            "preflight: working tree has unstaged or untracked changes; "
-            "stage the intended release snapshot first"
-        )
     tree_state = "dry-run"
     if not dry:
-        tree_state = "staged-snapshot" if not gitsteps.is_clean(root) else "clean"
+        # The release command is the Agent-facing snapshot boundary.  It owns
+        # staging through repo_release; users and IDE agents must not be sent
+        # away to run git add manually before release can continue.
+        tree_state = "auto-snapshot" if not gitsteps.is_clean(root) else "clean"
     results.append({"gate": "clean-tree", "ok": True, "detail": tree_state})
 
     # version consistency across all files (current values must match source)

@@ -65,6 +65,11 @@ class ApprovalGateService:
             "options": choice.options,
             "default": choice.default_option,
             "allow_cancel": choice.allow_cancel,
+            "response_file": ".agents/runtime/prompt-response.json",
+            "response_schema": {
+                "choice_id": choice.choice_id,
+                "selected_option": "<one exact option>",
+            },
             "preferred_tool": "ask_question",
             "fallback_tool": "prompt_select",
             "bridge_order": ["ask_question", "prompt_select", "stdin"],

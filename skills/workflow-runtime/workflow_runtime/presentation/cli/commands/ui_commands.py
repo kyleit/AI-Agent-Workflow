@@ -38,10 +38,10 @@ class PromptCommand:
 
     def parse(self, argv: list[str]) -> argparse.Namespace: return self._parser.parse_args(argv)
 
-    def run(self, args: argparse.Namespace) -> None:
+    def run(self, args: argparse.Namespace) -> int:
         from workflow_runtime.presentation.cli.workflow_runtime import \
             do_prompt
-        do_prompt(args)
+        return int(do_prompt(args) or 0)
 
     def print_help(self) -> None: self._parser.print_help()
 

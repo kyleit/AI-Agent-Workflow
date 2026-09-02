@@ -1,8 +1,14 @@
 # Changelog
 
-## v6.26.1 - 2026-09-02
+## v6.26.2 - 2026-09-02
 
 _No user-facing changes._
+
+
+## v6.26.1 - 2026-09-02
+
+### Documentation
+- record v6.26.0 post-release validation (eeaccec7)
 
 
 ## v6.26.0 - 2026-08-31

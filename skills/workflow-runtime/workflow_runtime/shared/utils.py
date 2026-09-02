@@ -294,11 +294,29 @@ def _write_prompt_request(
                 "default": default,
                 "approval_gate": strategic_approval_gate,
                 "status": "pending",
+                "protocol": "aiwf.prompt.v1",
+                "response_file": ".agents/runtime/prompt-response.json",
+                "response_schema": {
+                    "choice_id": choice_id,
+                    "selected_option": "<one exact option>",
+                },
             },
         )
         return request_path
     except (OSError, PathPolicyViolation):
         return None
+
+
+def _clear_prompt_request(choice_id: str) -> None:
+    request_path = pathlib.Path(".agents/runtime/prompt-request.json")
+    try:
+        if not request_path.is_file():
+            return
+        data = json.loads(request_path.read_text(encoding="utf-8"))
+        if isinstance(data, dict) and str(data.get("choice_id", "")) == choice_id:
+            request_path.unlink()
+    except (OSError, json.JSONDecodeError, TypeError, ValueError):
+        return
 
 
 def prompt_select(
@@ -313,6 +331,7 @@ def prompt_select(
     response file, rồi mới đến stdin.
     Với approval gate chiến lược, nếu prompt bridge không có câu trả lời thật,
     trả về PROMPT_UNAVAILABLE thay vì default để không nhầm với lựa chọn của user.
+    Request pending vẫn được giữ lại để IDE/Agent xử lý bất đồng bộ.
     """
     import sys
 
@@ -334,10 +353,12 @@ def prompt_select(
     choice_id = prompt_choice_id(question, options)
     selected = _normalise_prompt_response(response, options)
     if selected:
+        _clear_prompt_request(choice_id)
         return selected
 
     selected = _agent_prompt_response(choice_id, options)
     if selected:
+        _clear_prompt_request(choice_id)
         return selected
 
     mode = _get_permission_mode()
@@ -378,7 +399,12 @@ def prompt_select(
         "choice_id": choice_id,
         "question": question,
         "options": options,
-        "default": default
+        "default": default,
+        "response_file": ".agents/runtime/prompt-response.json",
+        "response_schema": {
+            "choice_id": choice_id,
+            "selected_option": "<one exact option>",
+        },
     }
     # In ra XML tag đặc biệt để Agent phát hiện
     ask_question_payload = {
@@ -403,22 +429,13 @@ def prompt_select(
         while time.monotonic() < deadline:
             selected = _agent_prompt_response(choice_id, options)
             if selected:
-                if request_path:
-                    try:
-                        request_path.unlink()
-                    except OSError:
-                        pass
+                _clear_prompt_request(choice_id)
                 return selected
             time.sleep(0.1)
 
-    if request_path:
-        try:
-            request_path.unlink()
-        except OSError:
-            pass
-
-    # Fallback cho terminal/human nếu IDE không tự động bắt thẻ XML
-    if sys.stdin.isatty():
+    # AI/IDE hosts must not be forced into manual terminal entry. Human text
+    # prompting remains an explicit opt-in for legacy terminal callers.
+    if sys.stdin.isatty() and os.environ.get("AIWF_TEXT_PROMPT") == "1":
         prompt_str = f"\n[Prompt] {question}\n"
         for idx, opt in enumerate(options):
             prompt_str += f"  {idx + 1}. {opt}\n"
