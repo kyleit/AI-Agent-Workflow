@@ -49,7 +49,21 @@ def run_release_execute(approve: bool = False) -> dict[str, object]:
             "files_written": []
         }
 
-    # 0. Automatically update project memory before release
+    from workflow_runtime.application.verification.release_gate import ReleaseGate
+
+    gate_passed, gate_reason = ReleaseGate(".").validate()
+    if not gate_passed:
+        return {
+            "status": "blocked",
+            "command": "release execute",
+            "code": "RELEASE_GATE_FAILED",
+            "summary": "Release blocked before side effects.",
+            "warnings": [gate_reason],
+            "side_effects": [],
+            "files_written": [],
+        }
+
+    # 0. Automatically update project memory only after all release gates pass
     print("[INFO] Automatically updating project memory before release execution...")
     try:
         update_fn: Any = getattr(InfrastructureLocator, "run_update", None)

@@ -83,6 +83,9 @@ def do_memory_action(args: Any) -> None:
         "files_written": written_list,
         "next_skill": res.get("next_skill")
     }
+    for key in ("provider_chain", "selected_provider", "provider_health", "results", "results_count", "fallback_reason", "current_source_authority"):
+        if key in res:
+            result[key] = res[key]
     print(json.dumps(result, indent=2))
     if str(result["status"]) != "success":
         sys.exit(1)

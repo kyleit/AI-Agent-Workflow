@@ -3,6 +3,7 @@ from __future__ import annotations
 import shutil
 import subprocess
 import sys
+import json
 from pathlib import Path
 
 from workflow_runtime.application.ports.agy_port import IAGYPort
@@ -43,7 +44,20 @@ class AGYAdapter(IAGYPort):
         if add_dir:
             cmd.extend(["--add-dir", str(add_dir)])
         cmd.append("--print")
-        cmd.append(prompt)
+        context_prompt = prompt
+        if add_dir:
+            try:
+                from workflow_runtime.application.workflow.workflow_entry_gateway import build_context_preflight
+                pack = build_context_preflight(prompt, Path(add_dir))
+                context_prompt = (
+                    "AIWF CONTEXT PREFLIGHT (use before source exploration):\n"
+                    + json.dumps(pack, ensure_ascii=False, separators=(",", ":"))
+                    + "\n\nTASK:\n"
+                    + prompt
+                )
+            except Exception as exc:
+                context_prompt = f"AIWF CONTEXT PREFLIGHT unavailable ({exc}); inspect targeted files only.\n\nTASK:\n{prompt}"
+        cmd.append(context_prompt)
         return cmd
 
     def execute_dispatch(

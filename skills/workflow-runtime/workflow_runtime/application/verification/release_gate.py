@@ -7,6 +7,7 @@ Cannot be bypassed by any CLI argument.
 from __future__ import annotations
 
 import os
+import re
 from typing import Any, cast
 
 from workflow_runtime.application.ports.locator import InfrastructureLocator
@@ -32,6 +33,9 @@ class ReleaseGate:
     def __init__(self, workspace_root: str | None = None) -> None:
         self._workspace_root = workspace_root
         impl_cls: Any = getattr(InfrastructureLocator, "ImplementationLedger", None)
+        if not callable(impl_cls):
+            from workflow_runtime.infrastructure.persistence.ledger import ImplementationLedger
+            impl_cls = ImplementationLedger
         self._ledger: Any = impl_cls(workspace_root) if callable(impl_cls) else None
 
     def validate(self) -> tuple[bool, str]:
@@ -152,10 +156,7 @@ class ReleaseGate:
 
     def _check_debug_report(self, ledger: dict[str, Any]) -> str | None:
         feature_id = str(ledger.get("feature_id", ""))
-        debug_path = os.path.join(
-            self._workspace_root or ".",
-            "docs", "debug", f"{feature_id}_debug.md"
-        )
+        debug_path = self._find_report(feature_id, "debug")
         if not os.path.exists(debug_path):
             return (
                 f"Debug report not found at docs/debug/{feature_id}_debug.md. "
@@ -165,10 +166,10 @@ class ReleaseGate:
         try:
             with open(debug_path, "r", encoding="utf-8") as f:
                 content = f.read()
-            if "PASS" not in content and "pass" not in content.lower():
+            if self._report_status(content) != "PASS":
                 return (
-                    f"Debug report exists but does not contain 'PASS'. "
-                    f"Fix issues and re-run /debug."
+                    "Debug report exists but does not contain 'PASS'. "
+                    "Fix issues and re-run /debug."
                 )
         except OSError:
             return f"Cannot read debug report at {debug_path}."
@@ -177,10 +178,7 @@ class ReleaseGate:
 
     def _check_verify_report(self, ledger: dict[str, Any]) -> str | None:
         feature_id = str(ledger.get("feature_id", ""))
-        verify_path = os.path.join(
-            self._workspace_root or ".",
-            "docs", "verification", f"{feature_id}_verify.md"
-        )
+        verify_path = self._find_report(feature_id, "verification")
         if not os.path.exists(verify_path):
             return (
                 f"Verify report not found at docs/verification/{feature_id}_verify.md. "
@@ -190,15 +188,34 @@ class ReleaseGate:
         try:
             with open(verify_path, "r", encoding="utf-8") as f:
                 content = f.read()
-            if "PASS" not in content and "pass" not in content.lower():
+            if self._report_status(content) != "PASS":
                 return (
-                    f"Verify report exists but does not contain 'PASS'. "
-                    f"Fix issues and re-run /verify."
+                    "Verify report exists but does not contain 'PASS'. "
+                    "Fix issues and re-run /verify."
                 )
         except OSError:
             return f"Cannot read verify report at {verify_path}."
 
         return None
+
+    def _find_report(self, feature_id: str, stage: str) -> str:
+        root = self._workspace_root or "."
+        candidates = [
+            os.path.join(root, "docs", stage, f"{feature_id}_{'debug' if stage == 'debug' else 'verify'}.md"),
+        ]
+        feature_root = os.path.join(root, "docs", "features")
+        if os.path.isdir(feature_root):
+            for family in os.listdir(feature_root):
+                candidates.append(os.path.join(feature_root, family, stage, f"{feature_id}_{'debug' if stage == 'debug' else 'verify'}.md"))
+        for candidate in candidates:
+            if os.path.isfile(candidate):
+                return candidate
+        return candidates[0]
+
+    @staticmethod
+    def _report_status(content: str) -> str:
+        match = re.search(r"^status:\s*([^\s]+)", content, re.IGNORECASE | re.MULTILINE)
+        return match.group(1).upper() if match else "UNVERIFIED"
 
 
 __all__ = [

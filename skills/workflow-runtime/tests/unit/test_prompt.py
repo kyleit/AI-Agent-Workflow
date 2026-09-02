@@ -4,13 +4,10 @@ pytestmark = pytest.mark.unit
 
 import unittest
 import os
-import sys
 import io
 from unittest.mock import patch
 
-sys.path.append(os.path.join(os.path.dirname(__file__), "..", "..", "scripts"))
-
-from utils import prompt_select
+from workflow_runtime.shared.utils import prompt_select
 
 class TestInteractivePrompts(unittest.TestCase):
     @patch("sys.stdin", io.StringIO("1\n"))

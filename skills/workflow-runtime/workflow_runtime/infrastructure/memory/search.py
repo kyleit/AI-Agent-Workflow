@@ -1,127 +1,339 @@
 from __future__ import annotations
 
+import hashlib
 import json
 import os
+import shutil
+import sqlite3
+import subprocess
+import sys
 import urllib.request
+from pathlib import Path
 from typing import Any, cast
 
-from .common import get_project_root, log_info, log_warn, to_posix_path
+from .common import log_info, log_warn, read_text_safe, to_posix_path
 from .config import get_memory_paths, load_memory_config
+from .context_manifest import load_context_manifest, manifest_freshness
 from .keyword_index import extract_keywords, search_in_markdown
 
 
 class RAGSearcher:
-    def __init__(self, config: dict[str, Any] | None = None):
-        self.config = config or load_memory_config()
-        self.paths = get_memory_paths(self.config)
-        self.qdrant_url = "http://localhost:6333"
+    """Project-scoped retrieval router with truthful provider health and evidence."""
 
-    def local_search(self, query: str) -> list[dict[str, Any]]:
-        """Tìm kiếm từ khóa thô trên toàn bộ tệp markdown tri thức."""
-        keywords = extract_keywords(query)
-        if not keywords:
-            return []
+    def __init__(self, config: dict[str, Any] | None = None, root_dir: str | os.PathLike[str] | None = None):
+        self.root_dir = Path(root_dir or os.getcwd()).resolve()
+        self.config = config or load_memory_config(root_dir=str(self.root_dir))
+        self.paths = get_memory_paths(self.config, root_dir=str(self.root_dir))
+        self.qdrant_url = str(self.config.get("qdrant_url", "http://localhost:6333")).rstrip("/")
+        self.collection = str(self.config.get("vector_collection", self.config.get("project_id", "ai-skill-framework")))
+        self.qmd_timeout = max(1, int(self.config.get("qmd_timeout_seconds", 3)))
 
-        results: list[dict[str, Any]] = []
-        # Quét các file markdown chính trong memory_root
-        mem_dir = str(self.paths.get("memory_root", ""))
-        if os.path.exists(mem_dir):
-            for root, _, files in os.walk(mem_dir):
-                for file in files:
-                    if file.endswith(".md"):
-                        full_path = os.path.join(root, file)
-                        rel_path = os.path.relpath(full_path, get_project_root())
-                        matches = search_in_markdown(full_path, keywords)
-                        for m in matches:
-                            m_dict = m
-                            m_dict["file"] = to_posix_path(rel_path)
-                            results.append(m_dict)
+    def _revision(self) -> str:
+        from .context_manifest import current_revision
+        return current_revision(self.root_dir)
 
-        # Sắp xếp kết quả theo score giảm dần
-        results.sort(key=lambda x: cast(float, x.get("score", 0.0)), reverse=True)
-        return results
+    def _freshness(self) -> str:
+        return manifest_freshness(
+            self.root_dir,
+            load_context_manifest(self.root_dir / ".agents" / "memory" / "project-context.json"),
+        )
 
-    def vector_search(self, query: str) -> list[dict[str, Any]]:
-        """Gọi API REST của Qdrant (full-text match hoặc dummy mock nếu không có embedding model)."""
-        collection = str(self.config.get("vector_collection", "ai-skill-framework"))
-        url = f"{self.qdrant_url}/collections/{collection}/points/scroll"
-
-        keywords = extract_keywords(query)
-        if not keywords:
-            return []
-
-        filter_conditions: list[dict[str, Any]] = []
-        for kw in keywords:
-            filter_conditions.append({
-                "key": "text",
-                "match": {"value": kw}
-            })
-
-        payload = {
-            "filter": {
-                "should": filter_conditions
-            },
-            "limit": 10,
-            "with_payload": True
+    def _health(self, provider: str, state: str, reason: str, *, index_path: str = "", collection: str = "", document_count: int = 0, chunk_count: int = 0, embedding_status: str = "not_required") -> dict[str, Any]:
+        return {
+            "provider": provider, "state": state, "index_path": index_path,
+            "collection": collection, "document_count": document_count,
+            "chunk_count": chunk_count, "embedding_status": embedding_status,
+            "reason": reason,
         }
 
+    def _run_qmd_cli(self, arguments: list[str]) -> tuple[int, str, str]:
+        """Run qmd without leaving its Python child behind on timeout."""
+        executable = shutil.which("qmd")
+        if not executable:
+            return (127, "", "qmd executable is not installed")
+        process: subprocess.Popen[str] | None = None
         try:
-            req = urllib.request.Request(
-                url,
-                data=json.dumps(payload).encode("utf-8"),
-                headers={"Content-Type": "application/json"},
-                method="POST"
+            process = subprocess.Popen(
+                [executable, "--db-path", str(self.paths.get("qmd_index", "")), *arguments],
+                cwd=self.root_dir, stdout=subprocess.PIPE, stderr=subprocess.PIPE,
+                text=True, encoding="utf-8", errors="replace",
             )
-            with urllib.request.urlopen(req, timeout=3) as resp:
-                data = json.loads(resp.read().decode())
-                points_list: list[dict[str, Any]] = []
-                if isinstance(data, dict):
-                    data_dict = cast(dict[str, Any], data)
-                    res_obj = data_dict.get("result")
-                    if isinstance(res_obj, dict):
-                        res_dict = cast(dict[str, Any], res_obj)
-                        raw_pts = res_dict.get("points")
-                        if isinstance(raw_pts, list):
-                            points_list = cast(list[dict[str, Any]], raw_pts)
+            stdout, stderr = process.communicate(timeout=self.qmd_timeout)
+            return (int(process.returncode or 0), stdout, stderr)
+        except subprocess.TimeoutExpired:
+            if process is not None:
+                try:
+                    if os.name == "nt":
+                        subprocess.run(["taskkill", "/PID", str(process.pid), "/T", "/F"], capture_output=True, timeout=2)
+                    else:
+                        process.kill()
+                except (OSError, subprocess.TimeoutExpired):
+                    pass
+            return (124, "", "qmd command timed out")
+        except OSError as exc:
+            return (1, "", str(exc))
 
-                results: list[dict[str, Any]] = []
-                for pt in points_list:
-                    payload_data: dict[str, Any] = cast(dict[str, Any], pt.get("payload", {})) if isinstance(pt.get("payload"), dict) else {}
-                    results.append({
-                        "file": payload_data.get("file", "unknown.md"),
-                        "text": payload_data.get("text", pt.get("id", "")),
-                        "score": 10.0,
-                        "type": "vector"
-                    })
-                return results
-        except Exception as e:
-            log_warn(f"Qdrant vector search failed: {e}. Falling back to local keyword search.")
+    def _qmd_runtime_reason(self) -> str | None:
+        """Return a deterministic compatibility reason before spawning qmd."""
+        if sys.version_info >= (3, 14) and os.environ.get("AIWF_QMD_FORCE", "").lower() not in {"1", "true", "yes"}:
+            return "qmd embedding runtime is not compatible with Python 3.14; SQLite fallback is active"
+        return None
+
+    def _qmd_health(self) -> dict[str, Any]:
+        index_path = str(self.paths.get("qmd_index", ""))
+        if not shutil.which("qmd"):
+            return self._health("qmd", "UNAVAILABLE", "qmd executable is not installed", index_path=index_path, collection=self.collection)
+        compatibility_reason = self._qmd_runtime_reason()
+        if compatibility_reason:
+            return self._health("qmd", "UNAVAILABLE", compatibility_reason, index_path=index_path, collection=self.collection)
+        if not os.path.isfile(index_path):
+            return self._health("qmd", "DEGRADED", "project-scoped qmd index is missing", index_path=index_path, collection=self.collection)
+        try:
+            code, stdout, stderr = self._run_qmd_cli(["collection", "list"])
+            if code != 0:
+                return self._health("qmd", "DEGRADED", stderr.strip() or "qmd health check failed", index_path=index_path, collection=self.collection)
+            collections: Any = json.loads(stdout or "[]")
+            info = next((item for item in collections if isinstance(item, dict) and item.get("name") == self.collection), None)
+            if info is None:
+                return self._health("qmd", "DEGRADED", "project collection is missing", index_path=index_path, collection=self.collection)
+            document_count = int(info.get("document_count", 0) or 0)
+            chunk_count = int(info.get("chunk_count", 0) or 0)
+            if not document_count or not chunk_count:
+                return self._health(
+                    "qmd", "DEGRADED", "QMD is installed but the project collection is empty; SQLite fallback is active",
+                    index_path=index_path, collection=self.collection,
+                    document_count=document_count, chunk_count=chunk_count,
+                    embedding_status="empty",
+                )
+            return self._health(
+                "qmd", "READY", "validated project collection and embeddings",
+                index_path=index_path, collection=self.collection,
+                document_count=document_count, chunk_count=chunk_count,
+                embedding_status="ready",
+            )
+        except (OSError, TypeError, ValueError) as exc:
+            return self._health("qmd", "DEGRADED", str(exc), index_path=index_path, collection=self.collection)
+
+    def _index_signature(self) -> str:
+        digest = hashlib.sha256()
+        memory_root = Path(str(self.paths["memory_root"]))
+        for path in sorted(memory_root.rglob("*")):
+            if path.is_file() and path.name != Path(str(self.paths.get("qmd_index", "qmd.index"))).name:
+                stat = path.stat()
+                digest.update(f"{path.relative_to(memory_root)}:{stat.st_mtime_ns}:{stat.st_size}".encode())
+        return digest.hexdigest()
+
+    def _ensure_sqlite_index(self) -> dict[str, Any]:
+        index_path = Path(str(self.paths.get("qmd_index")))
+        index_path.parent.mkdir(parents=True, exist_ok=True)
+        conn = sqlite3.connect(index_path)
+        conn.row_factory = sqlite3.Row
+        try:
+            conn.execute("CREATE TABLE IF NOT EXISTS memory_index_meta (key TEXT PRIMARY KEY, value TEXT NOT NULL)")
+            signature = self._index_signature()
+            existing = conn.execute("SELECT value FROM memory_index_meta WHERE key = 'signature'").fetchone()
+            conn.execute("CREATE VIRTUAL TABLE IF NOT EXISTS memory_chunks_fts USING fts5(chunk_id UNINDEXED, file, anchor, text, source_hash, source_revision, freshness)")
+            if not existing or str(existing[0]) != signature:
+                conn.execute("DELETE FROM memory_chunks_fts")
+                memory_root = Path(str(self.paths["memory_root"]))
+                # Resolve repository state once per index rebuild. Calling git
+                # and re-reading the manifest for every chunk made first use
+                # scale with process launches instead of document size.
+                revision = self._revision()
+                freshness = self._freshness()
+                for path in sorted(memory_root.rglob("*")):
+                    if not path.is_file() or path == index_path or path.suffix.lower() not in {".md", ".json", ".txt"}:
+                        continue
+                    content = read_text_safe(path)
+                    if not content:
+                        continue
+                    rel = to_posix_path(os.path.relpath(path, self.root_dir))
+                    source_hash = hashlib.sha256(path.read_bytes()).hexdigest()
+                    lines = content.splitlines()
+                    for offset in range(0, len(lines), 60):
+                        chunk = "\n".join(lines[offset:offset + 60]).strip()
+                        if not chunk:
+                            continue
+                        anchor = f"{rel}:{offset + 1}"
+                        chunk_id = hashlib.sha256(f"{anchor}:{source_hash}".encode()).hexdigest()[:24]
+                        conn.execute(
+                            "INSERT INTO memory_chunks_fts(chunk_id,file,anchor,text,source_hash,source_revision,freshness) VALUES(?,?,?,?,?,?,?)",
+                            (chunk_id, rel, anchor, chunk, source_hash, revision, freshness),
+                        )
+                conn.execute("INSERT OR REPLACE INTO memory_index_meta(key,value) VALUES('signature',?)", (signature,))
+                conn.execute("INSERT OR REPLACE INTO memory_index_meta(key,value) VALUES('last_indexed_at',datetime('now'))")
+            count = int(conn.execute("SELECT count(*) FROM memory_chunks_fts").fetchone()[0])
+            documents = int(conn.execute("SELECT count(DISTINCT file) FROM memory_chunks_fts").fetchone()[0])
+            conn.commit()
+            return self._health("sqlite-fts5", "READY", "embedded local project index", index_path=str(index_path), document_count=documents, chunk_count=count)
+        except sqlite3.OperationalError as exc:
+            conn.rollback()
+            return self._health("sqlite-fts5", "UNAVAILABLE", f"SQLite FTS5 unavailable: {exc}", index_path=str(index_path))
+        finally:
+            conn.close()
+
+    def _sqlite_search(self, query: str, limit: int = 10) -> list[dict[str, Any]]:
+        health = self._ensure_sqlite_index()
+        if health["state"] != "READY":
             return []
+        conn = sqlite3.connect(str(self.paths["qmd_index"]))
+        conn.row_factory = sqlite3.Row
+        try:
+            terms = [term.replace('"', "") for term in extract_keywords(query)]
+            if not terms:
+                return []
+            match_query = " OR ".join(f'"{term}"' for term in terms)
+            rows = conn.execute(
+                "SELECT file,anchor,text,source_hash,source_revision,freshness,bm25(memory_chunks_fts) AS rank FROM memory_chunks_fts WHERE memory_chunks_fts MATCH ? ORDER BY rank LIMIT ?",
+                (match_query, limit),
+            ).fetchall()
+            return [self._evidence("sqlite-fts5", dict(row), score=1.0 / (1.0 + abs(float(row["rank"] or 0.0)))) for row in rows]
+        except sqlite3.OperationalError:
+            return []
+        finally:
+            conn.close()
+
+    def _qmd_search(self, query: str, limit: int = 10) -> list[dict[str, Any]]:
+        index_path = str(self.paths.get("qmd_index", ""))
+        if not shutil.which("qmd") or self._qmd_runtime_reason() or not os.path.isfile(index_path):
+            return []
+        try:
+            code, stdout, _ = self._run_qmd_cli(
+                ["search", "--collection", self.collection, "--query", query, "--top-k", str(limit), "--rerank"]
+            )
+            if code != 0 or not stdout.strip():
+                return []
+            parsed: Any = json.loads(stdout)
+            rows = parsed if isinstance(parsed, list) else parsed.get("results", []) if isinstance(parsed, dict) else []
+            return [self._evidence("qmd", cast(dict[str, Any], row), score=float(row.get("score", 0.0))) for row in rows if isinstance(row, dict)]
+        except (OSError, ValueError):
+            return []
+
+    def _evidence(self, provider: str, row: dict[str, Any], score: float) -> dict[str, Any]:
+        raw_text = str(row.get("text", row.get("content", "")))
+        max_text = max(1000, int(self.config.get("max_evidence_chars", 8000)))
+        return {
+            "provider": provider,
+            "file": row.get("file", row.get("path", "unknown")),
+            "anchor": row.get("anchor", row.get("source_anchor", "")),
+            "text": raw_text[:max_text],
+            "text_truncated": len(raw_text) > max_text,
+            "score": score,
+            "confidence": "high" if score >= 0.5 else "medium" if score > 0 else "low",
+            "source_hash": row.get("source_hash"),
+            "source_revision": row.get("source_revision", self._revision()),
+            "freshness": row.get("freshness", self._freshness()),
+        }
+
+    def local_search(self, query: str) -> list[dict[str, Any]]:
+        return self._sqlite_search(query)
+
+    def _qdrant_health(self) -> dict[str, Any]:
+        url = f"{self.qdrant_url}/collections/{self.collection}"
+        try:
+            with urllib.request.urlopen(url, timeout=2) as response:
+                data = json.loads(response.read().decode("utf-8"))
+            result = data.get("result", {}) if isinstance(data, dict) else {}
+            vectors = result.get("config", {}).get("params", {}).get("vectors", {}) if isinstance(result, dict) else {}
+            points = result.get("points_count", result.get("vectors_count", 0)) if isinstance(result, dict) else 0
+            if not isinstance(vectors, dict) or not points:
+                return self._health("qdrant", "DEGRADED", "Qdrant is reachable but collection or vectors are not ready", collection=self.collection, document_count=int(points or 0), chunk_count=int(points or 0), embedding_status="invalid")
+            return self._health("qdrant", "READY", "validated collection and vector count", collection=self.collection, document_count=int(points), chunk_count=int(points), embedding_status="ready")
+        except Exception as exc:
+            return self._health("qdrant", "UNAVAILABLE", f"Qdrant unavailable: {exc}", collection=self.collection)
+
+    def vector_search(self, query: str) -> list[dict[str, Any]]:
+        health = self._qdrant_health()
+        if health["state"] != "READY":
+            return []
+        keywords = extract_keywords(query)
+        if not keywords:
+            return []
+        try:
+            request = urllib.request.Request(
+                f"{self.qdrant_url}/collections/{self.collection}/points/scroll",
+                data=json.dumps({"limit": 20, "with_payload": True}).encode("utf-8"),
+                headers={"Content-Type": "application/json"}, method="POST",
+            )
+            with urllib.request.urlopen(request, timeout=2) as response:
+                data = json.loads(response.read().decode("utf-8"))
+            points = data.get("result", {}).get("points", []) if isinstance(data, dict) else []
+            results: list[dict[str, Any]] = []
+            for point in points if isinstance(points, list) else []:
+                payload = point.get("payload", {}) if isinstance(point, dict) else {}
+                text = str(payload.get("text", payload.get("content", ""))) if isinstance(payload, dict) else ""
+                hits = sum(1 for keyword in keywords if keyword.lower() in text.lower())
+                if hits:
+                    results.append(self._evidence("qdrant", {
+                        "file": payload.get("file", payload.get("path", "unknown")),
+                        "anchor": payload.get("anchor", ""), "text": text,
+                        "source_hash": payload.get("source_hash"),
+                        "source_revision": payload.get("source_revision"),
+                        "freshness": payload.get("freshness", "UNVERIFIED"),
+                    }, score=hits / len(keywords)))
+            return sorted(results, key=lambda item: cast(float, item["score"]), reverse=True)
+        except Exception as exc:
+            log_warn(f"Qdrant collection query failed: {exc}")
+            return []
+
+    def local_provider_health(self) -> list[dict[str, Any]]:
+        return [self._qmd_health(), self._ensure_sqlite_index(), self._qdrant_health()]
 
     def execute_search(self, query: str) -> dict[str, Any]:
         log_info(f"Searching memory for: '{query}'")
-
-        results = self.vector_search(query)
-        retrieval_level = "Level 2 — Vector Search"
-
-        if not results:
-            results = self.local_search(query)
-            retrieval_level = "Level 1 — Local Keyword Match"
-
+        chain = list(self.config.get("provider_chain", ["qmd", "sqlite-fts5", "qdrant", "markdown"]))
+        reasons: list[str] = []
+        health_by_provider = {item["provider"]: item for item in self.local_provider_health()}
+        for provider in chain:
+            health = health_by_provider.get(provider)
+            if provider == "qmd" and health and health["state"] == "READY":
+                results = self._qmd_search(query)
+            elif provider == "sqlite-fts5" and health and health["state"] == "READY":
+                results = self._sqlite_search(query)
+            elif provider == "qdrant" and health and health["state"] == "READY":
+                results = self.vector_search(query)
+            elif provider == "markdown":
+                results = self._markdown_search(query)
+            else:
+                results = []
+            if results:
+                return {
+                    "status": "success", "query": query, "provider_chain": chain,
+                    "selected_provider": provider, "provider_health": list(health_by_provider.values()),
+                    "results": results[:5], "results_count": len(results),
+                    "fallback_reason": "; ".join(reasons),
+                    "current_source_authority": "source files; generated memory is an index and navigation layer",
+                }
+            if health and health.get("state") != "READY":
+                reasons.append(f"{provider}: {health.get('reason')}")
         return {
-            "status": "success",
-            "query": query,
-            "retrieval_level": retrieval_level,
-            "results_count": len(results),
-            "results": results[:5]
+            "status": "success", "query": query, "provider_chain": chain,
+            "selected_provider": "none", "provider_health": list(health_by_provider.values()),
+            "results": [], "results_count": 0, "fallback_reason": "; ".join(reasons),
+            "current_source_authority": "source files; generated memory is an index and navigation layer",
         }
+
+    def _markdown_search(self, query: str) -> list[dict[str, Any]]:
+        keywords = extract_keywords(query)
+        results: list[dict[str, Any]] = []
+        if not keywords:
+            return results
+        mem_dir = str(self.paths.get("memory_root", ""))
+        for root, _, files in os.walk(mem_dir):
+            for file in files:
+                if not file.endswith(".md"):
+                    continue
+                full_path = os.path.join(root, file)
+                rel_path = to_posix_path(os.path.relpath(full_path, self.root_dir))
+                for match in search_in_markdown(full_path, keywords):
+                    row = dict(match)
+                    row.update({"file": rel_path, "anchor": f"{rel_path}:{int(row.get('line', 0))}", "source_hash": hashlib.sha256(Path(full_path).read_bytes()).hexdigest(), "source_revision": self._revision(), "freshness": self._freshness()})
+                    results.append(self._evidence("markdown", row, float(row.get("score", 0.0))))
+        return sorted(results, key=lambda item: cast(float, item.get("score", 0.0)), reverse=True)
 
 
 __all__ = ["RAGSearcher"]
 
 if __name__ == "__main__":
     import sys
-    query_str = sys.argv[1] if len(sys.argv) > 1 else "session"
-    searcher = RAGSearcher()
-    res = searcher.execute_search(query_str)
-    print(json.dumps(res, indent=2))
+    print(json.dumps(RAGSearcher().execute_search(sys.argv[1] if len(sys.argv) > 1 else "architecture"), indent=2))

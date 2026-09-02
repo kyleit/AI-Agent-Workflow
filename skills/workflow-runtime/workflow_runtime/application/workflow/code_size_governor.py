@@ -2,7 +2,7 @@
 import ast
 import os
 import re
-from typing import Any, cast
+from typing import Any, Sequence, cast
 
 try:
     import yaml
@@ -198,7 +198,10 @@ def analyze_go_file(filepath: str, policy: dict[str, Any]) -> dict[str, Any]:
 
     return metrics
 
-def run_code_size_audit(root_dir: str = ".") -> tuple[bool, list[dict[str, Any]], dict[str, Any]]:
+def run_code_size_audit(
+    root_dir: str = ".",
+    files: Sequence[str] | None = None,
+) -> tuple[bool, list[dict[str, Any]], dict[str, Any]]:
     """Chạy phân tích toàn diện kích thước code."""
     policy: dict[str, Any] = load_code_size_policy(root_dir)
     if not policy.get("enabled", True):
@@ -218,15 +221,27 @@ def run_code_size_audit(root_dir: str = ".") -> tuple[bool, list[dict[str, Any]]
     files_to_check: list[tuple[str, str]] = []
     exclude_patterns: list[Any] = cast(list[Any], policy.get("exclude", [])) if isinstance(policy.get("exclude"), list) else []
 
-    for dirpath, _, filenames in os.walk(root_dir):
-        if any(x in dirpath for x in [".git", "node_modules", "dist", ".pytest_cache", ".agents", "venv"]):
-            continue
-        for f in filenames:
-            if f.endswith((".go", ".py")):
-                filepath = os.path.join(dirpath, f)
-                rel_path = os.path.relpath(filepath, root_dir).replace("\\", "/")
-                if not is_excluded(rel_path, exclude_patterns):
-                    files_to_check.append((filepath, rel_path))
+    if files is not None:
+        candidates = [
+            candidate if os.path.isabs(candidate) else os.path.join(root_dir, candidate)
+            for candidate in files
+        ]
+        for filepath in candidates:
+            if not os.path.isfile(filepath) or not filepath.endswith((".go", ".py")):
+                continue
+            rel_path = os.path.relpath(filepath, root_dir).replace("\\", "/")
+            if not is_excluded(rel_path, exclude_patterns):
+                files_to_check.append((filepath, rel_path))
+    else:
+        for dirpath, _, filenames in os.walk(root_dir):
+            if any(x in dirpath for x in [".git", "node_modules", "dist", ".pytest_cache", ".agents", "venv", "public_export", "artifacts"]):
+                continue
+            for f in filenames:
+                if f.endswith((".go", ".py")):
+                    filepath = os.path.join(dirpath, f)
+                    rel_path = os.path.relpath(filepath, root_dir).replace("\\", "/")
+                    if not is_excluded(rel_path, exclude_patterns):
+                        files_to_check.append((filepath, rel_path))
 
     # helper check exceptions
     exceptions_list: list[Any] = cast(list[Any], policy.get("exceptions", [])) if isinstance(policy.get("exceptions"), list) else []

@@ -22,6 +22,7 @@ from workflow_runtime.infrastructure.knowledge.rag_store_adapter import (
     RAGStoreAdapter)
 from workflow_runtime.infrastructure.persistence.db_records import (
     save_insight_snapshot)
+from workflow_runtime.infrastructure.persistence.ledger import ImplementationLedger
 from workflow_runtime.infrastructure.registry.registry_adapter import (
     RegistryAdapter)
 
@@ -65,6 +66,7 @@ def bootstrap_di() -> None:
     setattr(InfrastructureLocator, "RAGStoreAdapter", RAGStoreAdapter)
     setattr(InfrastructureLocator, "RegistryAdapter", RegistryAdapter)
     setattr(InfrastructureLocator, "ExecutionGateway", ExecutionGateway)
+    setattr(InfrastructureLocator, "ImplementationLedger", ImplementationLedger)
 
 
 __all__ = ["bootstrap_di"]

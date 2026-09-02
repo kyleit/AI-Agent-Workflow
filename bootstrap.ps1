@@ -43,6 +43,7 @@ function Show-Help {
     Write-Host "Core Bootstrap Commands:"
     Write-Host "  install      Install framework skills into the current Git project"
     Write-Host "  update       Synchronize installed skills with latest repo version"
+    Write-Host "  --update     Update the global framework source from GitHub"
     Write-Host "  uninstall    Safely remove framework skills from the current project"
     Write-Host "  doctor       Perform diagnostic verification of framework state"
     Write-Host "  version      Report current CLI and repository versions"
@@ -102,6 +103,19 @@ if (`$args -contains "--help" -or `$args -contains "-h" -or `$args -contains "/?
     }
 }
 
+if (`$Command -eq "--update") {
+    `$oldPythonPath = `$env:PYTHONPATH
+    `$oldFrameworkRoot = `$env:AIWF_FRAMEWORK_ROOT
+    `$env:AIWF_FRAMEWORK_ROOT = `$FrameworkRoot
+    `$env:PYTHONPATH = Join-Path `$FrameworkRoot "skills/workflow-runtime"
+    python -m workflow_runtime self-upgrade @args
+    `$exitCode = `$LASTEXITCODE
+    `$env:PYTHONPATH = `$oldPythonPath
+    if (`$null -eq `$oldFrameworkRoot) { Remove-Item Env:AIWF_FRAMEWORK_ROOT -ErrorAction SilentlyContinue }
+    else { `$env:AIWF_FRAMEWORK_ROOT = `$oldFrameworkRoot }
+    exit `$exitCode
+}
+
 switch (`$Command) {
     "bootstrap" {
         & (Join-Path `$FrameworkRoot "bootstrap.ps1") @args
@@ -130,7 +144,7 @@ switch (`$Command) {
     "--help" {
         Show-Help
     }
-     default {
+    default {
          function Resolve-FrameworkRoot([string]`$FallbackRoot) {
              `$probe = (Get-Location).Path
              while (`$probe) {
@@ -151,11 +165,15 @@ switch (`$Command) {
              `$runtimeRoot = Join-Path `$resolvedRoot ".agents/skills/workflow-runtime"
          }
          `$oldPythonPath = `$env:PYTHONPATH
+         `$oldFrameworkRoot = `$env:AIWF_FRAMEWORK_ROOT
+         `$env:AIWF_FRAMEWORK_ROOT = `$resolvedRoot
          `$env:PYTHONPATH = `$runtimeRoot
          `$runtimeArgs = @(`$Command) + @(`$args)
          python -m workflow_runtime @runtimeArgs
          `$exitCode = `$LASTEXITCODE
          `$env:PYTHONPATH = `$oldPythonPath
+         if (`$null -eq `$oldFrameworkRoot) { Remove-Item Env:AIWF_FRAMEWORK_ROOT -ErrorAction SilentlyContinue }
+         else { `$env:AIWF_FRAMEWORK_ROOT = `$oldFrameworkRoot }
          exit `$exitCode
      }
 }

@@ -1,6 +1,7 @@
 from __future__ import annotations
 
 import os
+import hashlib
 from collections import Counter
 from typing import Any, Optional, cast
 
@@ -21,6 +22,15 @@ LANG_EXT_MAP: dict[str, str] = {
     ".ps1": "PowerShell",
     ".html": "HTML",
     ".css": "CSS"
+}
+
+SOURCE_KIND_MAP: dict[str, str] = {
+    ".py": "source", ".go": "source", ".rs": "source", ".java": "source",
+    ".cs": "source", ".js": "source", ".jsx": "source", ".ts": "source",
+    ".tsx": "source", ".cpp": "source", ".c": "source", ".h": "source",
+    ".sh": "script", ".ps1": "script", ".bat": "script", ".cmd": "script",
+    ".sql": "schema", ".md": "documentation", ".json": "configuration",
+    ".toml": "configuration", ".yaml": "configuration", ".yml": "configuration",
 }
 
 
@@ -129,3 +139,24 @@ class ProjectScanner:
                 pass
 
         return commands
+
+    def source_catalog(self, revision: str = "WORKTREE") -> list[dict[str, Any]]:
+        """Create a complete, compact source inventory without reading source into memory."""
+        catalog: list[dict[str, Any]] = []
+        for rel in self.files:
+            full = os.path.join(self.root_dir, rel)
+            try:
+                raw = open(full, "rb").read()
+                line_count = raw.count(b"\n") + (1 if raw and not raw.endswith(b"\n") else 0)
+                ext = os.path.splitext(rel)[1].lower()
+                catalog.append({
+                    "path": rel,
+                    "language": LANG_EXT_MAP.get(ext, "Unknown"),
+                    "kind": SOURCE_KIND_MAP.get(ext, "asset"),
+                    "sha256": hashlib.sha256(raw).hexdigest(),
+                    "line_count": line_count,
+                    "revision": revision,
+                })
+            except OSError:
+                continue
+        return catalog

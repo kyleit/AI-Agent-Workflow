@@ -3,14 +3,13 @@ from __future__ import annotations
 import json
 import os
 import re
-import sys
 from datetime import datetime, timezone
 from typing import Any, cast
 
 
-def do_update_source(args: Any) -> None:
+def do_update_source(args: Any) -> int:
     from workflow_runtime.application.system import update_source
-    sys.exit(update_source.handle_update_source(args))
+    return update_source.handle_update_source(args)
 
 
 RUNTIME_COMMAND_DIR = os.path.join(".agents", "runtime", "commands")

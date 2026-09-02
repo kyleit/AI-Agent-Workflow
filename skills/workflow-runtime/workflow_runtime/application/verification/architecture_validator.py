@@ -3,7 +3,7 @@ from __future__ import annotations
 import ast
 import os
 import re
-from typing import Any, Optional, Tuple, cast
+from typing import Any, Optional, Sequence, Tuple, cast
 
 try:
     import yaml
@@ -145,7 +145,10 @@ def parse_go_imports(filepath: str) -> list[str]:
         pass
     return imports
 
-def run_architecture_validation(root_dir: str = ".") -> Tuple[bool, int, list[dict[str, Any]], dict[str, Any]]:
+def run_architecture_validation(
+    root_dir: str = ".",
+    files: Sequence[str] | None = None,
+) -> Tuple[bool, int, list[dict[str, Any]], dict[str, Any]]:
     """Thực hiện quét và xác thực toàn bộ kiến trúc dự án."""
     config = load_architecture_config(root_dir)
     violations: list[dict[str, Any]] = []
@@ -153,13 +156,19 @@ def run_architecture_validation(root_dir: str = ".") -> Tuple[bool, int, list[di
 
     # Duyệt qua các tệp nguồn trong dự án (Go và Python)
     files_to_check: list[str] = []
-    for dirpath, _, filenames in os.walk(root_dir):
-        # Bỏ qua các thư mục tạm và ảo
-        if any(x in dirpath for x in [".git", ".pytest_cache", "node_modules", "dist", "temp_", "venv", ".agents"]):
-            continue
-        for f in filenames:
-            if f.endswith((".go", ".py")) and not f.endswith("_test.go") and not f.startswith("test_"):
-                files_to_check.append(os.path.join(dirpath, f))
+    if files is not None:
+        for candidate in files:
+            path = candidate if os.path.isabs(candidate) else os.path.join(root_dir, candidate)
+            if os.path.isfile(path) and path.endswith((".go", ".py")):
+                files_to_check.append(path)
+    else:
+        for dirpath, _, filenames in os.walk(root_dir):
+            # Bỏ qua các thư mục tạm, bản export và artifact sinh ra.
+            if any(x in dirpath for x in [".git", ".pytest_cache", "node_modules", "dist", "temp_", "venv", ".agents", "public_export", "artifacts"]):
+                continue
+            for f in filenames:
+                if f.endswith((".go", ".py")) and not f.endswith("_test.go") and not f.startswith("test_"):
+                    files_to_check.append(os.path.join(dirpath, f))
 
     dependency_graph: dict[str, Any] = {}
 
@@ -330,7 +339,7 @@ Báo cáo kiểm định chất lượng kiến trúc Domain-Driven Design (DDD)
         for v in violations:
             report += f"| {v.get('file', '')} | {v.get('layer', '')} | {v.get('type', '')} | {v.get('severity', '')} | {v.get('evidence', '')} | {v.get('recommendation', '')} |\n"
 
-    report += f"""
+    report += """
 ## 4. Allowed Dependency Matrix
 - **Domain**: May depend on `[]` (pure domain rules only)
 - **Application**: May depend on `[domain]`

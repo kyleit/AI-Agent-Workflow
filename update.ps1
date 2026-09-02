@@ -31,6 +31,39 @@ foreach ($a in $Remaining) {
     }
 }
 
+# Locate source before delegation; the legacy path below also uses this value.
+$ScriptDir = Split-Path -Parent $MyInvocation.MyCommand.Path
+if ([string]::IsNullOrEmpty($ScriptDir)) { $ScriptDir = Get-Location }
+
+# All AIWF update entry points are agent-facing. Delegate to the canonical
+# Python runtime so global-first planning and minimal project sync share one
+# deterministic implementation instead of the legacy wholesale copier below.
+$RuntimeRoot = Join-Path $ScriptDir "skills/workflow-runtime"
+if (Test-Path (Join-Path $RuntimeRoot "workflow_runtime/__main__.py")) {
+    $runtimeArgs = @("update")
+    if ($All) { $runtimeArgs += "--all" }
+    elseif ($Current) { $runtimeArgs += "--current" }
+    if ($Force) { $runtimeArgs += "--force" }
+    if ($Json) { $runtimeArgs += "--json" }
+    foreach ($a in $Remaining) {
+        switch ($a.ToLower()) {
+            "--check" { $runtimeArgs += "--check" }
+            "--dry-run" { $runtimeArgs += "--dry-run" }
+            "--yes" { $runtimeArgs += "--yes" }
+        }
+    }
+    $oldPythonPath = $env:PYTHONPATH
+    $oldFrameworkRoot = $env:AIWF_FRAMEWORK_ROOT
+    $env:PYTHONPATH = $RuntimeRoot
+    $env:AIWF_FRAMEWORK_ROOT = $ScriptDir
+    python -m workflow_runtime @runtimeArgs
+    $exitCode = $LASTEXITCODE
+    $env:PYTHONPATH = $oldPythonPath
+    if ($null -eq $oldFrameworkRoot) { Remove-Item Env:AIWF_FRAMEWORK_ROOT -ErrorAction SilentlyContinue }
+    else { $env:AIWF_FRAMEWORK_ROOT = $oldFrameworkRoot }
+    exit $exitCode
+}
+
 
 $script:JsonEvents = @()
 

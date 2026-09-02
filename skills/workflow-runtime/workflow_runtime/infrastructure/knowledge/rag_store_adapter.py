@@ -190,7 +190,7 @@ class RAGStoreAdapter(IRAGStorePort):
         return results
 
     def query_vector(self, query_text: str, limit: int = 5) -> list[dict[str, Any]]:
-        """Queries Qdrant REST API with 1.0s timeout limit using scroll API to bypass embedding."""
+        """Queries Qdrant only after its collection and vector count are validated."""
         endpoint = f"{self.qdrant_url}/collections/ai-skill-framework/points/scroll"
 
         keywords = [w.strip() for w in query_text.split() if len(w.strip()) > 2]
@@ -203,6 +203,17 @@ class RAGStoreAdapter(IRAGStorePort):
                 "key": "text",
                 "match": {"text": kw}
             })
+
+        try:
+            with urllib.request.urlopen(f"{self.qdrant_url}/collections/ai-skill-framework", timeout=1.0) as response:
+                collection_data = json.loads(response.read().decode("utf-8"))
+            collection = collection_data.get("result", {}) if isinstance(collection_data, dict) else {}
+            vectors = collection.get("config", {}).get("params", {}).get("vectors", {}) if isinstance(collection, dict) else {}
+            points = collection.get("points_count", collection.get("vectors_count", 0)) if isinstance(collection, dict) else 0
+            if not isinstance(vectors, dict) or int(points or 0) <= 0:
+                return []
+        except Exception:
+            return []
 
         payload = json.dumps({
             "filter": {
@@ -230,6 +241,24 @@ class RAGStoreAdapter(IRAGStorePort):
             logger.warning(f"Qdrant REST connection failed or timed out (1.0s): {exc}")
 
         return []
+
+    def provider_health(self) -> dict[str, Any]:
+        """Return a truthful local-index health record for Agent diagnostics."""
+        try:
+            count = int(self._conn.execute("SELECT count(*) FROM knowledge_fts").fetchone()[0])
+            return {
+                "provider": "sqlite-fts5", "state": "READY" if count else "DEGRADED",
+                "index_path": self.db_path, "collection": "knowledge_fts",
+                "document_count": count, "chunk_count": count,
+                "embedding_status": "not_required", "reason": "embedded FTS5 catalog",
+            }
+        except sqlite3.Error as exc:
+            return {
+                "provider": "sqlite-fts5", "state": "UNAVAILABLE",
+                "index_path": self.db_path, "collection": "knowledge_fts",
+                "document_count": 0, "chunk_count": 0,
+                "embedding_status": "not_required", "reason": str(exc),
+            }
 
     def close(self) -> None:
         self._conn.close()

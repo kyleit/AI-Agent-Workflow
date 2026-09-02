@@ -1,10 +1,9 @@
+"""Commands: update, self-upgrade, and update-source."""
+
 from __future__ import annotations
 
-from typing import Any
-
-"""Commands: update, update-source"""
-
 import argparse
+from typing import Any
 
 from workflow_runtime.presentation.cli.command_interface import CommandMeta
 
@@ -26,6 +25,8 @@ class UpdateCommand:
         p.add_argument("--current", "-Current", action="store_true")
         p.add_argument("--json", action="store_true")
         p.add_argument("--dry-run", action="store_true")
+        p.add_argument("--check", action="store_true")
+        p.add_argument("--yes", action="store_true")
         p.add_argument("--version", help="Target version")
         self._parser = p
         return p
@@ -50,14 +51,21 @@ class UpdateSourceCommand:
     def meta(self) -> CommandMeta:
         return CommandMeta(
             "update-source",
+            aliases=["self-upgrade", "upgrade"],
             category="system",
-            help="Update workflow-runtime source code from remote repository",
+            help="Update the global workflow-runtime source from GitHub",
         )
 
     def add_parser(self, subparsers: Any) -> argparse.ArgumentParser:
         p = subparsers.add_parser("update-source", help=self.meta().help)
         p.add_argument("--branch", help="Target branch")
         p.add_argument("--tag", help="Target tag")
+        p.add_argument("--source-path", dest="source_path", help="Framework source path")
+        p.add_argument("--url", help="Canonical source repository URL")
+        p.add_argument("--remote", help="Git remote name")
+        p.add_argument("--check", action="store_true")
+        p.add_argument("--yes", action="store_true")
+        p.add_argument("--json", action="store_true")
         p.add_argument("--dry-run", action="store_true")
         p.add_argument("--no-install", action="store_true",
                        help="Skip pip install after update")

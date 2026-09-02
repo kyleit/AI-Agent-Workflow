@@ -27,6 +27,8 @@ skills/workflow-runtime/.import_linter_cache/
 # Local runtime choices and transient data
 .agents/runtime/choice-response.json
 .agents/runtime/pending-choice.json
+.agents/runtime/prompt-request.json
+.agents/runtime/prompt-response.json
 .agents/inbox/*
 !.agents/inbox/.gitkeep
 .agents/skills/workflow-runtime/tests/integration/temp_full_access_test/
@@ -40,6 +42,9 @@ artifacts/adaptive-agent-team/stale_write_evidence.json
 artifacts/full-access-autonomous-delivery/
 
 qdrant_storage
+
+# Local desktop build output
+desktop/bin/
 
 # Telegram Bot Credentials
 .agents/config/.env.telegram-notify

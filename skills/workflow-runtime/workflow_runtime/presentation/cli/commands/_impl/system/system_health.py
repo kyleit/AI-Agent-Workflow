@@ -109,13 +109,9 @@ def do_debug_action(args: argparse.Namespace) -> int:
 
 
 def do_verify_action(args: argparse.Namespace) -> int:
-    if getattr(args, "subaction", None) is None:
-        res = _run_core_cli_handler("handle_verify", args)
-        return int(res) if res is not None else 0
-
     from workflow_runtime.application.verification.validation_runner import (
         run_verify)
-    res_dict = run_verify()
+    res_dict = run_verify(blueprint_path=getattr(args, "blueprint", None))
     print(json.dumps(res_dict, indent=2))
     if res_dict.get("status") != "success":
         sys.exit(1)
@@ -138,21 +134,22 @@ def do_release_action(args: argparse.Namespace) -> int:
             run_release_execute)
         res = run_release_execute(approve=approve_val)
     elif action == "validate":
-        from workflow_runtime.application.release.release_gate_service import (
-            ReleaseGateService)
-        gate = ReleaseGateService(".")
-        result = gate.evaluate()
+        from workflow_runtime.application.release.release_gate_service import ReleaseGateService
+        from workflow_runtime.application.verification.release_gate import ReleaseGate
+        quality_result = ReleaseGateService(".").evaluate()
+        hard_passed, hard_reason = ReleaseGate(".").validate()
+        errors = list(quality_result.errors)
+        if not hard_passed:
+            errors.append(hard_reason)
         res = {
-            "status": "success" if result.passed or dry_run else "failure",
+            "status": "success" if quality_result.passed and hard_passed else "blocked",
             "action": "validate",
             "dry_run": dry_run,
-            "score": result.score,
-            "details": result.details,
+            "score": quality_result.score if hard_passed else 0,
+            "details": {**quality_result.details, "hard_release_gate_passed": hard_passed},
+            "side_effects": [],
         }
-        if dry_run and result.errors:
-            res["warnings"] = result.errors
-        else:
-            res["errors"] = result.errors
+        res["errors"] = errors
     elif action in {"status", "tag", "publish", "rollback"}:
         res = {
             "status": "success",

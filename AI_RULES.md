@@ -501,6 +501,12 @@ To minimize token consumption, eliminate LLM logic errors, and ensure repeatable
 To prevent the leakage of user directory structures, usernames, and system details when project files and changes are pushed to remote Git repositories:
 1. **No Absolute Paths**: All AI agents and CLI scripts are strictly prohibited from generating, writing, or placing absolute file paths (e.g., `/Users/username/...`, `C:\Users\username\...`, or `file:///path/to/user/...`) in any project files, documents, configuration files, prompt responses, source code, or tests.
 2. **Mandatory Relative Paths**: All references to files, folders, and resources must use project-relative paths (e.g., `./skills/...`, `docs/plans/...`, or `.agents/workflow.config.json`).
+
+3. **Canonical Public Source URL Preservation**: The intentional public AIWF
+   source repository is `https://github.com/kyleit/AI-Agent-Workflow.git`.
+   AI agents MUST NOT replace it with a placeholder, redact it, delete it,
+   drop it from a contract, or silently substitute another repository. This
+   public URL is configuration, not personal data or a policy violation.
 3. **Markdown Links**: Táº¥t cáº£ cÃ¡c liÃªn káº¿t tÃ i liá»‡u Markdown trá» tá»›i tá»‡p tin hoáº·c thÆ° má»¥c Báº®T BUá»˜C pháº£i luÃ´n luÃ´n sá»­ dá»¥ng Ä‘Æ°á»ng dáº«n tÆ°Æ¡ng Ä‘á»‘i (relative paths) báº¯t Ä‘áº§u tá»« thÆ° má»¥c gá»‘c cá»§a dá»± Ã¡n (vÃ­ dá»¥: `[session.py](skills/workflow-runtime/scripts/session.py)`). Tuyá»‡t Ä‘á»‘i nghiÃªm cáº¥m viá»‡c sá»­ dá»¥ng Ä‘Æ°á»ng dáº«n tuyá»‡t Ä‘á»‘i hoáº·c Ä‘á»‹nh dáº¡ng giao thá»©c tuyá»‡t Ä‘á»‘i cá»¥c bá»™ nhÆ° `file:///e:/...` hay `file:///C:/...` trong cÃ¡c tÃ i liá»‡u.
 4. **Scope of Application**: This rule applies universally to all Skills, docs, issues, plans, designs, code comments, tests, and CLI outputs.
 

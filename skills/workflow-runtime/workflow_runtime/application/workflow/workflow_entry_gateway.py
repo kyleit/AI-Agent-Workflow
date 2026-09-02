@@ -25,6 +25,21 @@ class AgentContext:
     summary: str
     query: str
     evidence: tuple[str, ...] = ()
+    freshness: str = "UNVERIFIED"
+    context_path: str | None = None
+    provider: str = "none"
+    retrieval: tuple[dict[str, Any], ...] = ()
+    next_action: str = "read current source authority"
+    warnings: tuple[str, ...] = ()
+
+
+@dataclass(frozen=True)
+class ContextPreflightRequest:
+    request: str
+    workspace_root: str
+    work_item: str = ""
+    max_results: int = 5
+    allow_rebuild: bool = False
 
 
 def _summary_path(root: Path) -> Path:
@@ -33,7 +48,8 @@ def _summary_path(root: Path) -> Path:
 
 def bootstrap_project_memory(root: Path, mode: str = "compact_ai_context") -> dict[str, object]:
     from workflow_runtime.infrastructure.memory.bootstrap import run_bootstrap
-    return cast(dict[str, object], run_bootstrap(str(root), enable_ai=True))
+    use_remote_ai = os.environ.get("AIWF_MEMORY_AI_SYNTHESIS", "").lower() in {"1", "true", "yes"}
+    return cast(dict[str, object], run_bootstrap(str(root), enable_ai=use_remote_ai))
 
 
 def update_project_memory_from_git_diff(root: Path) -> dict[str, object]:
@@ -57,14 +73,60 @@ def ensure_project_memory(root: Path | str) -> MemoryReadiness:
 def build_agent_context(root: Path | str, query: str) -> AgentContext:
     root_path = Path(root)
     summary = read_text_safe(_summary_path(root_path))
-    evidence: list[str] = []
-    query_lower = query.strip().lower()
-    rag_root = root_path / ".agents" / "memory" / "rag"
-    if query_lower and rag_root.exists():
-        for candidate in sorted(rag_root.rglob("*")):
-            if candidate.is_file() and query_lower in read_text_safe(candidate, max_chars=20000).lower():
-                evidence.append(candidate.relative_to(root_path).as_posix())
-    return AgentContext(summary=summary, query=query, evidence=tuple(evidence[:8]))
+    pack = build_context_preflight(query, root_path)
+    evidence = [str(item.get("file", "")) for item in pack["evidence"] if item.get("file")]
+    return AgentContext(
+        summary=summary,
+        query=query,
+        evidence=tuple(evidence[:8]),
+        freshness=str(pack["decision"]["freshness"]),
+        context_path=str(pack["manifest"].get("path")) if pack["manifest"].get("path") else None,
+        provider=str(pack["decision"].get("provider", "none")),
+        retrieval=tuple(pack["evidence"]),
+        next_action=str(pack["next_action"]),
+        warnings=tuple(pack["warnings"]),
+    )
+
+
+def build_context_preflight(request: str, root: Path | str, work_item: str = "", max_results: int = 5, allow_rebuild: bool = False) -> dict[str, Any]:
+    """Build the bounded context pack every Agent entrypoint receives first."""
+    root_path = Path(root).resolve()
+    manifest_path = root_path / ".agents" / "memory" / "project-context.json"
+    from workflow_runtime.infrastructure.memory.context_manifest import load_context_manifest, manifest_freshness
+    manifest = load_context_manifest(manifest_path) or {}
+    freshness = manifest_freshness(root_path, manifest)
+    warnings: list[str] = []
+    if not manifest:
+        warnings.append("project_context_manifest_missing")
+    elif freshness == "STALE":
+        warnings.append("project_context_stale_targeted_source_refresh_required")
+    from workflow_runtime.infrastructure.memory.search import RAGSearcher
+    retrieval = RAGSearcher(root_dir=root_path).execute_search(request) if request.strip() else {"results": [], "selected_provider": "none"}
+    evidence = [item for item in retrieval.get("results", []) if isinstance(item, dict)][:max(1, max_results)]
+    provider = str(retrieval.get("selected_provider", "none"))
+    next_action = "read only the cited source anchors and verify current source hashes"
+    if freshness in {"STALE", "UNVERIFIED"}:
+        next_action = "refresh project memory/index, then read only the cited current source anchors"
+    decision = {
+        "decision": "REFRESH_REQUIRED" if freshness in {"STALE", "UNVERIFIED"} else "RETRIEVAL_READY",
+        "freshness": freshness,
+        "provider": provider,
+        "required_source_reads": [str(item.get("anchor") or item.get("file")) for item in evidence],
+        "blocking_findings": [],
+    }
+    return {
+        "request": request,
+        "work_item": work_item,
+        "manifest": {"path": manifest_path.relative_to(root_path).as_posix(), **manifest},
+        "summary": read_text_safe(_summary_path(root_path), max_chars=12000),
+        "evidence": evidence,
+        "source_authority": "current source files; generated memory is retrieval/navigation only",
+        "next_action": next_action,
+        "warnings": warnings + ([str(retrieval.get("fallback_reason"))] if retrieval.get("fallback_reason") else []),
+        "decision": decision,
+        "provider_health": retrieval.get("provider_health", []),
+        "allow_rebuild": allow_rebuild,
+    }
 
 
 class WorkflowEntryGateway:
@@ -266,6 +328,7 @@ class WorkflowEntryGateway:
             return self._read_only_status(req_id, source, active_session_id)
 
         memory_readiness = ensure_project_memory(self.workspace_root)
+        agent_context = build_agent_context(self.workspace_root, request_text)
         emit_fn: Any = getattr(self.logger, "emit", None)
 
         if callable(emit_fn):
@@ -380,6 +443,14 @@ class WorkflowEntryGateway:
                 "status": memory_readiness.status,
                 "files_changed": memory_readiness.files_changed,
                 "summary_path": ".agents/memory/project-summary.md",
+                "context_path": agent_context.context_path,
+                "freshness": agent_context.freshness,
+                "evidence": list(agent_context.evidence),
+                "authority": "current_source_over_memory",
+                "provider": agent_context.provider,
+                "retrieval": list(agent_context.retrieval),
+                "next_action": agent_context.next_action,
+                "warnings": list(agent_context.warnings),
             },
             "source": source or "system",
             "session_id": active_session_id
@@ -391,5 +462,7 @@ __all__ = [
     "MemoryReadiness",
     "WorkflowEntryGateway",
     "build_agent_context",
+    "build_context_preflight",
+    "ContextPreflightRequest",
     "ensure_project_memory",
 ]

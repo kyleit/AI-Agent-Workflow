@@ -274,7 +274,8 @@ def disable_telegram_autostart(daemon_script: str, log_file: str) -> str:
     return target
 
 def start_runtime_bus_daemon() -> tuple[bool, int | None, str]:
-    state = RuntimeDaemonState()
+    workspace_root = _resolve_aiwf_project_root()
+    state = RuntimeDaemonState(workspace_root=workspace_root)
     current = state.inspect()
     if current.get("active"):
         return False, int(cast(int, current.get("pid") or 0)), "already_running"
@@ -283,9 +284,9 @@ def start_runtime_bus_daemon() -> tuple[bool, int | None, str]:
 
     os.makedirs(os.path.dirname(log_file), exist_ok=True)
     log_out = open(log_file, "a", encoding="utf-8")
-    os.path.abspath(__file__)
     env = os.environ.copy()
     env["PYTHONPATH"] = _runtime_pythonpath_root() + os.pathsep + env.get("PYTHONPATH", "")
+    env["AIWF_PROJECT_ROOT"] = workspace_root
     if os.name == "nt":
         create_no_window = 0x08000000
         detached_process = 0x00000008
@@ -297,6 +298,7 @@ def start_runtime_bus_daemon() -> tuple[bool, int | None, str]:
             creationflags=create_no_window | detached_process,
             close_fds=True,
             env=env,
+            cwd=workspace_root,
         )
     else:
         proc = subprocess.Popen(
@@ -305,7 +307,9 @@ def start_runtime_bus_daemon() -> tuple[bool, int | None, str]:
             stderr=log_out,
             preexec_fn=os.setpgrp,
             env=env,
+            cwd=workspace_root,
         )
+    log_out.close()
     state.write_started(proc.pid)
     return True, proc.pid, "started"
 
@@ -330,11 +334,7 @@ def stop_runtime_bus_daemon(pid_file: str | None = None) -> tuple[bool, int | No
                 os.kill(pid, 15)
         except Exception:
             pass
-    try:
-        if os.path.exists(pid_file):
-            os.remove(pid_file)
-    except Exception:
-        pass
+    RuntimeDaemonState(root=os.path.dirname(pid_file)).clear_stale()
     return bool(pid), pid
 
 def restart_runtime_bus_daemon() -> tuple[bool, int | None, str]:
@@ -361,16 +361,61 @@ def runtime_bus_startup_folder_target() -> str:
     )
     return os.path.join(startup, "AIWF Runtime Daemon.cmd")
 
-def is_runtime_bus_autostart_enabled() -> bool:
+
+def runtime_bus_legacy_launcher_target() -> str:
+    return os.path.expanduser("~/.aiwf/runtime-daemon.cmd")
+
+
+def runtime_bus_registration_marker() -> str:
+    return os.path.expanduser("~/.aiwf/runtime-supervisor-registration.json")
+
+
+def _windows_runtime_task_exists() -> bool:
+    result = subprocess.run(
+        ["schtasks", "/Query", "/TN", "AIWF Runtime Daemon"],
+        stdout=subprocess.DEVNULL,
+        stderr=subprocess.DEVNULL,
+    )
+    return result.returncode == 0
+
+
+def runtime_bus_autostart_diagnostics() -> dict[str, Any]:
+    """Describe canonical and legacy registrations for AI/IDE parsers."""
     target = runtime_bus_autostart_target()
-    if target == "AIWF Runtime Daemon":
-        if os.path.exists(runtime_bus_startup_folder_target()):
-            return True
-        if _is_outside_workflow_gateway():
-            return False
-        res = subprocess.run(["schtasks", "/Query", "/TN", target], stdout=subprocess.DEVNULL, stderr=subprocess.DEVNULL)
-        return res.returncode == 0
-    return os.path.exists(target)
+    startup = runtime_bus_startup_folder_target() if platform.system() == "Windows" else None
+    legacy = runtime_bus_legacy_launcher_target() if platform.system() == "Windows" else None
+    task_registered = (
+        _windows_runtime_task_exists()
+        if target == "AIWF Runtime Daemon"
+        else os.path.exists(target)
+    )
+    fallback_marker = os.path.exists(runtime_bus_registration_marker())
+    canonical_enabled = task_registered and not fallback_marker
+    startup_enabled = bool(startup and os.path.exists(startup))
+    canonical_owner = target if canonical_enabled else startup if startup_enabled else target
+    duplicate_candidates = (startup, legacy) if canonical_enabled else (legacy,)
+    duplicates = [path for path in duplicate_candidates if path and os.path.exists(path)]
+    owners = [canonical_owner] if canonical_enabled or startup_enabled else []
+    owners.extend(duplicates)
+    conflict = {
+        "conflict_type": "duplicate_autostart" if len(owners) > 1 else "none",
+        "owners": owners,
+        "resolution": "keep canonical OS supervisor and retire legacy launchers" if len(owners) > 1 else "none",
+        "severity": "medium" if len(owners) > 1 else "none",
+    }
+    return {
+        "canonical_target": canonical_owner,
+        "canonical_enabled": canonical_enabled or startup_enabled,
+        "registration": "scheduled_task" if canonical_enabled else "startup_folder_fallback" if startup_enabled else "none",
+        "retired_registrations": [target] if task_registered and fallback_marker else [],
+        "legacy_targets": duplicates,
+        "duplicate_count": len(duplicates),
+        "conflict": conflict,
+        "enabled": canonical_enabled or startup_enabled,
+    }
+
+def is_runtime_bus_autostart_enabled() -> bool:
+    return bool(runtime_bus_autostart_diagnostics()["enabled"])
 
 def enable_runtime_bus_autostart() -> str:
     system = platform.system()
@@ -396,22 +441,58 @@ def enable_runtime_bus_autostart() -> str:
     if system == "Windows":
         cwd = _resolve_aiwf_project_root()
         launcher = os.path.expanduser("~/.aiwf/runtime-daemon.ps1")
+        stop_marker = os.path.expanduser("~/.aiwf/runtime-stop.request")
         os.makedirs(os.path.dirname(launcher), exist_ok=True)
+        if os.path.exists(stop_marker):
+            os.remove(stop_marker)
         with open(launcher, "w", encoding="utf-8") as f:
             f.write(f'Set-Location -LiteralPath "{cwd}"\n')
             f.write(f'$env:PYTHONPATH = "{_runtime_pythonpath_root()};" + $env:PYTHONPATH\n')
-            f.write(f'& "{py}" -m workflow_runtime runtime daemon >> "{log_file}" 2>&1\n')
+            f.write(f'$env:AIWF_PROJECT_ROOT = "{cwd}"\n')
+            f.write(f'$stopMarker = "{stop_marker}"\n')
+            f.write('$restartCount = 0\n')
+            f.write('while (-not (Test-Path -LiteralPath $stopMarker)) {\n')
+            f.write(f'  & "{py}" -m workflow_runtime runtime daemon >> "{log_file}" 2>&1\n')
+            f.write('  if (Test-Path -LiteralPath $stopMarker) { break }\n')
+            f.write('  $restartCount = [Math]::Min($restartCount + 1, 6)\n')
+            f.write('  Start-Sleep -Seconds ([Math]::Min(60, [Math]::Pow(2, $restartCount)))\n')
+            f.write('}\n')
         cmd = f'powershell.exe -NoProfile -ExecutionPolicy Bypass -WindowStyle Hidden -File "{launcher}"'
         try:
             subprocess.run(["schtasks", "/Create", "/TN", target, "/TR", cmd, "/SC", "ONLOGON", "/F"], stdout=subprocess.PIPE, stderr=subprocess.PIPE, text=True, check=True)
+            try:
+                if os.path.exists(runtime_bus_registration_marker()):
+                    os.remove(runtime_bus_registration_marker())
+            except OSError:
+                pass
         except subprocess.CalledProcessError as e:
             detail = (e.stderr or e.stdout or str(e)).strip()
             if "Access is denied" in detail:
-                raise RuntimeError(
-                    "Failed to install silent Windows autostart. Scheduled Task creation was denied; "
-                    "visible Startup Folder .cmd fallback is disabled by policy."
-                ) from e
+                fallback = runtime_bus_startup_folder_target()
+                os.makedirs(os.path.dirname(fallback), exist_ok=True)
+                with open(fallback, "w", encoding="utf-8", newline="\n") as startup_file:
+                    startup_file.write("@echo off\n")
+                    startup_file.write(f' powershell.exe -NoProfile -ExecutionPolicy Bypass -WindowStyle Hidden -File "{launcher}"\n')
+                with open(runtime_bus_registration_marker(), "w", encoding="utf-8") as marker_file:
+                    json.dump({"registration": "startup_folder_fallback", "canonical_launcher": fallback}, marker_file)
+                registration = "Startup Folder fallback"
+                for stale in (runtime_bus_legacy_launcher_target(),):
+                    try:
+                        if os.path.exists(stale):
+                            os.remove(stale)
+                    except OSError:
+                        pass
+                print(f"[WARN] Scheduled Task access denied; installed canonical {registration}.", file=sys.stderr)
+                return fallback
             raise RuntimeError(f"Failed to create Windows scheduled task '{target}': {detail}") from e
+        # A single scheduled task owns the supervisor. Startup Folder and the
+        # old global .cmd launcher are migration leftovers, never fallbacks.
+        for stale in (runtime_bus_startup_folder_target(), runtime_bus_legacy_launcher_target()):
+            try:
+                if os.path.exists(stale):
+                    os.remove(stale)
+            except OSError:
+                pass
         return target
 
     os.makedirs(os.path.dirname(target), exist_ok=True)
@@ -438,7 +519,21 @@ def disable_runtime_bus_autostart() -> str:
     system = platform.system()
     target = runtime_bus_autostart_target()
     if system == "Windows":
+        stop_marker = os.path.expanduser("~/.aiwf/runtime-stop.request")
+        os.makedirs(os.path.dirname(stop_marker), exist_ok=True)
+        Path(stop_marker).touch()
+        try:
+            if os.path.exists(runtime_bus_registration_marker()):
+                os.remove(runtime_bus_registration_marker())
+        except OSError:
+            pass
         subprocess.run(["schtasks", "/Delete", "/TN", target, "/F"], stdout=subprocess.DEVNULL, stderr=subprocess.DEVNULL)
+        for stale in (runtime_bus_startup_folder_target(), runtime_bus_legacy_launcher_target()):
+            try:
+                if os.path.exists(stale):
+                    os.remove(stale)
+            except OSError:
+                pass
         return target
     if system == "Linux":
         subprocess.run(["systemctl", "--user", "disable", "aiwf-runtime.service"], stdout=subprocess.DEVNULL, stderr=subprocess.DEVNULL)

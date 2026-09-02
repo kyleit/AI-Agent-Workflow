@@ -203,6 +203,7 @@ def is_caller_authorized() -> bool:
             "dispatch_agent.py",
             "test_coordinator.py",
             "test_session_coordinator.py",
+            "validation_runner.py",
             "handlers.py",
             "session_command_handlers.py",
             "workflow_command_handlers.py",

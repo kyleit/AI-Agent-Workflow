@@ -304,6 +304,45 @@ def write_architecture_dependencies(dest_path: str, info: dict[str, Any]) -> Non
     write_text_safe(dest_path, content)
 
 
+def _write_catalog(dest_path: str, title: str, records: list[dict[str, Any]], columns: list[str]) -> None:
+    lines = [f"# {title}", "", "Generated from the complete eligible workspace inventory.", "", "| " + " | ".join(columns) + " |", "| " + " | ".join("---" for _ in columns) + " |"]
+    for record in records:
+        values = []
+        for column in columns:
+            value = record.get(column, "")
+            if isinstance(value, list):
+                value = ", ".join(str(item) for item in value)
+            values.append(str(value).replace("|", "\\|" ).replace("\n", " "))
+        lines.append("| " + " | ".join(values) + " |")
+    if not records:
+        lines.append("| No records detected |" + "".join(" " for _ in columns[1:]) + "")
+    write_text_safe(dest_path, "\n".join(lines) + "\n")
+
+
+def write_source_catalog(dest_path: str, records: list[dict[str, Any]]) -> None:
+    _write_catalog(dest_path, "Complete Source Inventory", records, ["path", "language", "kind", "sha256", "line_count", "revision"])
+
+
+def write_module_catalog(dest_path: str, records: list[dict[str, Any]]) -> None:
+    _write_catalog(dest_path, "Module Ownership Catalog", records, ["path", "purpose", "public_symbols", "dependencies", "tests"])
+
+
+def write_endpoint_catalog(dest_path: str, records: list[dict[str, Any]]) -> None:
+    _write_catalog(dest_path, "HTTP, RPC, and Interface Endpoint Catalog", records, ["method", "path", "handler", "source_anchor", "request_shape", "response_shape"])
+
+
+def write_database_catalog(dest_path: str, records: list[dict[str, Any]]) -> None:
+    _write_catalog(dest_path, "Database and Storage Catalog", records, ["engine", "path_or_service", "tables_or_collections", "migrations", "access_modules"])
+
+
+def write_dependency_catalog(dest_path: str, records: list[dict[str, Any]]) -> None:
+    _write_catalog(dest_path, "Dependency Catalog", records, ["name", "version", "source", "kind"])
+
+
+def write_entrypoint_catalog(dest_path: str, records: list[dict[str, Any]]) -> None:
+    _write_catalog(dest_path, "Entrypoint Catalog", records, ["path", "symbol", "protocol", "command", "start_condition", "source_anchor"])
+
+
 def write_architecture_domain_models(dest_path: str, symbols: list[dict[str, str]]) -> None:
     lines = [
         "# Domain Models & Core Entities",
@@ -357,5 +396,11 @@ __all__ = [
     "write_architecture_api_contracts",
     "write_architecture_dependencies",
     "write_architecture_domain_models",
+    "write_source_catalog",
+    "write_module_catalog",
+    "write_endpoint_catalog",
+    "write_database_catalog",
+    "write_dependency_catalog",
+    "write_entrypoint_catalog",
     "write_lessons_learned",
 ]

@@ -34,10 +34,11 @@ def do_runtime_bus(args: argparse.Namespace) -> None:
         return
 
     if subaction == "stop":
-        pid_file = os.path.expanduser("~/.aiwf/runtime.pid")
-        running, pid = is_telegram_daemon_running(pid_file)
-        if running:
-            _provider_runtime().stop_runtime_bus_daemon(pid_file)
+        from workflow_runtime.infrastructure.persistence.runtime_daemon_state import RuntimeDaemonState
+        health = RuntimeDaemonState().inspect()
+        pid = health.get("pid")
+        if health.get("active") or health.get("state") in {"STALE", "CRASHED", "CONFLICT"}:
+            _provider_runtime().stop_runtime_bus_daemon()
             print(f"[SYSTEM]: Runtime daemon (PID: {pid}) stopped.")
         else:
             print("[SYSTEM]: No running runtime daemon found.")
@@ -54,12 +55,19 @@ def do_runtime_bus(args: argparse.Namespace) -> None:
         return
 
     if subaction == "status":
-        pid_file = os.path.expanduser("~/.aiwf/runtime.pid")
-        running, pid = is_telegram_daemon_running(pid_file)
-        enabled = _provider_runtime().is_runtime_bus_autostart_enabled()
+        from workflow_runtime.infrastructure.persistence.runtime_daemon_state import RuntimeDaemonState
+        health = RuntimeDaemonState().inspect()
+        autostart = _provider_runtime().runtime_bus_autostart_diagnostics()
         _provider_runtime().print_project_context()
-        print(f"[SYSTEM]: Runtime daemon is {'ACTIVE' if running else 'INACTIVE'}" + (f" (PID: {pid})." if running else "."))
-        print(f"[SYSTEM]: Autostart is {'ENABLED' if enabled else 'DISABLED'}.")
+        report = {"runtime": health, "autostart": autostart}
+        print("RUNTIME_STATUS_JSON=" + json.dumps(report, ensure_ascii=False, sort_keys=True))
+        print(
+            f"[SYSTEM]: Runtime daemon is {health.get('state', 'STOPPED')}"
+            + (f" (PID: {health.get('pid')})." if health.get("pid") else ".")
+        )
+        print(f"[SYSTEM]: Autostart is {'ENABLED' if autostart.get('enabled') else 'DISABLED'}. ")
+        if autostart.get("conflict", {}).get("conflict_type") != "none":
+            print("[SUPERVISOR]: Duplicate autostart detected; canonical task owns recovery.")
         return
 
     if subaction == "enable":
@@ -88,7 +96,9 @@ def do_runtime_bus(args: argparse.Namespace) -> None:
         from workflow_runtime.infrastructure.persistence.runtime_daemon_state import (
             RuntimeDaemonState)
 
-        runtime_state = RuntimeDaemonState()
+        runtime_state = RuntimeDaemonState(
+            workspace_root=os.environ.get("AIWF_PROJECT_ROOT") or os.getcwd()
+        )
         acquired, owner = runtime_state.acquire_or_report()
         if not acquired:
             print(

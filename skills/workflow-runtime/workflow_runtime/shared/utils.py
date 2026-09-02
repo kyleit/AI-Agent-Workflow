@@ -5,6 +5,7 @@ import json
 import os
 import pathlib
 import re
+import time
 from typing import Any
 
 from workflow_runtime.shared.errors import PathPolicyViolation
@@ -198,10 +199,118 @@ def _emit_interactive_prompt(prompt_type: str, payload: dict[str, Any]) -> None:
         sys.stdout.buffer.write(xml_str.encode("utf-8"))
         sys.stdout.buffer.flush()
 
-def prompt_select(question: str, options: list[str], default: str | None = None) -> str:
+
+def prompt_choice_id(question: str, options: list[str]) -> str:
+    """Return a stable id that lets an IDE correlate a prompt response."""
+    raw = question + "\x00" + "\x00".join(options)
+    return "prompt-" + compute_sha256(raw.encode("utf-8"))[:16]
+
+
+def _normalise_prompt_response(raw: Any, options: list[str]) -> str | None:
+    value = str(raw or "").strip()
+    if not value:
+        return None
+    if value.isdigit():
+        index = int(value) - 1
+        if 0 <= index < len(options):
+            return options[index]
+    for option in options:
+        if option.lower() == value.lower():
+            return option
+    return None
+
+
+def _read_prompt_response_file(
+    path: pathlib.Path,
+    choice_id: str,
+    options: list[str],
+) -> str | None:
+    try:
+        if not path.is_file():
+            return None
+        data = json.loads(path.read_text(encoding="utf-8"))
+        if not isinstance(data, dict):
+            return None
+        response_id = str(data.get("choice_id") or data.get("id") or "")
+        if response_id != choice_id:
+            return None
+        raw = (
+            data.get("selected_option")
+            or data.get("selected")
+            or data.get("response")
+            or data.get("value")
+        )
+        return _normalise_prompt_response(raw, options)
+    except (OSError, json.JSONDecodeError, TypeError, ValueError):
+        return None
+
+
+def _agent_prompt_response(
+    choice_id: str,
+    options: list[str],
+) -> str | None:
+    """Read a response supplied by an IDE/Agent, never from a human default."""
+    response = _normalise_prompt_response(os.environ.pop("AIWF_PROMPT_RESPONSE", ""), options)
+    if response:
+        return response
+
+    configured_path = os.environ.get("AIWF_PROMPT_RESPONSE_FILE", "")
+    if configured_path:
+        try:
+            configured_path = validate_relative_path(configured_path)
+        except PathPolicyViolation:
+            configured_path = ""
+    response_paths = [
+        pathlib.Path(configured_path) if configured_path else pathlib.Path(".agents/runtime/prompt-response.json"),
+        pathlib.Path(".agents/runtime/choice-response.json"),
+    ]
+    for response_path in response_paths:
+        response = _read_prompt_response_file(response_path, choice_id, options)
+        if response:
+            try:
+                response_path.unlink()
+            except OSError:
+                pass
+            return response
+    return None
+
+
+def _write_prompt_request(
+    choice_id: str,
+    question: str,
+    options: list[str],
+    default: str | None,
+    strategic_approval_gate: bool,
+) -> pathlib.Path | None:
+    """Publish a relative request file for IDE hosts without stdin piping."""
+    request_path = pathlib.Path(".agents/runtime/prompt-request.json")
+    try:
+        atomic_write_json(
+            str(request_path),
+            {
+                "choice_id": choice_id,
+                "question": question,
+                "options": options,
+                "default": default,
+                "approval_gate": strategic_approval_gate,
+                "status": "pending",
+            },
+        )
+        return request_path
+    except (OSError, PathPolicyViolation):
+        return None
+
+
+def prompt_select(
+    question: str,
+    options: list[str],
+    default: str | None = None,
+    response: str | None = None,
+) -> str:
     """
     In ra cấu trúc XML/JSON đặc biệt để Agent bắt sự kiện hiển thị UI ask_question.
-    Chờ nhận kết quả từ stdin (do Agent gửi send_input).
+    Ưu tiên response do Agent/IDE truyền qua argument, one-shot environment,
+    response file, rồi mới đến stdin.
     Với approval gate chiến lược, nếu prompt bridge không có câu trả lời thật,
     trả về PROMPT_UNAVAILABLE thay vì default để không nhầm với lựa chọn của user.
     """
@@ -221,6 +330,15 @@ def prompt_select(question: str, options: list[str], default: str | None = None)
         any(term in question_lower for term in approval_terms)
         and any(term in question_lower for term in protected_gate_terms)
     )
+
+    choice_id = prompt_choice_id(question, options)
+    selected = _normalise_prompt_response(response, options)
+    if selected:
+        return selected
+
+    selected = _agent_prompt_response(choice_id, options)
+    if selected:
+        return selected
 
     mode = _get_permission_mode()
 
@@ -249,7 +367,15 @@ def prompt_select(question: str, options: list[str], default: str | None = None)
                 pass
         return default if default is not None else options[0]
 
+    request_path = _write_prompt_request(
+        choice_id,
+        question,
+        options,
+        default,
+        strategic_approval_gate,
+    )
     payload = {
+        "choice_id": choice_id,
         "question": question,
         "options": options,
         "default": default
@@ -263,6 +389,33 @@ def prompt_select(question: str, options: list[str], default: str | None = None)
     }
     _emit_interactive_prompt("ask_question", ask_question_payload)
     _emit_interactive_prompt("select", payload)
+
+    wait_seconds_raw = os.environ.get("AIWF_PROMPT_WAIT_SECONDS", "5")
+    try:
+        wait_seconds = max(0.0, min(float(wait_seconds_raw), 60.0))
+    except ValueError:
+        wait_seconds = 5.0
+    deadline = time.monotonic() + wait_seconds
+    should_wait_for_agent = strategic_approval_gate or os.environ.get(
+        "AIWF_WAIT_FOR_PROMPT_FILE"
+    ) == "1"
+    if should_wait_for_agent:
+        while time.monotonic() < deadline:
+            selected = _agent_prompt_response(choice_id, options)
+            if selected:
+                if request_path:
+                    try:
+                        request_path.unlink()
+                    except OSError:
+                        pass
+                return selected
+            time.sleep(0.1)
+
+    if request_path:
+        try:
+            request_path.unlink()
+        except OSError:
+            pass
 
     # Fallback cho terminal/human nếu IDE không tự động bắt thẻ XML
     if sys.stdin.isatty():

@@ -11,6 +11,7 @@ import time
 import urllib.error
 import urllib.request
 from typing import Any, Optional, Tuple, cast
+from dataclasses import dataclass
 
 from workflow_runtime.application.verification.test_enforcer import     patch_subprocess
 from workflow_runtime.infrastructure.session.session import load_session
@@ -18,18 +19,87 @@ from workflow_runtime.infrastructure.session.session import load_session
 patch_subprocess()
 
 
+@dataclass(frozen=True)
+class ProjectValidationScope:
+    project_type: str
+    working_directory: str
+    build_command: tuple[str]
+    runtime_command: tuple[str]
+
+
+def resolve_validation_scope(root: str = ".") -> ProjectValidationScope:
+    normalized_root = root.rstrip("/\\") or "."
+    desktop = os.path.join(normalized_root, "desktop")
+    if os.path.isfile(os.path.join(normalized_root, "go.mod")):
+        return ProjectValidationScope("go", normalized_root, ("go", "vet", "./..."), ("go", "run", "."))
+    if os.path.isfile(os.path.join(desktop, "go.mod")):
+        return ProjectValidationScope("go", desktop, ("go", "vet", "./..."), ("go", "run", "."))
+    if os.path.isfile(os.path.join(normalized_root, "pyproject.toml")):
+        return ProjectValidationScope("python", normalized_root, (sys.executable, "-m", "compileall", "-q", "."), (sys.executable, "main.py"))
+    if any(os.path.isfile(os.path.join(normalized_root, name)) for name in ("requirements.txt", "poetry.lock", "uv.lock")):
+        return ProjectValidationScope("python", normalized_root, (sys.executable, "-m", "compileall", "-q", "."), (sys.executable, "main.py"))
+    return ProjectValidationScope("unknown", normalized_root, tuple(), tuple())
+
+
 def detect_project_type(cwd: str = ".") -> str:
     override = os.environ.get("AIWF_PROJECT_TYPE")
     if override:
         return override
-    if os.path.exists(os.path.join(cwd, "go.mod")) or os.path.exists(os.path.join(cwd, "desktop", "go.mod")):
-        return "go"
-    if (os.path.exists(os.path.join(cwd, "pyproject.toml")) or
-        os.path.exists(os.path.join(cwd, "requirements.txt")) or
-        os.path.exists(os.path.join(cwd, "poetry.lock")) or
-        os.path.exists(os.path.join(cwd, "uv.lock"))):
-        return "python"
-    return "unknown"
+    return resolve_validation_scope(cwd).project_type
+
+
+def current_source_scope(root: str = ".") -> list[str]:
+    """Return current source changes so AI verification does not scan stale mirrors."""
+    try:
+        result = subprocess.run(
+            ["git", "status", "--porcelain", "--untracked-files=all"],
+            cwd=root,
+            capture_output=True,
+            text=True,
+            check=True,
+        )
+    except (OSError, subprocess.CalledProcessError):
+        return []
+
+    paths: list[str] = []
+    for line in result.stdout.splitlines():
+        if len(line) < 4:
+            continue
+        raw_path = line[3:].strip()
+        if " -> " in raw_path:
+            raw_path = raw_path.rsplit(" -> ", 1)[-1]
+        path = raw_path.strip('"').replace("\\", "/")
+        if (
+            path.endswith((".py", ".go"))
+            and not path.startswith(("public_export/", "artifacts/"))
+            and "/tests/" not in f"/{path}/"
+            and not path.startswith("tests/")
+            and not path.endswith("_test.go")
+            and not os.path.basename(path).startswith("test_")
+        ):
+            paths.append(path)
+    return sorted(set(paths))
+
+
+def active_work_item_id(default: str = "FEAT-001") -> str:
+    session = load_session()
+    raw_work_item = session.get("work_item")
+    work_item = cast(dict[str, Any], raw_work_item) if isinstance(raw_work_item, dict) else {}
+    return str(work_item.get("id", "")) or str(os.environ.get("AIWF_WORK_ITEM_ID", default))
+
+
+def write_stage_report(stage: str, work_item_id: str, summary: str, status: str) -> str:
+    filename = f"{work_item_id}_{'debug' if stage == 'debug' else 'verify'}.md"
+    directory = os.path.join("docs", stage)
+    os.makedirs(directory, exist_ok=True)
+    path = os.path.join(directory, filename)
+    with open(path, "w", encoding="utf-8") as report_file:
+        report_file.write(
+            f"---\nartifact_type: {stage}_verification\n"
+            f"feature_id: {work_item_id}\nstatus: {status}\n---\n\n"
+            f"# {stage.title()} Report - {work_item_id}\n\n{summary}\n"
+        )
+    return path
 
 
 def classify_log_error(log_content: str) -> Optional[str]:
@@ -127,21 +197,44 @@ def run_smoke_test(port: int) -> Tuple[bool, str]:
 
 def run_pipeline(project_type: str, cwd: str = ".") -> Tuple[bool, str, list[str]]:
     port = find_free_port()
+    scope = resolve_validation_scope(cwd)
 
     try:
         if project_type == "go":
-            subprocess.run(["go", "vet", "./..."], cwd=cwd, check=True, capture_output=True)
-            subprocess.run(["go", "build", "-o", "bin/app.exe", "."], cwd=cwd, check=True, capture_output=True)
-            cmd = ["bin/app.exe"]
+            build_env = os.environ.copy()
+            if os.name == "nt":
+                # A global GOOS override can produce an ELF file named .exe;
+                # force the artifact to match the host used by this E2E gate.
+                build_env["GOOS"] = "windows"
+                build_env.pop("CGO_ENABLED", None)
+            subprocess.run(
+                list(scope.build_command),
+                cwd=scope.working_directory,
+                env=build_env,
+                check=True,
+                capture_output=True,
+            )
+            subprocess.run(
+                ["go", "build", "-o", "bin/app.exe", "."],
+                cwd=scope.working_directory,
+                env=build_env,
+                check=True,
+                capture_output=True,
+            )
+            # Windows does not reliably resolve a relative executable without a
+            # path prefix when launched from a subprocess. Use the built file
+            # explicitly so the AI receives a real runtime result.
+            cmd = [os.path.abspath(os.path.join(scope.working_directory, "bin", "app.exe"))]
         elif project_type == "python":
             subprocess.run([sys.executable, "-m", "py_compile"], cwd=cwd, check=True, capture_output=True)
             cmd = [sys.executable, "main.py"]
         else:
             return True, f"Bypassed build verification for {project_type} project type.", []
 
+        process_cwd = scope.working_directory if project_type == "go" else cwd
         proc = subprocess.Popen(
             cmd,
-            cwd=cwd,
+            cwd=process_cwd,
             env={**os.environ, "PORT": str(port)},
             stdout=subprocess.PIPE,
             stderr=subprocess.PIPE
@@ -202,12 +295,10 @@ def run_debug() -> dict[str, Any]:
 
     from workflow_runtime.application.workflow.code_size_governor import (
         generate_code_size_report, run_code_size_audit)
-    size_passed, size_violations, size_metrics = run_code_size_audit(".")
+    source_scope = current_source_scope(cwd)
+    size_passed, size_violations, size_metrics = run_code_size_audit(".", files=source_scope or None)
 
-    session = load_session()
-    work_item_raw = session.get("work_item")
-    work_item_dict = cast(dict[str, Any], work_item_raw) if isinstance(work_item_raw, dict) else {}
-    work_item_id = str(work_item_dict.get("id", "")) or str(os.environ.get("AIWF_WORK_ITEM_ID", "FEAT-001"))
+    work_item_id = active_work_item_id()
 
     audit_content = generate_code_size_report(work_item_id, size_passed, size_violations, size_metrics)
     audit_dir = os.path.join("docs", "debug")
@@ -222,26 +313,27 @@ def run_debug() -> dict[str, Any]:
         curr_lines = str(v.get("current_lines", ""))
         warnings.append(f"Code Size warning/fail on {file_str} ({scope_str} size: {curr_lines})")
 
+    stage_report = write_stage_report("debug", work_item_id, summary, "PASS" if success else "FAIL")
     return {
         "status": "success" if success else "failure",
         "command": "debug run",
         "summary": summary,
         "warnings": warnings,
         "files_read": [],
-        "files_written": [audit_path]
+        "files_written": [audit_path, stage_report]
     }
 
 
 def run_verify(blueprint_path: Optional[str] = None) -> dict[str, Any]:
-    session = load_session()
-    work_item_raw = session.get("work_item")
-    work_item_dict = cast(dict[str, Any], work_item_raw) if isinstance(work_item_raw, dict) else {}
-    work_item_id = str(work_item_dict.get("id", "")) or str(os.environ.get("AIWF_WORK_ITEM_ID", "FEAT-115"))
+    work_item_id = active_work_item_id("FEAT-115")
 
     # 1. Chạy Architecture Compliance Validator
     from workflow_runtime.application.verification.architecture_validator import (
         generate_architecture_report, run_architecture_validation)
-    arch_passed, arch_score, arch_violations, dep_graph = run_architecture_validation(".")
+    source_scope = current_source_scope(".")
+    arch_passed, arch_score, arch_violations, dep_graph = run_architecture_validation(
+        ".", files=source_scope or None
+    )
 
     report_content = generate_architecture_report(work_item_id, arch_passed, arch_score, arch_violations, dep_graph)
     report_dir = os.path.join("docs", "verification")
@@ -275,7 +367,9 @@ def run_verify(blueprint_path: Optional[str] = None) -> dict[str, Any]:
     # 3. Chạy tiếp Code Size Governance Verification
     from workflow_runtime.application.workflow.code_size_governor import (
         generate_code_size_report, run_code_size_audit)
-    size_passed, size_violations, size_metrics = run_code_size_audit(".")
+    size_passed, size_violations, size_metrics = run_code_size_audit(
+        ".", files=source_scope or None
+    )
 
     verify_content = generate_code_size_report(work_item_id, size_passed, size_violations, size_metrics)
     verify_dir = os.path.join("docs", "verification")
@@ -300,22 +394,32 @@ def run_verify(blueprint_path: Optional[str] = None) -> dict[str, Any]:
             "files_written": [report_path, verify_path, metrics_path]
         }
 
-    is_release_requested = bool(session.get("release_requested", False))
+    is_release_requested = bool(load_session().get("release_requested", False))
     next_skill = "implementation-to-release" if is_release_requested else "software-development-workflow"
 
+    stage_report = write_stage_report(
+        "verification",
+        work_item_id,
+        f"{res.get('summary', 'Verification complete')} Architecture score: {arch_score}/100.",
+        "PASS",
+    )
     return {
         "status": "success",
         "command": "verify run",
         "summary": f"Runtime, Architecture & Code Size verification complete. Architecture Score: {arch_score}/100. All compliance gates passed.",
         "warnings": [] if is_release_requested else ["Release is currently blocked: User must explicitly request release"],
         "files_read": [],
-        "files_written": [report_path, verify_path, metrics_path],
+        "files_written": [report_path, verify_path, metrics_path, stage_report],
         "next_skill": next_skill
     }
 
 
 __all__ = [
     "detect_project_type",
+    "current_source_scope",
+    "active_work_item_id",
+    "ProjectValidationScope",
+    "resolve_validation_scope",
     "classify_log_error",
     "is_port_open",
     "find_free_port",

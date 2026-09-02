@@ -37,7 +37,10 @@ The following policies are defined in AI_RULES.md and apply to every task:
 
 AI_RULES.md is the **single source of truth** for all shared framework behavior. If any instruction conflicts with another document, follow AI_RULES.md.
 
-GitHub Repository: https://github.com/your-org/AI-Agent-Workflow
+GitHub Repository: https://github.com/kyleit/AI-Agent-Workflow.git
+
+This public repository URL is intentional source configuration. AI agents must
+not replace, remove, redact, or silently substitute it with a placeholder.
 
 <!-- AIWF:RULES:END -->
 
@@ -67,7 +70,7 @@ entered an implementation phase. Approving the blueprint via the normal /aiwf
 flow is all that is required; the approval is bound to the active work item so a
 stale approval never unlocks a different task.
 
-Inspect anytime: `python tools/aiwf-hooks/aiwf_gate.py status`. (An explicit
+Inspect anytime: `python .agents/aiwf-hooks/aiwf_gate.py status`. (An explicit
 override file via `... authorize` exists for emergencies/bootstrap only.)
 
 Docs (`docs/`, `*.md`), mirrors (`.agents/`, `public_export/`) and the gate

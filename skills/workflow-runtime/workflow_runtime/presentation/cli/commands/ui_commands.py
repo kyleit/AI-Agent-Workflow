@@ -25,6 +25,11 @@ class PromptCommand:
         sel.add_argument("--options", required=True,
                          help="Pipe-separated options e.g. 'Continue|Cancel'")
         sel.add_argument("--default", default="Cancel")
+        sel.add_argument(
+            "--response",
+            default=None,
+            help="Optional response supplied by the Agent/IDE bridge; avoids stdin interaction.",
+        )
         con = sub.add_parser("confirm", help="Show a yes/no confirmation")
         con.add_argument("--question", required=True)
         con.add_argument("--default", choices=["yes", "no"], default="no")

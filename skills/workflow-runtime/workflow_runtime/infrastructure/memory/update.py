@@ -31,7 +31,9 @@ def parse_new_lessons(file_path: str) -> list[dict[str, Any]]:
     lessons: list[dict[str, Any]] = []
     if "issue_id:" in content or "FIX-" in file_path:
         issue_id_match = re.search(r"issue_id:\s*(FIX-\d+)", content)
-        issue_id = issue_id_match.group(1) if issue_id_match else "FIX-XXX"
+        if not issue_id_match:
+            return []
+        issue_id = issue_id_match.group(1)
 
         title_match = re.search(r"#\s+(?:Fix Document\s+–\s+)?(.*)", content)
         title = title_match.group(1).strip() if title_match else "Sửa lỗi hệ thống"
@@ -58,7 +60,9 @@ def parse_new_lessons(file_path: str) -> list[dict[str, Any]]:
 
     elif "feature_id:" in content or "QUICK-" in file_path:
         feat_id_match = re.search(r"feature_id:\s*(QUICK-\d+)", content)
-        feat_id = feat_id_match.group(1) if feat_id_match else "QUICK-XXX"
+        if not feat_id_match:
+            return []
+        feat_id = feat_id_match.group(1)
 
         title_match = re.search(r"#\s+(?:Mini Feature Specification\s+–\s+)?(.*)", content)
         title = title_match.group(1).strip() if title_match else "Cập nhật nhanh"
@@ -175,11 +179,11 @@ def run_update(force_full: bool = False, target_dir: str | None = None) -> dict[
                     current_content = f.read()
 
                 append_content = ""
-                for l in new_lessons:
-                    l_id = str(l.get("id", ""))
-                    l_title = str(l.get("title", ""))
-                    l_prob = str(l.get("problem", ""))
-                    l_fix = str(l.get("fix", ""))
+                for lesson in new_lessons:
+                    l_id = str(lesson.get("id", ""))
+                    l_title = str(lesson.get("title", ""))
+                    l_prob = str(lesson.get("problem", ""))
+                    l_fix = str(lesson.get("fix", ""))
 
                     if l_id.upper() not in current_content.upper():
                         append_content += f"\n## {l_title}\n"

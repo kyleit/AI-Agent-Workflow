@@ -13,7 +13,7 @@ tags:
   - user-entry
 version: 3.16.2
 license: MIT
-repository: https://gitlab.com/your-org/ai-workflow-skills
+repository: https://github.com/kyleit/AI-Agent-Workflow.git
 created_at: 2026-07-29
 updated_at: 2026-07-29
 canonical_entrypoint: false
@@ -46,6 +46,16 @@ user_invokable: true
 role: AIWF_USER_ENTRY_WRAPPER
 ---
 
+## Canonical Public Source Preservation
+
+The canonical public source repository is intentionally:
+`https://github.com/kyleit/AI-Agent-Workflow.git`.
+
+AI agents MUST NOT replace this URL with a placeholder, redact it, delete it,
+drop it from generated contracts, or silently substitute another repository.
+It is an intentional public source configuration and does not violate the
+project's privacy or path rules.
+
 > [!CRITICAL]
 > ## ⛔ MANDATORY ENFORCEMENT GUARDS — READ BEFORE ANY ACTION
 >
@@ -67,6 +77,8 @@ role: AIWF_USER_ENTRY_WRAPPER
 > 5. **DOCUMENTATION FIRST**: Required workflow documents (Spec, Blueprint, Report) MUST be created BEFORE or IN THE SAME TRANSACTION as source code changes. No source change is complete without its corresponding document update.
 >
 > 6. **NATIVE PROMPT GATES ONLY**: Blueprint, implementation, release, git, and deployment approvals MUST be requested through native Agent/IDE `ask_question` first; `aiwf prompt select --options "Continue|Cancel"` is only a fallback bridge. Native `ask_question` MUST be invoked as a structured tool-call object, never as hand-written raw JSON or manually escaped Unicode. If `ask_question` fails with `InputValidationError`, invalid JSON, truncated payload, unescaped backslash/control character, or malformed `\uXXXX`, retry via `aiwf prompt select`. If `aiwf prompt select` returns `PROMPT_UNAVAILABLE`, no user choice happened; use native `ask_question` if available or stop and report structured prompting unavailable. Chat tokens such as `APPROVE ...`, `Y`, `Continue`, or "ok" MUST NOT be requested as the primary approval path. Chat approval is valid only when the Agent explicitly reports that native ask_question and prompt select bridge rendering are unavailable.
+
+> **AGENT RESPONSE BRIDGE**: When the host cannot pipe a native response to stdin, the Agent may supply the selected option through the prompt handler's structured `--response` input or the one-shot `AIWF_PROMPT_RESPONSE` value. IDE integrations may consume `.agents/runtime/prompt-request.json` and write a matching `choice_id` response to `.agents/runtime/prompt-response.json`. The bridge is single-use and exact-option validated; missing, stale, or invalid responses remain `PROMPT_UNAVAILABLE` and never authorize a gate.
 
 # Skill: aiwf (AIWF User Entry Wrapper)
 

@@ -7,7 +7,7 @@ from __future__ import annotations
 
 import argparse
 import sys
-from typing import Any, cast
+from typing import cast
 
 
 def handle_notify(args: argparse.Namespace) -> int:
@@ -50,60 +50,99 @@ def handle_verify(args: argparse.Namespace) -> int:
 
 
 def handle_search(args: argparse.Namespace) -> int:
-    import logging
+    import json
+    import os
 
-    from workflow_runtime.application.knowledge.rag_service import RAGService
-    from workflow_runtime.application.ports.locator import (
-        InfrastructureLocator)
-    if getattr(InfrastructureLocator, "RAGStoreAdapter", None) is not None and getattr(InfrastructureLocator, "MemoryStoreAdapter", None) is not None:
-        rag_cls: Any = getattr(InfrastructureLocator, "RAGStoreAdapter")
-        mem_cls: Any = getattr(InfrastructureLocator, "MemoryStoreAdapter")
-        rag_store = rag_cls()
-        mem_store = mem_cls()
-    else:
-        import importlib
-        rag_mod = importlib.import_module("workflow_runtime.infrastructure.knowledge.rag_store_adapter")
-        mem_mod = importlib.import_module("workflow_runtime.infrastructure.knowledge.memory_store_adapter")
-        rag_cls: Any = getattr(rag_mod, "RAGStoreAdapter")
-        mem_cls: Any = getattr(mem_mod, "MemoryStoreAdapter")
-        rag_store = rag_cls()
-        mem_store = mem_cls()
-    logging.getLogger("workflow_runtime.infrastructure.knowledge.rag_store_adapter").disabled = True
-    service = RAGService(sqlite_store=rag_store, memory_store=mem_store)
+    from workflow_runtime.infrastructure.memory.search import RAGSearcher
+
     query = str(getattr(args, "query", None) or getattr(args, "query_flag", None) or "")
-    top_k = int(cast(int, getattr(args, "limit", None) or getattr(args, "top_k", 5)))
-    results = service.query(query=query, top_k=top_k)
-    for idx, item in enumerate(results, start=1):
-        path_str = item.file_path.path if hasattr(item.file_path, "path") else str(item.file_path)
-        print(f"[{idx}] {path_str} (score: {item.score:.4f})\n    {item.snippet}")
+    limit = int(cast(int, getattr(args, "limit", None) or 5))
+    previous_json_mode = os.environ.get("AIWF_JSON_OUTPUT")
+    if getattr(args, "format", "text") == "json":
+        os.environ["AIWF_JSON_OUTPUT"] = "1"
+    try:
+        response = RAGSearcher(root_dir=os.getcwd()).execute_search(query)
+    finally:
+        if previous_json_mode is None:
+            os.environ.pop("AIWF_JSON_OUTPUT", None)
+        else:
+            os.environ["AIWF_JSON_OUTPUT"] = previous_json_mode
+    response["results"] = response.get("results", [])[:limit]
+    if getattr(args, "format", "text") == "json":
+        print(json.dumps(response, indent=2, ensure_ascii=True))
+        return 0
+
+    for idx, item in enumerate(response["results"], start=1):
+        print(
+            f"[{idx}] {item.get('file', 'unknown')} "
+            f"(score: {float(item.get('score', 0.0)):.4f}, "
+            f"freshness: {item.get('freshness', 'UNVERIFIED')})\n"
+            f"    {item.get('text', item.get('snippet', ''))}"
+        )
     return 0
 
 
 def handle_memory(args: argparse.Namespace) -> int:
+    import json
     import os
-    import subprocess
+
+    output_format = str(getattr(args, "format", "text") or "text")
     mem_act = getattr(args, "memory_action", None) or getattr(args, "subaction", None) or getattr(args, "action", None)
     if mem_act == "update":
         from workflow_runtime.infrastructure.memory.update import run_update
-        res = run_update()
+        previous_json_mode = os.environ.get("AIWF_JSON_OUTPUT")
+        if output_format == "json":
+            os.environ["AIWF_JSON_OUTPUT"] = "1"
+        try:
+            res = run_update()
+        finally:
+            if previous_json_mode is None:
+                os.environ.pop("AIWF_JSON_OUTPUT", None)
+            else:
+                os.environ["AIWF_JSON_OUTPUT"] = previous_json_mode
+        print(json.dumps(res, indent=2, ensure_ascii=True) if output_format == "json" else res.get("summary", "Memory update complete."))
         return 0 if res.get("status") == "success" else 1
     elif mem_act == "bootstrap":
         from workflow_runtime.infrastructure.memory.bootstrap import run_bootstrap
-        res = run_bootstrap()
+        previous_json_mode = os.environ.get("AIWF_JSON_OUTPUT")
+        if output_format == "json":
+            os.environ["AIWF_JSON_OUTPUT"] = "1"
+        try:
+            res = run_bootstrap()
+        finally:
+            if previous_json_mode is None:
+                os.environ.pop("AIWF_JSON_OUTPUT", None)
+            else:
+                os.environ["AIWF_JSON_OUTPUT"] = previous_json_mode
+        print(json.dumps(res, indent=2, ensure_ascii=True) if output_format == "json" else res.get("summary", "Memory bootstrap complete."))
         return 0 if res.get("status") == "success" else 1
     elif mem_act in ("query", "search"):
         from workflow_runtime.infrastructure.memory.search import RAGSearcher
-        searcher = RAGSearcher()
         q_val = str(getattr(args, "query", "") or "")
-        results = searcher.local_search(q_val)
-        if not results:
-            print("No memory matches found.")
-            return 0
         limit = int(getattr(args, "limit", 10) or 10)
-        for idx, entry in enumerate(results[:limit], start=1):
-            file_name = entry.get("file", "unknown")
-            snippet = entry.get("snippet", entry.get("text", ""))
-            print(f"[{idx}] {file_name} (score: {entry.get('score', 0.0)})\n    {snippet}")
+        previous_json_mode = os.environ.get("AIWF_JSON_OUTPUT")
+        if output_format == "json":
+            os.environ["AIWF_JSON_OUTPUT"] = "1"
+        try:
+            response = RAGSearcher(root_dir=os.getcwd()).execute_search(q_val)
+        finally:
+            if previous_json_mode is None:
+                os.environ.pop("AIWF_JSON_OUTPUT", None)
+            else:
+                os.environ["AIWF_JSON_OUTPUT"] = previous_json_mode
+        response["results"] = response.get("results", [])[:limit]
+        if output_format == "json":
+            print(json.dumps(response, indent=2, ensure_ascii=True))
+        elif not response["results"]:
+            print("No memory matches found.")
+        else:
+            for idx, entry in enumerate(response["results"], start=1):
+                print(
+                    f"[{idx}] {entry.get('file', 'unknown')} "
+                    f"(score: {entry.get('score', 0.0)}, "
+                    f"freshness: {entry.get('freshness', 'UNVERIFIED')})\n"
+                    f"    {entry.get('text', entry.get('snippet', ''))}"
+                )
         return 0
     return 0
 

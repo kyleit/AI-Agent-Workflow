@@ -1,7 +1,7 @@
 {
   "name": "ai-workflow-skills",
   "description": "A reusable collection of engineering skills for AI coding agents to manage SDLC lifecycle",
-  "version": "6.26.0",
+  "version": "6.26.1",
   "min_ai_platform_version": "1.0.0",
   "author": {
     "name": "Maintainer",
@@ -10,7 +10,7 @@
   },
   "repository": {
     "type": "git",
-    "url": "https://gitlab.com/your-org/ai-workflow-skills.git"
+    "url": "https://github.com/kyleit/AI-Agent-Workflow.git"
   },
   "installation_target": ".agents",
   "skill_directory": "skills",
@@ -1155,8 +1155,8 @@
     "schema_version": "2.8.2",
     "future_extensions_allowed": true,
     "channels": {
-      "stable": "https://gitlab.com/your-org/ai-workflow-skills.git#main",
-      "beta": "https://gitlab.com/your-org/ai-workflow-skills.git#beta"
+      "stable": "https://github.com/kyleit/AI-Agent-Workflow.git#main",
+      "beta": "https://github.com/kyleit/AI-Agent-Workflow.git#beta"
     },
     "auto_update": {
       "enabled": false,

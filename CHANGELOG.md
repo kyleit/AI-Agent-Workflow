@@ -1,9 +1,17 @@
 # Changelog
 
+## v6.26.1 - 2026-09-02
+
+_No user-facing changes._
+
+
 ## v6.26.0 - 2026-08-31
 
 ### Features
 - implement AI-first workflow governance (131d617e)
+
+### Chores
+- sync installed skills to v6.25.0 via aiwf update (6bf505b3)
 
 
 ## v6.25.0 - 2026-08-29

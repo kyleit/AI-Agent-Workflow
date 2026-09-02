@@ -2,6 +2,7 @@
 from __future__ import annotations
 
 import json
+import hashlib
 import os
 import re
 from datetime import datetime
@@ -10,22 +11,23 @@ from typing import Any
 from .common import to_posix_path
 
 
-def chunk_markdown_file(file_path: str, content: str) -> list[dict[str, Any]]:
+def chunk_markdown_file(file_path: str, content: str, source_revision: str = "WORKTREE") -> list[dict[str, Any]]:
     """Phân mảnh tệp markdown theo các tiêu đề ## để lưu trữ vector."""
     chunks: list[dict[str, Any]] = []
-    basename = os.path.basename(file_path)
-    file_id = os.path.splitext(basename)[0]
-
+    source_hash = hashlib.sha256(content.encode("utf-8")).hexdigest()
     sections = re.split(r"\n##\s+", content)
 
     intro = sections[0].strip()
     if intro:
         chunks.append({
-            "id": f"{file_id}-intro",
+            "id": stable_chunk_id(file_path, "intro", intro),
             "text": intro,
             "metadata": {
                 "type": "documentation",
                 "file": to_posix_path(file_path),
+                "source_hash": source_hash,
+                "source_revision": source_revision,
+                "anchor": f"{to_posix_path(file_path)}:1",
                 "tags": ["intro", "overview"]
             }
         })
@@ -40,16 +42,25 @@ def chunk_markdown_file(file_path: str, content: str) -> list[dict[str, Any]]:
         title_slug = re.sub(r"[^a-z0-9_-]", "", title.lower().replace(" ", "-"))
 
         chunks.append({
-            "id": f"{file_id}-{title_slug or idx}",
+            "id": stable_chunk_id(file_path, title_slug or str(idx), body),
             "text": f"{title}\n{body}",
             "metadata": {
                 "type": "documentation",
                 "file": to_posix_path(file_path),
+                "source_hash": source_hash,
+                "source_revision": source_revision,
+                "anchor": f"{to_posix_path(file_path)}:{content.find(body) + 1}",
                 "tags": [title_slug, "section"]
             }
         })
 
     return chunks
+
+
+def stable_chunk_id(source_path: str, section: str, content: str) -> str:
+    normalized_path = to_posix_path(source_path).lstrip("./")
+    digest = hashlib.sha256(content.encode("utf-8")).hexdigest()[:16]
+    return f"{normalized_path}:{section}:{digest}"
 
 
 def write_vector_sync_plan(dest_path: str, collection: str, upserts: list[dict[str, Any]], deletes: list[str] | None = None) -> None:
@@ -58,10 +69,15 @@ def write_vector_sync_plan(dest_path: str, collection: str, upserts: list[dict[s
         "generated_at": datetime.now().astimezone().isoformat(),
         "collection": collection,
         "upsert": upserts,
-        "delete": [{"id": d_id} for d_id in (deletes or [])]
+        "delete": [{"id": d_id} for d_id in (deletes or [])],
+        "provider_contract": {
+            "source_authority": "source files",
+            "generated_index": True,
+            "embedding_required": False,
+        },
     }
     with open(dest_path, "w", encoding="utf-8") as f:
         json.dump(plan, f, indent=2)
 
 
-__all__ = ["chunk_markdown_file", "write_vector_sync_plan"]
+__all__ = ["chunk_markdown_file", "stable_chunk_id", "write_vector_sync_plan"]

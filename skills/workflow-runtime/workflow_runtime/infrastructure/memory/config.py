@@ -10,7 +10,11 @@ DEFAULT_CONFIG = {
     "memory_root": ".agents/memory",
     "vector_provider": "qdrant",
     "vector_collection": "ai-skill-framework",
-    "qmd_index": ".agents/memory/qmd.index"
+    "qmd_index": ".agents/memory/qmd.index",
+    "provider_chain": ["qmd", "sqlite-fts5", "qdrant", "markdown"],
+    "qmd_timeout_seconds": 3,
+    "max_evidence_chars": 8000,
+    "context_manifest": ".agents/memory/project-context.json"
 }
 
 
@@ -54,7 +58,9 @@ def get_memory_paths(config: dict[str, Any], root_dir: str | None = None) -> dic
         "lessons_dir": os.path.join(full_mem_root, "lessons"),
         "architecture_dir": os.path.join(full_mem_root, "architecture"),
         "rag_dir": os.path.join(full_mem_root, "rag"),
+        "qmd_index": os.path.join(root, str(config.get("qmd_index", ".agents/memory/qmd.index"))),
         "vector_sync_plan": os.path.join(full_mem_root, "rag", "vector-sync-plan.json"),
+        "context_manifest": os.path.join(full_mem_root, "project-context.json"),
         "known_problems": os.path.join(full_mem_root, "lessons", "known-problems.md"),
         "architectural_decisions": os.path.join(full_mem_root, "lessons", "architectural-decisions.md")
     }

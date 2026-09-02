@@ -17,7 +17,12 @@ def do_prompt(args: Any) -> int:
     from workflow_runtime.shared.utils import PROMPT_UNAVAILABLE, prompt_select
     opt_str = str(getattr(args, "options", "") or "")
     options_list = [o.strip() for o in opt_str.split("|")]
-    res = prompt_select(str(getattr(args, "question", "")), options_list, str(getattr(args, "default", "")))
+    res = prompt_select(
+        str(getattr(args, "question", "")),
+        options_list,
+        str(getattr(args, "default", "")),
+        response=str(getattr(args, "response", "") or "") or None,
+    )
     print(res)
     if res == PROMPT_UNAVAILABLE:
         print(

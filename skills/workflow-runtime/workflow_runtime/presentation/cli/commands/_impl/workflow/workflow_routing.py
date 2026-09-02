@@ -4,7 +4,6 @@ import argparse
 import json
 import os
 import sys
-from datetime import datetime
 from typing import Any, cast
 
 from workflow_runtime.infrastructure.session.session_io import load_session
@@ -283,7 +282,7 @@ def do_classify_action(args: argparse.Namespace) -> int:
 
 
 def do_coordinator_action(args: argparse.Namespace) -> int:
-    from workflow_runtime.presentation.cli.knowledge_command_handlers import handle_coordinator
+    from workflow_runtime.presentation.cli.workflow_command_handlers import handle_coordinator
     return handle_coordinator(args)
 
 

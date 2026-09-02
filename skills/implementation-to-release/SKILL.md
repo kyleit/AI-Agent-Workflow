@@ -130,6 +130,9 @@ Prior to running any release activities, the AI must strictly execute the follow
    - Run `make export` and stage `public_export` if this repository uses public export.
    - Check `.agents/memory/`; if memory files changed, stage them before commit.
    - Verify that `CHANGELOG.md` does not contain local absolute paths or `file://` links.
+   - Treat a clean tree and an Agent-prepared staged snapshot as valid release
+     inputs. A staged snapshot is valid only when there are no unstaged or
+     untracked files, so unrelated WIP cannot be absorbed accidentally.
 5. **Walkthrough Handover Decision Gate**: The AI must prompt the user using the Choice Protocol before packaging or overwriting `walkthrough.md` in the repository, asking whether they want to overwrite (create new walkthrough) or keep/append to the previous history.
 
 **If any validation fails:**
@@ -149,6 +152,17 @@ Every approval gate in **Phase 8 (Release Summary)**, **Phase 9 (Commit Release)
    ```
 3. If the result is `Continue`, proceed to the next step. If the result is `Cancel`, stop. If the fallback returns `PROMPT_UNAVAILABLE`, no user selection occurred; use native `ask_question` if available or keep the release gate stopped.
 4. Do not ask for the same approval again in plain chat text.
+
+For Agent/IDE hosts that cannot pipe native tool output to stdin, the runtime
+also accepts a structured response without any manual terminal action:
+
+- Pass the selected option through the `prompt select` handler's `--response`
+  argument, or set the one-shot `AIWF_PROMPT_RESPONSE` environment value.
+- IDE bridges may write `.agents/runtime/prompt-response.json` with the emitted
+  `choice_id` and `selected_option`; the runtime consumes the response once.
+- The request is published as `.agents/runtime/prompt-request.json` and is
+  removed after resolution. A missing or invalid response still returns
+  `PROMPT_UNAVAILABLE`; it never becomes an implicit approval.
 
 ---
 

@@ -44,13 +44,13 @@ the user, not the AI) runs an unlock command.
 ## CLI (inspection + emergency override)
 
 ```bash
-python tools/aiwf-hooks/aiwf_gate.py status                       # show gate state
-python tools/aiwf-hooks/aiwf_gate.py check-file <path>            # exit 0 allow / 1 block
-python tools/aiwf-hooks/aiwf_gate.py check-git                    # staged files (pre-commit)
+python .agents/aiwf-hooks/aiwf_gate.py status                      # show gate state
+python .agents/aiwf-hooks/aiwf_gate.py check-file <path>           # exit 0 allow / 1 block
+python .agents/aiwf-hooks/aiwf_gate.py check-git                   # staged files (pre-commit)
 
 # Emergency / bootstrap ONLY — explicit override file (normally unused):
-python tools/aiwf-hooks/aiwf_gate.py authorize --blueprint docs/features/<id>/blueprint.md [--ttl-hours 24]
-python tools/aiwf-hooks/aiwf_gate.py revoke
+python .agents/aiwf-hooks/aiwf_gate.py authorize --blueprint docs/features/<id>/blueprint.md [--ttl-hours 24]
+python .agents/aiwf-hooks/aiwf_gate.py revoke
 ```
 
 ## Emergency bypass

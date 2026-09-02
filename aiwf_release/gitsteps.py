@@ -35,6 +35,25 @@ def is_clean(root: Path) -> bool:
     return out == ""
 
 
+def is_release_ready(root: Path) -> bool:
+    """Allow a clean tree or an explicitly staged release snapshot.
+
+    A staged snapshot is the Agent-friendly handoff: every intended change is
+    already selected, with no unstaged or untracked file left for the release
+    pipeline to accidentally absorb.
+    """
+    status = subprocess.run(
+        ["git", "status", "--porcelain=v1", "--untracked-files=all"],
+        cwd=str(root), capture_output=True, text=True,
+    ).stdout.splitlines()
+    if any(line.startswith("??") for line in status):
+        return False
+    unstaged = subprocess.run(
+        ["git", "diff", "--quiet"], cwd=str(root)
+    ).returncode
+    return unstaged == 0
+
+
 def head_sha(root: Path) -> str:
     return subprocess.run(
         ["git", "rev-parse", "HEAD"], cwd=str(root),

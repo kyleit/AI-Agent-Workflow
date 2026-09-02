@@ -66,20 +66,66 @@ class ProjectContextExtractor:
     def extract_code_symbols(self) -> list[dict[str, str]]:
         symbols: list[dict[str, str]] = []
         files = get_project_files(self.root_dir)
-        target_files = [f for f in files if f.endswith((".py", ".go", ".ts", ".js", ".rs", ".cs"))][:40]
+        target_files = [f for f in files if f.endswith((".py", ".go", ".ts", ".tsx", ".js", ".jsx", ".rs", ".cs", ".java"))]
 
         for rel in target_files:
             full = os.path.join(self.root_dir, rel)
-            content = read_text_safe(full, max_chars=4000)
+            content = read_text_safe(full, max_chars=1_000_000)
             if not content:
                 continue
-            for match in re.finditer(r"type\s+([A-Za-z0-9_]+)\s+(struct|interface)", content):
-                symbols.append({"file": rel, "name": match.group(1), "kind": match.group(2)})
-            for match in re.finditer(r"class\s+([A-Za-z0-9_]+)(?:\([^)]*\))?:", content):
-                symbols.append({"file": rel, "name": match.group(1), "kind": "class"})
-            for match in re.finditer(r"(class|interface|type)\s+([A-Za-z0-9_]+)", content):
-                symbols.append({"file": rel, "name": match.group(2), "kind": match.group(1)})
-        return symbols[:30]
+            patterns = [
+                (r"^\s*(?:async\s+)?def\s+([A-Za-z_][\w]*)", "function"),
+                (r"^\s*class\s+([A-Za-z_][\w]*)", "class"),
+                (r"^\s*func\s+(?:\([^)]*\)\s*)?([A-Za-z_][\w]*)", "function"),
+                (r"^\s*type\s+([A-Za-z_][\w]*)\s+(struct|interface)", "type"),
+                (r"^\s*(?:export\s+)?(?:abstract\s+)?class\s+([A-Za-z_][\w]*)", "class"),
+                (r"^\s*(?:export\s+)?interface\s+([A-Za-z_][\w]*)", "interface"),
+                (r"^\s*(?:export\s+)?type\s+([A-Za-z_][\w]*)", "type"),
+                (r"^\s*(?:export\s+)?(?:async\s+)?function\s+([A-Za-z_][\w]*)", "function"),
+                (r"^\s*(?:pub\s+)?fn\s+([A-Za-z_][\w]*)", "function"),
+                (r"^\s*public\s+(?:static\s+)?(?:[\w<>\[\]]+\s+)+([A-Za-z_][\w]*)\s*\(", "method"),
+            ]
+            for line_no, line in enumerate(content.splitlines(), 1):
+                for expression, kind in patterns:
+                    match = re.search(expression, line)
+                    if match:
+                        symbols.append({
+                            "file": to_posix_path(rel),
+                            "name": match.group(1),
+                            "kind": kind,
+                            "source_anchor": f"{to_posix_path(rel)}:{line_no}",
+                        })
+                        break
+        return symbols
+
+    def extract_entrypoint_records(self) -> list[dict[str, str]]:
+        records: list[dict[str, str]] = []
+        known_names = {"main.py", "main.go", "main.rs", "main.ts", "main.js", "app.py", "server.py", "server.ts", "program.cs", "index.js", "index.ts"}
+        for rel in get_project_files(self.root_dir):
+            basename = os.path.basename(rel).lower()
+            if basename not in known_names and not rel.startswith(("cmd/", "scripts/", "bin/")):
+                continue
+            content = read_text_safe(os.path.join(self.root_dir, rel), max_chars=200000)
+            if not content:
+                continue
+            protocol = "CLI"
+            if re.search(r"(?:fastapi|flask|gin|echo|express|router|http\.server|listen\s*\()", content, re.I):
+                protocol = "HTTP"
+            elif re.search(r"grpc|rpc", content, re.I):
+                protocol = "RPC"
+            symbol = "main"
+            match = re.search(r"(?:def|func|function|fn)\s+(\w+)", content)
+            if match:
+                symbol = match.group(1)
+            records.append({
+                "path": to_posix_path(rel),
+                "symbol": symbol,
+                "protocol": protocol,
+                "command": f"{basename} entrypoint",
+                "start_condition": "process start",
+                "source_anchor": f"{to_posix_path(rel)}:{next((i for i, line in enumerate(content.splitlines(), 1) if re.search(r'(def|func|function|fn)\s+\w+', line)), 1)}",
+            })
+        return records
 
     def extract_recent_commits(self, limit: int = 5) -> list[str]:
         try:
@@ -100,6 +146,7 @@ class ProjectContextExtractor:
             "readme_docs": self.extract_readme_and_docs(),
             "manifests": self.extract_manifests(),
             "entrypoints": self.extract_entrypoint_snippets(),
+            "entrypoint_records": self.extract_entrypoint_records(),
             "symbols": self.extract_code_symbols(),
             "recent_commits": self.extract_recent_commits(),
         }
