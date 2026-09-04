@@ -37,6 +37,14 @@ runtime_requirements:
 
 Validate frontend implementation visually. This Skill acts as the entry-point coordinator for the Visual Intelligence Runtime (VIR).
 
+## Mandatory Closed Loop
+
+For a frontend project, invoke the AI-facing `visual e2e` runner automatically and consume its structured result. The runner MUST process the viewport families in this exact order: **Mobile (375, 390) -> Desktop (1440, 1920) -> Tablet (768, 820)**. Each pass is recorded as:
+
+`Automation -> Screenshot -> Validate -> Fix -> Repeat`
+
+The Agent fixes source findings and reruns the complete matrix until the manifest under `docs/aiwf-runs/<work-item-id>/08-visual/frontend-e2e.json` validates `PASS`. Missing browser evidence, mock/stub adapters, missing screenshot SHA-256 records, console/network errors, overflow, clipping, failed assertions, or unresolved findings are blocking. The user does not coordinate these internal steps manually.
+
 ### 🚀 VIR Canonical Invocation Chain
 Every frontend visual debugging action follows this routing path:
 1. `frontend-visual-debug` loads the active context plan.

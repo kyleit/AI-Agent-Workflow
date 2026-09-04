@@ -81,10 +81,21 @@ AIWF_MARKER_REL = ".agents/AI_RULES.md"  # presence => this is an AIWF project
 # --- Helpers ----------------------------------------------------------------
 
 def repo_root(start: Path | None = None) -> Path | None:
+    probe = (start or Path.cwd()).resolve()
+    if (
+        (probe / ".agents" / "AI_RULES.md").is_file()
+        or (probe / "AI_RULES.md").is_file()
+        or (probe / ".agents" / "project.config.json").is_file()
+    ):
+        return probe
+    # An uninitialized workspace must remain local even when nested in a
+    # parent Git checkout. Hooks should be inert until that workspace opts in.
+    if not (probe / ".git").exists():
+        return probe
     try:
         out = subprocess.run(
             ["git", "rev-parse", "--show-toplevel"],
-            cwd=str(start or Path.cwd()),
+            cwd=str(probe),
             capture_output=True, text=True, check=True,
         )
         return Path(out.stdout.strip())
@@ -93,7 +104,11 @@ def repo_root(start: Path | None = None) -> Path | None:
 
 
 def is_aiwf_project(root: Path) -> bool:
-    return (root / AIWF_MARKER_REL).exists()
+    return (
+        (root / AIWF_MARKER_REL).exists()
+        or (root / "AI_RULES.md").exists()
+        or (root / ".agents" / "project.config.json").exists()
+    )
 
 
 def _rel_posix(root: Path, path: str) -> str:
@@ -235,6 +250,19 @@ def _state_authorization(root: Path) -> tuple[bool, str]:
 
 def _code_block_gate_authorization(root: Path, active: str | None, blueprint_path: str) -> tuple[bool, str]:
     """Require the canonical strict CODE_BLOCK_GATE result before source writes."""
+    blueprint_abs = root / blueprint_path
+    try:
+        frontmatter = blueprint_abs.read_text(encoding="utf-8").split("---", 2)
+    except OSError as exc:
+        return False, f"cannot read approved blueprint '{blueprint_path}': {exc}"
+    if len(frontmatter) >= 2:
+        for line in frontmatter[1].splitlines():
+            key, separator, value = line.partition(":")
+            if separator and key.strip().lower() == "code_block_gate":
+                if value.strip().upper() in {"NOT_APPLICABLE", "N/A", "NONE"}:
+                    return True, f"strict CODE_BLOCK_GATE not applicable ({blueprint_path})"
+                break
+
     candidates = [root / CODE_BLOCK_GATE_STATE_REL]
     if active:
         candidates.append(root / "docs" / "aiwf-runs" / active / "05-blueprint" / "code-block-gate.json")
@@ -243,7 +271,6 @@ def _code_block_gate_authorization(root: Path, active: str | None, blueprint_pat
     if not existing:
         return False, "missing canonical code-block-gate.json — run strict-code-block-gate for the approved Blueprint"
 
-    blueprint_abs = root / blueprint_path
     try:
         blueprint_hash = _sha256_file(blueprint_abs)
     except OSError as exc:
@@ -360,26 +387,129 @@ def cmd_check_git(_args) -> int:
     return 1
 
 
-def _is_commit_or_history_authorized(root: Path, file_path: str) -> bool:
-    """Check if the file change comes from an authorized commit, merge, or completed run."""
+def _git_lines(root: Path, args: list[str]) -> list[str]:
     try:
-        audit_dir = root / ".agents" / "state" / "audit"
-        runs_dir = root / "docs" / "aiwf-runs"
-        features_dir = root / "docs" / "features"
-        if audit_dir.exists() or runs_dir.exists() or features_dir.exists():
+        result = subprocess.run(
+            ["git", *args], cwd=str(root), capture_output=True, text=True, check=True,
+        )
+    except (OSError, subprocess.CalledProcessError):
+        return []
+    return [line.strip() for line in result.stdout.splitlines() if line.strip()]
+
+
+def _outgoing_commits(root: Path, local_sha: str, remote_sha: str) -> list[str]:
+    zero = "0" * 40
+    if not local_sha or local_sha == zero:
+        return []
+    if not remote_sha or remote_sha == zero:
+        return _git_lines(root, ["rev-list", "--reverse", local_sha])
+    return _git_lines(root, ["rev-list", "--reverse", f"{remote_sha}..{local_sha}"])
+
+
+def _commit_parents(root: Path, commit_sha: str) -> list[str]:
+    lines = _git_lines(root, ["rev-list", "--parents", "-n", "1", commit_sha])
+    return lines[0].split()[1:] if lines else []
+
+
+def _commit_touches_file(root: Path, commit_sha: str, file_path: str, *, merge: bool = False) -> bool:
+    args = ["diff-tree", "--root", "--no-commit-id", "--name-only", "-r"]
+    if merge:
+        args.append("-m")
+    args.extend([commit_sha, "--", file_path])
+    return _rel_posix(root, file_path) in {
+        _rel_posix(root, value) for value in _git_lines(root, args)
+    }
+
+
+def _authorization_receipts(root: Path) -> list[object]:
+    """Load only machine receipts from the two canonical audit locations."""
+    values: list[object] = []
+    locations = (root / ".agents" / "state" / "audit", root / "docs" / "aiwf-runs")
+    for directory in locations:
+        if not directory.is_dir():
+            continue
+        for path in directory.rglob("*"):
+            if path.suffix.lower() not in {".json", ".jsonl"} or not path.is_file():
+                continue
+            try:
+                if path.suffix.lower() == ".jsonl":
+                    values.extend(json.loads(line) for line in path.read_text(encoding="utf-8").splitlines() if line.strip())
+                else:
+                    values.append(json.loads(path.read_text(encoding="utf-8")))
+            except (OSError, ValueError, TypeError):
+                continue
+    return values
+
+
+def _receipt_authorizes(value: object, commit_sha: str, active_work_item: str | None) -> bool:
+    if isinstance(value, list):
+        return any(_receipt_authorizes(item, commit_sha, active_work_item) for item in value)
+    if not isinstance(value, dict):
+        return False
+    nested = any(
+        _receipt_authorizes(value[key], commit_sha, active_work_item)
+        for key in ("receipt", "authorization", "approval", "result", "items", "records")
+        if key in value
+    )
+    if nested:
+        return True
+    sha_keys = ("commit_sha", "commitSha", "commit", "sha", "head_sha", "headSha")
+    recorded = {str(value[key]).lower() for key in sha_keys if value.get(key)}
+    if commit_sha.lower() not in recorded:
+        return False
+    item = value.get("work_item_id", value.get("workflow_id", value.get("workItemId")))
+    if active_work_item and item and str(item) != active_work_item:
+        return False
+    marker = " ".join(str(value.get(key, "")) for key in ("status", "decision", "result", "outcome")).lower()
+    return bool(value.get("authorized") is True or value.get("approved") is True or value.get("completed") is True or any(
+        token in marker for token in ("authorized", "approved", "completed", "success", "pass", "released")
+    ))
+
+
+def _is_commit_or_history_authorized(
+    root: Path,
+    file_path: str,
+    local_sha: str,
+    remote_sha: str,
+) -> bool:
+    """Authorize a pushed file only through its exact outgoing commit history."""
+    active = active_work_item(root)
+    receipts = _authorization_receipts(root)
+    for commit_sha in _outgoing_commits(root, local_sha, remote_sha):
+        parents = _commit_parents(root, commit_sha)
+        if len(parents) > 1:
+            branch_commits = set()
+            for parent in parents:
+                branch_commits.update(_git_lines(root, ["rev-list", "--not", *[p for p in parents if p != parent], parent]))
+            if not any(
+                _commit_touches_file(root, branch, file_path) and
+                any(_receipt_authorizes(receipt, branch, active) for receipt in receipts)
+                for branch in branch_commits
+            ):
+                continue
             return True
-    except Exception:
-        pass
+        if _commit_touches_file(root, commit_sha, file_path) and any(
+            _receipt_authorizes(receipt, commit_sha, active) for receipt in receipts
+        ):
+            return True
     return False
 
 
 def cmd_check_files(_args) -> int:
-    """Check a newline-separated list of files read from stdin (pre-push)."""
+    """Check ``local_sha<TAB>remote_sha<TAB>file`` records from pre-push."""
     root = repo_root()
     if not root or not is_aiwf_project(root):
         return 0
-    raw = sys.stdin.read().splitlines()
-    src = sorted({f.strip() for f in raw if f.strip() and is_source_file(root, f.strip())})
+    records = []
+    for line in sys.stdin.read().splitlines():
+        fields = line.split("\t", 2)
+        if len(fields) == 3:
+            local_sha, remote_sha, file_path = (field.strip() for field in fields)
+        else:
+            local_sha, remote_sha, file_path = "", "", line.strip()
+        if file_path and is_source_file(root, file_path):
+            records.append((local_sha, remote_sha, file_path))
+    src = sorted({file_path for _, _, file_path in records})
     if not src:
         return 0
     if _bypassed():
@@ -389,10 +519,10 @@ def cmd_check_files(_args) -> int:
     if ok:
         return 0
 
-    unauthorized = []
-    for f in src:
-        if not _is_commit_or_history_authorized(root, f):
-            unauthorized.append(f)
+    unauthorized = sorted({
+        file_path for local_sha, remote_sha, file_path in records
+        if not local_sha or not _is_commit_or_history_authorized(root, file_path, local_sha, remote_sha)
+    })
 
     if not unauthorized:
         return 0

@@ -116,7 +116,14 @@ class ToolExecutor:
                 raise PermissionError("Sandbox violation: Path is outside the workspace root.")
 
     def classify_error(self, exit_code: int, stderr: str) -> str:
-        if exit_code == -signal.SIGKILL or exit_code == -signal.SIGTERM or exit_code == 124:
+        # Windows does not expose SIGKILL; timeout exit code 124 remains the
+        # portable process-runner contract and negative signals are optional.
+        sigkill = getattr(signal, "SIGKILL", None)
+        sigterm = getattr(signal, "SIGTERM", None)
+        timeout_signals = {
+            -value for value in (sigkill, sigterm) if isinstance(value, int)
+        }
+        if exit_code in timeout_signals or exit_code == 124:
             return "timeout"
         if "permission denied" in stderr.lower() or "not permitted" in stderr.lower():
             return "permission_denied"
@@ -290,8 +297,13 @@ class ToolExecutor:
         except Exception as e:
             print(f"Error during PGID process group cleanup: {e}", file=sys.stderr)
 
-# Global Runtime Validator (Patched subprocess.Popen)
-_original_popen = cast(Any, subprocess.Popen)
+# Global Runtime Validator (Patched subprocess.Popen). Keep one native class
+# sentinel so later imports cannot accidentally treat the guard function as a
+# subclass base on Python 3.14.
+_original_popen = getattr(subprocess, "_aiwf_native_popen", subprocess.Popen)
+if not isinstance(_original_popen, type):
+    raise TypeError("AIWF requires a native subprocess.Popen class")
+setattr(subprocess, "_aiwf_native_popen", _original_popen)
 
 def patched_Popen(*args: Any, **kwargs: Any) -> Any:
     # Allow direct spawns in test environment
@@ -329,5 +341,7 @@ def patched_Popen(*args: Any, **kwargs: Any) -> Any:
 
     return _original_popen(*args, **kwargs)
 
-# Inject patched Popen globally
-subprocess.Popen = cast(Any, patched_Popen)
+# Inject the legacy function only when the class-compatible guard is not
+# already active. The canonical test_enforcer owns the guarded class path.
+if not isinstance(subprocess.Popen, type):
+    subprocess.Popen = cast(Any, patched_Popen)

@@ -31,6 +31,17 @@ runtime_requirements:
 
 > **Philosophy:** Every pixel has purpose. Restraint is luxury. User psychology drives decisions.
 > **Core Principle:** THINK, don't memorize. ASK, don't assume.
+> **Mandatory Responsive Hierarchy:** **Mobile First: `Mobile (375px-480px)` -> `Desktop (1024px-1440px+)` -> `Tablet (768px-1024px)`**. Always design and build from the mobile viewport upwards; never design desktop-first and shrink down.
+
+## Mandatory AI Build Order
+
+For every frontend change, the Agent MUST execute and record the following order:
+
+1. **Mobile**: establish information hierarchy, navigation, readable wrapping, and 44x44px touch targets at 375px and 390px.
+2. **Desktop**: progressively enhance the mobile solution at 1440px and 1920px without changing the essential task flow.
+3. **Tablet**: resolve the intermediate layout at 768px and 820px after mobile and desktop are stable.
+
+The Agent must use the project discovery profile and the runtime `visual e2e` command to perform this sequence. It must not ask the user to type internal commands, mark the task complete from source inspection alone, or claim visual PASS without real browser/CDP evidence.
 
 ---
 

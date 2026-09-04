@@ -21,7 +21,7 @@ class DAGPlannerTests(RuntimeTestBase):
 
     # TC1: Simple 3-task chain sorts correctly
     def test_topological_sort_simple_chain(self):
-        from dag_planner import DAGPlanner
+        from workflow_runtime.application.workflow.dag_planner import DAGPlanner
         planner = DAGPlanner()
         graph = {"T1": [], "T2": ["T1"], "T3": ["T2"]}
         result = planner.topological_sort(graph)
@@ -29,14 +29,14 @@ class DAGPlannerTests(RuntimeTestBase):
 
     # TC2: Cycle raises CyclicDependencyError
     def test_cycle_raises_error(self):
-        from dag_planner import DAGPlanner, CyclicDependencyError
+        from workflow_runtime.application.workflow.dag_planner import DAGPlanner, CyclicDependencyError
         planner = DAGPlanner()
         with self.assertRaises(CyclicDependencyError):
             planner.topological_sort({"A": ["B"], "B": ["A"]})
 
     # TC3: build() on multi-phase fixture produces correct nodes
     def test_build_multi_phase_fixture(self):
-        from dag_planner import DAGPlanner
+        from workflow_runtime.application.workflow.dag_planner import DAGPlanner
         planner = DAGPlanner()
         blueprint = self._load_multi_phase_fixture()
         result = planner.build(blueprint)
@@ -46,7 +46,7 @@ class DAGPlannerTests(RuntimeTestBase):
 
     # TC4: Execution groups from simple chain — 3 separate groups
     def test_execution_groups_chain(self):
-        from dag_planner import DAGPlanner
+        from workflow_runtime.application.workflow.dag_planner import DAGPlanner
         planner = DAGPlanner()
         graph = {"T1": [], "T2": ["T1"], "T3": ["T2"]}
         groups = planner.get_execution_groups(graph)
@@ -55,7 +55,7 @@ class DAGPlannerTests(RuntimeTestBase):
 
     # TC5: Parallel tasks in same group
     def test_parallel_candidates_in_same_group(self):
-        from dag_planner import DAGPlanner
+        from workflow_runtime.application.workflow.dag_planner import DAGPlanner
         planner = DAGPlanner()
         # T1 and T2 have no deps → both in group 0
         graph = {"T1": [], "T2": [], "T3": ["T1", "T2"]}
@@ -65,7 +65,7 @@ class DAGPlannerTests(RuntimeTestBase):
 
     # TC6: validate() detects broken blueprint errors
     def test_validate_broken_blueprint(self):
-        from dag_planner import DAGPlanner
+        from workflow_runtime.application.workflow.dag_planner import DAGPlanner
         planner = DAGPlanner()
         blueprint = self._load_broken_fixture()
         errors = planner.validate(blueprint)
@@ -76,7 +76,7 @@ class DAGPlannerTests(RuntimeTestBase):
 
     # TC7: validate() passes for valid multi-phase blueprint
     def test_validate_valid_blueprint_no_errors(self):
-        from dag_planner import DAGPlanner
+        from workflow_runtime.application.workflow.dag_planner import DAGPlanner
         planner = DAGPlanner()
         blueprint = {
             "implementation_packages": [
@@ -89,7 +89,7 @@ class DAGPlannerTests(RuntimeTestBase):
 
     # TC8: check_parallel_safety — non-overlapping write_sets = True
     def test_parallel_safety_non_overlapping(self):
-        from dag_planner import DAGPlanner
+        from workflow_runtime.application.workflow.dag_planner import DAGPlanner
         planner = DAGPlanner()
         blueprint = {
             "implementation_packages": [
@@ -101,7 +101,7 @@ class DAGPlannerTests(RuntimeTestBase):
 
     # TC9: check_parallel_safety — overlapping write_sets = False
     def test_parallel_safety_overlapping(self):
-        from dag_planner import DAGPlanner
+        from workflow_runtime.application.workflow.dag_planner import DAGPlanner
         planner = DAGPlanner()
         blueprint = {
             "implementation_packages": [
@@ -113,7 +113,7 @@ class DAGPlannerTests(RuntimeTestBase):
 
     # TC10: check_parallel_safety — global file = False
     def test_parallel_safety_global_file(self):
-        from dag_planner import DAGPlanner
+        from workflow_runtime.application.workflow.dag_planner import DAGPlanner
         planner = DAGPlanner()
         blueprint = {
             "implementation_packages": [

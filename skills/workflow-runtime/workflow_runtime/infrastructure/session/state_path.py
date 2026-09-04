@@ -129,7 +129,8 @@ def validate_relative_path(path: str) -> str:
     Raises SecurityError if invalid.
     Returns the normalized relative path.
     """
-    if os.path.isabs(path):
+    # Accept paths authored on either POSIX or Windows hosts.
+    if os.path.isabs(path) or path.startswith(("/", "\\")):
         raise SecurityError(
             f"Absolute path rejected: '{path}'. Only relative paths allowed."
         )

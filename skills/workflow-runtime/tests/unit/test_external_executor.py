@@ -103,9 +103,10 @@ async def test_tool_execution_timeout(tmp_path):
     topics = [e["topic"] for e in events]
     assert "tool.timeout" in topics
 
-def test_global_runtime_validator_intercept():
+def test_global_runtime_validator_intercept(monkeypatch):
     # Triggering direct subprocess spawn call without using ToolExecutor wrapper
     # should raise ForbiddenProcessSpawnError
+    monkeypatch.setenv("AIWF_FORCE_ENFORCE", "true")
     with pytest.raises(ForbiddenProcessSpawnError):
         subprocess.run(["python3", "-c", "print('bypass')"])
         

@@ -2,9 +2,12 @@ from __future__ import annotations
 
 from typing import Any
 
-"""Commands: api-server, doctor, notify, debug, verify, release"""
+"""Commands: api-server, doctor, notify, debug, verify, release, gate"""
 
 import argparse
+import os
+import sys
+from pathlib import Path
 
 from workflow_runtime.presentation.cli.command_interface import CommandMeta
 
@@ -202,6 +205,47 @@ class PostReleaseCommand:
     def print_help(self) -> None: self._parser.print_help()
 
 
+class GateCommand:
+    def meta(self) -> CommandMeta:
+        return CommandMeta(
+            "gate",
+            category="system",
+            help="Run the AIWF source-write gate through the global launcher",
+        )
+
+    def add_parser(self, subparsers: Any) -> argparse.ArgumentParser:
+        p = subparsers.add_parser("gate", help=self.meta().help)
+        p.add_argument("action", nargs="?", choices=["status", "check-git", "check-files", "check-release-tags"], default="status")
+        p.add_argument("path", nargs="?")
+        self._parser = p
+        return p
+
+    def parse(self, argv: list[str]) -> argparse.Namespace: return self._parser.parse_args(argv)
+
+    def run(self, args: argparse.Namespace) -> None:
+        project_root = Path.cwd().resolve()
+        for candidate in (project_root, *project_root.parents):
+            launcher = candidate / "tools" / "aiwf-hooks" / "aiwf_gate_launcher.py"
+            if launcher.is_file():
+                sys.path.insert(0, str(launcher.parent))
+                from aiwf_gate_launcher import run
+                argv = [str(getattr(args, "action", "status"))]
+                if getattr(args, "path", None):
+                    argv.append(str(args.path))
+                raise SystemExit(run(argv))
+        configured = os.environ.get("AIWF_GLOBAL_ROOT") or os.environ.get("AIWF_FRAMEWORK_ROOT")
+        if configured:
+            launcher = Path(configured) / "tools" / "aiwf-hooks" / "aiwf_gate_launcher.py"
+            if launcher.is_file():
+                sys.path.insert(0, str(launcher.parent))
+                from aiwf_gate_launcher import run
+                raise SystemExit(run([str(getattr(args, "action", "status"))]))
+        print("[aiwf-gate] global launcher is unavailable", file=sys.stderr)
+        raise SystemExit(4)
+
+    def print_help(self) -> None: self._parser.print_help()
+
+
 def all_commands() -> list[object]:
     return [
         ApiServerCommand(),
@@ -211,4 +255,5 @@ def all_commands() -> list[object]:
         VerifyCommand(),
         ReleaseCommand(),
         PostReleaseCommand(),
+        GateCommand(),
     ]

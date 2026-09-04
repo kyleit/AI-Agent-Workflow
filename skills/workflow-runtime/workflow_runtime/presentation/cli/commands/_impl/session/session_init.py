@@ -23,6 +23,13 @@ def do_init(args: Any) -> int:
 
     from workflow_runtime.infrastructure.session.session import \
         write_project_permissions_atomic
+    # Establish project identity before memory, RAG, or workflow state is used.
+    # Existing projects remain legacy-copy unless a valid global source exists.
+    try:
+        from workflow_runtime.application.system.project_bridge import ensure_project_bridge
+        ensure_project_bridge(os.environ.get("AIWF_PROJECT_ROOT") or os.getcwd())
+    except (OSError, ValueError):
+        pass
     supplied_config: dict[str, Any] = {}
     if getattr(args, "config", None):
         try:
@@ -368,6 +375,18 @@ def do_init(args: Any) -> int:
     _conv_id       = str(session_dict.get("conversation_id", "N/A") or "N/A")
     _project_id    = str(session_dict.get("project_id", get_project_id()) or get_project_id())
     _version       = str(session_dict.get("project_version", "N/A") or "N/A")
+    # Init may run before discovery, so derive the report identity directly
+    # from the target workspace config instead of the global memory cache.
+    project_config_path = os.path.join(".agents", "project.config.json")
+    try:
+        with open(project_config_path, "r", encoding="utf-8-sig") as stream:
+            project_config = cast(dict[str, Any], json.load(stream))
+        project_data = project_config.get("project", {})
+        if isinstance(project_data, dict):
+            _project_id = str(project_data.get("name") or _project_id)
+            _version = str(project_data.get("version") or _version)
+    except (OSError, ValueError, TypeError):
+        _project_id = os.path.basename(os.path.abspath(".")) or _project_id
 
     _tg_status     = f"RUNNING  (PID {_daemon_pid}, inbox monitor armed)" if _daemon_running else "INACTIVE (inbox monitor not started)"
     _mem_status: str

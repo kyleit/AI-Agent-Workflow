@@ -148,10 +148,12 @@ def execute_runtime_bus_request(payload: dict[str, Any]) -> dict[str, Any]:
         if effort:
             cmd.extend(["--effort", effort])
         work_dir = str(resolve_runtime_working_dir())
-        raw_p, raw_m = prepare_agy_prompt_and_mode(prompt)
+        raw_p, raw_m, aiwf_guard_applied = prepare_agy_prompt_and_mode(
+            prompt,
+            context={"allow_raw_agy_prompt": bool(args.get("allow_raw_agy_prompt", False))},
+        )
         prompt = str(raw_p)
         mode = str(raw_m)
-        aiwf_guard_applied = True
         if mode:
             cmd.extend(["--mode", mode])
         if conversation := str(args.get("conversation", "")).strip():

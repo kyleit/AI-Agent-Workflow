@@ -190,7 +190,7 @@ class TestScriptFirstExecution(unittest.TestCase):
 
     # Scenario 16: CLI JSON validation
     def test_cli_json_output(self):
-        res = run_cli("env", "health"], capture_output=True, text=True)
+        res = run_cli("env", "health", capture_output=True, text=True)
         self.assertEqual(res.returncode, 0)
         data = json.loads(res.stdout)
         self.assertEqual(data["status"], "success")

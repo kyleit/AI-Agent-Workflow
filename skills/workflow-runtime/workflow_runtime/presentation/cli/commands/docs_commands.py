@@ -56,6 +56,8 @@ class MigrateCommand:
         )
         sub = p.add_subparsers(dest="subaction", required=False)
         sub.add_parser("state", help="Migrate state files to new schema")
+        sub.add_parser("to-global", help="Switch a legacy project to global-link metadata without deleting copies")
+        sub.add_parser("rollback", help="Restore the previous project bridge metadata")
         self._parser = p
         return p
 

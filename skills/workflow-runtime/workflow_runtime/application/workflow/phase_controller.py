@@ -9,6 +9,12 @@ from typing import Any, cast
 
 from workflow_runtime.infrastructure.persistence.ledger import (
     PHASE_STATUS_COMPLETED, ImplementationLedger)
+from workflow_runtime.application.verification.frontend_e2e_gate import (
+    CompletionGateBlocked,
+    load_project_profile,
+    load_visual_manifest,
+    validate_frontend_evidence,
+)
 
 
 class PhaseController:
@@ -38,6 +44,10 @@ class PhaseController:
                 "release_allowed": False,
             }
         elif feature_complete:
+            load_ledger = getattr(self._ledger, "load", None)
+            ledger_data = load_ledger() if callable(load_ledger) else {}
+            feature_id = ledger_data.get("feature_id", "") if isinstance(ledger_data, dict) else ""
+            self.require_frontend_visual_pass(str(feature_id))
             return {
                 "next_action": "debug",
                 "next_phase_id": None,
@@ -47,6 +57,20 @@ class PhaseController:
                 ),
                 "release_allowed": False,
             }
+
+    def require_frontend_visual_pass(self, feature_id: str) -> None:
+        """Block feature completion until the project has valid visual evidence."""
+        profile = load_project_profile(self._workspace_root)
+        visual_debug = profile.get("visual_debug", {})
+        visual_contract = profile.get("visual_e2e", {})
+        required = bool(
+            isinstance(visual_debug, dict) and visual_debug.get("e2e_required")
+        ) or bool(isinstance(visual_contract, dict) and visual_contract.get("required"))
+        if not required:
+            return
+        result = validate_frontend_evidence(load_visual_manifest(feature_id, self._workspace_root))
+        if not result.ok:
+            raise CompletionGateBlocked("FRONTEND_E2E_REQUIRED", result.reason)
         else:
             return {
                 "next_action": "done",

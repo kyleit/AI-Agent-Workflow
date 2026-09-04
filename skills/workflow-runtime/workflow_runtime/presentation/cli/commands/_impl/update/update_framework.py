@@ -8,6 +8,7 @@ from typing import Any
 
 from workflow_runtime.application.command_contract import CommandResult, NextAction, emit_result
 from workflow_runtime.application.system.global_inventory import GlobalInstallationInventory
+from workflow_runtime.application.system.global_installation.resolver import resolve_global_source
 from workflow_runtime.application.system.project_sync import ProjectSyncPlanner
 from workflow_runtime.application.system.source_upgrade import (
     DEFAULT_REPOSITORY_URL,
@@ -17,9 +18,9 @@ from workflow_runtime.application.system.source_upgrade import (
 
 
 def _framework_root() -> Path:
-    configured = os.environ.get("AIWF_FRAMEWORK_ROOT")
-    if configured and Path(configured).exists():
-        return Path(configured).resolve()
+    resolved = resolve_global_source(Path.cwd())
+    if resolved is not None:
+        return resolved
     probe = Path(__file__).resolve()
     for parent in probe.parents:
         if (parent / "MANIFEST.json").exists() and (parent / "update.ps1").exists():
@@ -45,6 +46,7 @@ def _source_request(args: argparse.Namespace, root: Path, *, execute: bool) -> U
         dry_run=bool(getattr(args, "dry_run", False)),
         yes=execute or bool(getattr(args, "yes", False)) or bool(getattr(args, "force", False)),
         json_output=bool(getattr(args, "json", False)),
+        allow_dirty=bool(getattr(args, "allow_dirty", False)),
     )
 
 
@@ -102,11 +104,34 @@ def do_update(args: argparse.Namespace) -> int:
     if not update_all and not update_current:
         update_current = True
     root = _framework_root()
+    source_is_cwd = root.resolve() == Path.cwd().resolve()
+    # The framework source is the update authority, not an installed project.
+    # A plain/current update therefore skips self-sync, while --all must still
+    # continue to the registry and synchronize every registered project.
+    if source_is_cwd and not update_all:
+        return _result(
+            args,
+            "skipped",
+            "Framework source repository; update skipped.",
+            {"scope": "source_repository", "reason": "source_repository", "path": str(root.resolve()), "side_effects": []},
+        )
     inventory = GlobalInstallationInventory(root).inspect()
 
     if update_all:
-        global_result = _global_update(args, root)
-        if global_result.get("status") not in {"success", "update_available"}:
+        global_result = (
+            {
+                "status": "skipped",
+                "summary": "Framework source repository; source self-update skipped.",
+                "code": "SOURCE_REPOSITORY",
+                "scope": "source_repository",
+                "reason": "source_repository",
+                "path": str(root.resolve()),
+                "side_effects": [],
+            }
+            if source_is_cwd
+            else _global_update(args, root)
+        )
+        if global_result.get("status") not in {"success", "update_available", "skipped"}:
             code = str(global_result.get("code") or "GLOBAL_UPDATE_FAILED")
             return _result(args, "blocked" if code.endswith("_BLOCKED") or code == "UPGRADE_APPROVAL_REQUIRED" else "failure", "Global framework update did not complete.", {"scope": "all", "global": global_result, "projects": []}, findings=(code,))
         inventory = GlobalInstallationInventory(root).inspect()

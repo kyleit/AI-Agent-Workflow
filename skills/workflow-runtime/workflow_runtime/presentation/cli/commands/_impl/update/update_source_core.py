@@ -4,6 +4,7 @@ import json
 import os
 import re
 from datetime import datetime, timezone
+from pathlib import Path
 from typing import Any, cast
 
 
@@ -47,6 +48,8 @@ def _write_json_file_atomic(path: str, data: dict[str, Any]) -> None:
 
 
 def _sanitize_runtime_string(value: str) -> str:
+    value = re.sub(r"\$\{(?:USERPROFILE|HOME)\}", "[local-env-path-redacted]", value, flags=re.IGNORECASE)
+    value = re.sub(r"%(?:USERPROFILE|HOME)%", "[local-env-path-redacted]", value, flags=re.IGNORECASE)
     value = _LOCAL_FILE_URL_RE.sub("[local-file-url-redacted]", value)
     return _LOCAL_ABS_PATH_RE.sub("[local-path-redacted]", value)
 
@@ -220,12 +223,72 @@ def _runtime_bus_response(
     return response
 
 
-def _audit_workflow_document_quality(base_dir: str) -> dict[str, Any]:
-    return {"status": "valid", "base_dir": base_dir}
+def _audit_workflow_document_quality(base_dir: str, require_standard_chain: bool = False) -> list[str]:
+    root = os.path.abspath(base_dir)
+    issues: list[str] = []
+    docs_root = os.path.join(root, "docs")
+    markdown_files = [
+        os.path.join(dirpath, name)
+        for dirpath, _dirs, names in os.walk(docs_root)
+        for name in names if name.lower().endswith(".md")
+    ] if os.path.isdir(docs_root) else []
+    for filename in markdown_files:
+        try:
+            content = open(filename, "r", encoding="utf-8", errors="replace").read()
+        except OSError:
+            continue
+        relative = os.path.relpath(filename, root).replace("\\", "/")
+        if _LOCAL_FILE_URL_RE.search(content) or _LOCAL_ABS_PATH_RE.search(content):
+            issues.append(f"{relative}: local absolute path or local-file URL")
+        if "\ufffd" in content or "â€“" in content:
+            issues.append(f"{relative}: mojibake")
+        # Lowercase words such as "todo" are valid prose; only explicit marker
+        # spellings are actionable placeholders.
+        if re.search(r"\b(?:TODO|TBD|FIXME)\b", content):
+            issues.append(f"{relative}: contains placeholder marker")
+        if "/blueprints/" in f"/{relative}/" and "```" not in content:
+            issues.append(f"{relative}: missing fenced code block")
+        if "/architecture-reviews/" in f"/{relative}/" and re.search(r"PASS", content, re.IGNORECASE) and "Failed Points" in content and "None" in content:
+            issues.append(f"{relative}: rubber-stamp PASS")
+        if "/reports/" in f"/{relative}/" and "no test files" in content.lower():
+            issues.append(f"{relative}: claims test coverage from no-test-files output")
+        if "/reports/" in f"/{relative}/" and "VERIFIED" in content and not re.search(r"runtime|live|process|http", content, re.IGNORECASE):
+            issues.append(f"{relative}: final completion claim lacks live runtime evidence")
+    if require_standard_chain:
+        features_root = os.path.join(root, "docs", "features")
+        for family in [Path(features_root) / item for item in os.listdir(features_root)] if os.path.isdir(features_root) else []:
+            if not family.is_dir():
+                continue
+            family_files = [path.replace("\\", "/") for path in markdown_files if path.startswith(str(family))]
+            required_entries = ("roadmaps", "architecture-reviews", "brainstorming", "plans", "blueprints/master", "blueprints/phase-NN")
+            for entry in required_entries:
+                if entry == "blueprints/master":
+                    present = any("/blueprints/master/" in path for path in family_files)
+                elif entry == "blueprints/phase-NN":
+                    present = any(re.search(r"/blueprints/phase-\d{2}(?:-[^/]+)?/", path) for path in family_files)
+                else:
+                    present = any(f"/{entry}/" in path for path in family_files)
+                if not present:
+                    issues.append(f"{family.as_posix()}: missing {entry} artifact")
+    return issues
 
 
-def _prepare_agy_prompt_and_mode(raw_prompt: str) -> tuple[str, str]:
-    return raw_prompt, "workflow"
+def _prepare_agy_prompt_and_mode(
+    raw_prompt: str,
+    requested_mode: str = "",
+    context: dict[str, Any] | None = None,
+) -> tuple[str, str, bool]:
+    context = context or {}
+    if context.get("allow_raw_agy_prompt"):
+        return raw_prompt, requested_mode, False
+    if requested_mode == "implement" and context.get("blueprint_approved"):
+        return raw_prompt, requested_mode, False
+    normalized = raw_prompt if raw_prompt.lstrip().startswith("/aiwf") else f"/aiwf {raw_prompt}"
+    guard = (
+        "NO BLUEPRINT - NO CODE. Follow AIWF workflow even when the user did not type /aiwf. "
+        "Do not stop after workflow detection. Never emit local absolute paths or file:/// links.\n\n"
+    )
+    return guard + normalized, "plan", True
 
 
 def _resolve_runtime_working_dir() -> str:

@@ -113,3 +113,27 @@ def test_source_upgrade_fast_forwards_clean_source(tmp_path: Path) -> None:
     assert result.code == "UPDATED"
     assert result.mutation is True
     assert (source / "README.md").read_text(encoding="utf-8") == "v2\n"
+
+
+def test_source_upgrade_allows_dirty_preflight_without_mutation(tmp_path: Path) -> None:
+    source, remote = _source_with_remote(tmp_path)
+    (source / "README.md").write_text("local change\n", encoding="utf-8")
+    service = SourceUpgradeService(str(source), "upstream", str(remote), "main")
+
+    result = service.execute(UpgradeRequest(
+        source_path=str(source),
+        repository_url=str(remote),
+        remote_name="upstream",
+        branch="main",
+        tag=None,
+        check=True,
+        dry_run=False,
+        yes=False,
+        json_output=True,
+        allow_dirty=True,
+    ))
+
+    assert result.status == "success"
+    assert result.code == "DIRTY_SOURCE_INSPECTED"
+    assert result.mutation is False
+    assert (source / "README.md").read_text(encoding="utf-8") == "local change\n"

@@ -35,6 +35,19 @@ foreach ($a in $Remaining) {
 $ScriptDir = Split-Path -Parent $MyInvocation.MyCommand.Path
 if ([string]::IsNullOrEmpty($ScriptDir)) { $ScriptDir = Get-Location }
 
+# Repair the legacy project-local gate path automatically. This is a bridge to
+# the global launcher, not a second source-of-truth gate implementation.
+$ProjectRootForBridge = git rev-parse --show-toplevel 2>$null
+if ([string]::IsNullOrWhiteSpace($ProjectRootForBridge)) { $ProjectRootForBridge = (Get-Location).Path }
+$ProjectGateBridgeSrc = Join-Path $ScriptDir "tools\aiwf-hooks\aiwf_gate_bridge.py"
+$ProjectGateBridgeDir = Join-Path $ProjectRootForBridge "tools\aiwf-hooks"
+$ProjectGateBridge = Join-Path $ProjectGateBridgeDir "aiwf_gate.py"
+if ((Test-Path $ProjectGateBridgeSrc) -and -not (Test-Path $ProjectGateBridge)) {
+    New-Item -ItemType Directory -Path $ProjectGateBridgeDir -Force | Out-Null
+    Copy-Item -Path $ProjectGateBridgeSrc -Destination $ProjectGateBridge -Force
+    if (-not $Json) { Write-Host "[INFO] Created AIWF gate bridge: $ProjectGateBridge" }
+}
+
 # All AIWF update entry points are agent-facing. Delegate to the canonical
 # Python runtime so global-first planning and minimal project sync share one
 # deterministic implementation instead of the legacy wholesale copier below.
@@ -50,6 +63,7 @@ if (Test-Path (Join-Path $RuntimeRoot "workflow_runtime/__main__.py")) {
             "--check" { $runtimeArgs += "--check" }
             "--dry-run" { $runtimeArgs += "--dry-run" }
             "--yes" { $runtimeArgs += "--yes" }
+            "--allow-dirty" { $runtimeArgs += "--allow-dirty" }
         }
     }
     $oldPythonPath = $env:PYTHONPATH
@@ -642,13 +656,13 @@ if ($Json) {
 } else {
     Write-Host "--------------------------------------------------"
     Write-Host "Upgrade Summary:"
-    if ($NewSkills.Count -gt 0) {
+    if (@($NewSkills).Count -gt 0) {
         Write-Host "  New Skills:     $($NewSkills -join ', ')"
     }
-    if ($UpdatedSkills.Count -gt 0) {
+    if (@($UpdatedSkills).Count -gt 0) {
         Write-Host "  Updated Skills: $($UpdatedSkills -join ', ')"
     }
-    if ($RemovedSkills.Count -gt 0) {
+    if (@($RemovedSkills).Count -gt 0) {
         Write-Host "  [DEPRECATED] Legacy skills found in installation target (safe deletion recommended):" -ForegroundColor Yellow
         foreach ($rskill in $RemovedSkills) {
             Write-Host "    - $(Join-Path (Join-Path $InstallTarget $SkillDir) $rskill)" -ForegroundColor Yellow

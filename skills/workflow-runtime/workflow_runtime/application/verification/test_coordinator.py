@@ -6,13 +6,39 @@ import os
 import subprocess
 import time
 import uuid
+from collections.abc import Mapping
 from datetime import datetime
 from typing import Any, cast
 
-from workflow_runtime.application.ports.locator import InfrastructureLocator
-
 from workflow_runtime.application.verification.test_session_coordinator import (
     TestSessionCoordinator)
+from workflow_runtime.infrastructure.session.session import load_session
+from workflow_runtime.infrastructure.session.session_lock import (
+    OSFileLock, load_runtime_policy)
+from workflow_runtime.infrastructure.persistence.lease import is_process_alive
+from workflow_runtime.application.verification.test_runner_utils import kill_process_tree
+
+
+def normalize_pytest_history(history: object, now: float) -> tuple[list[float], int]:
+    """Normalize legacy rate-limit records without trusting persisted shape."""
+    valid: list[float] = []
+    invalid = 0
+    if not isinstance(history, list):
+        return valid, 1
+    for item in history:
+        timestamp: float | None = None
+        if isinstance(item, (int, float)) and not isinstance(item, bool):
+            timestamp = float(item)
+        elif isinstance(item, Mapping):
+            raw_timestamp = item.get("timestamp")
+            if isinstance(raw_timestamp, (int, float)) and not isinstance(raw_timestamp, bool):
+                timestamp = float(raw_timestamp)
+        if timestamp is None:
+            invalid += 1
+            continue
+        if now - timestamp < 300:
+            valid.append(timestamp)
+    return valid, invalid
 
 
 class TestCoordinator(TestSessionCoordinator):
@@ -62,21 +88,22 @@ class TestCoordinator(TestSessionCoordinator):
             return False, "pytest circuit breaker is OPEN"
 
         history_path = os.path.join(self.state_dir, "pytest_history.json")
-        history: list[dict[str, Any]] = []
+        history: object = []
         if os.path.exists(history_path):
             try:
                 with open(history_path, "r", encoding="utf-8") as f:
                     h_data = json.load(f)
-                    if isinstance(h_data, list):
-                        history = cast(list[dict[str, Any]], h_data)
+                    history = h_data
             except Exception:
                 pass
 
         window = 300
-        recent = [h for h in history if now - float(cast(float, h.get("timestamp", 0.0))) < window]
+        recent, invalid_records = normalize_pytest_history(history, now)
         if len(recent) > 30:
             return False, f"Rate limit exceeded: {len(recent)} runs in last 5m (max 30)"
 
+        if invalid_records:
+            return True, f"OK (ignored {invalid_records} malformed history record(s))"
         return True, "OK"
 
     def get_resource_metrics(self) -> dict[str, Any]:
@@ -105,11 +132,11 @@ class TestCoordinator(TestSessionCoordinator):
         return True, "OK"
 
     def run_coordinated(self, cmd: list[str], test_mode: str, test_scope: str, force: bool = False) -> tuple[int, str, str]:
-        policy: dict[str, Any] = cast(dict[str, Any], getattr(InfrastructureLocator, "load_runtime_policy")(validate=True))
+        policy: dict[str, Any] = load_runtime_policy(validate=True)
         te_cfg: dict[str, Any] = cast(dict[str, Any], policy.get("test_execution", {})) if isinstance(policy.get("test_execution"), dict) else {}
 
         # 1. Deduplication key
-        session: dict[str, Any] = cast(dict[str, Any], getattr(InfrastructureLocator, "load_session")())
+        session: dict[str, Any] = load_session()
         project_id = str(session.get("project_id", "ai-skill-framework"))
         work_item_raw = session.get("work_item")
         if isinstance(work_item_raw, dict):
@@ -154,7 +181,7 @@ class TestCoordinator(TestSessionCoordinator):
         caller_pid = os.getpid()
 
         # 2. Acquire lock to modify state
-        lock: Any = getattr(InfrastructureLocator, "OSFileLock")(self.lock_path)
+        lock: Any = OSFileLock(self.lock_path)
         while not lock.acquire():
             time.sleep(0.1)
 
@@ -184,8 +211,7 @@ class TestCoordinator(TestSessionCoordinator):
             active_runs: list[dict[str, Any]] = []
             for run in cast(list[dict[str, Any]], state.get("active_runs", [])):
                 run_pid = cast(int, run.get("pid", -1))
-                is_alive_fn: Any = getattr(InfrastructureLocator, "is_process_alive", None)
-                if callable(is_alive_fn) and is_alive_fn(run_pid):
+                if is_process_alive(run_pid):
                     active_runs.append(run)
             state["active_runs"] = active_runs
 

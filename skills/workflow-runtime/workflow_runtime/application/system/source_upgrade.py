@@ -40,6 +40,7 @@ class UpgradeRequest:
     dry_run: bool
     yes: bool
     json_output: bool
+    allow_dirty: bool = False
 
 
 @dataclass(frozen=True)
@@ -189,6 +190,14 @@ class SourceUpgradeService:
         if not snapshot.target_exists:
             return self._result("failure", "TARGET_REF_NOT_FOUND", snapshot.head_commit, None, False, snapshot.target_ref)
         if snapshot.is_dirty:
+            # Dirty source may be inspected explicitly, but mutation is never
+            # allowed to consume or overwrite an uncommitted working tree.
+            if request.allow_dirty and (request.check or request.dry_run):
+                code = "DIRTY_SOURCE_INSPECTED" if request.check else "DIRTY_SOURCE_DRY_RUN"
+                return self._result(
+                    "success", code, snapshot.head_commit, snapshot.target_commit,
+                    False, None, snapshot, ["dirty_source_preserved"],
+                )
             return self._result("blocked", "DIRTY_SOURCE_BLOCKED", snapshot.head_commit, snapshot.target_commit, False, "Local tracked or untracked changes exist.", snapshot)
         if snapshot.is_detached and not request.tag:
             return self._result("blocked", "DETACHED_SOURCE_BLOCKED", snapshot.head_commit, snapshot.target_commit, False, "Source HEAD is detached.", snapshot)
@@ -225,6 +234,7 @@ class SourceUpgradeService:
         mutation: bool,
         failure: str | None,
         snapshot: RepositorySnapshot | None = None,
+        warnings: list[str] | None = None,
     ) -> UpgradeResult:
         target_ref = snapshot.target_ref if snapshot else f"{self.remote_name}/{self.branch}"
         next_action = None
@@ -245,7 +255,7 @@ class SourceUpgradeService:
             after_commit=after or None,
             mutation=mutation,
             changed_artifacts=["source repository"] if mutation else [],
-            warnings=[],
+            warnings=list(warnings or []),
             next_action=next_action,
             failure=failure,
         )
@@ -271,6 +281,7 @@ def request_from_args(args: Any) -> UpgradeRequest:
         dry_run=bool(getattr(args, "dry_run", False)),
         yes=bool(getattr(args, "yes", False)),
         json_output=bool(getattr(args, "json", False)),
+        allow_dirty=bool(getattr(args, "allow_dirty", False)),
     )
 
 

@@ -31,9 +31,9 @@ class StartCommand:
 
     def parse(self, argv: list[str]) -> argparse.Namespace: return self._parser.parse_args(argv)
 
-    def run(self, args: argparse.Namespace) -> None:
+    def run(self, args: argparse.Namespace) -> int:
         from workflow_runtime.presentation.cli.workflow_runtime import do_start
-        do_start(args)
+        return int(do_start(args) or 0)
 
     def print_help(self) -> None: self._parser.print_help()
 
@@ -186,6 +186,32 @@ class ResumeCommand:
     def print_help(self) -> None: self._parser.print_help()
 
 
+class ContinueCommand:
+    def meta(self) -> CommandMeta:
+        return CommandMeta(
+            "continue",
+            category="session",
+            help="Continue the active workflow until the next hard stop",
+            requires_lock=True,
+        )
+
+    def add_parser(self, subparsers: Any) -> argparse.ArgumentParser:
+        p = subparsers.add_parser("continue", help=self.meta().help)
+        p.add_argument("--budget", type=int, default=32)
+        p.add_argument("--json", action="store_true")
+        self._parser = p
+        return p
+
+    def parse(self, argv: list[str]) -> argparse.Namespace:
+        return self._parser.parse_args(argv)
+
+    def run(self, args: argparse.Namespace) -> int:
+        from workflow_runtime.presentation.cli.workflow_runtime import do_continue_action
+        return int(do_continue_action(args) or 0)
+
+    def print_help(self) -> None: self._parser.print_help()
+
+
 class LockCommand:
     def meta(self) -> CommandMeta:
         return CommandMeta(
@@ -225,5 +251,6 @@ def all_commands() -> list[object]:
         HeartbeatCommand(),
         StatusCommand(),
         ResumeCommand(),
+        ContinueCommand(),
         LockCommand(),
     ]

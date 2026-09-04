@@ -169,7 +169,9 @@ class DAGPlanner:
             raw_writes = pkg.get("write_set")
             writes = [str(w) for w in cast(list[Any], raw_writes)] if isinstance(raw_writes, list) else []
             for path in writes:
-                if os.path.isabs(path):
+                # A blueprint can be authored on POSIX and executed on Windows.
+                # Treat both drive-qualified and slash-rooted paths as absolute.
+                if os.path.isabs(path) or path.startswith(("/", "\\")):
                     errors.append(
                         f"Task '{task_id}' write_set contains absolute path: '{path}'. "
                         f"Only relative paths allowed."

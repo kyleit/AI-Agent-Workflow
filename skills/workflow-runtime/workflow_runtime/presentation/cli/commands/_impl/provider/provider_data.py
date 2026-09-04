@@ -275,7 +275,12 @@ def disable_telegram_autostart(daemon_script: str, log_file: str) -> str:
 
 def start_runtime_bus_daemon() -> tuple[bool, int | None, str]:
     workspace_root = _resolve_aiwf_project_root()
-    state = RuntimeDaemonState(workspace_root=workspace_root)
+    try:
+        state = RuntimeDaemonState(workspace_root=workspace_root)
+    except TypeError:
+        # Keep compatibility with lightweight state doubles and older adapters
+        # that still expose the zero-argument constructor.
+        state = RuntimeDaemonState()
     current = state.inspect()
     if current.get("active"):
         return False, int(cast(int, current.get("pid") or 0)), "already_running"

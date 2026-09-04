@@ -1,7 +1,7 @@
 import json
 import os
 import warnings
-from typing import Any, Optional
+from typing import Any
 
 from workflow_runtime.application.knowledge.cache_manager import CacheManager
 from workflow_runtime.application.knowledge.knowledge_provider_factory import \
@@ -9,7 +9,7 @@ from workflow_runtime.application.knowledge.knowledge_provider_factory import \
 
 
 class KnowledgeAPI:
-    def __init__(self, config_path: str = ".agents/memory.config.json", workspace_root: str = "."):
+    def __init__(self, config_path: str = ".agents/memory/memory.config.json", workspace_root: str = "."):
         self.workspace_root = os.path.abspath(workspace_root)
         self.config_path = os.path.abspath(os.path.join(self.workspace_root, config_path))
 
@@ -89,13 +89,13 @@ class KnowledgeAPI:
         return {"status": "failure", "message": f"Sync not supported for provider '{provider}'"}
 
 # Global helper functions for quick access
-_api_instance: Optional[KnowledgeAPI] = None
+_api_instances: dict[str, KnowledgeAPI] = {}
 
-def _get_api() -> KnowledgeAPI:
-    global _api_instance
-    if _api_instance is None:
-        _api_instance = KnowledgeAPI()
-    return _api_instance
+def _get_api(workspace_root: str | None = None) -> KnowledgeAPI:
+    root = os.path.abspath(workspace_root or os.getcwd())
+    if root not in _api_instances:
+        _api_instances[root] = KnowledgeAPI(workspace_root=root)
+    return _api_instances[root]
 
 def search(query: str, limit: int = 5) -> list[dict[str, Any]]:
     return _get_api().search(query, limit)

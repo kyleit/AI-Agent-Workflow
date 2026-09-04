@@ -413,7 +413,7 @@ class TestRuntimeEngine(unittest.TestCase):
         import subprocess
         # Scenario 1: Raw bug request suggests quick-fix
         save_session_atomic({"checkpoint": 1})
-        res = run_cli("suggest", "--request", "Tôi bị crash ở hàm submit", "--recommend", "quick-fix"],
+        res = run_cli("suggest", "--request", "Tôi bị crash ở hàm submit", "--recommend", "quick-fix",
             capture_output=True, text=True
         )
         print("CLI STDOUT:", res.stdout)
@@ -426,7 +426,7 @@ class TestRuntimeEngine(unittest.TestCase):
         
         # Scenario 2: Raw small feature request suggests quick-feature
         save_session_atomic({"checkpoint": 1})
-        res = run_cli("suggest", "--request", "Thêm cái button xuất báo cáo", "--recommend", "quick-feature"],
+        res = run_cli("suggest", "--request", "Thêm cái button xuất báo cáo", "--recommend", "quick-feature",
             capture_output=True, text=True
         )
         print("S2 STDOUT:", res.stdout)
@@ -437,7 +437,7 @@ class TestRuntimeEngine(unittest.TestCase):
         
         # Scenario 3: Raw large feature request suggests brainstorming
         save_session_atomic({"checkpoint": 1})
-        res = run_cli("suggest", "--request", "Tái cấu trúc lại toàn bộ hệ thống cơ sở dữ liệu", "--recommend", "brainstorming"],
+        res = run_cli("suggest", "--request", "Tái cấu trúc lại toàn bộ hệ thống cơ sở dữ liệu", "--recommend", "brainstorming",
             capture_output=True, text=True
         )
         session = load_session()
@@ -445,7 +445,7 @@ class TestRuntimeEngine(unittest.TestCase):
         
         # Scenario 4: Ambiguous request shows multiple options and stops
         save_session_atomic({"checkpoint": 1})
-        res = run_cli("suggest", "--request", "Làm tính năng gì đó", "--options", "quick-fix,quick-feature,brainstorming"],
+        res = run_cli("suggest", "--request", "Làm tính năng gì đó", "--options", "quick-fix,quick-feature,brainstorming",
             capture_output=True, text=True
         )
         session = load_session()
@@ -453,7 +453,7 @@ class TestRuntimeEngine(unittest.TestCase):
         self.assertEqual(session["suggestion_gate"]["active"], True)
         
         # Scenario 5: User selects option 1 -> quick-fix starts
-        res = run_cli("suggest", "--choose", "1"],
+        res = run_cli("suggest", "--choose", "1",
             capture_output=True, text=True
         )
         session = load_session()
@@ -470,7 +470,7 @@ class TestRuntimeEngine(unittest.TestCase):
                 "status": "waiting_for_user_confirmation"
             }
         })
-        res = run_cli("suggest", "--choose", "2"],
+        res = run_cli("suggest", "--choose", "2",
             capture_output=True, text=True
         )
         session = load_session()
@@ -485,7 +485,7 @@ class TestRuntimeEngine(unittest.TestCase):
                 "status": "waiting_for_user_confirmation"
             }
         })
-        res = run_cli("suggest", "--choose", "3"],
+        res = run_cli("suggest", "--choose", "3",
             capture_output=True, text=True
         )
         session = load_session()
@@ -494,7 +494,7 @@ class TestRuntimeEngine(unittest.TestCase):
         # Scenario 8: Raw release-like request suggests release only if explicit
         save_session_atomic({"checkpoint": 9})
         # If user asks to push release explicitly
-        res = run_cli("suggest", "--request", "Đẩy code release lên production", "--recommend", "implementation-to-release"],
+        res = run_cli("suggest", "--request", "Đẩy code release lên production", "--recommend", "implementation-to-release",
             capture_output=True, text=True
         )
         session = load_session()
@@ -509,7 +509,7 @@ class TestRuntimeEngine(unittest.TestCase):
         # Scenario 10: Explicit /quick-fix bypasses suggestion gate and runs quick-fix normally
         save_session_atomic({"checkpoint": 1, "suggestion_gate": {"active": False}})
         # If running start for quick-fix directly
-        res = run_cli("start", "--skill", "quick-fix", "--command", "fix", "--checkpoint", "2", "--step", "Starting"],
+        res = run_cli("start", "--skill", "quick-fix", "--command", "fix", "--checkpoint", "2", "--step", "Starting",
             capture_output=True, text=True
         )
         for f in [self.lock_file, self.lease_file]:
@@ -526,7 +526,7 @@ class TestRuntimeEngine(unittest.TestCase):
         
         # Scenario 11: Explicit /brainstorm bypasses suggestion gate
         save_session_atomic({"checkpoint": 1})
-        res = run_cli("start", "--skill", "brainstorming", "--command", "brainstorm", "--checkpoint", "2", "--step", "Starting"],
+        res = run_cli("start", "--skill", "brainstorming", "--command", "brainstorm", "--checkpoint", "2", "--step", "Starting",
             capture_output=True, text=True
         )
         for f in [self.lock_file, self.lease_file]:
@@ -540,7 +540,7 @@ class TestRuntimeEngine(unittest.TestCase):
         
         # Scenario 12: Explicit /release is allowed only as explicit release request
         save_session_atomic({"checkpoint": 9, "blueprint": {"approved": True}})
-        res = run_cli("start", "--skill", "implementation-to-release", "--command", "release", "--checkpoint", "10", "--step", "Releasing"],
+        res = run_cli("start", "--skill", "implementation-to-release", "--command", "release", "--checkpoint", "10", "--step", "Releasing",
             capture_output=True, text=True
         )
         for f in [self.lock_file, self.lease_file]:
@@ -557,7 +557,7 @@ class TestRuntimeEngine(unittest.TestCase):
         # S1: Default init sets sandbox
         if os.path.exists(SESSION_FILE):
             os.remove(SESSION_FILE)
-        res = run_cli("init"], capture_output=True, text=True)
+        res = run_cli("init", capture_output=True, text=True)
         self.assertEqual(res.returncode, 0)
         session = load_session()
         self.assertEqual(session.get("permission_mode"), "sandbox")
@@ -567,21 +567,21 @@ class TestRuntimeEngine(unittest.TestCase):
         # S2: Init --permission 1 sets sandbox
         if os.path.exists(SESSION_FILE):
             os.remove(SESSION_FILE)
-        res = run_cli("init", "--permission", "1"], capture_output=True, text=True)
+        res = run_cli("init", "--permission", "1", capture_output=True, text=True)
         session = load_session()
         self.assertEqual(session.get("permission_mode"), "sandbox")
         
         # S3: Init --permission 2 sets full_access
         if os.path.exists(SESSION_FILE):
             os.remove(SESSION_FILE)
-        res = run_cli("init", "--permission", "2"], capture_output=True, text=True)
+        res = run_cli("init", "--permission", "2", capture_output=True, text=True)
         session = load_session()
         self.assertEqual(session.get("permission_mode"), "full_access")
 
         # S3.1: Init --permission 3 with WRONG confirmation fallback to sandbox
         if os.path.exists(SESSION_FILE):
             os.remove(SESSION_FILE)
-        res = run_cli("init", "--permission", "3"],
+        res = run_cli("init", "--permission", "3",
             input="WRONG_CONFIRM\n", capture_output=True, text=True
         )
         session = load_session()
@@ -590,7 +590,7 @@ class TestRuntimeEngine(unittest.TestCase):
         # S3.2: Init --permission 3 with CORRECT confirmation sets unrestricted
         if os.path.exists(SESSION_FILE):
             os.remove(SESSION_FILE)
-        res = run_cli("init", "--permission", "3"],
+        res = run_cli("init", "--permission", "3",
             input="CONFIRM_UNRESTRICTED\n", capture_output=True, text=True
         )
         session = load_session()
@@ -665,7 +665,7 @@ class TestRuntimeEngine(unittest.TestCase):
             
             # Execute compact subcommand
             import subprocess
-            res = run_cli("compact"],
+            res = run_cli("compact",
                 capture_output=True, text=True
             )
             self.assertEqual(res.returncode, 0)
@@ -702,7 +702,7 @@ class TestRuntimeEngine(unittest.TestCase):
 
             # 1. Test execution recommend command
             import subprocess
-            res = run_cli("execution", "recommend", "--mode", "parallel", "--reason", "Independent files"],
+            res = run_cli("execution", "recommend", "--mode", "parallel", "--reason", "Independent files",
                 capture_output=True, text=True
             )
             self.assertEqual(res.returncode, 0)
@@ -716,7 +716,7 @@ class TestRuntimeEngine(unittest.TestCase):
             self.assertFalse(plan.get("approved"))
             
             # 2. Test execution mode command
-            res = run_cli("execution", "mode", "--mode", "parallel", "--approve"],
+            res = run_cli("execution", "mode", "--mode", "parallel", "--approve",
                 capture_output=True, text=True
             )
             # Parallel mode should FAIL now
@@ -724,14 +724,14 @@ class TestRuntimeEngine(unittest.TestCase):
             self.assertIn("Parallel execution mode is disabled. Only sequential execution is supported.", res.stderr)
             
             # 3. Test execution summary command
-            res = run_cli("execution", "summary"],
+            res = run_cli("execution", "summary",
                 capture_output=True, text=True
             )
             self.assertEqual(res.returncode, 0)
             self.assertIn("Sequential Workflow Engine mode", res.stdout)
             
             # 4. Test file lock acquire & release
-            res = run_cli("lock", "acquire", "--task-id", "task-1", "--files", "file1.txt,file2.txt"],
+            res = run_cli("lock", "acquire", "--task-id", "task-1", "--files", "file1.txt,file2.txt",
                 capture_output=True, text=True
             )
             self.assertEqual(res.returncode, 0)
@@ -743,13 +743,13 @@ class TestRuntimeEngine(unittest.TestCase):
             self.assertEqual(locks["file1.txt"].get("task_id"), "task-1")
             
             # Conflict lock acquisition should fail
-            res = run_cli("lock", "acquire", "--task-id", "task-2", "--files", "file1.txt"],
+            res = run_cli("lock", "acquire", "--task-id", "task-2", "--files", "file1.txt",
                 capture_output=True, text=True
             )
             self.assertEqual(res.returncode, 1)
             
             # Release lock
-            res = run_cli("lock", "release", "--task-id", "task-1"],
+            res = run_cli("lock", "release", "--task-id", "task-1",
                 capture_output=True, text=True
             )
             self.assertEqual(res.returncode, 0)
@@ -761,7 +761,7 @@ class TestRuntimeEngine(unittest.TestCase):
             with open(plan_file, "w", encoding="utf-8") as f:
                 json.dump({"tasks": [{"task_id": "t-1"}, {"task_id": "t-2"}]}, f, indent=2)
                 
-            res = run_cli("task", "plan"],
+            res = run_cli("task", "plan",
                 capture_output=True, text=True
             )
             self.assertEqual(res.returncode, 0)
@@ -771,7 +771,7 @@ class TestRuntimeEngine(unittest.TestCase):
                 tasks = json.load(f).get("tasks", {})
             self.assertEqual(tasks.get("t-1", {}).get("status"), "pending")
             
-            res = run_cli("task", "start", "--task-id", "t-1"],
+            res = run_cli("task", "start", "--task-id", "t-1",
                 capture_output=True, text=True
             )
             self.assertEqual(res.returncode, 0)
@@ -808,7 +808,7 @@ class TestRuntimeEngine(unittest.TestCase):
                 
             # 1. Recommend parallel mode - should force to sequential
             import subprocess
-            res = run_cli("execution", "recommend", "--mode", "parallel", "--reason", "Independent"],
+            res = run_cli("execution", "recommend", "--mode", "parallel", "--reason", "Independent",
                 capture_output=True, text=True
             )
             self.assertEqual(res.returncode, 0)
@@ -819,7 +819,7 @@ class TestRuntimeEngine(unittest.TestCase):
             self.assertEqual(plan.get("recommended_mode"), "sequential")
             
             # 2. Mode parallel approval should FAIL (returncode = 1) because parallel is disabled
-            res = run_cli("execution", "mode", "--mode", "parallel", "--approve"],
+            res = run_cli("execution", "mode", "--mode", "parallel", "--approve",
                 capture_output=True, text=True
             )
             self.assertEqual(res.returncode, 1)
@@ -829,7 +829,7 @@ class TestRuntimeEngine(unittest.TestCase):
             with open(session_file, "w", encoding="utf-8") as f:
                 json.dump({"checkpoint": 5, "current_skill": "orchestrator"}, f, indent=2)
                 
-            res = run_cli("execution", "recommend", "--mode", "parallel", "--reason", "Independent"],
+            res = run_cli("execution", "recommend", "--mode", "parallel", "--reason", "Independent",
                 capture_output=True, text=True
             )
             self.assertEqual(res.returncode, 0)
@@ -839,7 +839,7 @@ class TestRuntimeEngine(unittest.TestCase):
             self.assertEqual(plan.get("recommended_mode"), "sequential")
             
             # Mode parallel approval should still FAIL
-            res = run_cli("execution", "mode", "--mode", "parallel", "--approve"],
+            res = run_cli("execution", "mode", "--mode", "parallel", "--approve",
                 capture_output=True, text=True
             )
             self.assertEqual(res.returncode, 1)
@@ -879,7 +879,7 @@ class TestRuntimeEngine(unittest.TestCase):
                 "--status", "running",
                 "--summary", "Checking UI layout design",
                 "--recommendations", '["Fix contrast", "Add spacing"]'
-            ], capture_output=True, text=True)
+            , capture_output=True, text=True)
             self.assertEqual(res.returncode, 0)
             
             # Verify file created
@@ -903,12 +903,12 @@ class TestRuntimeEngine(unittest.TestCase):
                 "--status", "completed",
                 "--summary", "Verifying token leakage",
                 "--recommendations", '["Secure localStorage"]'
-            ], capture_output=True, text=True)
+            , capture_output=True, text=True)
             self.assertEqual(res.returncode, 0)
             
             # 3. Merge agents
             res = run_cli("analysis-agent", "merge"
-            ], capture_output=True, text=True)
+            , capture_output=True, text=True)
             self.assertEqual(res.returncode, 0)
             self.assertIn("UX Specialist", res.stdout)
             self.assertIn("Security Specialist", res.stdout)
@@ -916,7 +916,7 @@ class TestRuntimeEngine(unittest.TestCase):
             
             # 4. Clear agents
             res = run_cli("analysis-agent", "clear"
-            ], capture_output=True, text=True)
+            , capture_output=True, text=True)
             self.assertEqual(res.returncode, 0)
             with open(analysis_file, "r", encoding="utf-8") as f:
                 data = json.load(f)
@@ -956,7 +956,7 @@ class TestRuntimeEngine(unittest.TestCase):
             "--command", "implement",
             "--checkpoint", "6",
             "--step", "Testing implementation start"
-        ], capture_output=True, text=True)
+        , capture_output=True, text=True)
         self.assertNotEqual(res.returncode, 0)
         self.assertIn("Blueprint is not approved", res.stderr)
         
@@ -969,7 +969,7 @@ class TestRuntimeEngine(unittest.TestCase):
             "--command", "implement",
             "--checkpoint", "6",
             "--step", "Testing implementation start"
-        ], capture_output=True, text=True)
+        , capture_output=True, text=True)
         self.assertEqual(res.returncode, 0)
         
         updated_session = load_session()

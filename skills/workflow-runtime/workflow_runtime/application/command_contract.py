@@ -7,6 +7,8 @@ from typing import Mapping, Sequence, TextIO
 
 EXIT_CODES = {
     "success": 0,
+    "skipped": 0,
+    "update_available": 0,
     "invalid_input": 2,
     "blocked": 3,
     "failure": 4,
@@ -40,6 +42,12 @@ class CommandResult:
 
     def payload(self) -> dict[str, object]:
         body = asdict(self)
+        # ``schema`` is the long-lived bridge key; keep the explicit versioned
+        # name as well for newer Agent clients.
+        body["schema"] = self.schema_version
+        data = body.get("data")
+        if isinstance(data, dict) and data.get("reason"):
+            body["reason"] = data["reason"]
         body["artifacts"] = list(self.artifacts)
         body["blocking_findings"] = list(self.blocking_findings)
         body["warnings"] = list(self.warnings)

@@ -3,7 +3,7 @@ from __future__ import annotations
 
 from .db_connections import (_custom_sqlite3_connect,  # pyright: ignore[reportPrivateUsage]
                              connect_db, get_global_db_path,
-                             get_project_db_path)
+                             get_project_db_path, PROJECT_DB)
 from .db_records import (_save_record, batch_insert_provider_requests,
                          clear_qmd_metadata, get_global_summary,
                          get_insight_snapshots, get_project_summary,
@@ -22,6 +22,7 @@ __all__ = [
     "get_project_db_path",
     "connect_db",
     "get_global_db_path",
+    "PROJECT_DB",
     "init_db_schema",
     "_save_record",
     "save_provider_request",

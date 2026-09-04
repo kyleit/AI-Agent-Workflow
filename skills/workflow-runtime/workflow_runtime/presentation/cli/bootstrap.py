@@ -20,6 +20,9 @@ from workflow_runtime.infrastructure.knowledge.providers.vector_provider import 
     VectorDBProvider)
 from workflow_runtime.infrastructure.knowledge.rag_store_adapter import (
     RAGStoreAdapter)
+from workflow_runtime.infrastructure.memory.analyzer import ProjectAnalyzer
+from workflow_runtime.infrastructure.memory.scanner import ProjectScanner
+from workflow_runtime.infrastructure.memory.search import RAGSearcher
 from workflow_runtime.infrastructure.persistence.db_records import (
     save_insight_snapshot)
 from workflow_runtime.infrastructure.persistence.ledger import ImplementationLedger
@@ -67,6 +70,9 @@ def bootstrap_di() -> None:
     setattr(InfrastructureLocator, "RegistryAdapter", RegistryAdapter)
     setattr(InfrastructureLocator, "ExecutionGateway", ExecutionGateway)
     setattr(InfrastructureLocator, "ImplementationLedger", ImplementationLedger)
+    setattr(InfrastructureLocator, "ProjectAnalyzer", ProjectAnalyzer)
+    setattr(InfrastructureLocator, "ProjectScanner", ProjectScanner)
+    setattr(InfrastructureLocator, "RAGSearcher", RAGSearcher)
 
 
 __all__ = ["bootstrap_di"]

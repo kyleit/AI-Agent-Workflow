@@ -1,8 +1,14 @@
 # Changelog
 
-## v6.26.2 - 2026-09-02
+## v6.26.3 - 2026-09-04
 
 _No user-facing changes._
+
+
+## v6.26.2 - 2026-09-02
+
+### Chores
+- sync installed aiwf prompt bridge (1b0fc48a)
 
 
 ## v6.26.1 - 2026-09-02

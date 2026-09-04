@@ -14,6 +14,43 @@ sys.path.append(os.path.dirname(os.path.abspath(__file__)))
 sys.path.append(os.path.join(os.path.dirname(os.path.abspath(__file__)), "memory"))
 
 
+def build_visual_contract(frameworks: list[str]) -> dict[str, Any]:
+    """Return the AI-facing visual contract for the detected UI technology."""
+    names = {str(framework).strip().lower() for framework in frameworks}
+    frontend_names = {
+        "react", "vue", "svelte", "sveltekit", "next.js", "nuxt", "angular", "vite"
+    }
+    desktop_names = {"wails", "tauri", "electron"}
+    mobile_names = {"flutter", "react native"}
+    if names & frontend_names:
+        kind, reason = "frontend", "Detected frontend UI framework"
+    elif names & desktop_names:
+        kind, reason = "desktop", "Detected desktop webview framework"
+    elif names & mobile_names:
+        kind, reason = "mobile", "Detected mobile UI framework"
+    else:
+        return {
+            "required": False,
+            "type": "none",
+            "reason": "No UI framework detected",
+            "e2e_required": False,
+            "mode": "none",
+            "viewport_order": ["mobile", "desktop", "tablet"],
+            "viewports": {"mobile": [375, 390], "desktop": [1440, 1920], "tablet": [768, 820]},
+            "completion_gate": "not_required",
+        }
+    return {
+        "required": True,
+        "type": kind,
+        "reason": reason,
+        "e2e_required": True,
+        "mode": "real-browser",
+        "viewport_order": ["mobile", "desktop", "tablet"],
+        "viewports": {"mobile": [375, 390], "desktop": [1440, 1920], "tablet": [768, 820]},
+        "completion_gate": "required",
+    }
+
+
 def run_discovery() -> dict[str, Any]:
     os.makedirs(".agents", exist_ok=True)
 
@@ -62,34 +99,10 @@ def run_discovery() -> dict[str, Any]:
     if test_tools != ["none"]:
         quality_gates.append("test")
 
-    visual_debug: dict[str, Any] = {
-        "required": False,
-        "type": "none",
-        "reason": "No UI framework detected"
-    }
-
     ui_frameworks = ["React", "Vue", "Svelte", "SvelteKit", "Next.js", "Nuxt", "Angular", "Vite"]
     detected_ui = [fw for fw in ui_frameworks if fw in frameworks]
-    if detected_ui:
-        visual_debug = {
-            "required": True,
-            "type": "frontend",
-            "reason": f"Detected frontend UI framework: {detected_ui[0]}"
-        }
-        quality_gates.append("visual_debug")
-    elif any(fw in frameworks for fw in ["Wails", "Tauri", "Electron"]):
-        visual_debug = {
-            "required": True,
-            "type": "desktop",
-            "reason": "Detected Wails/Tauri/Electron Desktop Framework"
-        }
-        quality_gates.append("visual_debug")
-    elif any(fw in frameworks for fw in ["Flutter", "React Native"]):
-        visual_debug = {
-            "required": True,
-            "type": "mobile",
-            "reason": "Detected mobile framework"
-        }
+    visual_debug = build_visual_contract(frameworks)
+    if visual_debug["required"]:
         quality_gates.append("visual_debug")
 
     recommended_workflow: list[dict[str, Any]] = [
@@ -134,6 +147,7 @@ def run_discovery() -> dict[str, Any]:
         "infra": ["none"],
         "quality_gates": quality_gates,
         "visual_debug": visual_debug,
+        "visual_e2e": dict(visual_debug),
         "recommended_workflow": recommended_workflow
     }
 
@@ -240,4 +254,4 @@ def run_discovery() -> dict[str, Any]:
     }
 
 
-__all__ = ["run_discovery"]
+__all__ = ["build_visual_contract", "run_discovery"]

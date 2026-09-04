@@ -22,7 +22,7 @@ def build_registry() -> CommandRegistry:
         session_commands  # start, step, complete, fail, heartbeat, status, resume, lock
     from . import session_meta_commands  # session
     from . import \
-        system_commands  # api-server, doctor, notify, debug, verify, release
+        system_commands  # api-server, doctor, notify, debug, verify, release, gate
     from . import task_commands  # task, blueprint, suggest, compact,
     from . import telegram_commands  # telegram
     from . import testing_commands  # test

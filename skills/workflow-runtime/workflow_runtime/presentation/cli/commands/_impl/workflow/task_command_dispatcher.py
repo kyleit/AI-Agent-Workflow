@@ -11,6 +11,8 @@ import os
 import subprocess
 import sys
 from datetime import datetime
+from dataclasses import asdict
+from pathlib import Path
 from typing import Any, cast
 
 from workflow_runtime.infrastructure.session.session_io import (
@@ -142,6 +144,75 @@ def do_blueprint(args: Any) -> int:
     if exists and not parsed_id and callable(extract_artifact_fn):
         parsed_id = str(extract_artifact_fn(bp_path))
     bp_work_item_id = str(parsed_id or "")
+    lifecycle: Any = None
+    lifecycle_inspection: Any = None
+    if exists:
+        from workflow_runtime.application.workflow.blueprint_lifecycle import BlueprintLifecycleService
+        lifecycle = BlueprintLifecycleService()
+        try:
+            lifecycle_inspection = lifecycle.inspect(Path(bp_path), work_item_id or bp_work_item_id)
+        except (OSError, ValueError) as exc:
+            return emit_result(CommandResult(
+                command="blueprint",
+                status="invalid_input",
+                summary="Blueprint lifecycle could not validate the requested path.",
+                data={"blueprint": bp_path, "error": str(exc)},
+                blocking_findings=(str(exc),),
+                next_action=NextAction(command="blueprint --path <path> status", required=True),
+            ), sys.stdout)
+    if action == "retire":
+        if not exists:
+            return emit_result(CommandResult(
+                command="blueprint",
+                status="blocked",
+                summary="The blueprint file does not exist.",
+                data={"blueprint": bp_path},
+                blocking_findings=("blueprint_not_found",),
+                next_action=NextAction(command="blueprint --path <path> status", required=True),
+            ), sys.stdout)
+        try:
+            retired = lifecycle.retire(
+                Path(bp_path), work_item_id or bp_work_item_id,
+                str(getattr(args, "reason", "") or ""),
+                str(getattr(args, "replacement", "") or "") or None,
+                actor="user-or-agent",
+            )
+        except ValueError as exc:
+            return emit_result(CommandResult(
+                command="blueprint",
+                status="invalid_input" if str(exc) == "retirement_reason_required" else "blocked",
+                summary="Blueprint retirement was not applied.",
+                data={"blueprint": bp_path, "error": str(exc)},
+                blocking_findings=(str(exc),),
+                next_action=NextAction(command="blueprint --path <path> --reason <reason> retire", required=True),
+            ), sys.stdout)
+        return emit_result(CommandResult(
+            command="blueprint",
+            status="success",
+            summary="Blueprint retired and preserved for audit.",
+            data={"path": bp_path, "work_item_id": retired.work_item_id, "lifecycle": asdict(retired)},
+            artifacts=(bp_path, lifecycle.registry.relative_path(retired.work_item_id)),
+            side_effects=(lifecycle.registry.relative_path(retired.work_item_id),),
+            next_action=NextAction(command="blueprint --path <path> status", required=False),
+        ), sys.stdout)
+    if action == "status":
+        inspection = lifecycle_inspection
+        if inspection is None:
+            return emit_result(CommandResult(
+                command="blueprint", status="blocked", summary="The blueprint file does not exist.",
+                blocking_findings=("blueprint_not_found",),
+                next_action=NextAction(command="blueprint --path <path>", required=True),
+            ), sys.stdout)
+        status = "blocked" if inspection.stale else "success"
+        findings = tuple(inspection.reasons)
+        return emit_result(CommandResult(
+            command="blueprint", status=status,
+            summary="Blueprint lifecycle is stale or retired." if inspection.stale else "Blueprint lifecycle is current.",
+            data={"path": bp_path, "work_item_id": inspection.work_item_id, "lifecycle": inspection.payload()},
+            artifacts=(bp_path, inspection.registry_path),
+            blocking_findings=findings,
+            next_action=NextAction(command="blueprint --path <path> --reason <reason> retire" if inspection.stale else "blueprint --path <path> --approve", required=inspection.stale),
+        ), sys.stdout)
     same_approved_blueprint = (
         current_data.get("path") == bp_path and bool(current_data.get("approved"))
     )
@@ -181,6 +252,15 @@ def do_blueprint(args: Any) -> int:
                 summary="Blueprint scope does not match the active work item.",
                 blocking_findings=(scope_reason or "blueprint_scope_mismatch",),
                 next_action=NextAction(command="blueprint --path <path>", required=True),
+            ), sys.stdout)
+        if lifecycle_inspection is not None and lifecycle_inspection.stale:
+            return emit_result(CommandResult(
+                command="blueprint",
+                status="blocked",
+                summary="Stale or retired Blueprints cannot be approved.",
+                data={"blueprint": bp_path, "lifecycle": lifecycle_inspection.payload()},
+                blocking_findings=tuple(lifecycle_inspection.reasons),
+                next_action=NextAction(command="blueprint --path <fresh-blueprint> --approve", required=True),
             ), sys.stdout)
         bp_data["approved"] = True
         bp_data["approved_at"] = datetime.now().astimezone().isoformat()
@@ -229,6 +309,7 @@ def do_blueprint(args: Any) -> int:
             "approved": bp_data["approved"],
             "work_item_id": bp_data["work_item_id"],
             "action": action,
+            "lifecycle": lifecycle_inspection.payload() if lifecycle_inspection is not None else None,
         },
         artifacts=(bp_path,) if exists else (),
         blocking_findings=findings,
@@ -384,6 +465,25 @@ def do_suggest(args: Any) -> int:
     wf_dict = cast(dict[str, Any], raw_wf) if isinstance(raw_wf, dict) else {}
     raw_bp = session.get("blueprint")
     bp_dict = cast(dict[str, Any], raw_bp) if isinstance(raw_bp, dict) else {}
+    lifecycle_block: dict[str, Any] | None = None
+    if map_cmd(rec_skill) == "implement" and bp_dict.get("path"):
+        try:
+            from workflow_runtime.application.workflow.blueprint_lifecycle import BlueprintLifecycleService
+            raw_suggested_work_item = session.get("work_item")
+            suggested_work_item = cast(dict[str, Any], raw_suggested_work_item) if isinstance(raw_suggested_work_item, dict) else {}
+            lifecycle_result = BlueprintLifecycleService().inspect(
+                Path(str(bp_dict["path"])),
+                str(suggested_work_item.get("id") or session.get("active_workflow") or ""),
+            )
+            if lifecycle_result.stale:
+                lifecycle_block = lifecycle_result.payload()
+                orchestrator_state["routing_status"] = "blocked"
+                orchestrator_state["reason"] = "Blueprint lifecycle requires a fresh artifact before implementation."
+                session["orchestrator"] = orchestrator_state
+                session["suggestion_gate"] = suggestion
+                save_session_atomic(session)
+        except (OSError, ValueError):
+            pass
 
     output_dict = {
         "suggested_next_skill": orchestrator_state.get("recommended_skill") or wf_dict.get("suggested_next_skill") or "",
@@ -393,6 +493,15 @@ def do_suggest(args: Any) -> int:
         ),
         "expected_input": bp_dict.get("path") or ""
     }
+    if lifecycle_block is not None:
+        output_dict.update({
+            "status": "blocked",
+            "blocking_findings": lifecycle_block.get("reasons", []),
+            "next_action": {
+                "command": "blueprint --path <fresh-blueprint> --approve",
+                "required": True,
+            },
+        })
     print(json.dumps(output_dict, indent=2, ensure_ascii=False))
     return 0
 def do_compact(_args: argparse.Namespace) -> None:

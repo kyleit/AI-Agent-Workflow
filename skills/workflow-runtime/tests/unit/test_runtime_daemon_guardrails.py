@@ -1,4 +1,5 @@
 import os
+import json
 import subprocess
 
 import pytest
@@ -18,8 +19,9 @@ def test_workflow_submit_alias_accepts_prompt(monkeypatch):
     )
 
     assert result.returncode == 0
-    assert '"status": "ROUTED"' in result.stdout
-    assert '"next_skill": "quick-fix"' in result.stdout
+    payload = json.loads(result.stdout)
+    assert payload["data"]["status"] == "ROUTED"
+    assert payload["data"]["next_skill"] == "quick-fix"
     assert not os.path.exists("docs/brainstorming/FEAT-312.md")
 
 
@@ -58,10 +60,11 @@ def test_windows_autostart_does_not_create_visible_startup_cmd(monkeypatch, tmp_
 
     monkeypatch.setattr(subprocess, "run", deny_schtasks)
 
-    with pytest.raises(RuntimeError, match="silent Windows autostart"):
-        provider_data.enable_runtime_bus_autostart()
+    result = provider_data.enable_runtime_bus_autostart()
 
-    assert not startup_cmd.exists()
+    assert result == str(startup_cmd)
+    assert startup_cmd.exists()
+    assert "-WindowStyle Hidden" in startup_cmd.read_text(encoding="utf-8")
 
 
 def test_aiwf_skill_requires_native_prompt_gates():

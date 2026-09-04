@@ -11,6 +11,7 @@ import json
 import shutil
 import tempfile
 import unittest
+import subprocess
 
 # Ensure scripts/ is on the path for all test files
 _SCRIPTS_DIR = os.path.abspath(os.path.join(os.path.dirname(__file__), "..", "scripts"))
@@ -18,6 +19,24 @@ if _SCRIPTS_DIR not in sys.path:
     sys.path.insert(0, _SCRIPTS_DIR)
 
 FIXTURES_DIR = os.path.abspath(os.path.dirname(__file__))
+ORIG_CWD = os.getcwd()
+
+
+def run_cli(*args: str, cwd: str | None = None, capture_output: bool = True,
+            text: bool = True, env: dict | None = None, **kwargs):
+    """Compatibility runner for legacy tests imported from this conftest."""
+    if len(args) == 1 and isinstance(args[0], (list, tuple)):
+        args = tuple(str(item) for item in args[0])
+    base_env = os.environ.copy()
+    runtime_root = os.path.abspath(os.path.join(FIXTURES_DIR, "..", ".."))
+    base_env["PYTHONPATH"] = runtime_root + os.pathsep + base_env.get("PYTHONPATH", "")
+    if env:
+        base_env.update(env)
+    return subprocess.run(
+        [sys.executable, "-m", "workflow_runtime", *args],
+        cwd=cwd or os.getcwd(), capture_output=capture_output, text=text,
+        env=base_env, **kwargs,
+    )
 
 
 class RuntimeTestBase(unittest.TestCase):

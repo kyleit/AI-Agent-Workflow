@@ -15,11 +15,11 @@ import time
 from datetime import datetime
 from typing import Any, cast
 
-from workflow_runtime.application.ports.locator import InfrastructureLocator
 from workflow_runtime.application.verification.test_runner_utils import (
     kill_process_tree)
+from workflow_runtime.infrastructure.persistence.lease import is_process_alive
 from workflow_runtime.infrastructure.session.session_lock import (
-    load_runtime_policy)
+    OSFileLock, load_runtime_policy)
 
 
 class TestSessionCoordinator:
@@ -47,13 +47,13 @@ class TestSessionCoordinator:
                 except Exception:
                     pass
 
-            if active_pid and not InfrastructureLocator.is_process_alive(active_pid) and not os.path.exists(outcome_path):
+            if active_pid and not is_process_alive(active_pid) and not os.path.exists(outcome_path):
                 return 1, "", f"Error: Active test run process {active_pid} died unexpectedly."
 
             time.sleep(0.5)
 
     def _wait_in_queue(self, run_id: str, dedup_key: str, outcome_path: str) -> tuple[int, str, str]:
-        lock = InfrastructureLocator.OSFileLock(self.lock_path)
+        lock = OSFileLock(self.lock_path)
 
         while True:
             if os.path.exists(outcome_path):
@@ -75,7 +75,7 @@ class TestSessionCoordinator:
 
                 active_runs: list[dict[str, Any]] = []
                 for r in state.get("active_runs", []):
-                    if InfrastructureLocator.is_process_alive(r["pid"]):
+                    if is_process_alive(r["pid"]):
                         active_runs.append(r)
                 state["active_runs"] = active_runs
 
@@ -270,7 +270,7 @@ class TestSessionCoordinator:
         except Exception:
             pass
 
-        lock = InfrastructureLocator.OSFileLock(self.lock_path)
+        lock = OSFileLock(self.lock_path)
         while not lock.acquire():
             time.sleep(0.1)
         try:

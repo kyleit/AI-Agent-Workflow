@@ -41,6 +41,15 @@ runtime_requirements:
 
 # Skill: test-execution-governance (Test Execution Governance Engine)
 
+## Frontend Browser Matrix
+
+When project discovery identifies a frontend, the test matrix MUST include a
+real browser journey in this order: Mobile 375/390, Desktop 1440/1920, Tablet
+768/820. The journey must capture screenshot SHA-256 evidence after automation,
+validate DOM/layout/touch targets and runtime errors, and rerun after every fix.
+Mock, fake, stub, static-only, or screenshot-only evidence cannot satisfy this
+matrix or authorize verification.
+
 ## 0. Contract & Governance Boundaries
 
 - **Role**: `test_execution_governance_orchestrator`

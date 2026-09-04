@@ -32,7 +32,7 @@ helm upgrade --install msgbus-ws deploy/helm/msgbus-ws \
   --namespace ns-msgbus --create-namespace \
   --set image.tag=1.0.0 \
   --set token="$(openssl rand -hex 24)" \
-  --set ingress.host=msgbus.hngan.it \
+  --set ingress.host=msgbus.klexpress.net \
   --set ingress.tls.clusterIssuer=letsencrypt-prod
 ```
 Print the token you generated (clients need it):
@@ -43,12 +43,12 @@ kubectl -n ns-msgbus get secret msgbus-ws-secret -o jsonpath='{.data.MSGBUS_TOKE
 ## 4. Verify
 ```bash
 kubectl -n ns-msgbus rollout status deploy/msgbus-ws
-curl -s https://msgbus.hngan.it/health          # {"ok":true,...}
+curl -s https://msgbus.klexpress.net/health          # {"ok":true,...}
 ```
 
 ## 5. Connect a client (over the domain, TLS)
 ```bash
-export MSGBUS_HOST=msgbus.hngan.it MSGBUS_TLS=1 MSGBUS_TOKEN=<the-token>
+export MSGBUS_HOST=msgbus.klexpress.net MSGBUS_TLS=1 MSGBUS_TOKEN=<the-token>
 export MSGBUS_FROM="Minh Khôi"
 python scripts/msgbus_client.py listen           # wss:// realtime
 python scripts/msgbus_client.py send "chào" --to "Bảo Ngọc"

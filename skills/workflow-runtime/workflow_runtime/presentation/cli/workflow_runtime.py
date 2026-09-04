@@ -32,8 +32,8 @@ from workflow_runtime.presentation.cli.commands._impl.provider.provider_config i
 from workflow_runtime.presentation.cli.commands._impl.session.session_init import \
     do_init
 from workflow_runtime.presentation.cli.commands._impl.session.session_lifecycle import (
-    do_complete, do_fail, do_heartbeat, do_lock, do_resume_action, do_start,
-    do_status_action, do_step)
+    do_complete, do_continue_action, do_fail, do_heartbeat, do_lock,
+    do_resume_action, do_start, do_status_action, do_step)
 from workflow_runtime.presentation.cli.commands._impl.session.session_meta import (
     do_runtime_bus, do_session_command)
 from workflow_runtime.presentation.cli.commands._impl.shared_helpers import (
@@ -56,7 +56,7 @@ from workflow_runtime.presentation.cli.commands._impl.ui.visual_debug import \
 from workflow_runtime.presentation.cli.commands._impl.update.update_framework import \
     do_update
 from workflow_runtime.presentation.cli.commands._impl.update.update_source_core import \
-    do_update_source
+    do_update_source, _audit_workflow_document_quality, _capture_release_metadata_hashes, _capture_tree_hashes, _diff_tree_hashes, _has_release_metadata_changes, _has_workflow_documentation_changes, _has_workflow_report_changes, _prepare_agy_prompt_and_mode, _runtime_bus_response, _sanitize_artifact_tree, _sanitize_runtime_value, _read_json_file
 from workflow_runtime.presentation.cli.commands._impl.usage.usage_report import \
     do_usage
 from workflow_runtime.presentation.cli.commands._impl.workflow.orchestrator import \
@@ -94,6 +94,7 @@ __all__ = [
     "do_memory_action", "do_implement_action", "do_project_version_cached",
     "do_provider_action", "do_init", "do_complete", "do_fail", "do_heartbeat",
     "do_lock", "do_resume_action", "do_start", "do_status_action", "do_step",
+    "do_continue_action",
     "do_runtime_bus", "do_session_command", "RuntimeInputGate",
     "ensure_project_registered_from_config",
     "extract_work_item_id_from_text", "get_current_project_context",

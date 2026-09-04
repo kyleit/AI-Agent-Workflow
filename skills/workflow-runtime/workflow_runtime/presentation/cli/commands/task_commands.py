@@ -54,11 +54,13 @@ class BlueprintCommand:
     def add_parser(self, subparsers: Any) -> argparse.ArgumentParser:
         p = subparsers.add_parser("blueprint", help=self.meta().help)
         p.add_argument("action", nargs="?",
-                       choices=["generate", "validate", "freeze", "status"])
+                       choices=["generate", "validate", "freeze", "status", "retire"])
         p.add_argument("--path", help="Blueprint file path")
         p.add_argument("--work-item", help="Work item ID")
         p.add_argument("--skill", help="Target skill")
         p.add_argument("--approve", action="store_true", help="Record explicit blueprint approval")
+        p.add_argument("--reason", help="Required for retire; persisted in the lifecycle tombstone")
+        p.add_argument("--replacement", help="Replacement work-item ID for a superseded blueprint")
         p.add_argument("--json", action="store_true", help="Emit a machine-readable result")
         self._parser = p
         return p

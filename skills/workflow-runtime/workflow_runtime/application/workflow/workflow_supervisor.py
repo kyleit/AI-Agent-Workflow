@@ -50,6 +50,22 @@ class WorkflowSupervisor:
             self.emit_notification("info", "Workflow Execution Completed.")
             return current
 
+        if current == "Gate2_BlueprintApproval" and evidence.get("blueprint_file"):
+            try:
+                from pathlib import Path
+                from workflow_runtime.application.workflow.blueprint_lifecycle import BlueprintLifecycleService
+                inspection = BlueprintLifecycleService(Path(self.workspace_root)).inspect(
+                    Path(str(evidence["blueprint_file"])),
+                    str(evidence.get("work_item_id") or evidence.get("feature_id") or "FEAT-UNKNOWN"),
+                )
+                if inspection.stale:
+                    self.emit_notification("blocked", "Blueprint lifecycle is stale or retired; a fresh Blueprint is required.")
+                    self.state_machine.append_event("workflow.blueprint.stale", inspection.payload())
+                    return current
+            except (OSError, ValueError) as exc:
+                self.emit_notification("error", f"Blueprint lifecycle validation failed: {exc}")
+                return current
+
         # Map current state key to registry (case-insensitive key parsing)
         registry_key = current.lower()
         if registry_key not in self.registry:

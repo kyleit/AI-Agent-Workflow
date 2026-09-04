@@ -14,6 +14,11 @@ from .common import to_posix_path, write_json_safe
 FRESHNESS_STATES = {"CURRENT", "STALE", "UNVERIFIED"}
 
 
+def is_non_source_drift(relative_path: str) -> bool:
+    normalized = relative_path.replace("\\", "/").lstrip("./")
+    return normalized.startswith((".agents/memory/", ".agents/runtime/", "docs/"))
+
+
 @dataclass(frozen=True)
 class ProjectContextManifest:
     schema_version: str
@@ -203,7 +208,7 @@ def manifest_freshness(root: Path, manifest: dict[str, Any] | None) -> str:
             relevant_changes = [
                 line for line in status
                 if line[3:].strip().replace("\\", "/")
-                and not line[3:].strip().replace("\\", "/").startswith((".agents/memory/", "docs/"))
+                and not is_non_source_drift(line[3:].strip())
             ]
             if relevant_changes:
                 return "STALE"

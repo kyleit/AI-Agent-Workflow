@@ -39,18 +39,23 @@ class VisualCommand:
             visual_action_p.add_argument("--mode", choices=["cli", "ipc", "daemon"], default="cli")
             visual_action_p.add_argument("--feature-id", type=str, default="FEAT-000")
             visual_action_p.add_argument("--ci", action="store_true")
+        e2e = visual_sub.add_parser("e2e", help="Run the required frontend visual E2E loop")
+        e2e.add_argument("--url", required=True)
+        e2e.add_argument("--feature-id", required=True)
+        e2e.add_argument("--route", default="/")
+        e2e.add_argument("--max-iterations", type=int, default=8)
         self._parser = p
         return p
 
     def parse(self, argv: list[str]) -> argparse.Namespace:
         return self._parser.parse_args(argv)
 
-    def run(self, args: argparse.Namespace) -> None:
+    def run(self, args: argparse.Namespace) -> int:
         if not getattr(args, 'subcommand', None):
-            self._parser.print_help(); return
+            self._parser.print_help(); return 0
         from workflow_runtime.presentation.cli.workflow_runtime import \
             do_visual_action
-        do_visual_action(args)
+        return do_visual_action(args)
 
     def print_help(self) -> None:
         self._parser.print_help()

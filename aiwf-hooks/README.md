@@ -44,7 +44,15 @@ the user, not the AI) runs an unlock command.
 ## CLI (inspection + emergency override)
 
 ```bash
+aiwf gate status                                                   # AI/IDE canonical entrypoint
+
+# Legacy bridge fallback when the installed command is unavailable:
 python .agents/aiwf-hooks/aiwf_gate.py status                      # show gate state
+
+Do not construct `python tools/aiwf-hooks/aiwf_gate.py ...` inside an
+installed project. Bridge-mode projects intentionally do not contain a copied
+`tools/` tree; the global launcher resolves the authoritative gate and keeps
+the project root isolated.
 python .agents/aiwf-hooks/aiwf_gate.py check-file <path>           # exit 0 allow / 1 block
 python .agents/aiwf-hooks/aiwf_gate.py check-git                   # staged files (pre-commit)
 

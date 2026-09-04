@@ -23,6 +23,10 @@ class ConnectorNotFoundError(Exception):
         self.registered = registered
 
 
+class TranscriptNotFoundError(Exception):
+    """Compatibility error for a provider transcript that is not available."""
+
+
 class ConnectorRegistry:
     """
     Registry and router for all provider connectors.

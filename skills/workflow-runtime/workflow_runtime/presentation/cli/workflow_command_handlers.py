@@ -6,11 +6,60 @@ CLI command handlers for AIWF workflow coordination, dispatch, execution, bluepr
 from __future__ import annotations
 
 import argparse
+import json
 import sys
 from typing import Any, cast
 
 
 def handle_dispatch(args: argparse.Namespace) -> int:
+    lane_fields = ["project_id", "workflow_id", "agent_id", "task_id"]
+    lane_values = {field: str(getattr(args, field, "") or "") for field in lane_fields}
+    has_lane = any(lane_values.values()) or bool(getattr(args, "approval_file", None))
+    lane_scheduler: Any = None
+    lane_key: Any = None
+    if has_lane:
+        from workflow_runtime.application.workflow.lane_scheduler import (
+            ExecutionLane, LaneScheduler)
+        from workflow_runtime.domain.approval import ApprovalRecord, LaneKey
+
+        missing = [field for field, value in lane_values.items() if not value]
+        artifact_sha = str(getattr(args, "artifact_sha256", "") or "")
+        approval_file = str(getattr(args, "approval_file", "") or "")
+        if missing or not artifact_sha or not approval_file:
+            print(json.dumps({
+                "status": "invalid_input",
+                "blocking_findings": ["lane_identity_or_approval_missing"],
+                "missing": missing + (["artifact_sha256"] if not artifact_sha else []) + (["approval_file"] if not approval_file else []),
+                "next_action": "provide complete lane metadata and approval file",
+            }, indent=2))
+            return 2
+        try:
+            with open(approval_file, "r", encoding="utf-8") as handle:
+                raw_approval = json.load(handle)
+            if isinstance(raw_approval, dict) and isinstance(raw_approval.get("approval"), dict):
+                raw_approval = raw_approval["approval"]
+            approval = ApprovalRecord.from_dict(cast(dict[str, Any], raw_approval))
+            lane_key = LaneKey(**lane_values)
+            lane_scheduler = LaneScheduler()
+            decision = lane_scheduler.schedule_lanes([
+                ExecutionLane.create(
+                    lane_key,
+                    getattr(args, "write_set", []) or [],
+                    approval,
+                    artifact_sha,
+                )
+            ])
+            if decision.blocked:
+                print(json.dumps(decision.to_dict(), indent=2))
+                return 2
+        except (OSError, ValueError, TypeError, json.JSONDecodeError) as exc:
+            print(json.dumps({
+                "status": "invalid_input",
+                "blocking_findings": ["lane_approval_invalid"],
+                "error": str(exc),
+            }, indent=2))
+            return 2
+
     from workflow_runtime.application.agent.dispatch_service import (
         AgentDispatchService)
     service = AgentDispatchService()
@@ -28,6 +77,8 @@ def handle_dispatch(args: argparse.Namespace) -> int:
         print(res.stdout)
     if res.stderr:
         print(res.stderr, file=sys.stderr)
+    if lane_scheduler is not None and lane_key is not None:
+        lane_scheduler.release(lane_key)
     return 0 if res.status == "SUCCESS" else 1
 
 

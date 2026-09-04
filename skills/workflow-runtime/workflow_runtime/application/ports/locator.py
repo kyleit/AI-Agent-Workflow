@@ -32,6 +32,7 @@ class InfrastructureLocator:
     TelegramDaemon: Any = None
     MemoryScanner: Any = None
     ProjectAnalyzer: Any = None
+    RAGSearcher: Any = None
     RuntimeAPIServer: Any = None
     ERROR_CODES: dict[str, int] = {
         "SESSION_NOT_FOUND": 404,

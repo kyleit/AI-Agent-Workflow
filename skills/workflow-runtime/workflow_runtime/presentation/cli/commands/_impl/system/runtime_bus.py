@@ -9,6 +9,15 @@ from workflow_runtime.infrastructure.session.session_lock import (
     validate_runtime_policy, write_runtime_policy)
 from workflow_runtime.presentation.cli.commands._impl.session.session_meta import (
     do_runtime_bus)
+from workflow_runtime.presentation.cli.commands._impl.provider.provider_data import (
+    enable_runtime_bus_autostart,
+    disable_runtime_bus_autostart,
+    is_runtime_bus_autostart_enabled,
+    restart_runtime_bus_daemon,
+    runtime_bus_autostart_diagnostics,
+    start_runtime_bus_daemon as _start_runtime_bus_daemon,
+    stop_runtime_bus_daemon as _stop_runtime_bus_daemon,
+)
 
 
 def do_runtime_action(args: argparse.Namespace) -> int:
@@ -61,17 +70,19 @@ def do_runtime_action(args: argparse.Namespace) -> int:
 
 def get_runtime_bus_status() -> str:
     """Return current runtime bus status string."""
-    return "unknown"
+    from workflow_runtime.infrastructure.persistence.runtime_daemon_state import RuntimeDaemonState
+    return str(RuntimeDaemonState().inspect().get("state", "STOPPED"))
 
 
 def start_runtime_bus_daemon() -> tuple[bool, int | None, str]:
     """Start the runtime bus daemon. Returns (success, pid, message)."""
-    return False, None, "Runtime bus daemon not available"
+    return _start_runtime_bus_daemon()
 
 
 def stop_runtime_bus_daemon() -> bool:
     """Stop the runtime bus daemon. Returns True if stopped."""
-    return False
+    stopped, _pid = _stop_runtime_bus_daemon()
+    return stopped
 
 
 __all__ = [
@@ -79,4 +90,9 @@ __all__ = [
     "get_runtime_bus_status",
     "start_runtime_bus_daemon",
     "stop_runtime_bus_daemon",
+    "enable_runtime_bus_autostart",
+    "disable_runtime_bus_autostart",
+    "is_runtime_bus_autostart_enabled",
+    "restart_runtime_bus_daemon",
+    "runtime_bus_autostart_diagnostics",
 ]

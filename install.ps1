@@ -310,6 +310,16 @@ if (Test-Path $GateHooksSrc) {
 if (Test-Path $GateCoreSrc) {
     Copy-ItemWithCheck -Src $GateCoreSrc -Dest (Join-Path $InstallTarget "aiwf-hooks") -IsDir $true
 }
+# Keep the historical project-local command working as an agent-facing bridge.
+# Create it only when absent so an existing project customization is preserved.
+$ProjectGateBridgeDir = Join-Path $ProjectRoot "tools\aiwf-hooks"
+$ProjectGateBridgeSrc = Join-Path $GateCoreSrc "aiwf_gate_bridge.py"
+$ProjectGateBridge = Join-Path $ProjectGateBridgeDir "aiwf_gate.py"
+if ((Test-Path $ProjectGateBridgeSrc) -and -not (Test-Path $ProjectGateBridge)) {
+    New-Item -ItemType Directory -Path $ProjectGateBridgeDir -Force | Out-Null
+    Copy-Item -Path $ProjectGateBridgeSrc -Destination $ProjectGateBridge -Force
+    Log-Info "Created AIWF gate bridge: $ProjectGateBridge"
+}
 # Deploy the config-driven release orchestrator (engine + entry) next to each other.
 $RelEngineSrc = Join-Path $ScriptDir "aiwf_release"
 $RelEntrySrc = Join-Path $ScriptDir "release.py"

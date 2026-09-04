@@ -43,10 +43,39 @@ def _manifest(project: Path) -> dict[str, object]:
     return value if isinstance(value, dict) else {}
 
 
+def _bridge_mode(project: Path) -> str:
+    try:
+        value = json.loads((project / ".agents" / "project.json").read_text(encoding="utf-8-sig"))
+        return str(value.get("bridge_mode") or "legacy_copy") if isinstance(value, dict) else "legacy_copy"
+    except (OSError, ValueError):
+        return "legacy_copy"
+
+
+def _frontend_assets_required(project: Path, source_root: Path) -> bool:
+    if project == source_root:
+        return True
+    try:
+        profile = json.loads((project / ".agents" / "project-profile.json").read_text(encoding="utf-8"))
+    except (OSError, ValueError):
+        return False
+    if not isinstance(profile, dict):
+        return False
+    visual_debug = profile.get("visual_debug", {})
+    visual_e2e = profile.get("visual_e2e", {})
+    return bool(
+        isinstance(visual_debug, dict) and visual_debug.get("e2e_required")
+    ) or bool(isinstance(visual_e2e, dict) and visual_e2e.get("required"))
+
+
 class ProjectSyncPlanner:
     def plan(self, project_path: Path | str, snapshot: GlobalInstallationSnapshot) -> ProjectSyncPlan:
         project = Path(project_path).expanduser().resolve()
         data = _manifest(project)
+        if _bridge_mode(project) in {"global_link", "global_adapter"}:
+            return ProjectSyncPlan(
+                str(project), snapshot.available, [], [], [], [],
+                "GLOBAL_BRIDGE_METADATA_ONLY" if snapshot.available else "GLOBAL_INSTALLATION_UNAVAILABLE",
+            )
         raw_required = data.get("required_assets")
         required = [str(item) for item in raw_required if isinstance(item, str)] if isinstance(raw_required, list) else list(snapshot.required_runtime_assets)
         raw_optional = data.get("optional_assets")
@@ -54,6 +83,15 @@ class ProjectSyncPlanner:
         if not snapshot.available or not snapshot.source_path:
             return ProjectSyncPlan(str(project), False, required, [], [], optional, "GLOBAL_INSTALLATION_UNAVAILABLE")
         root = Path(snapshot.source_path)
+        if _frontend_assets_required(project, root):
+            required = list(dict.fromkeys([
+                *required,
+                "skills/frontend-design",
+                "skills/frontend-visual-debug",
+                "skills/blueprint-to-implementation",
+                "skills/debug-to-verify",
+                "skills/test-execution-governance",
+            ]))
         missing: list[str] = []
         changed: list[str] = []
         for asset in required:
@@ -76,7 +114,7 @@ class ProjectSyncPlanner:
         )
 
     def sync(self, plan: ProjectSyncPlan, snapshot: GlobalInstallationSnapshot, dry_run: bool = False) -> list[str]:
-        if dry_run or not snapshot.available or not snapshot.source_path:
+        if dry_run or plan.reason == "GLOBAL_BRIDGE_METADATA_ONLY" or not snapshot.available or not snapshot.source_path:
             return []
         root = Path(snapshot.source_path)
         project = Path(plan.project_path)
@@ -89,6 +127,8 @@ class ProjectSyncPlanner:
             if source.is_dir():
                 for child in source.rglob("*"):
                     if not child.is_file():
+                        continue
+                    if "__pycache__" in child.parts or child.suffix == ".pyc":
                         continue
                     destination = target / child.relative_to(source)
                     destination.parent.mkdir(parents=True, exist_ok=True)

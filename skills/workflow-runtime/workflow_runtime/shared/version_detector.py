@@ -2,6 +2,7 @@ from __future__ import annotations
 
 import json
 import os
+from pathlib import Path
 from typing import Any, cast
 
 _STATE_DIR = os.path.join(".agents", "state")
@@ -39,4 +40,27 @@ def detect_project_version_cached() -> dict[str, Any]:
         if m_ver:
             return {"version": str(m_ver), "source": "MANIFEST.json"}
 
+    return {"version": "0.0.0", "source": "unknown"}
+
+
+def detect_framework_version() -> dict[str, Any]:
+    """Read the framework manifest without inheriting a project's version."""
+    configured = (
+        os.environ.get("AIWF_FRAMEWORK_ROOT"),
+        os.environ.get("AIWF_GLOBAL_ROOT"),
+        os.environ.get("AIWF_GLOBAL_SOURCE"),
+    )
+    candidates: list[Path] = [Path(value) for value in configured if value]
+    candidates.extend(Path(__file__).resolve().parents)
+    seen: set[Path] = set()
+    for root in candidates:
+        for manifest_path in (root / "MANIFEST.json", root / ".agents" / "MANIFEST.json"):
+            resolved = manifest_path.resolve()
+            if resolved in seen or not resolved.is_file():
+                continue
+            seen.add(resolved)
+            manifest = _read_json_safe(str(resolved))
+            version = manifest.get("version")
+            if version:
+                return {"version": str(version), "source": str(resolved)}
     return {"version": "0.0.0", "source": "unknown"}

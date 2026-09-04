@@ -108,7 +108,12 @@ if (`$Command -eq "--update") {
     `$oldFrameworkRoot = `$env:AIWF_FRAMEWORK_ROOT
     `$env:AIWF_FRAMEWORK_ROOT = `$FrameworkRoot
     `$env:PYTHONPATH = Join-Path `$FrameworkRoot "skills/workflow-runtime"
-    python -m workflow_runtime self-upgrade @args
+    `$packagedRuntime = Join-Path `$env:LOCALAPPDATA "aiwf/runtime/aiwf.exe"
+    if (Test-Path `$packagedRuntime) {
+        & `$packagedRuntime self-upgrade @args
+    } else {
+        python -m workflow_runtime self-upgrade @args
+    }
     `$exitCode = `$LASTEXITCODE
     `$env:PYTHONPATH = `$oldPythonPath
     if (`$null -eq `$oldFrameworkRoot) { Remove-Item Env:AIWF_FRAMEWORK_ROOT -ErrorAction SilentlyContinue }
@@ -146,12 +151,15 @@ switch (`$Command) {
     }
     default {
          function Resolve-FrameworkRoot([string]`$FallbackRoot) {
+             # The global runtime is authoritative. A project's .agents mirror
+             # supplies state/assets but must not shadow a newer global CLI.
+             if (Test-Path (Join-Path `$FallbackRoot "skills/workflow-runtime/workflow_runtime/__main__.py")) {
+                 return `$FallbackRoot
+             }
              `$probe = (Get-Location).Path
              while (`$probe) {
                  `$localRuntime = Join-Path `$probe "skills/workflow-runtime"
-                 `$mirrorRuntime = Join-Path `$probe ".agents/skills/workflow-runtime"
                  if (Test-Path (Join-Path `$localRuntime "workflow_runtime/__main__.py")) { return `$probe }
-                 if (Test-Path (Join-Path `$mirrorRuntime "workflow_runtime/__main__.py")) { return `$probe }
                  `$parent = Split-Path -Parent `$probe
                  if (`$parent -eq `$probe) { break }
                  `$probe = `$parent
@@ -164,12 +172,26 @@ switch (`$Command) {
          if (-not (Test-Path (Join-Path `$runtimeRoot "workflow_runtime/__main__.py"))) {
              `$runtimeRoot = Join-Path `$resolvedRoot ".agents/skills/workflow-runtime"
          }
+         function Invoke-AiwfRuntime([string]`$Root, [array]`$RuntimeArgs) {
+             `$runtimeCandidates = @(
+                 `$env:AIWF_RUNTIME_EXECUTABLE,
+                 (Join-Path `$env:LOCALAPPDATA "aiwf/runtime/aiwf.exe"),
+                 (Join-Path `$Root "packaging/aiwf-runtime/dist/aiwf.exe")
+             ) | Where-Object { -not [string]::IsNullOrWhiteSpace(`$_) -and (Test-Path `$_) }
+             if (@(`$runtimeCandidates).Count -gt 0) {
+                 & `$runtimeCandidates[0] @RuntimeArgs
+             } else {
+                 python -m workflow_runtime @RuntimeArgs
+             }
+         }
          `$oldPythonPath = `$env:PYTHONPATH
          `$oldFrameworkRoot = `$env:AIWF_FRAMEWORK_ROOT
          `$env:AIWF_FRAMEWORK_ROOT = `$resolvedRoot
          `$env:PYTHONPATH = `$runtimeRoot
          `$runtimeArgs = @(`$Command) + @(`$args)
-         python -m workflow_runtime @runtimeArgs
+         # Keep runtime stdout visible to IDE/Agent callers. Assigning the
+         # function result would capture JSON receipts and hide them.
+         Invoke-AiwfRuntime `$resolvedRoot `$runtimeArgs
          `$exitCode = `$LASTEXITCODE
          `$env:PYTHONPATH = `$oldPythonPath
          if (`$null -eq `$oldFrameworkRoot) { Remove-Item Env:AIWF_FRAMEWORK_ROOT -ErrorAction SilentlyContinue }

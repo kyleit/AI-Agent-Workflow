@@ -1,6 +1,7 @@
 from __future__ import annotations
 
 import json
+import os
 from typing import Any
 
 from workflow_runtime.presentation.cli.commands._impl.shared_helpers import     _run_core_cli_handler
@@ -15,18 +16,26 @@ def do_knowledge_action(args: Any) -> None:
     action = getattr(args, 'action', None) or getattr(args, 'subaction', None)
 
     if action == "status":
-        prov = kr_api._get_api().active_provider_name  # pyright: ignore[reportPrivateUsage]
-        available = kr_api._get_api().active_provider.is_available()  # pyright: ignore[reportPrivateUsage]
+        from workflow_runtime.infrastructure.memory.search import RAGSearcher
+        searcher = RAGSearcher(root_dir=os.getcwd())
+        health = searcher.local_provider_health()
+        ready = next((item for item in health if item.get("state") == "READY"), None)
         print(json.dumps({
-            "status": "online" if available else "offline",
-            "active_provider": prov,
-            "cache_enabled": kr_api._get_api().cache_enabled  # pyright: ignore[reportPrivateUsage]
+            "status": "online" if ready else "degraded",
+            "active_provider": ready.get("provider") if ready else "none",
+            "selected_provider": ready.get("provider") if ready else "none",
+            "provider_chain": [item.get("provider") for item in health],
+            "provider_health": health,
+            "freshness": searcher._freshness(),
+            "cache_enabled": kr_api._get_api(os.getcwd()).cache_enabled  # pyright: ignore[reportPrivateUsage]
         }, indent=2))
 
     elif action == "search":
         query = str(getattr(args, "query", ""))
         limit = int(str(getattr(args, "limit", 10)))
-        results = kr_api.search(query, limit=limit)
+        from workflow_runtime.infrastructure.memory.search import RAGSearcher
+        response = RAGSearcher(root_dir=os.getcwd()).execute_search(query)
+        results = response.get("results", [])[:limit]
         print(json.dumps(results, indent=2))
 
     elif action in ("refresh", "rebuild"):

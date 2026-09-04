@@ -77,7 +77,12 @@ class CommandRegistry:
 
         parsed = cmd.parse(argv)
 
-        _chdir_to_aiwf_project_root_if_needed()
+        if subcommand == "init":
+            init_path = str(getattr(parsed, "path", ".") or ".")
+            if init_path not in {"", "."}:
+                os.chdir(os.path.abspath(init_path))
+        else:
+            _chdir_to_aiwf_project_root_if_needed()
 
         if cmd.meta().requires_lock:
             from workflow_runtime.infrastructure.session.session import (
@@ -136,35 +141,22 @@ class CommandRegistry:
 
 
 def _is_aiwf_project_root(path: str) -> bool:
-    return os.path.exists(os.path.join(path, ".agents", "AI_RULES.md")) or os.path.exists(os.path.join(path, "AI_RULES.md"))
+    return (
+        os.path.exists(os.path.join(path, ".agents", "AI_RULES.md"))
+        or os.path.exists(os.path.join(path, "AI_RULES.md"))
+        or os.path.exists(os.path.join(path, ".agents", "project.config.json"))
+    )
 
 
 def _resolve_aiwf_project_root() -> str:
     cwd = os.path.abspath(".")
     if _is_aiwf_project_root(cwd):
         return cwd
-    probe = Path(__file__).resolve()
-    for parent in probe.parents:
-        if parent.name == ".agents":
-            return str(parent.parent)
-        if parent.name == "public_export":
-            return str(parent.parent)
-        if _is_aiwf_project_root(str(parent)):
-            return str(parent)
-    try:
-        from workflow_runtime.application.workflow import aiwf_registry
-
-        registry = aiwf_registry.load_registry()
-        raw_projects = registry.get("projects", [])
-        projects: list[Any] = cast(list[Any], raw_projects) if isinstance(raw_projects, list) else []
-        for project in projects:
-            if isinstance(project, dict):
-                proj_dict = cast(dict[str, Any], project)
-                path = str(proj_dict.get("path", "") or "")
-                if path and os.path.exists(path) and _is_aiwf_project_root(path):
-                    return os.path.abspath(path)
-    except Exception:
-        pass
+    explicit_root = os.environ.get("AIWF_PROJECT_ROOT")
+    if explicit_root and _is_aiwf_project_root(os.path.abspath(explicit_root)):
+        return os.path.abspath(explicit_root)
+    # An uninitialized workspace is still a valid caller workspace. Do not
+    # climb into an unrelated parent repository and capture its state.
     return cwd
 
 

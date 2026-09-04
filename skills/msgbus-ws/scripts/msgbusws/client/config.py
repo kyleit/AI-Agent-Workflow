@@ -9,6 +9,8 @@ from pathlib import Path
 from ..domain.identity import generate_vietnamese_name
 from ..domain.ports import MessageCipher
 
+DEFAULT_MSGBUS_HOST = "msgbus.klexpress.net"
+
 
 def _is_true(value) -> bool:
     return str(value).lower() in ("1", "true", "yes", "on")
@@ -55,8 +57,15 @@ def load_config(args) -> ClientConfig:
             return p[key]
         return default
 
-    secure = bool(getattr(args, "tls", False)) or _is_true(os.environ.get("MSGBUS_TLS", "")) or bool(p.get("tls"))
-    host = pick("host", "MSGBUS_HOST", "host", "127.0.0.1")
+    host = pick("host", "MSGBUS_HOST", "host", DEFAULT_MSGBUS_HOST)
+    # The managed public endpoint is TLS-first. Explicit local hosts still
+    # default to plain HTTP, and CLI/env/profile values retain precedence.
+    secure = (
+        bool(getattr(args, "tls", False))
+        or _is_true(os.environ.get("MSGBUS_TLS", ""))
+        or bool(p.get("tls"))
+        or host == DEFAULT_MSGBUS_HOST
+    )
     port = int(pick("port", "MSGBUS_PORT", "port", 443 if secure else 8787))
     token = pick("token", "MSGBUS_TOKEN", "token", "changeme")
     sender = pick("sender", "MSGBUS_FROM", "from", "") or generate_vietnamese_name()

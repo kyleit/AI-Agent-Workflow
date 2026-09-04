@@ -26,7 +26,7 @@ persistence:
 ingress:
   enabled: true
   className: nginx
-  host: msgbus.example.com     # <-- your domain
+  host: msgbus.klexpress.net
   annotations:
     nginx.ingress.kubernetes.io/proxy-read-timeout: "3600"
     nginx.ingress.kubernetes.io/proxy-send-timeout: "3600"

@@ -27,6 +27,8 @@ class UpdateCommand:
         p.add_argument("--dry-run", action="store_true")
         p.add_argument("--check", action="store_true")
         p.add_argument("--yes", action="store_true")
+        p.add_argument("--allow-dirty", action="store_true",
+                       help="Inspect dirty global source without mutating it")
         p.add_argument("--version", help="Target version")
         self._parser = p
         return p

@@ -9,7 +9,7 @@ from datetime import datetime
 from typing import Any, cast
 
 from workflow_runtime.application.ports.locator import InfrastructureLocator
-from workflow_runtime.infrastructure.memory.common import read_text_safe
+from workflow_runtime.infrastructure.memory.common import read_json_safe, read_text_safe, write_json_safe
 
 
 @dataclass(frozen=True)
@@ -28,6 +28,9 @@ class AgentContext:
     freshness: str = "UNVERIFIED"
     context_path: str | None = None
     provider: str = "none"
+    rag_status: str = "unavailable"
+    memory_action: str = "cache"
+    memory_receipt: str = ".agents/state/memory-preflight.json"
     retrieval: tuple[dict[str, Any], ...] = ()
     next_action: str = "read current source authority"
     warnings: tuple[str, ...] = ()
@@ -70,10 +73,10 @@ def ensure_project_memory(root: Path | str) -> MemoryReadiness:
     return MemoryReadiness(status, changed, str(summary), dict(result))
 
 
-def build_agent_context(root: Path | str, query: str) -> AgentContext:
+def build_agent_context(root: Path | str, query: str, memory_readiness: MemoryReadiness | None = None) -> AgentContext:
     root_path = Path(root)
     summary = read_text_safe(_summary_path(root_path))
-    pack = build_context_preflight(query, root_path)
+    pack = build_context_preflight(query, root_path, memory_readiness=memory_readiness)
     evidence = [str(item.get("file", "")) for item in pack["evidence"] if item.get("file")]
     return AgentContext(
         summary=summary,
@@ -82,28 +85,62 @@ def build_agent_context(root: Path | str, query: str) -> AgentContext:
         freshness=str(pack["decision"]["freshness"]),
         context_path=str(pack["manifest"].get("path")) if pack["manifest"].get("path") else None,
         provider=str(pack["decision"].get("provider", "none")),
+        rag_status=str(pack.get("rag_status", "unavailable")),
+        memory_action=str(pack.get("memory_action", "cache")),
+        memory_receipt=str(pack.get("memory_receipt", ".agents/state/memory-preflight.json")),
         retrieval=tuple(pack["evidence"]),
         next_action=str(pack["next_action"]),
         warnings=tuple(pack["warnings"]),
     )
 
 
-def build_context_preflight(request: str, root: Path | str, work_item: str = "", max_results: int = 5, allow_rebuild: bool = False) -> dict[str, Any]:
+def build_context_preflight(
+    request: str,
+    root: Path | str,
+    work_item: str = "",
+    max_results: int = 5,
+    allow_rebuild: bool = False,
+    memory_readiness: MemoryReadiness | None = None,
+) -> dict[str, Any]:
     """Build the bounded context pack every Agent entrypoint receives first."""
     root_path = Path(root).resolve()
     manifest_path = root_path / ".agents" / "memory" / "project-context.json"
     from workflow_runtime.infrastructure.memory.context_manifest import load_context_manifest, manifest_freshness
     manifest = load_context_manifest(manifest_path) or {}
+    if not _summary_path(root_path).exists() or not manifest:
+        memory_readiness = ensure_project_memory(root_path)
+        manifest = load_context_manifest(manifest_path) or {}
     freshness = manifest_freshness(root_path, manifest)
     warnings: list[str] = []
     if not manifest:
         warnings.append("project_context_manifest_missing")
     elif freshness == "STALE":
         warnings.append("project_context_stale_targeted_source_refresh_required")
-    from workflow_runtime.infrastructure.memory.search import RAGSearcher
-    retrieval = RAGSearcher(root_dir=root_path).execute_search(request) if request.strip() else {"results": [], "selected_provider": "none"}
+    rag_searcher_cls: Any = getattr(InfrastructureLocator, "RAGSearcher", None)
+    if request.strip() and callable(rag_searcher_cls):
+        retrieval = rag_searcher_cls(root_dir=root_path).execute_search(request)
+    else:
+        retrieval = {
+            "results": [],
+            "selected_provider": "none",
+            "provider_health": [],
+            "fallback_reason": "rag_adapter_unavailable",
+        }
     evidence = [item for item in retrieval.get("results", []) if isinstance(item, dict)][:max(1, max_results)]
     provider = str(retrieval.get("selected_provider", "none"))
+    health = [item for item in retrieval.get("provider_health", []) if isinstance(item, dict)]
+    health_by_provider = {str(item.get("provider")): item for item in health}
+    local_ready = any(str(item.get("state")) == "READY" for item in health if str(item.get("provider")) != "qdrant")
+    qmd_ready = str(health_by_provider.get("qmd", {}).get("state", "")) == "READY"
+    rag_status = "unavailable"
+    if provider == "qmd" and qmd_ready:
+        rag_status = "ready"
+    elif provider != "none" and local_ready:
+        rag_status = "fallback" if not qmd_ready else "ready"
+    elif provider == "none" and local_ready:
+        rag_status = "fallback"
+    memory_state = read_json_safe(root_path / ".agents" / "memory" / "memory-state.json", {})
+    memory_action = "bootstrap" if memory_readiness and memory_readiness.status == "bootstrapped" else "sync" if memory_readiness and memory_readiness.status == "updated" else "cache"
     next_action = "read only the cited source anchors and verify current source hashes"
     if freshness in {"STALE", "UNVERIFIED"}:
         next_action = "refresh project memory/index, then read only the cited current source anchors"
@@ -114,6 +151,26 @@ def build_context_preflight(request: str, root: Path | str, work_item: str = "",
         "required_source_reads": [str(item.get("anchor") or item.get("file")) for item in evidence],
         "blocking_findings": [],
     }
+    receipt = {
+        "schema_version": "aiwf.context-preflight.v1",
+        "request": request,
+        "work_item": work_item,
+        "memory_action": memory_action,
+        "memory_status": memory_readiness.status if memory_readiness else "cached",
+        "memory_revision": memory_state.get("last_git_hash") if isinstance(memory_state, dict) else None,
+        "rag_provider": provider,
+        "rag_status": rag_status,
+        "retrieval_count": len(evidence),
+        "freshness": freshness,
+        "source_authority": "current_worktree",
+        "generated_at": datetime.now().astimezone().isoformat(),
+        "evidence": [str(item.get("anchor") or item.get("file")) for item in evidence],
+    }
+    receipt_path = root_path / ".agents" / "state" / "memory-preflight.json"
+    try:
+        write_json_safe(receipt_path, receipt)
+    except OSError as exc:
+        warnings.append(f"memory_preflight_receipt_write_failed: {exc}")
     return {
         "request": request,
         "work_item": work_item,
@@ -125,6 +182,10 @@ def build_context_preflight(request: str, root: Path | str, work_item: str = "",
         "warnings": warnings + ([str(retrieval.get("fallback_reason"))] if retrieval.get("fallback_reason") else []),
         "decision": decision,
         "provider_health": retrieval.get("provider_health", []),
+        "memory_action": memory_action,
+        "memory_receipt": ".agents/state/memory-preflight.json",
+        "rag_status": rag_status,
+        "retrieval_count": len(evidence),
         "allow_rebuild": allow_rebuild,
     }
 
@@ -138,6 +199,22 @@ class WorkflowEntryGateway:
         else:
             from workflow_runtime.infrastructure.events.event_logger import EventLogger
             self.logger = EventLogger(workspace_root)
+
+    def discover_project_profile(self) -> dict[str, Any]:
+        """Run project discovery in the requested workspace and return its profile."""
+        from workflow_runtime.application.system.project_discovery import run_discovery
+
+        original_cwd = os.getcwd()
+        target = os.path.abspath(self.workspace_root)
+        try:
+            os.chdir(target)
+            discovery = run_discovery()
+            profile_path = os.path.join(target, ".agents", "project-profile.json")
+            with open(profile_path, "r", encoding="utf-8") as stream:
+                profile = json.load(stream)
+        finally:
+            os.chdir(original_cwd)
+        return {"status": discovery.get("status", "success"), "profile": profile, "discovery": discovery}
 
     def detect_intent(self, request_text: str) -> str:
         """
@@ -247,7 +324,7 @@ class WorkflowEntryGateway:
         """
         Extracts an explicit work item ID, or returns a marker for generation.
         """
-        m = re.search(r"\b(feat-\d+|quick-\d+)\b", request_text, re.IGNORECASE)
+        m = re.search(r"\b(feat-\d+|fix-\d+|quick-\d+)\b", request_text, re.IGNORECASE)
         if m:
             return m.group(1).upper()
         return "FEAT-AUTO"
@@ -328,7 +405,7 @@ class WorkflowEntryGateway:
             return self._read_only_status(req_id, source, active_session_id)
 
         memory_readiness = ensure_project_memory(self.workspace_root)
-        agent_context = build_agent_context(self.workspace_root, request_text)
+        agent_context = build_agent_context(self.workspace_root, request_text, memory_readiness)
         emit_fn: Any = getattr(self.logger, "emit", None)
 
         if callable(emit_fn):
@@ -448,6 +525,10 @@ class WorkflowEntryGateway:
                 "evidence": list(agent_context.evidence),
                 "authority": "current_source_over_memory",
                 "provider": agent_context.provider,
+                "rag_status": agent_context.rag_status,
+                "retrieval_count": len(agent_context.retrieval),
+                "memory_action": agent_context.memory_action,
+                "memory_receipt": agent_context.memory_receipt,
                 "retrieval": list(agent_context.retrieval),
                 "next_action": agent_context.next_action,
                 "warnings": list(agent_context.warnings),

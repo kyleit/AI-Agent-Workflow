@@ -11,10 +11,29 @@ from workflow_runtime.application.security.capability_policy import (
     CapabilityDecision,
     decide_capability,
 )
+from workflow_runtime.application.use_cases.external_executor import (
+    ForbiddenProcessSpawnError,
+)
 
-# Backup original subprocess functions
-_orig_run = subprocess.run
-_orig_Popen = subprocess.Popen
+# Backup original subprocess functions. ``external_executor`` historically
+# installed a function in ``subprocess.Popen`` during import; retain the real
+# class in a module sentinel so the Python 3.14 asyncio-compatible guard can
+# always subclass a class, regardless of import order.
+_orig_run = getattr(subprocess, "_aiwf_native_run", subprocess.run)
+_orig_Popen = getattr(subprocess, "_aiwf_native_popen", None)
+if not isinstance(_orig_Popen, type):
+    _executor_module = sys.modules.get(
+        "workflow_runtime.application.use_cases.external_executor"
+    )
+    _executor_original = getattr(_executor_module, "_original_popen", None)
+    if isinstance(_executor_original, type):
+        _orig_Popen = _executor_original
+if not isinstance(_orig_Popen, type):
+    _orig_Popen = subprocess.Popen
+if not isinstance(_orig_Popen, type):
+    raise TypeError("AIWF requires a native subprocess.Popen class")
+setattr(subprocess, "_aiwf_native_run", _orig_run)
+setattr(subprocess, "_aiwf_native_popen", _orig_Popen)
 
 
 def authorize_validation(capability: Capability, mode: str) -> CapabilityDecision:
@@ -26,6 +45,17 @@ def _autonomous_validation_enabled() -> bool:
     return (
         os.environ.get("AIWF_WORKFLOW_MODE", "").lower() == "autonomous"
         or os.environ.get("AIWF_AUTONOMOUS_VALIDATION") == "true"
+    )
+
+
+def _force_enforcement_enabled() -> bool:
+    return os.environ.get("AIWF_FORCE_ENFORCE") == "true"
+
+
+def _reject_forced_direct_spawn(cmd: Any) -> None:
+    raise ForbiddenProcessSpawnError(
+        "Forbidden process spawn call detected! All OS subprocesses must be created through Tool Executor. "
+        f"(Command: {cmd})"
     )
 
 def is_test_command(cmd: Any) -> bool:
@@ -43,6 +73,12 @@ def is_test_command(cmd: Any) -> bool:
         cmd_list = _strip_agy_prompt_payload(cmd_list)
 
     cmd_str = " ".join(cmd_list).lower()
+
+    # Playwright launches this Node driver for real browser automation. It is
+    # infrastructure, not the Playwright test runner, and must not be blocked
+    # by TESTER ownership enforcement.
+    if "playwright" in cmd_str and "run-driver" in cmd_str:
+        return False
 
     test_executables = [
         "pytest", "unittest", "vitest", "jest", "playwright", "cypress",
@@ -146,7 +182,19 @@ def is_cli_test_gateway_caller() -> bool:
             return True
     return False
 
+
+def is_pytest_worker_bootstrap() -> bool:
+    """Allow xdist/execnet to create its own isolated pytest workers."""
+    if "pytest" not in os.path.basename(sys.argv[0]).lower() and "pytest" not in sys.modules:
+        return False
+    return any(
+        any(token in frame_info.filename.lower() for token in ("execnet", "xdist"))
+        for frame_info in inspect.stack()
+    )
+
 def is_caller_authorized() -> bool:
+    if is_pytest_worker_bootstrap():
+        return True
     stack = inspect.stack()
     for frame_info in stack:
         filename = os.path.basename(frame_info.filename)
@@ -185,6 +233,7 @@ def is_caller_authorized() -> bool:
             "memory_commands.py",
             "knowledge_search.py",
             "knowledge_commands.py",
+            "search.py",
             # Registry dispatch itself
             "registry.py",
             # System & infrastructure modules
@@ -244,9 +293,11 @@ def patched_run(*args: Any, **kwargs: Any) -> Any:
     execution_mode = os.environ.get("AIWF_EXECUTION_MODE") or session_data.get("execution_mode")
     workflow_id = os.environ.get("AIWF_WORKFLOW_ID") or session_data.get("workflow_id")
 
-    force_enforce = os.environ.get("AIWF_FORCE_ENFORCE") == "true"
+    force_enforce = _force_enforcement_enabled()
     bypass_enforcer = os.environ.get("AIWF_TESTING_BYPASS_ENFORCER") == "true"
-    is_testing = bypass_enforcer or (not force_enforce and (
+    if force_enforce:
+        _reject_forced_direct_spawn(cmd)
+    is_testing = not force_enforce and (bypass_enforcer or (
         os.environ.get("AIWF_TESTING") == "true"
         or "PYTEST_CURRENT_TEST" in os.environ
         or "pytest" in os.path.basename(sys.argv[0])
@@ -266,9 +317,9 @@ def patched_run(*args: Any, **kwargs: Any) -> Any:
         print(f"❌ {err_msg}", file=sys.stderr)
         raise PermissionError(err_msg)
 
-    force_enforce = os.environ.get("AIWF_FORCE_ENFORCE") == "true"
+    force_enforce = _force_enforcement_enabled()
     bypass_enforcer = os.environ.get("AIWF_TESTING_BYPASS_ENFORCER") == "true"
-    is_testing = bypass_enforcer or (not force_enforce and (
+    is_testing = not force_enforce and (bypass_enforcer or (
         os.environ.get("AIWF_TESTING") == "true"
         or "PYTEST_CURRENT_TEST" in os.environ
         or "pytest" in os.path.basename(sys.argv[0])
@@ -318,15 +369,19 @@ def patched_Popen(*args: Any, **kwargs: Any) -> Any:
         return cast(Any, _orig_Popen)(*args, **kwargs)
 
     # If not authorized, check strict enforcement or redirect
+    force_enforce = _force_enforcement_enabled()
+    if force_enforce:
+        _reject_forced_direct_spawn(cmd)
+
     strict = os.environ.get("AIWF_STRICT_PROCESS_ENFORCEMENT") == "true"
     if strict:
         err_msg = f"Policy Violation: Direct OS Process creation blocked. All execution must go through Execution Manager. (Command: {cmd})"
         print(f"❌ {err_msg}", file=sys.stderr)
         raise PermissionError(err_msg)
 
-    force_enforce = os.environ.get("AIWF_FORCE_ENFORCE") == "true"
+    force_enforce = _force_enforcement_enabled()
     bypass_enforcer = os.environ.get("AIWF_TESTING_BYPASS_ENFORCER") == "true"
-    is_testing = bypass_enforcer or (not force_enforce and (
+    is_testing = not force_enforce and (bypass_enforcer or (
         os.environ.get("AIWF_TESTING") == "true"
         or "PYTEST_CURRENT_TEST" in os.environ
         or "pytest" in os.path.basename(sys.argv[0])
@@ -363,6 +418,21 @@ def patched_Popen(*args: Any, **kwargs: Any) -> Any:
         text=text, bufsize=bufsize
     )
 
+class _GuardedPopen(_orig_Popen):
+    """Class-compatible proxy required by asyncio on Windows/Python 3.14."""
+
+    def __new__(cls, *args: Any, **kwargs: Any) -> Any:
+        # asyncio.windows_utils.Popen subclasses subprocess.Popen. Returning a
+        # separate native instance for that subclass breaks Proactor pipe
+        # handles, so only direct calls go through the enforcement wrapper.
+        if cls is _GuardedPopen:
+            return patched_Popen(*args, **kwargs)
+        return _orig_Popen.__new__(cls)
+
+
 def patch_subprocess():
+    # Several runtime modules import this guard. Repeated patching must retain
+    # the native class contract required by asyncio on Windows.
     subprocess.run = patched_run
-    subprocess.Popen = patched_Popen
+    if subprocess.Popen is not _GuardedPopen:
+        subprocess.Popen = _GuardedPopen

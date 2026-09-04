@@ -5,6 +5,7 @@ import json
 import os
 import sys
 from datetime import datetime
+from pathlib import Path
 from typing import Any, cast
 
 from workflow_runtime.infrastructure.events.heartbeat import print_heartbeat
@@ -37,11 +38,36 @@ def do_start(args: Any) -> int:
     wi_dict = cast(dict[str, Any], raw_wi) if isinstance(raw_wi, dict) else {}
     work_item_id = str(wi_dict.get("id", "unknown"))
 
+    # A workflow submit can be intentionally stateless for IDE/Agent callers.
+    # Recover its active work item from the workspace-local workflow state so
+    # the next automatic action cannot lose project identity.
+    workflow_state_path = Path(".agents/state/workflow.json")
+    workflow_state: dict[str, Any] = {}
+    if workflow_state_path.is_file():
+        try:
+            loaded = json.loads(workflow_state_path.read_text(encoding="utf-8"))
+            if isinstance(loaded, dict):
+                workflow_state = cast(dict[str, Any], loaded)
+        except (OSError, ValueError):
+            workflow_state = {}
+    active_workflow = str(workflow_state.get("active_workflow") or "")
+    if work_item_id == "unknown" and active_workflow:
+        work_item_id = active_workflow
+        session["work_item"] = {
+            "type": "FEAT" if active_workflow.upper().startswith("FEAT-") else "WORK",
+            "id": active_workflow,
+            "title": str(workflow_state.get("title") or "Active workflow"),
+        }
+        session["active_workflow"] = active_workflow
+
     skill_name = str(getattr(args, "skill", "") or "")
     chk_val = getattr(args, "checkpoint", None)
     checkpoint = int(chk_val) if chk_val is not None else None
 
     if not WorkflowLease.acquire(skill_name, work_item_id):
+        # Keep the structured JSON contract on stdout while retaining a concise
+        # diagnostic for legacy IDE terminals that only surface stderr.
+        print("Another workflow is already running. Do not continue.", file=sys.stderr)
         return emit_result(CommandResult(
             command="start",
             status="blocked",
@@ -55,14 +81,27 @@ def do_start(args: Any) -> int:
         raw_bp = session.get("blueprint")
         bp: dict[str, Any] = cast(dict[str, Any], raw_bp) if isinstance(raw_bp, dict) else {}
         scope_ok, scope_reason = validate_blueprint_scope(bp, work_item_id)
-        if not bool(bp.get("approved")) or not scope_ok:
+        lifecycle = None
+        lifecycle_reason = ""
+        if bool(bp.get("path")):
+            try:
+                from workflow_runtime.application.workflow.blueprint_lifecycle import BlueprintLifecycleService
+                lifecycle = BlueprintLifecycleService().inspect(Path(str(bp["path"])), work_item_id)
+                if lifecycle.stale:
+                    lifecycle_reason = lifecycle.reasons[0] if lifecycle.reasons else "blueprint_stale"
+            except (OSError, ValueError) as exc:
+                lifecycle_reason = str(exc)
+        if not bool(bp.get("approved")) or not scope_ok or lifecycle_reason:
             WorkflowLease.release()
             return emit_result(CommandResult(
                 command="start",
                 status="blocked",
                 summary="Implementation cannot start until the approved Blueprint is in scope.",
-                blocking_findings=("blueprint_not_approved", scope_reason),
-                next_action=NextAction(command="blueprint --path <path> --approve", required=True),
+                blocking_findings=tuple(filter(None, ("blueprint_not_approved", scope_reason, lifecycle_reason))),
+                next_action=NextAction(
+                    command="blueprint --path <fresh-blueprint> --approve" if lifecycle_reason else "blueprint --path <path> --approve",
+                    required=True,
+                ),
             ), sys.stdout)
 
     session["status"] = "in_progress"
@@ -87,6 +126,13 @@ def do_start(args: Any) -> int:
 
     update_context_health(session)
     save_session_atomic(session)
+
+    if work_item_id != "unknown":
+        workflow_state["active_workflow"] = work_item_id
+        workflow_state["active_phase"] = str(session.get("active_phase") or workflow_state.get("active_phase") or "brainstorming")
+        workflow_state["status"] = "IN_PROGRESS"
+        workflow_state_path.parent.mkdir(parents=True, exist_ok=True)
+        workflow_state_path.write_text(json.dumps(workflow_state, indent=2, ensure_ascii=False), encoding="utf-8")
 
     try:
         from workflow_runtime.shared.utils import log_phase_transition_event
@@ -326,6 +372,16 @@ def do_resume_action(_args: Any) -> None:
         sys.exit(1)
 
 
+def do_continue_action(args: Any) -> int:
+    from workflow_runtime.application.command_contract import emit_result
+    from workflow_runtime.presentation.cli.commands._impl.workflow.continuation import (
+        continue_workflow,
+    )
+
+    result = continue_workflow(Path.cwd(), int(getattr(args, "budget", 32)))
+    return emit_result(result, sys.stdout)
+
+
 __all__ = [
     "do_start",
     "do_step",
@@ -335,4 +391,5 @@ __all__ = [
     "do_lock",
     "do_status_action",
     "do_resume_action",
+    "do_continue_action",
 ]

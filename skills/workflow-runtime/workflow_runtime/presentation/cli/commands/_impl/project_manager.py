@@ -118,6 +118,14 @@ def do_implement_action(args: Any) -> int:
     work_item = raw_work_item if isinstance(raw_work_item, dict) else {}
     work_item_id = str(work_item.get("id") or session.get("active_workflow") or "FEAT-060")
     findings: list[str] = []
+    lifecycle_inspection = None
+    try:
+        from workflow_runtime.application.workflow.blueprint_lifecycle import BlueprintLifecycleService
+        lifecycle_inspection = BlueprintLifecycleService().inspect(blueprint_path, work_item_id)
+        if lifecycle_inspection.stale:
+            findings.extend(lifecycle_inspection.reasons)
+    except (OSError, ValueError) as exc:
+        findings.append(str(exc))
     if not approved:
         findings.append("blueprint_not_approved_for_path")
     if dry_run:
@@ -137,7 +145,11 @@ def do_implement_action(args: Any) -> int:
     )
     next_action = NextAction(
         skill="blueprint-to-implementation" if not findings else None,
-        command="implement --blueprint <path>" if not findings else "blueprint --path <path> --approve",
+        command="implement --blueprint <path>" if not findings else (
+            "blueprint --path <fresh-blueprint> --approve"
+            if lifecycle_inspection is not None and lifecycle_inspection.stale
+            else "blueprint --path <path> --approve"
+        ),
         required=bool(findings),
     )
     return emit_result(CommandResult(
@@ -151,6 +163,7 @@ def do_implement_action(args: Any) -> int:
             "implementation_entry": "ready" if not findings else "blocked",
             "phases": phases,
             "receipt": str(receipt_path) if receipt_path else None,
+            "lifecycle": lifecycle_inspection.payload() if lifecycle_inspection is not None else None,
         },
         blocking_findings=tuple(findings),
         artifacts=(str(receipt_path),) if receipt_path else (),

@@ -25,8 +25,7 @@ REFS="$(cat)"
 # 1. Release tag backstop: v* tag must have a release receipt.
 printf '%s\n' "$REFS" | "$PY" "$GATE" check-release-tags || exit 1
 
-# 2. Source-write backstop: collect files in the outgoing commits.
-files=""
+# 2. Source-write backstop: pass commit identity with every outgoing file.
 printf '%s\n' "$REFS" | while IFS= read -r line; do
   set -- $line
   local_sha=$2; remote_sha=$4
@@ -34,9 +33,14 @@ printf '%s\n' "$REFS" | while IFS= read -r line; do
   case "$local_sha" in *0000000000000000000000000000000000000000) continue ;; esac
   case "$remote_sha" in
     ""|*0000000000000000000000000000000000000000)
-      git show --name-only --pretty=format: --diff-filter=ACM "$local_sha" 2>/dev/null ;;
+      names="$(git log --format=%H "$local_sha" 2>/dev/null | while IFS= read -r commit_sha; do
+        git diff-tree --root --no-commit-id --name-only -r "$commit_sha" 2>/dev/null
+      done | sort -u)" ;;
     *)
-      git diff --name-only --diff-filter=ACM "$remote_sha..$local_sha" 2>/dev/null ;;
+      names="$(git diff --name-only --diff-filter=ACM "$remote_sha..$local_sha" 2>/dev/null)" ;;
   esac
+  printf '%s\n' "$names" | while IFS= read -r file; do
+    [ -n "$file" ] && printf '%s\t%s\t%s\n' "$local_sha" "$remote_sha" "$file"
+  done
 done | "$PY" "$GATE" check-files
 exit $?

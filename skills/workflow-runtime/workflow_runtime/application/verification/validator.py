@@ -7,6 +7,7 @@ from datetime import datetime, timezone
 from typing import Any, cast
 
 from workflow_runtime.domain.security.safe_writes_io import read_json_safe
+from workflow_runtime.shared.git_utils import get_git_info, get_version_info
 
 _STATE_DIR = os.path.join(".agents", "state")
 _CONTEXT_PATH = os.path.join(_STATE_DIR, "context.json")

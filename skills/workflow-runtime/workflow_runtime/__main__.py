@@ -31,6 +31,12 @@ def main(argv: Sequence[str] | None = None) -> int:
 
     args_list: list[str] = list(argv) if argv is not None else sys.argv[1:]
 
+    if args_list and args_list[0] in ("--version", "-V", "version"):
+        from workflow_runtime.shared.version_detector import detect_framework_version
+        version = detect_framework_version()
+        print(f"aiwf {version['version']}")
+        return 0
+
     # No args or --help -> top-level help
     if not args_list or args_list[0] in ("--help", "-h"):
         registry.help()

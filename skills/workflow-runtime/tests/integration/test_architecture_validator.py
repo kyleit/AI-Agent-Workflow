@@ -4,15 +4,7 @@ import unittest
 import shutil
 import tempfile
 import yaml
-import sys
-import os
-
-# Thêm thư mục scripts vào sys.path để tránh lỗi import dấu gạch ngang
-scripts_dir = os.path.abspath(os.path.join(os.path.dirname(__file__), "..", "..", "scripts"))
-if scripts_dir not in sys.path:
-    sys.path.insert(0, scripts_dir)
-
-from architecture_validator import (
+from workflow_runtime.application.verification.architecture_validator import (
     parse_python_imports,
     parse_go_imports,
     run_architecture_validation,

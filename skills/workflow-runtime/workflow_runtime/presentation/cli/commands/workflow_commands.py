@@ -104,6 +104,13 @@ class DispatchCommand:
         p.add_argument("--agent", required=True, help="Agent role to dispatch")
         p.add_argument("--task", help="Task description")
         p.add_argument("--skill", help="Target skill")
+        p.add_argument("--project-id", help="Lane project identity")
+        p.add_argument("--workflow-id", help="Lane workflow identity")
+        p.add_argument("--agent-id", help="Lane Agent identity")
+        p.add_argument("--task-id", help="Lane task identity")
+        p.add_argument("--write-set", action="append", default=[], help="Repo-relative path owned by this lane (repeatable)")
+        p.add_argument("--approval-file", help="Lane-scoped approval JSON file")
+        p.add_argument("--artifact-sha256", help="SHA-256 of the approved blueprint")
         self._parser = p
         return p
 

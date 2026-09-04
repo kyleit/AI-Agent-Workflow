@@ -61,6 +61,16 @@ runtime_requirements:
 
 # Skill: debug-to-verify (Verification Governance Engine)
 
+## Frontend Verification Gate
+
+For any project profile with `visual_debug.e2e_required=true` or
+`visual_e2e.required=true`, verification MUST consume and validate
+`docs/aiwf-runs/<work-item-id>/08-visual/frontend-e2e.json`. The required order
+is Mobile -> Desktop -> Tablet, with real browser automation, screenshots,
+layout/DOM checks, interaction evidence, and zero console/network errors.
+Without a validator `PASS`, verification is `BLOCKED` with next action
+`fix_source_and_rerun`; it must never be converted to PASS by manual user input.
+
 ## 0. Contract & Governance Boundaries
 
 - **Role**: `verification_governance_orchestrator`

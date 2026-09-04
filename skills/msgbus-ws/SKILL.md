@@ -111,7 +111,7 @@ bằng 1 lệnh, khỏi gõ env. Profile do `init` ghi ra (token có `chmod 600`
 ```bash
 # 1 lần: lưu profile (trỏ tới bus đã deploy)
 python skills/msgbus-ws/scripts/msgbus_client.py \
-  --host msgbus.example.invalid --tls --token <MSGBUS_TOKEN> [--e2ee-key <KEY>] init
+  --host msgbus.klexpress.net --tls --token <MSGBUS_TOKEN> [--e2ee-key <KEY>] init
 # hoặc gọn: skills/msgbus-ws/bin/aiwf-msgbus init --host ... --tls --token ...
 
 # từ đó về sau — không cần env:
@@ -122,7 +122,9 @@ skills/msgbus-ws/bin/aiwf-msgbus upload ./a.zip
 
 Thứ tự ưu tiên cấu hình: **CLI flag > env `MSGBUS_*` > profile `~/.aiwf/msgbus.json` > default**.
 Đổi vị trí profile bằng env `MSGBUS_CONFIG`. Mẫu: `skills/aiwf/config/msgbus.example.json`.
-`launcher aiwf-msgbus` (bash + `.ps1`) chỉ gọi `msgbus_client.py` nên chạy mọi nơi có python.
+Mặc định client dùng endpoint managed **`msgbus.klexpress.net:443` qua TLS**; override
+được bằng CLI flag, `MSGBUS_*`, hoặc profile. `launcher aiwf-msgbus` (bash + `.ps1`)
+chỉ gọi `msgbus_client.py` nên chạy mọi nơi có Python.
 
 ---
 

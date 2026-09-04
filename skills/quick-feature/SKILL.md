@@ -93,6 +93,7 @@ This Skill MUST strictly adhere to the global policies defined in [AI_RULES.md](
 - **Testing Policy** (Section 8) - Run compilation, build, and tests, halting on failures.
 - **Blueprint Mandatory Execution Policy** (Section 13) - Never implement without approved Blueprint.
 - **Skill Suggestion Gate Policy** (Section 14) - Clear raw requests are routed automatically by `workflow-coordinator`; do not ask the user to confirm the selected Skill unless routing is genuinely ambiguous.
+- Plain chat approval is not valid and must not be used to unlock implementation; use the workflow approval receipt for the active work item.
 - **Workspace Permission Mode Policy** (Section 15) - Sandbox mode is default; ask user to choose sandbox or full_access at init.
 - **Physical Repository Write Policy** (Section 33) — All file changes MUST be physical writes to project filesystem. IDE proposed changes, Apply button, code blocks in chat are FORBIDDEN.
 - **Global Multi-Language Strict Engineering Policy** (Section 32) — Enforce 3-layer policy model.

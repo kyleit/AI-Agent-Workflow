@@ -60,6 +60,15 @@ code_block_gate_required: true
 implementation_entry_receipt_required: true
 ---
 
+## Frontend Completion Guard
+
+When `.agents/project-profile.json` reports `visual_debug.e2e_required=true` or
+`visual_e2e.required=true`, implementation completion MUST automatically invoke
+the structured `visual e2e` runner. The implementation handoff is blocked with
+`FRONTEND_E2E_REQUIRED` until the final manifest passes the real-browser
+Mobile -> Desktop -> Tablet matrix with zero unresolved findings. A prose claim,
+static screenshot, mock adapter, or user-run command is not completion evidence.
+
 > [!CRITICAL]
 > **Cross-Skill Strict Policy & Physical Write Invariant**:
 > **STRICT ENGINEERING POLICY IS AUTHORITATIVE.**

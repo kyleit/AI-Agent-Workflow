@@ -108,6 +108,12 @@ class GlobalInstallationInventory:
 
     @staticmethod
     def _asset_source(root: Path, asset: str) -> Path:
+        # Enforcement tooling is authoritative under root/tools even though
+        # installed projects expose it under .agents for hooks and agents.
+        if asset in {"aiwf-hooks", "githooks"}:
+            tooling = root / "tools" / asset
+            if tooling.exists():
+                return tooling
         direct = root / asset
         if direct.exists():
             return direct

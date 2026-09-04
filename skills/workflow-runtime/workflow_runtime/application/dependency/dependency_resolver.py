@@ -397,6 +397,17 @@ def _resolve_environment_snapshot(skill_name: str, mode: str) -> DependencyResul
     return read_environment_snapshot()
 
 
+def compute_deps_fix_diff(skill_name: str) -> dict[str, Any] | None:
+    """Compatibility entrypoint kept beside the canonical resolver API."""
+    from workflow_runtime.application.dependency.environment_inspector import compute_deps_fix_diff as _compute
+    return _compute(skill_name)
+
+
+def generate_safe_requirements_template(skill_name: str) -> str:
+    from workflow_runtime.application.dependency.environment_inspector import generate_safe_requirements_template as _generate
+    return _generate(skill_name)
+
+
 __all__ = [
     "SUPPORTED_KEYS",
     "DEPRECATED_KEYS",
@@ -414,4 +425,6 @@ __all__ = [
     "parse_requirements",
     "validate_requirements",
     "resolve_requirements",
+    "compute_deps_fix_diff",
+    "generate_safe_requirements_template",
 ]
