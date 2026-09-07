@@ -38,6 +38,15 @@ class ReleaseGate:
             impl_cls = ImplementationLedger
         self._ledger: Any = impl_cls(workspace_root) if callable(impl_cls) else None
 
+    def require_explicit_confirmation(self, confirmation: str, phase_id: str) -> bool:
+        """Accept only the exact partial-release confirmation for one phase."""
+        match = re.fullmatch(self.PARTIAL_CONFIRM_PATTERN, confirmation)
+        if not match or match.group(1) != phase_id:
+            raise PartialReleaseConfirmationError(
+                "Partial release confirmation does not match the requested phase."
+            )
+        return True
+
     def validate(self) -> tuple[bool, str]:
         failures: list[str] = []
 

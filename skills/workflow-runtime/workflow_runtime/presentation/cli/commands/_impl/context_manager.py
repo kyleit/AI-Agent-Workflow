@@ -10,6 +10,7 @@ from typing import Any, cast
 from workflow_runtime.infrastructure.session.session_io import load_session
 from workflow_runtime.infrastructure.session.state_sync import (
     deconstruct_state, read_json_safe, write_json_atomic)
+from workflow_runtime.infrastructure.events.event_logger import EventLogger
 
 
 def _state_read_json(path: str) -> dict[str, Any]:
@@ -172,12 +173,8 @@ def do_state_action(args: Any) -> None:
             if not isinstance(payload, dict):
                 payload = {"value": payload}
             event_type = str(getattr(args, "type", "") or "")
-            event: dict[str, Any] = {
-                "event_id": f"evt-{datetime.now().strftime('%Y%m%d%H%M%S')}",
-                "event_type": event_type,
-                "payload": payload
-            }
-            print(json.dumps({"status": "success", "event_id": event["event_id"], "event_type": event["event_type"]}, indent=2))
+            event_id = EventLogger(workspace_root=os.getcwd()).emit(event_type, payload)
+            print(json.dumps({"status": "success", "event_id": event_id, "event_type": event_type}, indent=2))
         except Exception as e:
             print(json.dumps({"status": "failed", "error": str(e)}, indent=2))
             sys.exit(1)

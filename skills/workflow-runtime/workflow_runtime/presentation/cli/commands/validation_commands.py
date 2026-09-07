@@ -85,7 +85,9 @@ class StateCommand:
         sub.add_parser("snapshot", help="Snapshot")
         sub.add_parser("migrate", help="Migrate")
         sub.add_parser("aggregate", help="Aggregate")
-        sub.add_parser("emit", help="Emit")
+        emit = sub.add_parser("emit", help="Emit")
+        emit.add_argument("--type", required=True, help="Event type")
+        emit.add_argument("--payload", default="{}", help="JSON event payload")
         sub.add_parser("diagnose", help="Diagnose")
         self._parser = p
         return p

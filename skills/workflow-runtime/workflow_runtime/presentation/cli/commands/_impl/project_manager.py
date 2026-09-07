@@ -86,7 +86,71 @@ def _implementation_entry_receipt(
     return receipt, receipt_path
 
 
+def _run_legacy_implement_action(action: str) -> int:
+    """Keep documented inspection and recovery actions independent of a blueprint."""
+    from workflow_runtime.infrastructure.persistence.ledger import ImplementationLedger
+
+    ledger = ImplementationLedger()
+    if action == "status":
+        data = ledger.load()
+        gate = ledger.get_release_gate_status()
+        print(json.dumps({
+            "status": "ok",
+            "current_phase": data.get("current_phase"),
+            "phases": ledger.get_phase_summary(),
+            "release_allowed": bool(gate.get("release_allowed")),
+            "release_block_reason": str(gate.get("release_block_reason", "")),
+        }))
+        return 0
+
+    if action == "resume":
+        from workflow_runtime.application.workflow.phase_controller import PhaseController
+
+        next_phase = PhaseController().resume_next_phase()
+        if next_phase is None:
+            print(json.dumps({
+                "status": "nothing_to_resume",
+                "message": "No pending implementation phase found.",
+            }))
+            return 1
+        print(json.dumps({"status": "resumed", "next_phase": next_phase}))
+        return 0
+
+    if action == "abort":
+        from workflow_runtime.infrastructure.execution.worker_manager import WorkerManager
+        from workflow_runtime.infrastructure.persistence.lock_manager import LockManager
+
+        worker_manager = WorkerManager()
+        lock_manager = LockManager()
+        workers = worker_manager.get_active_workers()
+        locks = lock_manager.get_active_locks()
+        for worker in workers:
+            worker_id = str(worker.get("worker_id", ""))
+            if worker_id:
+                worker_manager.terminate_orphan(worker_id, force=True)
+        for lock in locks:
+            task_id = str(lock.get("task_id", ""))
+            if task_id:
+                lock_manager.release(task_id)
+        print(json.dumps({
+            "status": "aborted",
+            "workers_killed": len(workers),
+            "locks_released": len(locks),
+        }))
+        return 0
+
+    print(json.dumps({
+        "status": "blocked",
+        "message": "partial-release requires an approved phase confirmation.",
+    }))
+    return 1
+
+
 def do_implement_action(args: Any) -> int:
+    action = str(getattr(args, "action", "") or "").strip()
+    if action:
+        return _run_legacy_implement_action(action)
+
     blueprint_value = str(getattr(args, "blueprint", "") or "").strip()
     dry_run = bool(getattr(args, "dry_run", False))
     if not blueprint_value:

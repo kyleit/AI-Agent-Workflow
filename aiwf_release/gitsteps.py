@@ -61,6 +61,59 @@ def head_sha(root: Path) -> str:
     ).stdout.strip()
 
 
+def _normalise_relative(value: str) -> str:
+    value = value.replace("\\", "/")
+    while value.startswith("./"):
+        value = value[2:]
+    return value
+
+
+def validate_repo_relative_scope(repo: Path, files: list[str], *, allow_empty: bool = False) -> list[str]:
+    """Validate and normalise an explicit release scope for one repository."""
+    repo = repo.resolve()
+    result: set[str] = set()
+    for raw in files:
+        if not isinstance(raw, str) or not raw.strip():
+            continue
+        relative = _normalise_relative(raw.strip())
+        candidate = (repo / relative).resolve()
+        if Path(relative).is_absolute() or relative == ".." or relative.startswith("../"):
+            raise GitError(f"release scope must be repository-relative: {raw}")
+        if repo != candidate and repo not in candidate.parents:
+            raise GitError(f"release scope escapes repository: {raw}")
+        if not candidate.exists():
+            raise GitError(f"release scope path does not exist: {raw}")
+        result.add(relative)
+    if not result and not allow_empty:
+        raise GitError("release scope is empty")
+    return sorted(result)
+
+
+def staged_files(repo: Path) -> list[str]:
+    out = subprocess.run(
+        ["git", "diff", "--cached", "--name-only", "--diff-filter=ACM"],
+        cwd=str(repo), capture_output=True, text=True,
+    )
+    return sorted({_normalise_relative(line.strip()) for line in out.stdout.splitlines() if line.strip()})
+
+
+def dirty_files(repo: Path) -> list[str]:
+    """Return tracked and untracked project files without parsing porcelain columns."""
+    tracked = subprocess.run(
+        ["git", "diff", "--name-only", "HEAD"],
+        cwd=str(repo), capture_output=True, text=True,
+    )
+    untracked = subprocess.run(
+        ["git", "ls-files", "--others", "--exclude-standard"],
+        cwd=str(repo), capture_output=True, text=True,
+    )
+    return sorted({
+        _normalise_relative(line.strip())
+        for line in (tracked.stdout + "\n" + untracked.stdout).splitlines()
+        if line.strip()
+    })
+
+
 def stage_submodule_pointer(root: Path, sub_path: str, dry: bool) -> str:
     return _run(root, ["add", sub_path], dry)
 
@@ -74,11 +127,22 @@ def repo_release(
     branch: str,
     force: bool,
     dry: bool,
+    files: list[str] | None = None,
 ) -> dict:
-    """add -A, commit (skip if nothing to commit), tag, push branch + tag."""
+    """Release only an explicit file scope, then commit, tag, and push."""
     repo = (root / path).resolve()
     logs: list[str] = []
-    logs.append(_run(repo, ["add", "-A"], dry))
+    if files is None:
+        raise GitError("release scope must be explicit")
+    safe_files = validate_repo_relative_scope(repo, files, allow_empty=True)
+    existing_staged = set(staged_files(repo)) if not dry else set()
+    outside = sorted(existing_staged - set(safe_files))
+    if outside:
+        logs.append(_run(repo, ["reset", "--", *outside], dry))
+    if safe_files:
+        logs.append(_run(repo, ["add", "--", *safe_files], dry))
+    else:
+        logs.append(f"({repo}) nothing selected for staging")
 
     # commit only if there is something staged
     if dry:
@@ -103,5 +167,6 @@ def repo_release(
         "path": path,
         "tag": tag,
         "sha": None if dry else head_sha(repo),
+        "files": safe_files,
         "logs": logs,
     }

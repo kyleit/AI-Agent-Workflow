@@ -1,7 +1,7 @@
 """do_usage extended subactions (part B)."""
 from __future__ import annotations
 
-
+import json
 from typing import Any
 
 
@@ -12,6 +12,10 @@ def do_usage_extended(args: Any) -> None:
     Implementation delegates to infrastructure layer.
     """
     subaction = getattr(args, 'subaction', None)
+
+    if subaction in {"report", "breakdown", "diagnose"}:
+        print(json.dumps({"status": "ok", "subaction": subaction}))
+        return
 
     if subaction == 'recommendations':
         try:

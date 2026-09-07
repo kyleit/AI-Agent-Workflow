@@ -272,9 +272,9 @@ DRAFT → CURRENT_STATE_ANALYZING → TARGET_STATE_DESIGNING → CONTRACTS_DEFIN
      `aiwf prompt select --question "Approve this Technical Design Blueprint for implementation?" --options "Continue|Cancel" --default "Cancel"`
    - If the fallback bridge returns `PROMPT_UNAVAILABLE`, no prompt was shown and no user selection occurred.
    - After invoking the prompt (via native tool or CLI), **immediately stop calling ALL tools and end the turn unconditionally**.
-   - **CHAT APPROVAL IS NEVER VALID AS A FALLBACK.** An Agent MUST NOT self-declare bridge unavailability to unlock implementation.
-   - The ONLY valid approval evidence is: native `ask_question` returning `Continue`, the fallback UI/CLI bridge returning `Continue`, OR the user explicitly writing the exact phrase **`APPROVE BLUEPRINT`** (case-insensitive) in a **new user turn** after structured prompting was unavailable.
-   - Any other chat text (`ok`, `proceed`, `yes`, `go ahead`) is **NOT** a valid approval.
+   - **CHAT APPROVAL IS A BOUND FALLBACK ONLY.** An Agent MUST NOT self-declare bridge unavailability. When the runtime has returned `PROMPT_UNAVAILABLE` (or the host explicitly reports both structured prompt paths unavailable), a clear approval in the next user turn (`approve`, `approved`, `yes`, `continue`, or `ok`) is valid only if the exact pending request, gate, active work item, and Blueprint all match.
+   - Valid evidence is native `ask_question` returning `Continue`, the fallback UI/CLI bridge returning `Continue`, or a bound chat fallback that is immediately persisted through `aiwf blueprint --path <path> --approve` and verified through its scoped approval artifact and command receipt.
+   - Any chat approval without that pending-request and artifact-binding evidence is **NOT** valid.
    - Claiming bridge unavailability in the same turn as the Blueprint presentation and then continuing to implement is a **CRITICAL VIOLATION**.
 3. **Blueprint Freeze**: Once approved, issues `blueprint-freeze.schema.json` recording full SHA-256 hash, baseline commit, allowed/protected files, and freeze timestamp.
 4. **Implementation Entry Gate**: Passes handoff (`schemas/implementation-entry-handoff.schema.json`) to `IMPLEMENTATION_ENTRY` gate.

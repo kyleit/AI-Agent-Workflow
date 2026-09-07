@@ -31,6 +31,7 @@ import datetime as _dt
 import hashlib
 import json
 import os
+import re
 import subprocess
 import sys
 from pathlib import Path
@@ -72,6 +73,7 @@ EXCLUDED_PREFIXES = (
 )
 
 AUTH_REL = ".agents/state/source-write-authorization.json"
+RELEASE_AUTH_REL = ".agents/state/release/authorization.json"
 WORKFLOW_REL = ".agents/state/workflow.json"
 APPROVALS_REL = ".agents/state/approvals.json"
 CODE_BLOCK_GATE_STATE_REL = ".agents/state/code-block-gate.json"
@@ -157,6 +159,90 @@ def _parse_iso(s: str) -> _dt.datetime | None:
         return _dt.datetime.fromisoformat(s)
     except Exception:
         return None
+
+
+def _repo_file(root: Path, relative: object) -> Path | None:
+    if not isinstance(relative, str) or not relative.strip():
+        return None
+    value = relative.replace("\\", "/").strip()
+    if value.startswith("/") or value == ".." or value.startswith("../"):
+        return None
+    candidate = (root / value).resolve()
+    if candidate != root and root not in candidate.parents:
+        return None
+    return candidate if candidate.is_file() else None
+
+
+def _scope_digest(root: Path, scope: object) -> str:
+    paths = sorted({str(item).replace("\\", "/") for item in scope if isinstance(item, str)}) if isinstance(scope, list) else []
+    digest = hashlib.sha256()
+    for relative in paths:
+        path = _repo_file(root, relative)
+        if path is None:
+            return ""
+        digest.update(relative.encode("utf-8"))
+        digest.update(b"\0")
+        digest.update(hashlib.sha256(path.read_bytes()).digest())
+        digest.update(b"\n")
+    return digest.hexdigest()
+
+
+def _report_pass(root: Path, relative: object) -> bool:
+    path = _repo_file(root, relative)
+    if path is None:
+        return False
+    content = path.read_text(encoding="utf-8", errors="replace")
+    match = re.search(r"^status:\s*([^\s]+)", content, re.IGNORECASE | re.MULTILINE)
+    return bool(match and match.group(1).upper() == "PASS")
+
+
+def _release_authorization_status(root: Path, staged: list[str] | None = None) -> tuple[bool, str]:
+    """Validate the short-lived authorization created for one release candidate."""
+    path = root / RELEASE_AUTH_REL
+    if not path.is_file():
+        return False, "release authorization missing"
+    candidate = _read_json(path)
+    if not isinstance(candidate, dict) or candidate.get("authorized") is not True:
+        return False, "release authorization is not active"
+    if candidate.get("operation") != "release":
+        return False, "release authorization operation mismatch"
+    active = active_work_item(root)
+    if not active or candidate.get("work_item") != active:
+        return False, f"release authorization work item mismatch (active={active or 'none'})"
+    version = candidate.get("version")
+    if not isinstance(version, str) or not version:
+        return False, "release authorization version is missing"
+    receipt_path = _receipt_dir(root) / f"{version}.json"
+    receipt_data = _read_json(receipt_path)
+    if not isinstance(receipt_data, dict) or receipt_data.get("version") != version:
+        return False, "release authorization receipt is missing or stale"
+    expires = candidate.get("expires_at")
+    parsed_expiry = _parse_iso(expires) if isinstance(expires, str) else None
+    if parsed_expiry is None or parsed_expiry <= _now():
+        return False, "release authorization expired or invalid"
+    blueprint = candidate.get("blueprint_path")
+    blueprint_path = _repo_file(root, blueprint)
+    if blueprint_path is None:
+        return False, "release authorization Blueprint is missing"
+    blueprint_hash = candidate.get("blueprint_sha256")
+    if not isinstance(blueprint_hash, str) or blueprint_hash != _sha256_file(blueprint_path):
+        return False, "release authorization Blueprint hash is stale"
+    if not _report_pass(root, candidate.get("debug_path")) or not _report_pass(root, candidate.get("verification_path")):
+        return False, "release debug/verification evidence is not PASS"
+    scope = candidate.get("scope")
+    scope_paths = {str(item).replace("\\", "/") for item in scope if isinstance(item, str)} if isinstance(scope, list) else set()
+    if not scope_paths:
+        return False, "release authorization scope is empty"
+    if any(_repo_file(root, relative) is None for relative in scope_paths):
+        return False, "release authorization scope contains an invalid repository path"
+    if candidate.get("scope_sha256") != _scope_digest(root, list(scope_paths)):
+        return False, "release authorization scope hash is stale"
+    if staged is not None:
+        staged_source = {str(item).replace("\\", "/") for item in staged if is_source_file(root, item)}
+        outside = sorted(staged_source - scope_paths)
+        if outside:
+            return False, "staged source files exceed release scope: " + ", ".join(outside[:10])
+    return True, f"verified release authorization for {active}"
 
 
 # Workflow phases at/after which source writes are permitted (blueprint has
@@ -321,6 +407,14 @@ def authorization_status(root: Path) -> tuple[bool, str]:
     Primary path: derive automatically from workflow state (no manual step).
     An explicit override file, if present, takes precedence (emergency/bootstrap).
     """
+    release_auth = root / RELEASE_AUTH_REL
+    if release_auth.is_file():
+        return _release_authorization_status(root)
+    return _source_authorization_status(root)
+
+
+def _source_authorization_status(root: Path) -> tuple[bool, str]:
+    """Authorize edit-time source writes; release markers never unlock edits."""
     explicit, reason = _explicit_authorization(root)
     if explicit is True:
         return True, reason
@@ -374,7 +468,10 @@ def cmd_check_git(_args) -> int:
     if _bypassed():
         sys.stderr.write("[aiwf-gate] AIWF_BYPASS=1 — source-write gate skipped.\n")
         return 0
-    ok, reason = authorization_status(root)
+    if (root / RELEASE_AUTH_REL).is_file():
+        ok, reason = _release_authorization_status(root, src)
+    else:
+        ok, reason = authorization_status(root)
     if ok:
         return 0
     sys.stderr.write(BLOCK_BANNER)
@@ -515,7 +612,10 @@ def cmd_check_files(_args) -> int:
     if _bypassed():
         sys.stderr.write("[aiwf-gate] AIWF_BYPASS set — push gate skipped.\n")
         return 0
-    ok, reason = authorization_status(root)
+    if (root / RELEASE_AUTH_REL).is_file():
+        ok, reason = _release_authorization_status(root, src)
+    else:
+        ok, reason = authorization_status(root)
     if ok:
         return 0
 
@@ -594,7 +694,7 @@ def cmd_check_file(args) -> int:
         return 0
     if _bypassed():
         return 0
-    ok, reason = authorization_status(root)
+    ok, reason = _source_authorization_status(root)
     if ok:
         return 0
     sys.stderr.write(BLOCK_BANNER)

@@ -496,12 +496,12 @@ Complete directory layout after modifications:
    - **FALLBACK BRIDGE (CLI)**: Only if native `ask_question` is unavailable, attempt the CLI prompt bridge: `aiwf prompt select --question "Approve this FIX Technical Design Blueprint for implementation?" --options "Continue|Cancel" --default "Cancel"`. If it returns `PROMPT_UNAVAILABLE`, no user selection occurred.
    After invoking the prompt (via native tool or CLI), **immediately stop calling ALL tools and end the turn unconditionally**.
    DO NOT proceed autonomously. DO NOT mark the Blueprint approved. DO NOT inspect additional files. DO NOT implement code.
-6. **CHAT APPROVAL IS NEVER VALID AS A FALLBACK.** The statement *"runtime prompt bridge is unavailable, therefore chat approval is valid"* is a policy violation. An Agent MUST NOT self-declare bridge unavailability to unlock implementation. Regardless of whether the prompt UI/CLI succeeds or fails:
+6. **CHAT APPROVAL IS A BOUND FALLBACK ONLY.** The statement *"runtime prompt bridge is unavailable, therefore chat approval is valid"* is a policy violation unless the runtime returned `PROMPT_UNAVAILABLE` or the host explicitly reported both structured prompt paths unavailable. The Agent MUST verify the exact pending request, active work item, and Blueprint before persisting a clear approval (`approve`, `approved`, `yes`, `continue`, or `ok`) through the canonical command:
    - The Agent MUST stop and wait for the **user to send a new message in a new turn**.
-   - The ONLY valid approval evidence is native `ask_question` returning `Continue`, the fallback UI/CLI bridge returning `Continue`, OR the user explicitly writing the exact phrase **`APPROVE BLUEPRINT`** (case-insensitive) in a new user turn after structured prompting was unavailable.
-   - Any other chat text, including *"ok", "proceed", "yes", "go ahead"*, is **NOT** a valid approval.
+   - Valid evidence is native `ask_question` returning `Continue`, the fallback UI/CLI bridge returning `Continue`, or the bound chat fallback followed by a verified scoped approval artifact and command receipt.
+   - Any chat text without a still-pending, exact gate/work-item/Blueprint binding, including *"ok", "proceed", "yes", "go ahead"*, is **NOT** a valid approval.
    - Claiming bridge unavailability in the same turn as the Blueprint presentation and then continuing to implement is a **CRITICAL VIOLATION** that must be reported and halted.
-7. If the prompt result is not `Continue` AND the user has not sent `APPROVE BLUEPRINT` in a new turn, the Agent must remain stopped at this gate permanently.
+7. If the prompt result is not `Continue` and the binding checks for a chat fallback are not satisfied, the Agent must remain stopped at this gate.
 8. Once valid approval evidence exists, run:
    `aiwf blueprint --path docs/features/<feature-family>/blueprints/FIX-XXX_issue_name_blueprint.md --approve`
    **Do NOT prompt for confirmation again in the chat text.**

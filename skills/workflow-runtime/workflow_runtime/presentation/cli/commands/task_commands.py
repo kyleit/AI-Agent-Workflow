@@ -189,7 +189,13 @@ class ImplementCommand:
 
     def add_parser(self, subparsers: Any) -> argparse.ArgumentParser:
         p = subparsers.add_parser("implement", help=self.meta().help)
-        p.add_argument("--blueprint", required=True, help="Blueprint file path")
+        p.add_argument(
+            "action",
+            nargs="?",
+            choices=["status", "resume", "abort", "partial-release"],
+        )
+        p.add_argument("--blueprint", help="Blueprint file path")
+        p.add_argument("--phase", help="Phase for partial-release")
         p.add_argument("--dry-run", action="store_true")
         self._parser = p
         return p

@@ -3,6 +3,7 @@
 from __future__ import annotations
 
 import argparse
+import json
 import subprocess
 import sys
 from pathlib import Path
@@ -29,6 +30,7 @@ def build_parser() -> argparse.ArgumentParser:
     p.add_argument("--dry-run", action="store_true", help="print the plan; no writes/pushes")
     p.add_argument("--plan", action="store_true", help="print computed version + bump only")
     p.add_argument("--config", default=None, help="path to release.config.json")
+    p.add_argument("--json", action="store_true", help="emit one machine-readable JSON result")
     return p
 
 
@@ -43,6 +45,9 @@ def main(argv: list[str] | None = None) -> int:
 
     if args.plan:
         plan = versioning.compute_next(root, cfg["version"], args.part)
+        if args.json:
+            print(json.dumps({"schema": "aiwf.release-plan.v1", **plan}, sort_keys=True))
+            return 0
         print(f"current : {plan['current']}")
         print(f"bump    : {plan['part']}")
         print(f"next    : {plan['next']}")
@@ -59,6 +64,26 @@ def main(argv: list[str] | None = None) -> int:
 
     tag = f"v{receipt['version']}"
     mode = " (dry-run)" if args.dry_run else ""
+    if args.json:
+        scope = receipt.get("release_scope") or {}
+        print(json.dumps({
+            "schema": "aiwf.release.v1",
+            "status": "success",
+            "version": receipt["version"],
+            "work_item": scope.get("work_item"),
+            "scope": {
+                "selected": scope.get("selected", []),
+                "excluded_wip": scope.get("excluded_wip", []),
+            },
+            "authorization": {
+                "status": "verified" if scope.get("authorization") else "not-required",
+                "expires_at": (scope.get("authorization") or {}).get("expires_at"),
+            },
+            "steps": receipt.get("steps", []),
+            "receipt": receipt.get("receipt_file"),
+            "dry_run": args.dry_run,
+        }, sort_keys=True))
+        return 0
     print(f"\n[release] {tag} {receipt['bump_part']}{mode}")
     print(f"  previous : {receipt['previous_version']}")
     print(f"  gates    : {', '.join(g['gate'] for g in receipt['gates'])}")

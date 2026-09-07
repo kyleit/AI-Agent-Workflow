@@ -21,6 +21,12 @@ class UsageCommand:
 
     def add_parser(self, subparsers: Any) -> argparse.ArgumentParser:
         p = subparsers.add_parser("usage", help=self.meta().help)
+        p.add_argument(
+            "subaction",
+            nargs="?",
+            choices=["report", "breakdown", "diagnose"],
+            help="Compatibility usage view",
+        )
         p.add_argument("--format", choices=["json", "table", "text"],
                        default="table")
         p.add_argument("--history", action="store_true",

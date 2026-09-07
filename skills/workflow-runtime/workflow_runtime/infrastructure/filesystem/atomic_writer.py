@@ -17,6 +17,8 @@ from workflow_runtime.infrastructure.session.state_path import \
 # Thread-level lock for JSONL appends to prevent interleaved writes
 _jsonl_locks: dict[str, threading.Lock] = {}
 _jsonl_locks_meta = threading.Lock()
+_atomic_locks: dict[str, threading.Lock] = {}
+_atomic_locks_meta = threading.Lock()
 
 
 def _get_jsonl_lock(path: str) -> threading.Lock:
@@ -26,6 +28,15 @@ def _get_jsonl_lock(path: str) -> threading.Lock:
         if abs_path not in _jsonl_locks:
             _jsonl_locks[abs_path] = threading.Lock()
         return _jsonl_locks[abs_path]
+
+
+def _get_atomic_lock(path: str) -> threading.Lock:
+    """Get a per-destination lock for the complete atomic replacement."""
+    abs_path = os.path.abspath(path)
+    with _atomic_locks_meta:
+        if abs_path not in _atomic_locks:
+            _atomic_locks[abs_path] = threading.Lock()
+        return _atomic_locks[abs_path]
 
 
 def write_json_atomic(
@@ -56,35 +67,35 @@ def write_json_atomic(
     abs_path = os.path.abspath(path)
     parent_dir = os.path.dirname(abs_path)
 
-    if ensure_parent and not os.path.exists(parent_dir):
-        os.makedirs(parent_dir, exist_ok=True)
+    lock = _get_atomic_lock(abs_path)
+    with lock:
+        if ensure_parent and not os.path.exists(parent_dir):
+            os.makedirs(parent_dir, exist_ok=True)
 
-    # Validate JSON-serializability before opening tmp file
-    json_str = json.dumps(data, indent=indent, ensure_ascii=False)
+        # Validate JSON-serializability before opening tmp file.
+        json_str = json.dumps(data, indent=indent, ensure_ascii=False)
 
-    # Write to tmp file in SAME directory as target (ensures same filesystem/partition)
-    tmp_fd, tmp_path = tempfile.mkstemp(
-        dir=parent_dir,
-        prefix=f".{os.path.basename(abs_path)}.tmp_",
-        suffix=".tmp",
-    )
-    try:
-        with os.fdopen(tmp_fd, "w", encoding="utf-8") as f:
-            f.write(json_str)
-            f.write("\n")
-            f.flush()
-            os.fsync(f.fileno())
-
-        # Atomic replace (POSIX: rename is atomic; Windows: os.replace is best-effort)
-        _safe_rename(tmp_path, abs_path)
-
-    except Exception:
-        # Clean up tmp file on failure
+        # Keep the temporary file beside the target for same-filesystem replace.
+        tmp_fd, tmp_path = tempfile.mkstemp(
+            dir=parent_dir,
+            prefix=f".{os.path.basename(abs_path)}.tmp_",
+            suffix=".tmp",
+        )
         try:
-            os.unlink(tmp_path)
-        except OSError:
-            pass
-        raise
+            with os.fdopen(tmp_fd, "w", encoding="utf-8") as f:
+                f.write(json_str)
+                f.write("\n")
+                f.flush()
+                os.fsync(f.fileno())
+
+            _safe_rename(tmp_path, abs_path)
+
+        except Exception:
+            try:
+                os.unlink(tmp_path)
+            except OSError:
+                pass
+            raise
 
 
 def _safe_rename(src: str, dst: str) -> None:

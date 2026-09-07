@@ -18,19 +18,19 @@ import unittest
 
 # Path setup
 WORKSPACE = os.path.abspath(os.path.join(os.path.dirname(__file__), "../../.."))
-RUNTIME_SCRIPTS = os.path.join(WORKSPACE, "skills/workflow-runtime/scripts")
-RUNTIME_CLI = os.path.join(RUNTIME_SCRIPTS, "workflow_runtime.py")
-sys.path.insert(0, RUNTIME_SCRIPTS)
+RUNTIME_PACKAGE_ROOT = os.path.abspath(os.path.join(os.path.dirname(__file__), ".."))
 
 
 def run_cli(*args, cwd=None) -> tuple[int, dict | str]:
-    """Run workflow_runtime.py CLI and parse JSON output."""
-    cmd = [sys.executable, RUNTIME_CLI] + list(args)
+    """Run the supported module entrypoint from any workspace directory."""
+    env = os.environ.copy()
+    env["PYTHONPATH"] = RUNTIME_PACKAGE_ROOT + os.pathsep + env.get("PYTHONPATH", "")
     result = subprocess.run(
-        cmd,
+        [sys.executable, "-m", "workflow_runtime", *args],
         capture_output=True,
         text=True,
         cwd=cwd or WORKSPACE,
+        env=env,
         timeout=30,
     )
     output = result.stdout.strip() or result.stderr.strip()

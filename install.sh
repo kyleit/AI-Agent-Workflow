@@ -271,7 +271,7 @@ if [ "$DEPS_ONLY" = false ]; then
             return 1
         fi
         local fm
-        fm=$(sed -n '2,/^---$/p' "$skill_md" | head -n -1)
+        fm=$(awk 'NR > 1 { sub(/\r$/, ""); if ($0 == "---") exit; print }' "$skill_md")
         if ! echo "$fm" | grep -q '^name:'; then
             log_warn "SKIP $skill_name: SKILL.md missing 'name:' in frontmatter"
             return 1

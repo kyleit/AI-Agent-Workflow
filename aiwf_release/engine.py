@@ -6,6 +6,7 @@ from __future__ import annotations
 import datetime as _dt
 import hashlib
 import json
+import re
 import subprocess
 from pathlib import Path
 from typing import Any
@@ -24,6 +25,186 @@ def _now_iso() -> str:
 
 def _today() -> str:
     return _dt.date.today().isoformat()
+
+
+def _read_json(path: Path) -> object:
+    try:
+        return json.loads(path.read_text(encoding="utf-8"))
+    except (OSError, ValueError, TypeError):
+        return None
+
+
+def _active_work_item(root: Path) -> str | None:
+    state = _read_json(root / ".agents" / "state" / "workflow.json")
+    if not isinstance(state, dict):
+        return None
+    work_item = state.get("work_item")
+    return str(state.get("active_workflow") or (work_item or {}).get("id") or "") or None
+
+
+def _normalise_scope(values: object) -> set[str]:
+    if not isinstance(values, list):
+        return set()
+    result: set[str] = set()
+    for value in values:
+        if not isinstance(value, str) or not value.strip():
+            continue
+        relative = value.strip().replace("\\", "/")
+        while relative.startswith("./"):
+            relative = relative[2:]
+        if relative.startswith("/") or relative == ".." or relative.startswith("../"):
+            continue
+        result.add(relative)
+    return result
+
+
+def _declared_scope(root: Path, work_item: str | None) -> set[str]:
+    """Read the implementation changeset that the AIWF writer produced."""
+    if not work_item:
+        return set()
+    base = root / "docs" / "aiwf-runs" / work_item / "06-implementation"
+    result: set[str] = set()
+    changeset = _read_json(base / "source-document-changeset.json")
+    if isinstance(changeset, dict):
+        result.update(_normalise_scope(changeset.get("source_files")))
+        result.update(_normalise_scope(changeset.get("document_files")))
+    changed = base / "changed-files.md"
+    if changed.is_file():
+        text = changed.read_text(encoding="utf-8", errors="replace")
+        result.update(_normalise_scope(re.findall(r"`([^`]+)`", text)))
+    override = _read_json(root / ".agents" / "state" / "release" / "scope.json")
+    if isinstance(override, dict) and override.get("work_item") in (None, work_item):
+        result.update(_normalise_scope(override.get("scope")))
+    return result
+
+
+def _scope_digest(root: Path, scope: set[str]) -> str:
+    digest = hashlib.sha256()
+    for relative in sorted(scope):
+        path = root / relative
+        if not path.is_file():
+            raise ReleaseError(f"release scope path is not a file: {relative}")
+        digest.update(relative.encode("utf-8"))
+        digest.update(b"\0")
+        digest.update(hashlib.sha256(path.read_bytes()).digest())
+        digest.update(b"\n")
+    return digest.hexdigest()
+
+
+def _evidence_path(root: Path, work_item: str, kind: str) -> str | None:
+    candidates = [
+        root / "docs" / kind / f"{work_item}_{'debug' if kind == 'debug' else 'verify'}.md",
+        root / "docs" / "features" / "workflow-runtime" / kind / f"{work_item}_{'debug' if kind == 'debug' else 'verify'}.md",
+    ]
+    for path in candidates:
+        if path.is_file():
+            return path.relative_to(root).as_posix()
+    return None
+
+
+def _blueprint_path(root: Path, work_item: str) -> str | None:
+    approval = _read_json(root / ".agents" / "state" / "work-items" / work_item / "approvals.json")
+    if isinstance(approval, dict):
+        blueprint = approval.get("blueprint")
+        if isinstance(blueprint, dict) and isinstance(blueprint.get("path"), str):
+            path = root / blueprint["path"]
+            if path.is_file():
+                return path.relative_to(root).as_posix()
+    matches = sorted(root.glob(f"docs/features/**/blueprints/{work_item}_*.md"))
+    return matches[0].relative_to(root).as_posix() if matches else None
+
+
+def resolve_release_scope(root: Path, cfg: dict, baseline: set[str]) -> dict[str, Any]:
+    """Return only work-item files plus release metadata, excluding existing WIP."""
+    work_item = _active_work_item(root)
+    declared = _declared_scope(root, work_item)
+    current = set(gitsteps.dirty_files(root))
+    selected = {path for path in declared if path in current and path != "public_export"}
+    version_files = {cfg["version"]["source_of_truth"].split("#", 1)[0]}
+    version_files.update(ref.split("#", 1)[0] for ref in cfg["version"].get("files", []))
+    changelog = cfg.get("changelog", {}).get("dev")
+    if isinstance(changelog, dict) and changelog.get("path"):
+        version_files.add(str(changelog["path"]))
+    selected.update(path for path in version_files if path in current)
+    selected = {path for path in selected if (root / path).is_file()}
+    if not selected:
+        raise ReleaseError(
+            "release scope is empty; complete the active work-item changeset or provide "
+            ".agents/state/release/scope.json"
+        )
+    excluded = sorted(current - selected - {"public_export"})
+    return {
+        "work_item": work_item,
+        "selected": sorted(selected),
+        "excluded_wip": excluded,
+        "declared": sorted(declared),
+    }
+
+
+def _write_release_authorization(
+    root: Path,
+    version: str,
+    scope: set[str],
+    dry: bool,
+) -> dict[str, Any]:
+    work_item = _active_work_item(root)
+    if not work_item:
+        raise ReleaseError("release authorization requires an active AIWF work item")
+    blueprint = _blueprint_path(root, work_item)
+    debug = _evidence_path(root, work_item, "debug")
+    verification = _evidence_path(root, work_item, "verification")
+    if not blueprint or not debug or not verification:
+        raise ReleaseError("release authorization requires Blueprint, PASS debug, and PASS verification evidence")
+    authorization: dict[str, Any] = {
+        "schema": "aiwf.release-authorization.v1",
+        "authorized": True,
+        "operation": "release",
+        "work_item": work_item,
+        "version": version,
+        "blueprint_path": blueprint,
+        "blueprint_sha256": hashlib.sha256((root / blueprint).read_bytes()).hexdigest(),
+        "debug_path": debug,
+        "verification_path": verification,
+        "scope": sorted(scope),
+        "scope_sha256": _scope_digest(root, scope),
+        "issued_at": _now_iso(),
+        "expires_at": (_dt.datetime.now(_dt.timezone.utc) + _dt.timedelta(minutes=30)).isoformat(),
+    }
+    if not dry:
+        destination = root / ".agents" / "state" / "release" / "authorization.json"
+        destination.parent.mkdir(parents=True, exist_ok=True)
+        destination.write_text(json.dumps(authorization, indent=2, sort_keys=True) + "\n", encoding="utf-8")
+    return authorization
+
+
+def _consume_release_authorization(root: Path) -> None:
+    path = root / ".agents" / "state" / "release" / "authorization.json"
+    try:
+        path.unlink()
+    except FileNotFoundError:
+        pass
+
+
+def _resume_or_compute(root: Path, cfg: dict, override_part: str | None) -> dict:
+    current = versioning.read_version(root, cfg["version"]["source_of_truth"])
+    receipt_path = root / cfg.get("receipt_dir", ".agents/state/release") / f"{current}.json"
+    receipt = _read_json(receipt_path)
+    if isinstance(receipt, dict) and not receipt.get("finished_at") and receipt.get("version") == current:
+        tag_exists = subprocess.run(
+            ["git", "rev-parse", "--verify", f"refs/tags/v{current}"],
+            cwd=str(root), capture_output=True, text=True,
+        ).returncode == 0
+        if not tag_exists:
+            return {
+                "current": receipt.get("previous_version", current),
+                "next": current,
+                "part": receipt.get("bump_part", "patch"),
+                "source": cfg["version"]["source_of_truth"],
+                "resumed": True,
+            }
+    plan = versioning.compute_next(root, cfg["version"], override_part)
+    plan["resumed"] = False
+    return plan
 
 
 def _run_cmd(cwd: Path, cmd: str, dry: bool) -> str:
@@ -99,7 +280,7 @@ def _write_receipt(root: Path, cfg: dict, receipt: dict) -> str:
 
 
 def run(root: Path, cfg: dict, override_part: str | None, dry: bool) -> dict:
-    plan = versioning.compute_next(root, cfg["version"], override_part)
+    plan = _resume_or_compute(root, cfg, override_part)
     version = plan["next"]
     remote = cfg.get("remote_name", "origin")
     branch = cfg.get("default_branch", "main")
@@ -116,9 +297,17 @@ def run(root: Path, cfg: dict, override_part: str | None, dry: bool) -> dict:
         "repos": [],
         "gates": [],
         "changelogs": [],
+        "resumed": bool(plan.get("resumed")),
+        "release_scope": {},
     }
 
     receipt["gates"] = _preflight(root, cfg, plan, dry)
+    baseline_by_repo = {".": set(gitsteps.dirty_files(root))}
+    for step in cfg["pipeline"]:
+        if step.get("step") == "repo-release" and step.get("path") not in baseline_by_repo:
+            repo = (root / step["path"]).resolve()
+            if repo.is_dir():
+                baseline_by_repo[step["path"]] = set(gitsteps.dirty_files(repo))
 
     # Pre-write receipt before running release pipeline so that pre-push hook can verify it
     if not dry:
@@ -145,9 +334,29 @@ def run(root: Path, cfg: dict, override_part: str | None, dry: bool) -> dict:
             tag = step.get("tag", "v{version}").replace("{version}", version)
             msg = step.get("message", f"chore(release): {tag}").replace("{version}", version)
             force = bool(step.get("force", True))
-            r = gitsteps.repo_release(root, step["path"], tag, msg, remote, branch, force, dry)
+            repo_path = (root / step["path"]).resolve()
+            if step["path"] == ".":
+                scope_info = resolve_release_scope(root, cfg, baseline_by_repo["."])
+                root_scope = set(scope_info["selected"])
+                if "public_export" in gitsteps.dirty_files(root):
+                    root_scope.add("public_export")
+                source_scope = {path for path in root_scope if (root / path).is_file()}
+                authorization = _write_release_authorization(root, version, source_scope, dry)
+                scope_info["authorization"] = {
+                    "work_item": authorization["work_item"],
+                    "scope_sha256": authorization["scope_sha256"],
+                    "expires_at": authorization["expires_at"],
+                }
+                receipt["release_scope"] = scope_info
+                files = sorted(root_scope)
+            else:
+                before = baseline_by_repo.get(step["path"], set())
+                files = sorted(set(gitsteps.dirty_files(repo_path)) - before)
+            r = gitsteps.repo_release(root, step["path"], tag, msg, remote, branch, force, dry, files=files)
+            if step["path"] == "." and not dry:
+                _consume_release_authorization(root)
             receipt["repos"].append({k: r[k] for k in ("path", "tag", "sha")})
-            receipt["steps"].append({"step": name, "path": step["path"], "tag": tag})
+            receipt["steps"].append({"step": name, "path": step["path"], "tag": tag, "files": r["files"]})
         else:
             raise ReleaseError(f"unknown step: {name}")
 

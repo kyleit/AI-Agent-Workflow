@@ -20,6 +20,13 @@ _RUNTIME_PKG_ROOT = os.path.abspath(os.path.join(_CONFTEST_DIR, ".."))
 # at collection time keeps those tests executable without weakening production
 # imports or adding legacy directories to PYTHONPATH.
 _LEGACY_MODULE_ALIASES = {
+    "patch_applier": "workflow_runtime.infrastructure.filesystem.patch_applier",
+    "worker_manager": "workflow_runtime.infrastructure.execution.worker_manager",
+    "dag_planner": "workflow_runtime.application.workflow.dag_planner",
+    "lock_manager": "workflow_runtime.infrastructure.persistence.lock_manager",
+    "orchestrator": "workflow_runtime.application.use_cases.orchestrator",
+    "release_gate": "workflow_runtime.application.verification.release_gate",
+    "phase_controller": "workflow_runtime.application.workflow.phase_controller",
     "session_core": "workflow_runtime.infrastructure.session.session_core",
     "event_store": "workflow_runtime.infrastructure.persistence.event_store",
     "logical_agent": "workflow_runtime.domain.agent.logical_agent",
