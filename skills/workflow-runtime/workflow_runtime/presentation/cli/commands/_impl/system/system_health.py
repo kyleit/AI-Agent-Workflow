@@ -109,6 +109,32 @@ def do_debug_action(args: argparse.Namespace) -> int:
 
 
 def do_verify_action(args: argparse.Namespace) -> int:
+    blueprint = getattr(args, "blueprint", None)
+    if blueprint:
+        from pathlib import Path
+
+        from workflow_runtime.application.workflow.blueprint_validation_loop import (
+            BlueprintAutoValidationService,
+        )
+
+        session = load_session() or {}
+        raw_work_item = session.get("work_item")
+        work_item = raw_work_item if isinstance(raw_work_item, dict) else {}
+        work_item_id = str(
+            getattr(args, "work_item", None)
+            or work_item.get("id")
+            or session.get("active_workflow")
+            or "manual"
+        )
+        result = BlueprintAutoValidationService(Path.cwd()).validate_for_approval(
+            Path(str(blueprint)),
+            work_item_id,
+            allow_existing_creates=True,
+            post_implementation=True,
+        )
+        print(json.dumps(result.__dict__, indent=2, sort_keys=True))
+        return 0 if result.status in {"APPROVAL_READY", "VERIFIED"} else 1
+
     from workflow_runtime.application.verification.validation_runner import (
         run_verify)
     res_dict = run_verify(blueprint_path=getattr(args, "blueprint", None))

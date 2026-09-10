@@ -552,6 +552,23 @@ After implementation, the Agent MUST continue automatically through:
 
 Missing `code-standard-review`, real runtime evidence, required screenshots, or the final report means quick-fix status is FAILED.
 
+### Automatic Blueprint Completeness Contract
+
+Before the approval prompt, the workflow MUST invoke the Blueprint validation
+loop. It derives a fix-specific phase count from actual scope, creates the
+master and phase packet, and requires a Feature Coverage Matrix for every
+requirement, acceptance criterion, interface, file, code block, test, and
+evidence item. It MUST validate source anchors and operations against the
+repository and preserve `Data Flow And Sequence Diagram` during code-block
+repair. A fixed phase count, guessed identifier, missing source anchor, or
+coverage gap is `NO-GO`.
+
+Real runtime and browser criteria require evidence from the actual CLI/API/IPC/
+database/service/browser path. Dry-run, mock, fake data, inferred execution,
+static output, or screenshots without the exercised action are `NOT_VERIFIED`
+and cannot authorize completion. Behavior evaluation MUST run for every
+selected Skill and its result MUST be persisted before Blueprint approval.
+
 ---
 
 ### Step 16: Generate Quick Task Result

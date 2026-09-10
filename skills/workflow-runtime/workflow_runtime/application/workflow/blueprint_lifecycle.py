@@ -220,6 +220,23 @@ class BlueprintLifecycleService:
         except OSError:
             return now.isoformat()
 
+    def _approved_hash_matches(self, work_item_id: str, relative: str, path: Path) -> bool:
+        """Allow expected source edits after approval, but never Blueprint edits."""
+        approval_path = self.root / ".agents" / "state" / "work-items" / work_item_id / "approvals.json"
+        if not approval_path.is_file():
+            return False
+        try:
+            payload = json.loads(approval_path.read_text(encoding="utf-8"))
+            approval = payload.get("blueprint") if isinstance(payload, dict) else None
+            if not isinstance(approval, dict) or not approval.get("approved"):
+                return False
+            approved_path = str(approval.get("path", "")).replace("\\", "/")
+            approved_hash = str(approval.get("sha256", ""))
+            current_hash = hashlib.sha256(path.read_bytes()).hexdigest()
+            return approved_path == relative and approved_hash == current_hash
+        except (OSError, TypeError, ValueError, KeyError, json.JSONDecodeError):
+            return False
+
     def inspect(self, path: Path, work_item_id: str, now: datetime | None = None) -> BlueprintInspection:
         moment = now or _now()
         blueprint_path, relative = self._resolve(path)
@@ -241,13 +258,21 @@ class BlueprintLifecycleService:
             reasons.append("blueprint_retired")
         if self.age_policy.expired(record.created_at, moment):
             reasons.append("blueprint_age_exceeded")
-        if not record.source_snapshot:
+        approval_matches = self._approved_hash_matches(work_item_id, relative, blueprint_path)
+        if not approval_matches and not record.source_snapshot:
             reasons.append("blueprint_source_drift")
-        elif record.source_snapshot != current_snapshot:
+        elif not approval_matches and record.source_snapshot != current_snapshot:
             reasons.append("blueprint_source_drift")
         stale = bool(reasons)
-        state = record.state if record.state in _TERMINAL else ("STALE" if stale else record.state)
-        next_action = "create and approve a fresh Blueprint" if stale else "await owner approval"
+        if stale:
+            state = record.state if record.state in _TERMINAL else "STALE"
+            next_action = "create and approve a fresh Blueprint"
+        elif approval_matches:
+            state = "APPROVED"
+            next_action = "implement --blueprint <path>"
+        else:
+            state = record.state
+            next_action = "await owner approval"
         return BlueprintInspection(
             lifecycle_state=state,
             stale=stale,

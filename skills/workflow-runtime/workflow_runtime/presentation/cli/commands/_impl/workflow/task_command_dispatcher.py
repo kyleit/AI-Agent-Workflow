@@ -6,6 +6,7 @@ Task command dispatcher for CLI subcommands: task, blueprint, suggest, compact, 
 from __future__ import annotations
 
 import argparse
+import hashlib
 import json
 import os
 import subprocess
@@ -25,6 +26,51 @@ from workflow_runtime.presentation.cli.commands._impl.workflow.task_state_synchr
     sync_execution_state_to_session)
 from workflow_runtime.presentation.cli.workflow_runtime_shared import (
     update_context_health)
+
+
+def _refresh_strict_code_block_gate(
+    blueprint_path: Path,
+    work_item_id: str,
+) -> tuple[bool, str, dict[str, Any]]:
+    """Rebuild the canonical gate after approval metadata changes the Blueprint."""
+    root = Path.cwd().resolve()
+    runner = root / "skills" / "strict-code-block-gate" / "scripts" / "run_strict_code_block_gate.py"
+    output = root / "docs" / "aiwf-runs" / work_item_id / "05-blueprint" / "code-block-gate.json"
+    if not runner.is_file():
+        return False, "strict_code_block_gate_runner_missing", {}
+    try:
+        completed = subprocess.run(
+            [
+                sys.executable,
+                str(runner),
+                "--blueprint",
+                blueprint_path.resolve().relative_to(root).as_posix(),
+                "--workflow-id",
+                work_item_id,
+                "--output",
+                output.relative_to(root).as_posix(),
+                "--no-execute",
+            ],
+            cwd=root,
+            check=False,
+            capture_output=True,
+            text=True,
+            timeout=30,
+        )
+    except (OSError, subprocess.SubprocessError, ValueError) as exc:
+        return False, f"strict_code_block_gate_refresh_failed:{type(exc).__name__}", {}
+    try:
+        result = json.loads(output.read_text(encoding="utf-8"))
+    except (OSError, json.JSONDecodeError) as exc:
+        return False, f"strict_code_block_gate_receipt_invalid:{type(exc).__name__}", {}
+    if not isinstance(result, dict):
+        return False, "strict_code_block_gate_receipt_invalid", {}
+    expected_hash = hashlib.sha256(blueprint_path.read_bytes()).hexdigest()
+    if completed.returncode != 0 or result.get("decision") != "PASS":
+        return False, f"strict_code_block_gate:{result.get('decision', 'BLOCKED')}", result
+    if result.get("blueprint_full_sha256") != expected_hash:
+        return False, "strict_code_block_gate_hash_mismatch", result
+    return True, "strict_code_block_gate_refreshed", result
 
 
 def do_task(args: argparse.Namespace) -> None:
@@ -205,13 +251,18 @@ def do_blueprint(args: Any) -> int:
             ), sys.stdout)
         status = "blocked" if inspection.stale else "success"
         findings = tuple(inspection.reasons)
+        next_command = (
+            "blueprint --path <path> --reason <reason> retire"
+            if inspection.stale
+            else inspection.next_action
+        )
         return emit_result(CommandResult(
             command="blueprint", status=status,
             summary="Blueprint lifecycle is stale or retired." if inspection.stale else "Blueprint lifecycle is current.",
             data={"path": bp_path, "work_item_id": inspection.work_item_id, "lifecycle": inspection.payload()},
             artifacts=(bp_path, inspection.registry_path),
             blocking_findings=findings,
-            next_action=NextAction(command="blueprint --path <path> --reason <reason> retire" if inspection.stale else "blueprint --path <path> --approve", required=inspection.stale),
+            next_action=NextAction(command=next_command, required=inspection.stale),
         ), sys.stdout)
     same_approved_blueprint = (
         current_data.get("path") == bp_path and bool(current_data.get("approved"))
@@ -272,6 +323,21 @@ def do_blueprint(args: Any) -> int:
             approved_at=str(bp_data["approved_at"]),
             approved_by=str(bp_data["approved_by"]),
         )
+        gate_ok, gate_reason, gate_result = _refresh_strict_code_block_gate(
+            Path(bp_path), work_item_id or bp_work_item_id
+        )
+        if not gate_ok:
+            return emit_result(CommandResult(
+                command="blueprint",
+                status="blocked",
+                summary="Blueprint approval was not persisted because validation failed after metadata sync.",
+                data={"path": bp_path, "gate": gate_result},
+                blocking_findings=(gate_reason,),
+                next_action=NextAction(
+                    command="blueprint --path <path> validate",
+                    required=True,
+                ),
+            ), sys.stdout)
         session["blueprint"] = bp_data
         session["status"] = "in_progress"
         if same_approved_blueprint:

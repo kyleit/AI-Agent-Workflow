@@ -1,5 +1,6 @@
 from __future__ import annotations
 
+import hashlib
 import json
 import subprocess
 from datetime import datetime, timedelta, timezone
@@ -60,3 +61,37 @@ def test_blueprint_lifecycle_detects_age_and_retirement_is_idempotent(tmp_path: 
         .read_text(encoding="utf-8")
     )
     assert persisted["replacement_work_item"] == "FEAT-NEW"
+
+
+def test_approved_blueprint_survives_source_changes_but_not_blueprint_changes(tmp_path: Path) -> None:
+    root, blueprint = _repo(tmp_path)
+    service = BlueprintLifecycleService(root=root, max_age_days=30)
+    service.inspect(blueprint, "FEAT-TEST", datetime(2026, 9, 4, tzinfo=timezone.utc))
+
+    approval_path = root / ".agents" / "state" / "work-items" / "FEAT-TEST" / "approvals.json"
+    approval_path.parent.mkdir(parents=True, exist_ok=True)
+    approval_path.write_text(
+        json.dumps({
+            "blueprint": {
+                "path": "docs/features/FEAT-TEST.md",
+                "approved": True,
+                "sha256": hashlib.sha256(blueprint.read_bytes()).hexdigest(),
+            }
+        }),
+        encoding="utf-8",
+    )
+
+    (root / "src" / "app.py").write_text("VALUE = 2\n", encoding="utf-8")
+    approved_after_source_edit = service.inspect(
+        blueprint, "FEAT-TEST", datetime(2026, 9, 4, tzinfo=timezone.utc)
+    )
+    assert approved_after_source_edit.stale is False
+    assert approved_after_source_edit.lifecycle_state == "APPROVED"
+    assert approved_after_source_edit.next_action == "implement --blueprint <path>"
+
+    blueprint.write_text(blueprint.read_text(encoding="utf-8") + "\nchanged\n", encoding="utf-8")
+    stale_after_blueprint_edit = service.inspect(
+        blueprint, "FEAT-TEST", datetime(2026, 9, 4, tzinfo=timezone.utc)
+    )
+    assert stale_after_blueprint_edit.stale is True
+    assert "blueprint_source_drift" in stale_after_blueprint_edit.reasons

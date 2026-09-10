@@ -166,3 +166,18 @@ If any upstream artifact (Requirement, Blueprint, Execution, Debug, Verification
 - `TESTER → SOURCE_OR_TEST_CODE_WRITE` (BLOCKED)
 - `UNRUN_TESTS → CLAIMED_VERIFIED_STATUS` (BLOCKED)
 - `TEST_GOVERNANCE → GIT_WRITE / RELEASE_EXECUTION` (BLOCKED)
+
+## 13. Real-Execution Evidence Contract
+
+The executor MUST distinguish `NOT_RUN`, `NOT_VERIFIED`, `PASS`, and
+`BLOCKED`. A command plan, dry-run, mock/stub/fake response, inferred result,
+static scan, HTTP status without contract assertions, or screenshot without a
+real exercised journey MUST NOT be promoted to `PASS`.
+
+For browser criteria, execute the requested journey against the running
+application at the required viewports and retain action-level evidence,
+runtime-console status, DOM/layout assertions, and screenshot hashes. For
+CLI/API/IPC/database/service criteria, retain the real command or request,
+inputs, outputs, exit/result status, and relevant persisted state. When a real
+environment is unavailable, record `NOT_RUN` or `BLOCKED` with the blocker and
+route it back to verification; never synthesize a report.

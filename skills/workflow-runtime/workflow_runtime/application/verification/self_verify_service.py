@@ -52,8 +52,12 @@ class SelfVerifyService:
         ".git",
         ".mypy_cache",
         ".pytest_cache",
+        ".ruff_cache",
+        ".import_linter_cache",
+        "docs",
         "fixtures",
         "node_modules",
+        "scratch",
         "tests",
     }
     _ABS_PATH_EXEMPT_FILE_NAMES = {"path-sanitization-rules.yaml"}
@@ -67,15 +71,16 @@ class SelfVerifyService:
     )
     _PLACEHOLDER_TERMS = ("T" "BD", "T" "ODO", "to be " "decided", "implement " "later")
     _PLACEHOLDER_PATTERN = re.compile(
-        r"(?:"
+        r"\b(?:"
         + "|".join(re.escape(term) for term in _PLACEHOLDER_TERMS)
-        + r")",
+        + r")\b",
         re.IGNORECASE,
     )
     _EXPLANATORY_LINE_PATTERN = re.compile(
-        r"(?:forbidden|prohibited|banned|must not|do not|never|reject|fails?|"
-        r"no-go|placeholders?|prohibits|string detected|scan only|only when no|không|cấm|"
-        r"tuyệt đối)",
+        r"\b(?:forbidden|prohibited|banned|must not|do not|never|reject|fails?|"
+        r"no-go|placeholders?|prohibits|string detected|scan only|only when no|policy|"
+        r"keywords?|từ khóa|tuân thủ|strict relative paths|đường dẫn.*absolute|không|cấm|"
+        r"tuyệt đối)\b",
         re.IGNORECASE,
     )
 
@@ -211,9 +216,11 @@ class SelfVerifyService:
                 logs=logs,
             )
 
-        violations = self.check_static_violations(skill_path)
+        skill_definition = Path(skill_path) / "SKILL.md"
+        static_target = str(skill_definition) if skill_definition.is_file() else skill_path
+        violations = self.check_static_violations(static_target)
         if violations:
-            logs.append(f"Found {len(violations)} static violations in {skill_path}.")
+            logs.append(f"Found {len(violations)} static violations in {static_target}.")
             for v in violations:
                 logs.append(
                     f"[{v.rule_id}] {v.file_path}:{v.line_number} - {v.description}"
@@ -221,15 +228,30 @@ class SelfVerifyService:
             passed = False
             score = max(0, 100 - (len(violations) * 10))
         else:
-            logs.append(f"Zero static violations in {skill_path}.")
+            logs.append(f"Zero static violations in {static_target}.")
             passed = True
             score = 100
+
+        from workflow_runtime.application.verification.skill_behavior_eval import (
+            SkillBehaviorEvalService,
+        )
+
+        behavior = SkillBehaviorEvalService().evaluate_skill(
+            (Path(self.workspace_root) / skill_path).resolve()
+        )
+        for item in behavior.evidence:
+            logs.append(f"Behavior eval evidence: {item}")
+        for failure in behavior.failures:
+            logs.append(f"[RULE-BEHAVIOR-EVAL] {failure}")
+        passed = passed and behavior.passed
+        score = min(score, behavior.score)
+        assertion_count = len(violations) + 1 + behavior.assertions_evaluated
 
         return BATVerificationResult(
             skill_name=skill_name,
             passed=passed,
             score=score,
-            assertions_evaluated=len(violations) + 1,
+            assertions_evaluated=assertion_count,
             logs=logs,
         )
 

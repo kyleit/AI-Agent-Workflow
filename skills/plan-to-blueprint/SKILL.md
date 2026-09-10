@@ -304,6 +304,30 @@ If any upstream artifact (Requirement, Brainstorming, Roadmap, or Plan) changes 
 - Implementation Entry authorization is **`BLOCKED`**.
 - Re-evaluation and new Blueprint Architecture Approval ARE REQUIRED.
 
+## 13. Automatic Completeness & Evidence Contract
+
+Every Blueprint generation MUST run the deterministic Blueprint validation loop
+before approval. The loop MUST derive the phase count from actual capability,
+file-family, task, cross-layer, and boundary complexity; never assume a fixed
+number of phases. When a split is required it MUST emit one master Blueprint
+and exactly the discovered phase Blueprints, with a Feature Coverage Matrix
+mapping every requirement and acceptance criterion to a phase, file, code
+block, test, and evidence.
+
+The loop MUST validate the File-by-File Change Matrix against the repository,
+including operation, target existence, anchor symbol, language profile,
+projected line budget, and source boundary. Code-block repair MUST preserve
+the complete `Data Flow And Sequence Diagram`; deleting it is `BLOCKED`.
+Behavior evaluation MUST run for each selected Skill. Missing manifests are
+reported as compatibility evidence, never silently treated as a behavioral
+pass. Dry-run, mock, fake, inferred, static-only, or screenshot-only reports
+cannot satisfy real runtime or browser acceptance criteria.
+
+The canonical route is `aiwf verify --blueprint <path>`. Approval is allowed
+only when it returns `APPROVAL_READY`, the strict code-block gate is `PASS`, all
+coverage rows are satisfied or explicitly `NOT_APPLICABLE`, and runtime/browser
+evidence is honestly marked `PASS`, `NOT_RUN`, or `BLOCKED`.
+
 ---
 
 ## 13. Forbidden Routing Guards (STRICTLY BLOCKED)

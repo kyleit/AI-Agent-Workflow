@@ -67,10 +67,10 @@ class BlueprintCommand:
 
     def parse(self, argv: list[str]) -> argparse.Namespace: return self._parser.parse_args(argv)
 
-    def run(self, args: argparse.Namespace) -> None:
+    def run(self, args: argparse.Namespace) -> int:
         from workflow_runtime.presentation.cli.workflow_runtime import \
             do_blueprint
-        do_blueprint(args)
+        return int(do_blueprint(args) or 0)
 
     def print_help(self) -> None: self._parser.print_help()
 
@@ -202,10 +202,10 @@ class ImplementCommand:
 
     def parse(self, argv: list[str]) -> argparse.Namespace: return self._parser.parse_args(argv)
 
-    def run(self, args: argparse.Namespace) -> None:
+    def run(self, args: argparse.Namespace) -> int:
         from workflow_runtime.presentation.cli.workflow_runtime import \
             do_implement_action
-        do_implement_action(args)
+        return int(do_implement_action(args) or 0)
 
     def print_help(self) -> None: self._parser.print_help()
 

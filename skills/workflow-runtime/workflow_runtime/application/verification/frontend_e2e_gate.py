@@ -5,6 +5,7 @@ import asyncio
 import hashlib
 import json
 import os
+import re
 import subprocess
 import threading
 from dataclasses import dataclass, field
@@ -377,6 +378,50 @@ def run_frontend_e2e(
     }
 
 
+_FAKE_REAL_UI_MARKERS = (
+    "dry run",
+    "dry-run",
+    "mock",
+    "mockup",
+    "simulated",
+    "from memory",
+    "memory-derived",
+    "inferred",
+    "inference-only",
+    "assumed",
+    "not run",
+)
+_REAL_UI_REPORT_PATTERNS = (
+    r"\bscreenshot\b",
+    r"\bvideo\b",
+    r"\bplaywright\b",
+    r"\bcdp\b",
+    r"\bdom\b",
+    r"\bbrowser\b",
+    r"\bdesktop\b",
+    r"\bwindow title\b",
+    r"\bsha-?256\b",
+    r"\bbytes?\b",
+    r"\btrace\b",
+)
+
+
+def validate_real_ui_report_text(report_text: str, requires_real_ui: bool) -> FrontendGateResult:
+    """Reject prose that claims real UI verification without retained evidence."""
+    lowered = report_text.lower()
+    fake_markers = [marker for marker in _FAKE_REAL_UI_MARKERS if marker in lowered]
+    if fake_markers:
+        return FrontendGateResult.blocked("frontend_fake_real_ui_evidence", markers=fake_markers)
+    evidence = [
+        pattern
+        for pattern in _REAL_UI_REPORT_PATTERNS
+        if re.search(pattern, report_text, re.IGNORECASE)
+    ]
+    if requires_real_ui and not evidence:
+        return FrontendGateResult.blocked("frontend_real_ui_report_evidence_missing")
+    return FrontendGateResult.pass_result(report_evidence=evidence)
+
+
 __all__ = [
     "CompletionGateBlocked",
     "FrontendGateResult",
@@ -385,5 +430,6 @@ __all__ = [
     "load_project_profile",
     "load_visual_manifest",
     "run_frontend_e2e",
+    "validate_real_ui_report_text",
     "validate_frontend_evidence",
 ]

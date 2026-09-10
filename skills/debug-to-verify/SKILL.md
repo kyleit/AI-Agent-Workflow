@@ -212,3 +212,12 @@ If any upstream artifact (Requirement, Brainstorming, Roadmap, Plan, Blueprint, 
 - `VERIFICATION → GIT_WRITE / RELEASE_EXECUTION` (BLOCKED)
 - `UNRUN_TESTS → CLAIMED_SATISFIED_STATUS` (BLOCKED)
 - `BUILD_PASS → CLAIMED_TEST_PASS` (BLOCKED)
+
+## 14. Evidence Honesty Contract
+
+Verification MUST preserve the distinction between static/build evidence and
+real execution evidence. Dry-run, mock, fake data, inferred execution, an
+HTTP 200 without contract assertions, or a screenshot without an exercised
+journey is `NOT_VERIFIED`, never `PASS`. When the real runtime or browser is
+unavailable, record `NOT_RUN` or `BLOCKED` with the exact blocker and do not
+generate a synthetic success report.

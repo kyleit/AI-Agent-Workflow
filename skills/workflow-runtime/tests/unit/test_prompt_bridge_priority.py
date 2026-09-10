@@ -167,8 +167,12 @@ def test_cli_prompt_returns_structured_pending_envelope_for_ai_host(tmp_path, mo
 
     envelope = json.loads(stdout.getvalue().splitlines()[-1])
     assert result == 2
-    assert envelope["status"] == "awaiting_input"
+    assert envelope["status"] == "PROMPT_UNAVAILABLE"
+    assert envelope["approval_gate"] is True
     assert envelope["options"] == ["Continue", "Cancel"]
     assert envelope["request_file"] == ".agents/runtime/prompt-request.json"
+    assert "response_file" not in envelope
+    assert "awaiting_input" not in stdout.getvalue()
+    assert "writes a matching response" not in stdout.getvalue()
     assert "Select option" not in stdout.getvalue()
     assert "magic" not in stderr.getvalue().lower()

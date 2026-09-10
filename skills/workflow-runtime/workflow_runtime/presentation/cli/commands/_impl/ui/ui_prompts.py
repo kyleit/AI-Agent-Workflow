@@ -30,28 +30,20 @@ def do_prompt(args: Any) -> int:
         response=str(getattr(args, "response", "") or "") or None,
     )
     if res == PROMPT_UNAVAILABLE:
-        # A missing host response is a resumable pending interaction, not a
-        # Cancel decision and not a reason to ask the AI to type a magic token.
+        # Keep the stop explicit so the Agent can perform one bound chat
+        # fallback without exposing response-file mechanics to the user.
         choice_id = prompt_choice_id(question, options_list)
         print(json.dumps({
-            "status": "awaiting_input",
+            "status": "PROMPT_UNAVAILABLE",
+            "approval_gate": True,
             "choice_id": choice_id,
             "question": question,
             "options": options_list,
             "default": default,
             "request_file": ".agents/runtime/prompt-request.json",
-            "response_file": ".agents/runtime/prompt-response.json",
-            "response_schema": {
-                "choice_id": choice_id,
-                "selected_option": "<one exact option>",
-            },
-            "next_action": "Host/Agent presents the options and writes a matching response, then resumes the workflow.",
+            "binding": "active_work_item_and_blueprint_are_required",
+            "next_action": "use_one_bound_chat_approval_or_cancel_fallback",
         }, ensure_ascii=False))
-        print(
-            "Prompt pending: no native UI response or stdin answer was received; "
-            "workflow remains stopped until the host submits a structured choice.",
-            file=sys.stderr,
-        )
         return 2
     print(res)
     return 0
