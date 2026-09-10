@@ -5,6 +5,11 @@
 _No user-facing changes._
 
 
+## v6.26.5 - 2026-09-10
+
+_No user-facing changes._
+
+
 ## v6.26.4 - 2026-09-07
 
 _No user-facing changes._

@@ -114,6 +114,15 @@ def dirty_files(repo: Path) -> list[str]:
     })
 
 
+def is_ignored(repo: Path, relative: str) -> bool:
+    """Return whether Git would reject the path as ignored during staging."""
+    result = subprocess.run(
+        ["git", "check-ignore", "--no-index", "--quiet", "--", relative],
+        cwd=str(repo), capture_output=True,
+    )
+    return result.returncode == 0
+
+
 def stage_submodule_pointer(root: Path, sub_path: str, dry: bool) -> str:
     return _run(root, ["add", sub_path], dry)
 

@@ -119,7 +119,12 @@ def resolve_release_scope(root: Path, cfg: dict, baseline: set[str]) -> dict[str
     work_item = _active_work_item(root)
     declared = _declared_scope(root, work_item)
     current = set(gitsteps.dirty_files(root))
-    selected = {path for path in declared if path in current and path != "public_export"}
+    selected = {
+        path for path in declared
+        if path in current
+        and path != "public_export"
+        and not gitsteps.is_ignored(root, path)
+    }
     version_files = {cfg["version"]["source_of_truth"].split("#", 1)[0]}
     version_files.update(ref.split("#", 1)[0] for ref in cfg["version"].get("files", []))
     changelog = cfg.get("changelog", {}).get("dev")
