@@ -89,6 +89,13 @@ or to advance a stalled repair loop. On any missing, stale, unreadable, or
 failed result, remain `BLOCKED` and continue Agent-led documentation repair;
 never ask for approval and never permit implementation.
 
+The coordinator must materialize Integration-Verify for every work item with
+multiple phases and Interop-Handoff whenever a second dependent product or
+repository exists. It must block Release Preparation until the applicable
+artifact contains the business-language E2E scenario, container-built
+environment, contract proof, reverse documentation update, release order, and
+wrong-order failure behavior.
+
 ## Physical Documentation Transaction Boundary
 
 For greenfield and large cross-layer requests, the coordinator owns a

@@ -147,6 +147,12 @@ QUICK Feature IDs are determined **ONLY** by scanning `docs/quick/`:
 
 Execute these steps strictly. Do not stop for user approval until the Blueprint has passed internal review.
 
+Every quick feature that emits implementation-ready material MUST use the
+canonical two-branch CODE_BLOCK_GATE contract and record `blueprint_depth`.
+Quick flow does not permit zero-block, representative, partial, or
+memory-authored material; multi-phase quick work also inherits Integration-
+Verify and dependent-product work inherits Interop-Handoff.
+
 ```
 Step 1:  Receive User Feature Request
          ↓

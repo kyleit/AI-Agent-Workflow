@@ -63,6 +63,12 @@ Skill `readiness-and-approval-gates` chịu trách nhiệm thẩm định mức 
 > 3. CẤM cấp `source_write_allowed: true` khi thiếu `code-block-gate.json` hoặc `implementation-entry-receipt.json`.
 > 4. **STRICT ENGINEERING & PHYSICAL WRITE POLICY INVARIANT**: Gate evaluation MUST verify compliance with Core Engineering Policy (`.agents/policies/strict-engineering.md`), Physical Repository Write Policy (`.agents/policies/physical-repository-write.md`), active Language Profiles (`.agents/profiles/*.yaml`), and Project Architecture Contract (`.agents/contracts/engineering-quality-gates.yaml`). Any file size >500 lines, unverified physical write, or validator bypass invalidates gate approval.
 
+The Internal Review Evidence CODE_BLOCK_GATE row is incomplete unless it names
+Branch A or B, `blueprint_depth`, real Branch B commands/results, code-block and
+verified-marker counts, equal spike/Blueprint public-unit counts, and the
+explicit no-memory assertion. Missing any field is FAIL because a bare PASS
+does not prove which evidence path was used.
+
 ## 0. Contract & Governance Boundaries
 
 - **Role**: `readiness_and_approval_governance`

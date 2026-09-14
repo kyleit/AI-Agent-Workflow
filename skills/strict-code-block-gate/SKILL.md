@@ -156,6 +156,37 @@ as `CODE_BLOCK_GATE: PASS` inside an artifact is untrusted and never overrides
 the machine result. Placeholder, sample-only, stub, or not-implemented source
 blocks are failures even when their metadata says `implementation_ready`.
 
+## Spike-Verified Blueprint Contract
+
+When source exists, use Branch A: read the actual source, cross-check every
+identifier and signature, and mark every block `verified from: <path:line>`.
+When source does not exist, use Branch B. B1 creates a runnable project under
+`.agents/scratch/<work-item-slug>/`; B2 runs the real toolchain; B3 proves bad
+data is rejected; B4 extracts only after B2 and B3 pass; B5 records commands,
+exit codes, counts, and rejected constraints; B6 extracts every public unit at
+the declared depth. A spike is evidence, not a code sample, because a sample
+can compile while its constraints remain untested.
+
+Every Blueprint declares `blueprint_depth: CONTRACT` or `blueprint_depth: FULL`.
+The owner must choose the depth before Blueprint generation. CONTRACT contains
+interfaces, structs, enums, constants, use-case signatures, DTOs, schemas, and
+pure rule bodies. FULL contains all runnable code in the phase, including use
+cases, adapters, handlers, entrypoints, migrations, packaging, frontend, and
+tests. FULL is deliberately longer and requires rerunning the spike after a
+design change; it removes the gap between approval and execution.
+
+Zero blocks is not a vacuous PASS when API, interface, schema, or implementation
+obligations exist. Partial extraction is not PASS: the number of public units
+in the spike must equal the number represented in the Blueprint. FULL also
+requires a real end-to-end entrypoint run. No block may be written from memory.
+
+`.agents/scratch/<slug>/` is retained audit evidence until the work item closes;
+product code must not import it. FULL implementation copies code and tests from
+scratch, then reruns the complete test set at the product path. One-shot
+containers are real verification for database, migration, Helm, and offline
+frontend checks, not environment probes, and must be removed after evidence is
+retained. `.gitignore` must not discard this evidence.
+
 ## Canonical Runner
 
 Use the local runner for deterministic evidence:

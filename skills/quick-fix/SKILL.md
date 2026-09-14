@@ -135,6 +135,12 @@ FIX IDs are independent of Feature IDs but share the same directory:
 
 Execute these steps strictly. Do not stop for user approval until the Blueprint has passed internal review.
 
+Quick fixes use Branch A for an existing target and Branch B for a missing
+target. The chosen CONTRACT or FULL depth is recorded before authoring. A
+fix cannot pass from a zero or partial block set, and a FULL fix must run from
+its real entrypoint after extraction. This keeps a small fix from bypassing the
+same evidence standard as a large feature.
+
 ```
 Step 1:  Receive User Issue / Bug Report
          ↓

@@ -359,6 +359,21 @@ This is a mandatory global policy. The following rules are absolute and cannot b
  *   **Rule 6: Mandatory SDLC Skill Binding**: Every project source-file change MUST be performed within the scope of a corresponding SDLC Skill (such as `quick-fix` for a quick bug fix or `quick-feature` for a quick feature). The AI Agent MUST NOT modify source files directly outside these Skill boundaries, even when the IDE-level `implementation_plan.md` has been approved.
 *   **Rule 7: Blueprint Quality Gate**: Before a Blueprint is approved, it must be verified that it contains a complete file-by-file analysis table (mapping absolute/relative paths, operations, and responsibilities) and a verifiable implementation checklist. Any Blueprint containing placeholders or generic instructions must be rejected and returned to the draft phase.
 *   **Rule 8: Blueprint Review Evidence Gate**: Before a Blueprint is presented for approval, the Blueprint artifact itself MUST contain `Internal Review Evidence` with reviewer roles, source artifacts, checklist PASS/FAIL rows, failed-point repair history, document-compliance score, and relative-path scan result. A Blueprint without this section is not review-passed and cannot be sent to the user for approval.
+*   **Rule 9 — Spike-Verified Code Blocks**: When a Blueprint describes code
+    that does not yet exist, every implementation-ready block MUST come from a
+    spike that ran for real under `.agents/scratch/`. The Blueprint MUST include
+    a command/evidence table with exit codes, test counts, and adversarial
+    rejection results. Memory-written blocks, compile-only evidence, and a
+    happy path without proof that invalid data is rejected violate the gate.
+    This is required because compilation alone cannot prove a schema constraint
+    or business rule is active.
+*   **Rule 10 — Blueprint Depth Declaration**: Every Blueprint MUST declare
+    `blueprint_depth: CONTRACT` or `blueprint_depth: FULL`, and the owner MUST
+    choose the value before generation. FULL MUST contain all runnable code in
+    scope; CONTRACT MAY omit use-case, adapter, and handler bodies while still
+    including their typed contracts and pure rule bodies. The trade-off is
+    explicit: FULL is longer and must be regenerated after design changes, but
+    it removes the gap between approved design and runnable implementation.
 
 ---
 
@@ -631,6 +646,8 @@ To enforce standard software engineering processes and prevent bypasses, all ope
    - Final Review -> `final-review`
    - Release Preparation -> `release-preparation`
    - Release -> `implementation-to-release`
+   - Integration-Verify -> `integration-verify`
+   - Interop-Handoff -> `interop-handoff` (when a second dependent product or repository exists)
 
 4. **Artifact Enforcement**:
    Every skill must generate its required artifacts under the approved semantic feature docs directories:

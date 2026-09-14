@@ -113,9 +113,12 @@ class BlueprintAuthoringPolicyValidator:
     def _default_brain_roots() -> list[Path]:
         home = Path(os.path.expanduser("~"))
         configured = os.environ.get("ANTIGRAVITY_BRAIN_ROOT", "").strip()
-        roots = [Path(configured)] if configured else []
-        roots.extend(
-            [
+        # An explicit root is an isolation boundary for the current host. Do
+        # not mix unrelated Antigravity transcripts into a scoped validation.
+        roots = (
+            [Path(configured)]
+            if configured
+            else [
                 home / ".gemini" / "antigravity-cli" / "brain",
                 home / ".gemini" / "antigravity-ide" / "brain",
             ]

@@ -19,6 +19,7 @@ from materialize_validation_scope import materialize  # noqa: E402
 from resolve_language_profile import load_registry, resolve  # noqa: E402
 from validate_architecture_boundaries import validate  # noqa: E402
 from validate_artifact_set_code_blocks import validate_artifact_set  # noqa: E402
+from validate_spike_verified_blueprint import validate as validate_spike_verified  # noqa: E402
 
 
 DEFAULT_REGISTRY = "skills/strict-code-block-gate/config/language-profiles.yaml"
@@ -179,6 +180,12 @@ def run(
     materialized = materialize(combined_discovery, root, workflow_id)
     architecture_results = validate(root, all_blocks)
     completeness_findings = validate_artifact_set(artifact_paths, discoveries)
+    spike_verification = validate_spike_verified(
+        blueprint_abs,
+        all_blocks,
+        project_root=root,
+        workflow_id=workflow_id,
+    )
     after_hash = sha256_file(blueprint_abs) if blueprint_abs.is_file() else "0" * 64
     after_text = blueprint_abs.read_text(encoding="utf-8") if blueprint_abs.is_file() else ""
     integrity_findings: list[str] = []
@@ -198,6 +205,7 @@ def run(
         "profile_results": profile_results,
         "materialized_scope": materialized,
         "architecture_results": architecture_results,
+        "spike_verification": spike_verification,
         "blocking_findings": [
             finding
             for item in discoveries
@@ -205,6 +213,7 @@ def run(
         ]
         + location_findings
         + completeness_findings
+        + spike_verification.get("blocking_findings", [])
         + integrity_findings
         + validate_real_file_alignment(root, all_blocks)
         + validate_binary_asset_alignment(root, all_blocks),

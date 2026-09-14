@@ -199,6 +199,16 @@ Decomposes selected solution options into structured, non-ambiguous tasks:
 - **Test Execution Guard**: Test execution owner is strictly `TESTER` Agent. In the absence of approval, tests are marked **`NOT_RUN`**.
 - **Rollback Strategy**: High-risk tasks (migration, data modification, breaking changes) MUST include high-level rollback steps and triggers. Missing rollback triggers a gate blocker.
 
+### Requirement Orphan Cross-Check
+
+When phases are derived, build a bidirectional matrix from every normalized
+requirement and acceptance criterion to exactly one owning phase. The plan must
+answer `Which requirement belongs to no phase?` explicitly. Any orphan,
+duplicate owner, or phase with no requirement is BLOCKED and cannot advance to
+Blueprint generation. This check is separate from phase-local completeness
+because a set of individually complete phases can still omit an end-to-end
+requirement.
+
 ---
 
 ## 8. Plan State Machine Lifecycle

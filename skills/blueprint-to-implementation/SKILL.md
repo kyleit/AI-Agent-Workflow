@@ -70,6 +70,16 @@ full-access Agent MUST still stop before touching product source when any
 record is absent, stale, external to the workspace, or belongs to another
 work item.
 
+### FULL Blueprint Consumption
+
+For `blueprint_depth: FULL`, copy the complete verified material from the spike
+into the product path, including tests and entrypoints; do not retype or
+reinterpret it. Product code must never import `.agents/scratch`. After the
+copy, rerun the complete declared test matrix at the new path and record the
+result. A changed design, missing block, or failed copied test returns the work
+to Blueprint repair because FULL is a verified implementation contract, not a
+suggestion.
+
 ## Frozen Block Integrity
 
 Every `full-file` target is an exact implementation contract. The writer MUST

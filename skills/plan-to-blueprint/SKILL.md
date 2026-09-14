@@ -763,6 +763,25 @@ Unapproved plan statuses ARE STRICTLY REJECTED.
 - **Verification Matrix**: Maps Requirement → AC → Component → Interface → Verification Method → Owner (`TESTER` Agent owns test execution; tests default to `NOT_RUN`).
 - **Rollback Design**: Explicit rollback steps for high-risk operations.
 
+### CODE_BLOCK_GATE Branch And Depth Decision
+
+Before authoring implementation material, record `blueprint_depth` as CONTRACT
+or FULL and obtain the owner's choice. Use Branch A when the target source
+exists: verify identifiers against the real file and add `verified from:
+<path:line>`. Use Branch B when the source is absent: complete B1-B6 in the
+canonical strict gate, including a runnable spike, real toolchain execution,
+adversarial rejection tests, evidence table, and complete extraction. Keep the
+Implementation Sequence prose-only; put all verified source in `Source -
+verified` or a phase appendix. This separation prevents prose instructions
+from hiding incomplete implementation material.
+
+The Internal Review Evidence CODE_BLOCK_GATE row must state the chosen branch,
+depth, executed commands and real results for Branch B, code-block count,
+verified-marker count, public-unit count in the spike, public-unit count in the
+Blueprint, and the exact statement `No section was written from memory`. The
+two counts must match. Zero blocks, partial extraction, or a FULL spike without
+a real entrypoint run is FAIL.
+
 > [!CAUTION]
 > **CODE_BLOCK_GATE — MANDATORY for every implementation-ready code block written into this Blueprint**
 > Every non-trivial code block (function signature, struct definition, SQL schema, migration snippet, config schema, rule, or script) MUST be routed through `skills/strict-code-block-gate/SKILL.md`.

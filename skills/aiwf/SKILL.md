@@ -74,6 +74,11 @@ continues the documentation repair loop without asking for approval. A
 self-authored `PASS`, a detailed master, or a technical-design approval prompt
 never satisfies this rule.
 
+For implementation requests, AIWF must obtain the owner's `blueprint_depth`
+choice before Blueprint generation, route the request through the canonical
+CODE_BLOCK_GATE Branch A or Branch B, and preserve the Integration-Verify and
+Interop-Handoff phases when their applicability conditions are met.
+
 ## Documentation-First Execution Firewall
 
 For a new project or a large feature, the first Agent transaction is
