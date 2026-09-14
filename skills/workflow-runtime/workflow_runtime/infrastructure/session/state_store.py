@@ -3,6 +3,7 @@ import atexit
 import json
 import os
 import re
+import sys
 import tempfile
 import uuid
 from datetime import datetime
@@ -133,7 +134,11 @@ class AtomicFileStateStore(StateStore):
                             self._cache[key] = cast(dict[str, Any], legacy_data)
                             self._last_write[key + "_mtime"] = os.path.getmtime(path)
                             if os.environ.get("AIWF_JSON_OUTPUT", "").lower() not in {"1", "true", "yes"}:
-                                print(f"Migrated legacy state for '{key}' to scoped work item '{work_item_id}'")
+                                # Keep machine-readable state commands clean on stdout.
+                                print(
+                                    f"Migrated legacy state for '{key}' to scoped work item '{work_item_id}'",
+                                    file=sys.stderr,
+                                )
                     except Exception as e:
                         if os.environ.get("AIWF_JSON_OUTPUT", "").lower() not in {"1", "true", "yes"}:
                             print(f"Error migrating legacy state for '{key}': {e}")

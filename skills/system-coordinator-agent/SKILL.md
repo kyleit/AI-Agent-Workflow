@@ -129,6 +129,15 @@ The coordinator must also inject this document-quality restriction for every doc
 
 > "DOCUMENT QUALITY HARD GATES: Before claiming PASS, scan all generated Markdown for local machine paths, local-file URL links, encoding corruption/mojibake, generic perfect-score reviews, completion claims without live runtime evidence, and test claims where output says no tests were collected or no test files exist. Any one finding is a FAIL. Report exact failed points and repair only those points."
 
+> "NATIVE AUTHORING HARD GATE: All reasoning-heavy documents, including the
+> requirement specification, roadmap, plan, master Blueprint, phase Blueprints,
+> ledgers, and review evidence, MUST be authored with native Agent file tools.
+> Python, PowerShell, Node, shell redirection, heredocs, and scratch scripts
+> MUST NOT create, rewrite, rename, or delete those artifacts. Scripts are
+> limited to deterministic reads, parsing, hashing, validation, gate execution,
+> and evidence collection. A later structural PASS never repairs a provenance
+> violation; the coordinator MUST return BLOCKED and dispatch native authoring."
+
 ### Mandatory Prompt Injection (Continuous Feedback Loop)
 If AGY fails internal review and you must dispatch a retry prompt, you **MUST explicitly include the mistakes AGY made in the previous attempt** so it can learn and not repeat them:
 

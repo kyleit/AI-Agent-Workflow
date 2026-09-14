@@ -12,6 +12,8 @@ from workflow_runtime.application.workflow.blueprint_scope_decomposer import (
     BlueprintScopeAssessment, BlueprintScopeDecomposer)
 from workflow_runtime.application.workflow.blueprint_validation_loop import (
     BlueprintAutoValidationService, BlueprintValidationResult)
+from workflow_runtime.application.workflow.blueprint_authoring_policy_validator import (
+    BlueprintAuthoringPolicyResult, BlueprintAuthoringPolicyValidator)
 from workflow_runtime.application.workflow.feature_coverage_validator import (
     CoverageValidationResult, FeatureCoverageValidator)
 from workflow_runtime.application.workflow.project_init_completeness_validator import (
@@ -32,6 +34,8 @@ __all__ = [
     "BlueprintScopeDecomposer",
     "BlueprintAutoValidationService",
     "BlueprintValidationResult",
+    "BlueprintAuthoringPolicyResult",
+    "BlueprintAuthoringPolicyValidator",
     "CoverageValidationResult",
     "FeatureCoverageValidator",
     "ProjectInitCompletenessResult",

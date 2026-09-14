@@ -96,6 +96,11 @@ The `brainstorming-to-plan` skill converts feasibility-approved brainstorming re
    - **Technical Blueprint**: Full API signatures, data schemas, fine-grained implementation steps (Phase 09).
 3. **No Direct Source Modification**: Planning artifacts plan execution; they MUST NOT modify source code or execute tests.
 4. **Mandatory Gate & Review**: Execution Plans MUST pass `PLAN_READINESS` (score >= 95/100, zero blockers) and obtain Plan Architecture Approval (`review_type: PLAN_ARCHITECTURE`) before handoff to Technical Blueprint.
+5. **Decision Ledger Preservation**: The Roadmap and Plan MUST carry forward
+   every confirmed decision, unresolved blocking decision, and rejected option
+   from Brainstorming. They MUST NOT resolve an owner decision by inference or
+   shrink scope to avoid a dependency. An unresolved blocking decision keeps
+   the artifact `BLOCKED` and routes a concise owner question.
 
 ---
 
@@ -115,6 +120,26 @@ Refer to the canonical execution plan:
 - Tasks must define explicit task IDs (`t-01`, `t-02`), assigned specialist agent, target files, and verification steps.
 
 ---
+
+### Repository-First Roadmap And Plan Contract
+
+Roadmap and Execution Plan are physical repository artifacts. Before asking
+for plan architecture approval or handing off to Blueprint, the Agent MUST
+write and read back:
+
+- `docs/features/<family>/roadmaps/<slug>_roadmap.md`;
+- `docs/features/<family>/plans/<slug>_plan.md`;
+- `docs/aiwf-runs/<workflow-id>/artifact-index.json` with current hashes and
+  upstream links.
+
+The plan MUST contain the complete delivery-unit inventory, dependencies,
+file-impact map, task contracts, verification commands, expected evidence,
+rollback, and the dynamically derived `Master -> Family -> Small Feature ->
+Phase` shape. It MUST not be reduced to an external `implementation_plan.md`
+or a prose list of representative tasks. If a host reports a plan only in an
+IDE artifact, the Agent MUST persist the equivalent repository documents
+before continuing; otherwise stop with
+`BLOCKED: ARTIFACT_PERSISTENCE_REQUIRED`.
 
 ## 2. Input Contract & Prerequisites Validation
 

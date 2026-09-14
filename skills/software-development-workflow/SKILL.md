@@ -301,7 +301,7 @@ If the plan `docs/features/<feature-family>/plans/FEAT-XXX_<feature_name>_plan.m
 
 #### Case C.5: Design Blueprint Approval Pending
 If the technical blueprint exists but `blueprint.approved` is NOT marked as `true` in the session data:
-* **BLOCK before approval prompt** if the Blueprint does not contain `Internal Review Evidence` with canonical `CODE_BLOCK_GATE: PASS`, projected line budgets under 500 for every touched source file, family-folder split and facade/barrel/aggregate entry evidence for every required split, active strict language profile coverage, and exact build/lint/typecheck/test commands for affected languages. Return to the Blueprint-producing skill (`plan-to-blueprint`, `quick-fix`, or `quick-feature`) to repair only the failed evidence.
+* **BLOCK before approval prompt** if the Blueprint does not contain `Internal Review Evidence` with canonical `CODE_BLOCK_GATE: PASS`, honest projected physical-size evidence for every touched source file, family-folder split and facade/barrel/aggregate entry evidence when the source architecture requires a split, active strict language profile coverage, and exact build/lint/typecheck/test commands for affected languages. Blueprint document length is not a blocker. Return to the Blueprint-producing skill (`plan-to-blueprint`, `quick-fix`, or `quick-feature`) to repair only the failed evidence.
 * **STOP**. Explain that the Blueprint is pending approval.
 * **Recommend next action**: Request Blueprint Approval through native Agent/IDE `ask_question` first. Only when native `ask_question` is unavailable, emit the runtime prompt bridge:
   ```bash

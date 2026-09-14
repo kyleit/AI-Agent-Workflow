@@ -113,6 +113,30 @@ def classify_intent(request: str) -> dict[str, Any]:
     large_feat_keywords = ["new system", "new module", "new workflow", "architecture change", "database design", "tái cấu trúc", "hệ thống mới", "thiết kế database", "cơ sở dữ liệu", "thiết kế cơ sở dữ liệu", "tái thiết kế"]
     is_large_feat = any(kw in req_lower for kw in large_feat_keywords)
 
+    # Project initialization is a standard workflow even when the request
+    # never uses the words "new system".  A stack spanning multiple runtime
+    # boundaries must reach the full requirement -> plan -> master/phase
+    # Blueprint path, otherwise it can be misclassified as a small feature.
+    project_start_keywords = [
+        "init project", "initialize project", "init a project", "from scratch",
+        "new project", "new repository", "fresh repository", "empty repository",
+        "khởi tạo dự án", "khoi tao du an", "dự án mới", "du an moi",
+        "repo mới", "repo moi", "từ đầu", "tu dau", "bắt đầu từ đầu", "bat dau tu dau",
+        "xây dựng một app", "xay dung mot app", "xây dựng một web", "xay dung mot web",
+        "xây dựng ứng dụng", "xay dung ung dung",
+    ]
+    stack_boundary_keywords = [
+        "frontend", "backend", "database", "sqlite", "postgres", "mysql",
+        "desktop", "wails", "electron", "tauri", "web app", "mobile app",
+        "golang", "go fiber", "fiber", "svelte", "react", "vue", "angular",
+    ]
+    project_start_requested = any(kw in req_lower for kw in project_start_keywords)
+    stack_boundary_count = sum(kw in req_lower for kw in stack_boundary_keywords)
+    is_project_initialization = project_start_requested and stack_boundary_count >= 1
+    is_project_initialization = is_project_initialization or stack_boundary_count >= 4
+    if is_project_initialization:
+        is_large_feat = True
+
     # 9. Scenarios mapping
     if is_bug:
         if is_large_feat or any(kw in req_lower for kw in ["broad", "unclear", "architectural"]):
@@ -137,7 +161,14 @@ def classify_intent(request: str) -> dict[str, Any]:
             "recommended_skill": "brainstorming",
             "recommended_command": "brainstorm",
             "options": [],
-            "reason": "Tính năng lớn, thay đổi kiến trúc hoặc cơ sở dữ liệu, cần thảo luận yêu cầu trước (brainstorming)."
+            "reason": (
+                "Yêu cầu khởi tạo hoặc thay đổi hệ thống nhiều lớp; bắt buộc dùng standard workflow "
+                "và Blueprint master + số phase động theo độ phức tạp."
+                if is_project_initialization
+                else "Tính năng lớn, thay đổi kiến trúc hoặc cơ sở dữ liệu, cần thảo luận yêu cầu trước (brainstorming)."
+            ),
+            "scope_classification": "project_initialization" if is_project_initialization else "large_feature",
+            "dynamic_phase_blueprint_required": True,
         }
 
     if is_small_feat:

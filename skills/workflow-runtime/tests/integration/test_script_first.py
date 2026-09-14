@@ -93,6 +93,13 @@ class TestScriptFirstExecution(unittest.TestCase):
         res = classify_intent("Tái thiết kế cơ sở dữ liệu lớn")
         self.assertEqual(res["recommended_skill"], "brainstorming")
 
+        res = classify_intent(
+            "Xây dựng một web + desktop app mới gồm frontend, backend, SQLite và Wails từ đầu"
+        )
+        self.assertEqual(res["recommended_skill"], "brainstorming")
+        self.assertEqual(res["scope_classification"], "project_initialization")
+        self.assertTrue(res["dynamic_phase_blueprint_required"])
+
     # Scenario 2 & 3: initialize-workflow creates session, defaults to sandbox
     def test_init_session(self):
         from workflow_state import init_session

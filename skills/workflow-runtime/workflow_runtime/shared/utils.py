@@ -275,6 +275,63 @@ def _agent_prompt_response(
     return None
 
 
+def _read_json_file(path: pathlib.Path) -> dict[str, Any]:
+    try:
+        value = json.loads(path.read_text(encoding="utf-8"))
+        return value if isinstance(value, dict) else {}
+    except (OSError, json.JSONDecodeError, TypeError, ValueError):
+        return {}
+
+
+def _record_bound_owner_approval(
+    choice_id: str,
+    selected: str,
+    request: dict[str, Any],
+) -> None:
+    """Persist one-use proof that an active approval prompt was answered."""
+    if choice_id != "blueprint_approval" or selected.strip().lower() not in {
+        "approve", "approved", "continue", "proceed", "yes", "y", "true"
+    }:
+        return
+    if request.get("status") != "pending" or not request.get("approval_gate"):
+        return
+    workflow = pathlib.Path(".agents/state/workflow.json")
+    work_item_id = ""
+    try:
+        payload = json.loads(workflow.read_text(encoding="utf-8"))
+        if isinstance(payload, dict):
+            work_item = payload.get("active_workflow") or payload.get("work_item")
+            work_item_id = str(
+                work_item.get("id") if isinstance(work_item, dict) else work_item or ""
+            )
+    except (OSError, json.JSONDecodeError, TypeError, ValueError):
+        return
+    if not work_item_id or work_item_id == "None":
+        return
+    blueprint_path = str(request.get("blueprint_path") or "")
+    if not blueprint_path:
+        lifecycle = pathlib.Path(".agents/state/work-items") / work_item_id / "blueprint-lifecycle.json"
+        try:
+            lifecycle_data = json.loads(lifecycle.read_text(encoding="utf-8"))
+            if isinstance(lifecycle_data, dict):
+                blueprint_path = str(lifecycle_data.get("blueprint_path") or "")
+        except (OSError, json.JSONDecodeError, TypeError, ValueError):
+            blueprint_path = ""
+    atomic_write_json(
+        ".agents/runtime/owner-approval.json",
+        {
+            "choice_id": choice_id,
+            "selected_option": selected,
+            "work_item_id": work_item_id,
+            "blueprint_path": blueprint_path,
+            "source": "bound_prompt",
+            "request_sha256": hashlib.sha256(
+                json.dumps(request, sort_keys=True).encode("utf-8")
+            ).hexdigest(),
+        },
+    )
+
+
 def _write_prompt_request(
     choice_id: str,
     question: str,
@@ -295,6 +352,8 @@ def _write_prompt_request(
                 "approval_gate": strategic_approval_gate,
                 "status": "pending",
                 "protocol": "aiwf.prompt.v1",
+                "work_item_id": _current_prompt_work_item_id(),
+                "blueprint_path": _current_prompt_blueprint_path(),
                 "response_file": ".agents/runtime/prompt-response.json",
                 "response_schema": {
                     "choice_id": choice_id,
@@ -305,6 +364,29 @@ def _write_prompt_request(
         return request_path
     except (OSError, PathPolicyViolation):
         return None
+
+
+def _current_prompt_work_item_id() -> str:
+    try:
+        payload = json.loads(pathlib.Path(".agents/state/workflow.json").read_text(encoding="utf-8"))
+        if isinstance(payload, dict):
+            value = payload.get("active_workflow") or payload.get("work_item")
+            return str(value.get("id") if isinstance(value, dict) else value or "")
+    except (OSError, json.JSONDecodeError, TypeError, ValueError):
+        return ""
+    return ""
+
+
+def _current_prompt_blueprint_path() -> str:
+    work_item_id = _current_prompt_work_item_id()
+    if not work_item_id or work_item_id == "None":
+        return ""
+    lifecycle = pathlib.Path(".agents/state/work-items") / work_item_id / "blueprint-lifecycle.json"
+    try:
+        payload = json.loads(lifecycle.read_text(encoding="utf-8"))
+        return str(payload.get("blueprint_path") or "") if isinstance(payload, dict) else ""
+    except (OSError, json.JSONDecodeError, TypeError, ValueError):
+        return ""
 
 
 def _clear_prompt_request(choice_id: str) -> None:
@@ -353,11 +435,15 @@ def prompt_select(
     choice_id = prompt_choice_id(question, options)
     selected = _normalise_prompt_response(response, options)
     if selected:
+        request = _read_json_file(pathlib.Path(".agents/runtime/prompt-request.json"))
+        _record_bound_owner_approval(choice_id, selected, request)
         _clear_prompt_request(choice_id)
         return selected
 
     selected = _agent_prompt_response(choice_id, options)
     if selected:
+        request = _read_json_file(pathlib.Path(".agents/runtime/prompt-request.json"))
+        _record_bound_owner_approval(choice_id, selected, request)
         _clear_prompt_request(choice_id)
         return selected
 

@@ -20,7 +20,7 @@ def aggregate(payload: dict) -> dict:
                 findings.append(f"{item.get('id', key)}: {finding}")
             if item.get("finding"):
                 findings.append(f"{item.get('id', key)}: {item['finding']}")
-    if "BLOCKED" in statuses:
+    if findings or "BLOCKED" in statuses:
         decision = "BLOCKED"
     elif "FAIL" in statuses:
         decision = "FAIL"

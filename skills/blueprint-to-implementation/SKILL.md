@@ -60,6 +60,27 @@ code_block_gate_required: true
 implementation_entry_receipt_required: true
 ---
 
+## Entry Firewall
+
+This skill is unreachable from a raw product request. It may start only after
+the canonical Blueprint artifact set has passed independent validation, owner
+approval is bound to the exact current Blueprint hash, and the runtime
+implementation-entry receipt authorizes the active work item. A plan-mode or
+full-access Agent MUST still stop before touching product source when any
+record is absent, stale, external to the workspace, or belongs to another
+work item.
+
+## Frozen Block Integrity
+
+Every `full-file` target is an exact implementation contract. The writer MUST
+not silently add imports, alter signatures, remove files, or change generated
+configuration after the Blueprint is frozen. If compilation, typechecking, or
+runtime inspection reveals that the block is incomplete, stop the current
+implementation phase, record the failing evidence, invalidate the entry for
+the stale Blueprint hash, and route the work back through Blueprint repair and
+approval. A source edit followed by a prose update to the implementation
+report is never a substitute for re-authoring the Blueprint block.
+
 ## Frontend Completion Guard
 
 When `.agents/project-profile.json` reports `visual_debug.e2e_required=true` or
@@ -96,6 +117,13 @@ When splitting a file to keep each physical file <=500 lines, implementation MUS
 > 2. **COORDINATOR ROUTING**: This skill MUST be invoked via `workflow-coordinator` delegation chain (`aiwf → initialize-workflow → workflow-coordinator → this skill`). Direct invocation from raw user prompt is FORBIDDEN.
 >
 > 3. **NO BLUEPRINT = NO CODE**: Source code MUST NOT be created, modified, or deleted until a Technical Design Blueprint exists under `docs/features/` AND is explicitly approved by the user. Spec and Blueprint documents MUST be created FIRST.
+
+> **Approval authenticity rule**: `status: APPROVED` or `status: FROZEN` in a
+> Blueprint file is not approval evidence. Those fields may be written by an
+> agent and MUST be ignored unless the runtime contains a scoped approval
+> record for the exact work-item and Blueprint path, followed by a valid
+> implementation-entry handoff. A model must never infer permission from its
+> own frontmatter, a checklist, a successful code-block gate, or a chat turn.
 >
 > 4. **PHYSICAL WRITES ONLY**: All file changes MUST be physical writes to the project filesystem using file creation/edit tools. The following are NOT valid implementation and are STRICTLY FORBIDDEN:
 >    - IDE "proposed changes" or "Apply" button

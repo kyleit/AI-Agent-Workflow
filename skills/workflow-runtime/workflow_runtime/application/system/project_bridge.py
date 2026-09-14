@@ -4,6 +4,7 @@ from __future__ import annotations
 import hashlib
 import json
 import os
+import shutil
 import subprocess
 import tempfile
 from dataclasses import asdict, dataclass
@@ -71,6 +72,35 @@ def _read_json(path: Path) -> dict[str, Any]:
         return {}
 
 
+def _sync_enforcement_bridge(project_root: Path, global_root: Path | None) -> list[str]:
+    """Install the local gate bridge needed by every new project."""
+    if global_root is None or global_root == project_root:
+        return []
+    copied: list[str] = []
+    source_hooks = global_root / "tools" / "aiwf-hooks"
+    source_githooks = global_root / "tools" / "githooks"
+    target_hooks = project_root / ".agents" / "aiwf-hooks"
+    target_githooks = project_root / ".agents" / "githooks"
+    for name in ("aiwf_gate.py", "aiwf_gate_bridge.py", "aiwf_gate_launcher.py"):
+        source = source_hooks / name
+        target = target_hooks / name
+        if source.is_file() and not target.is_file():
+            target.parent.mkdir(parents=True, exist_ok=True)
+            shutil.copy2(source, target)
+            copied.append(target.relative_to(project_root).as_posix())
+    if source_githooks.is_dir() and not target_githooks.exists():
+        shutil.copytree(source_githooks, target_githooks)
+        copied.append(target_githooks.relative_to(project_root).as_posix())
+    if target_githooks.is_dir() and (project_root / ".git").exists():
+        subprocess.run(
+            ["git", "config", "core.hooksPath", ".agents/githooks"],
+            cwd=project_root,
+            check=False,
+            capture_output=True,
+            text=True,
+            timeout=10,
+        )
+    return copied
 def ensure_project_bridge(
     root: Path | str,
     global_root: Path | str | None = None,
@@ -88,6 +118,7 @@ def ensure_project_bridge(
         mode = force_mode
     if source and source != project_root and (not has_existing_bridge and not has_legacy_assets):
         mode = "global_link"
+    _sync_enforcement_bridge(project_root, source)
     global_version = "unknown"
     manifest = _read_json(source / "MANIFEST.json") if source else {}
     if manifest.get("version") is not None:

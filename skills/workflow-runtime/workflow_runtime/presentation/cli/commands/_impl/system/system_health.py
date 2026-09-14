@@ -120,17 +120,35 @@ def do_verify_action(args: argparse.Namespace) -> int:
         session = load_session() or {}
         raw_work_item = session.get("work_item")
         work_item = raw_work_item if isinstance(raw_work_item, dict) else {}
-        work_item_id = str(
-            getattr(args, "work_item", None)
-            or work_item.get("id")
-            or session.get("active_workflow")
-            or "manual"
+        candidates = (
+            getattr(args, "work_item", None),
+            work_item.get("id"),
+            session.get("active_workflow"),
         )
+        work_item_id = next(
+            (
+                str(value)
+                for value in candidates
+                if value and str(value).strip().lower() not in {"none", "null", "unknown"}
+            ),
+            "",
+        )
+        if not work_item_id:
+            blueprint_text = Path(str(blueprint)).read_text(encoding="utf-8")
+            import re
+
+            match = re.search(
+                r"^\s*(?:work_item_id|feature_id):\s*([^\s#]+)",
+                blueprint_text,
+                re.IGNORECASE | re.MULTILINE,
+            )
+            work_item_id = match.group(1) if match else Path(str(blueprint)).stem.split("_", 1)[0]
+        post_implementation = bool(getattr(args, "post_implementation", False))
         result = BlueprintAutoValidationService(Path.cwd()).validate_for_approval(
             Path(str(blueprint)),
             work_item_id,
-            allow_existing_creates=True,
-            post_implementation=True,
+            allow_existing_creates=post_implementation,
+            post_implementation=post_implementation,
         )
         print(json.dumps(result.__dict__, indent=2, sort_keys=True))
         return 0 if result.status in {"APPROVAL_READY", "VERIFIED"} else 1

@@ -1,6 +1,7 @@
 from __future__ import annotations
 
 import json
+import hashlib
 import os
 import re
 from dataclasses import dataclass, field
@@ -10,6 +11,51 @@ from typing import Any, cast
 
 from workflow_runtime.application.ports.locator import InfrastructureLocator
 from workflow_runtime.infrastructure.memory.common import read_json_safe, read_text_safe, write_json_safe
+
+
+def build_owner_clarification(request_text: str) -> dict[str, Any] | None:
+    """Return a generic AI clarification checkpoint for a greenfield request.
+
+    The runtime deliberately does not know the product domain or choose an
+    option. The Agent must inspect the request and replace this checkpoint with
+    an owner question backed by its decision ledger.
+    """
+    text = request_text.lower()
+    greenfield = any(
+        token in text
+        for token in (
+            "xây dựng", "xay dung", "khởi tạo", "khoi tao", "tạo mới", "tao moi",
+            "from scratch", "greenfield", "new project", "create an app", "build an app",
+        )
+    )
+    if not greenfield:
+        return None
+
+    choice_id = hashlib.sha256(request_text.encode("utf-8")).hexdigest()[:16]
+    return {
+        "input_id": f"owner-clarification-{choice_id}",
+        "question": (
+            "Yêu cầu này còn quyết định quan trọng chưa được owner xác nhận. "
+            "Agent phải phân tích request, lập decision ledger và đặt một câu hỏi "
+            "blocking cụ thể trước khi tạo Requirement Specification."
+        ),
+        "options": [
+            {
+                "id": "ai_analyze_and_ask",
+                "label": "AI phân tích và hỏi",
+                "description": "Agent phân tích các điểm mơ hồ, nêu option và hỏi owner từng quyết định blocking.",
+            },
+            {
+                "id": "owner_provides_decisions",
+                "label": "Owner bổ sung quyết định",
+                "description": "Owner cung cấp các quyết định còn thiếu trước khi Agent đóng băng phạm vi.",
+            },
+        ],
+        "default": None,
+        "classification": "BLOCKING",
+        "impact": ["scope", "architecture", "data", "API", "UX", "runtime", "security", "acceptance tests"],
+        "next_action": "wait_for_owner_answer_before_requirement_specification",
+    }
 
 
 @dataclass(frozen=True)
@@ -392,6 +438,130 @@ class WorkflowEntryGateway:
             json.dump(response, stream, indent=2, ensure_ascii=False)
         os.replace(temporary, path)
 
+    def _route_to_clarification(
+        self,
+        *,
+        request_id: str,
+        workflow_id: str,
+        request_text: str,
+        source: str | None,
+        session_id: str,
+        clarification: dict[str, Any],
+    ) -> dict[str, Any]:
+        """Persist a blocking owner question before any planning artifact can advance."""
+        state_dir = os.path.join(self.workspace_root, ".agents", "state")
+        runtime_dir = os.path.join(self.workspace_root, ".agents", "runtime")
+        os.makedirs(state_dir, exist_ok=True)
+        os.makedirs(runtime_dir, exist_ok=True)
+
+        pending = {
+            **clarification,
+            "request_id": request_id,
+            "workflow_id": workflow_id,
+            "session_id": session_id,
+            "request_text": request_text,
+            "created_at": datetime.now().astimezone().isoformat(),
+            "response_contract": {
+                "owner_only": True,
+                "one_decision_per_response": True,
+                "resume_after": "raw-intent-normalization",
+            },
+        }
+        pending_path = os.path.join(runtime_dir, "pending-clarification.json")
+        temporary = f"{pending_path}.tmp"
+        with open(temporary, "w", encoding="utf-8") as stream:
+            json.dump(pending, stream, indent=2, ensure_ascii=False)
+        os.replace(temporary, pending_path)
+
+        self._write_workflow_state(
+            state_dir,
+            {
+                "active_workflow": workflow_id,
+                "active_phase": "clarifying",
+                "checkpoint": 1,
+                "status": "WAITING_FOR_OWNER",
+                "waiting_for": "owner_clarification",
+                "session_id": session_id,
+                "work_item": {"type": "FEAT", "id": workflow_id, "title": request_text},
+                "suggested_next_skill": "raw-intent-normalization",
+                "suggested_next_command": "normalize",
+                "pending_clarification": pending,
+            },
+            mutation=True,
+        )
+
+        runtime_path = os.path.join(state_dir, "runtime.json")
+        runtime_data: dict[str, Any] = {}
+        if os.path.exists(runtime_path):
+            try:
+                with open(runtime_path, "r", encoding="utf-8") as stream:
+                    loaded = json.load(stream)
+                if isinstance(loaded, dict):
+                    runtime_data = cast(dict[str, Any], loaded)
+            except (OSError, ValueError):
+                pass
+        runtime_data.update({
+            "status": "waiting_input",
+            "current_skill": "raw-intent-normalization",
+            "current_command": "normalize",
+            "current_phase": "clarifying",
+            "checkpoint": 1,
+            "pending_input": pending,
+            "updated_at": datetime.now().astimezone().isoformat(),
+        })
+        with open(runtime_path, "w", encoding="utf-8") as stream:
+            json.dump(runtime_data, stream, indent=2, ensure_ascii=False)
+
+        emit_fn: Any = getattr(self.logger, "emit", None)
+        if callable(emit_fn):
+            emit_fn("workflow.created", {
+                "request_id": request_id, "workflow_id": workflow_id,
+                "intent": "feature_request", "status": "WAITING_FOR_OWNER",
+                "next_phase": "clarifying", "source": source or "system",
+                "session_id": session_id,
+            })
+            emit_fn("workflow.phase.started", {
+                "request_id": request_id, "workflow_id": workflow_id,
+                "phase": "clarifying",
+            })
+            emit_fn("workflow.blocked", {
+                "reason": "owner_clarification_required",
+                "phase": "clarifying",
+                "pending_input": pending,
+            })
+
+        os.environ["AIWF_WORKFLOW_ID"] = workflow_id
+        os.environ["AIWF_EXECUTION_MODE"] = "workflow"
+        os.environ["AIWF_CURRENT_PHASE"] = "clarifying"
+        return {
+            "status": "CLARIFICATION_REQUIRED",
+            "request_id": request_id,
+            "intent": "feature_request",
+            "workflow_id": workflow_id,
+            "workflow": "standard-development",
+            "execution_mode": "workflow",
+            "current_phase": "clarifying",
+            "next_skill": "raw-intent-normalization",
+            "next_command": "normalize",
+            "requires_user_input": True,
+            "pending_input": pending,
+            "interactive_prompt": {
+                "preferred_tool": "ask_question",
+                "fallback_tool": "prompt_select",
+                "question": clarification["question"],
+                "options": clarification["options"],
+                "default": clarification["default"],
+                "input_id": clarification["input_id"],
+            },
+            "side_effects": [
+                "workflow_state_created",
+                "clarification_request_persisted",
+                "no_specification_or_blueprint_authorized",
+            ],
+            "source": source or "system",
+            "session_id": session_id,
+        }
+
     def handle_request(self, request_text: str, source: str | None = None, session_id: str | None = None) -> dict[str, Any]:
         """
         Receives an engineering/chat request and routes accordingly.
@@ -417,6 +587,17 @@ class WorkflowEntryGateway:
         workflow_id = self.extract_workflow_id(request_text)
         if workflow_id == "FEAT-AUTO":
             workflow_id = self._next_generated_workflow_id()
+
+        clarification = build_owner_clarification(request_text)
+        if clarification is not None:
+            return self._route_to_clarification(
+                request_id=req_id,
+                workflow_id=workflow_id,
+                request_text=request_text,
+                source=source,
+                session_id=active_session_id,
+                clarification=clarification,
+            )
 
         coord_res = self._run_coordinator_tick(workflow_id, active_session_id)
         entry_phase = "status" if intent == "read_only" else "brainstorming"
@@ -545,5 +726,6 @@ __all__ = [
     "build_agent_context",
     "build_context_preflight",
     "ContextPreflightRequest",
+    "build_owner_clarification",
     "ensure_project_memory",
 ]

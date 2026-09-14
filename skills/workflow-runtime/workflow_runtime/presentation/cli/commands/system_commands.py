@@ -133,15 +133,20 @@ class VerifyCommand:
         p = subparsers.add_parser("verify", help=self.meta().help)
         p.add_argument("--blueprint", help="Blueprint file path")
         p.add_argument("--strict", action="store_true")
+        p.add_argument(
+            "--post-implementation",
+            action="store_true",
+            help="Validate an implemented product; default validates Blueprint readiness",
+        )
         self._parser = p
         return p
 
     def parse(self, argv: list[str]) -> argparse.Namespace: return self._parser.parse_args(argv)
 
-    def run(self, args: argparse.Namespace) -> None:
+    def run(self, args: argparse.Namespace) -> int:
         from workflow_runtime.presentation.cli.workflow_runtime import \
             do_verify_action
-        do_verify_action(args)
+        return int(do_verify_action(args) or 0)
 
     def print_help(self) -> None: self._parser.print_help()
 
@@ -225,21 +230,27 @@ class GateCommand:
     def run(self, args: argparse.Namespace) -> None:
         project_root = Path.cwd().resolve()
         for candidate in (project_root, *project_root.parents):
-            launcher = candidate / "tools" / "aiwf-hooks" / "aiwf_gate_launcher.py"
-            if launcher.is_file():
-                sys.path.insert(0, str(launcher.parent))
-                from aiwf_gate_launcher import run
-                argv = [str(getattr(args, "action", "status"))]
-                if getattr(args, "path", None):
-                    argv.append(str(args.path))
-                raise SystemExit(run(argv))
+            for launcher in (
+                candidate / ".agents" / "aiwf-hooks" / "aiwf_gate_launcher.py",
+                candidate / "tools" / "aiwf-hooks" / "aiwf_gate_launcher.py",
+            ):
+                if launcher.is_file():
+                    sys.path.insert(0, str(launcher.parent))
+                    from aiwf_gate_launcher import run
+                    argv = [str(getattr(args, "action", "status"))]
+                    if getattr(args, "path", None):
+                        argv.append(str(args.path))
+                    raise SystemExit(run(argv))
         configured = os.environ.get("AIWF_GLOBAL_ROOT") or os.environ.get("AIWF_FRAMEWORK_ROOT")
         if configured:
-            launcher = Path(configured) / "tools" / "aiwf-hooks" / "aiwf_gate_launcher.py"
-            if launcher.is_file():
-                sys.path.insert(0, str(launcher.parent))
-                from aiwf_gate_launcher import run
-                raise SystemExit(run([str(getattr(args, "action", "status"))]))
+            for launcher in (
+                Path(configured) / "aiwf-hooks" / "aiwf_gate_launcher.py",
+                Path(configured) / "tools" / "aiwf-hooks" / "aiwf_gate_launcher.py",
+            ):
+                if launcher.is_file():
+                    sys.path.insert(0, str(launcher.parent))
+                    from aiwf_gate_launcher import run
+                    raise SystemExit(run([str(getattr(args, "action", "status"))]))
         print("[aiwf-gate] global launcher is unavailable", file=sys.stderr)
         raise SystemExit(4)
 

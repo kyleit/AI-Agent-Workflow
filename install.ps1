@@ -299,6 +299,18 @@ Copy-ItemWithCheck -Src (Join-Path $ScriptDir $TemplateDir) -Dest (Join-Path $In
 Copy-ItemWithCheck -Src (Join-Path $ScriptDir "agents") -Dest (Join-Path $InstallTarget "agents") -IsDir $true
 Copy-ItemWithCheck -Src (Join-Path $ScriptDir "runtime") -Dest (Join-Path $InstallTarget "runtime") -IsDir $true
 
+# Provision the governance assets consumed by the architecture and language
+# gates.  They are intentionally copied as explicit directories rather than
+# copying the source repository's entire .agents tree, which would also copy
+# runtime state and generated data.
+foreach ($GovernanceDir in @("contracts", "policies", "profiles")) {
+    $GovernanceSource = Join-Path (Join-Path $ScriptDir ".agents") $GovernanceDir
+    $GovernanceTarget = Join-Path $InstallTarget $GovernanceDir
+    if (Test-Path $GovernanceSource) {
+        Copy-ItemWithCheck -Src $GovernanceSource -Dest $GovernanceTarget -IsDir $true
+    }
+}
+
 # Deploy AIWF source-write-gate enforcement (git hooks + gate core) and wire
 # git core.hooksPath so EVERY AI/editor is blocked from committing unapproved
 # source changes. Idempotent and safe: missing sources are skipped.

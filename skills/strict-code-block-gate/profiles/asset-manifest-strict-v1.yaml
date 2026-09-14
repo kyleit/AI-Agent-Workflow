@@ -1,0 +1,20 @@
+profile_id: asset-manifest-strict-v1
+language: Asset Manifest
+strict: true
+extensions: [.woff2, .woff, .ttf, .otf, .png, .jpg, .jpeg, .webp, .ico, .svg]
+filenames: []
+materialized_extension: .asset-manifest
+parser: profile-aware-static
+forbidden_patterns:
+  - "TODO_ONLY"
+  - "ELLIPSIS_AS_IMPLEMENTATION"
+  - "PLACEHOLDER_ASSET"
+gate_checks:
+  - metadata_complete
+  - profile_resolved
+  - asset_source_declared
+  - asset_checksum_declared
+  - materialize_only_under_agents_tmp
+  - architecture_boundary_check
+reference_tools_not_executed_by_default: [asset compiler]
+project_tests: NOT_RUN

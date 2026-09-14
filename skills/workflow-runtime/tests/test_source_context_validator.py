@@ -31,3 +31,27 @@ def test_path_escape_is_blocked(tmp_path: Path) -> None:
 
     assert result.passed is False
     assert "B02:path_escapes_workspace" in result.blocking_findings
+
+
+def test_new_file_may_introduce_missing_parent_during_project_init(tmp_path: Path) -> None:
+    result = SourceContextValidator(tmp_path).validate_blocks([{
+        "id": "B03",
+        "operation": "create",
+        "file": "internal/domain/monitoring/types.go",
+        "implementation_ready": True,
+    }])
+
+    assert result.passed is True
+    assert "B03:create_parent_missing" not in result.blocking_findings
+
+
+def test_generated_manifest_may_be_materialized_during_project_init(tmp_path: Path) -> None:
+    result = SourceContextValidator(tmp_path).validate_blocks([{
+        "id": "B04",
+        "operation": "generate",
+        "file": "go.sum",
+        "implementation_ready": True,
+    }])
+
+    assert result.passed is True
+    assert "B04:operation_unknown" not in result.blocking_findings

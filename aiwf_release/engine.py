@@ -60,21 +60,23 @@ def _normalise_scope(values: object) -> set[str]:
 
 def _declared_scope(root: Path, work_item: str | None) -> set[str]:
     """Read the implementation changeset that the AIWF writer produced."""
-    if not work_item:
-        return set()
-    base = root / "docs" / "aiwf-runs" / work_item / "06-implementation"
     result: set[str] = set()
-    changeset = _read_json(base / "source-document-changeset.json")
-    if isinstance(changeset, dict):
-        result.update(_normalise_scope(changeset.get("source_files")))
-        result.update(_normalise_scope(changeset.get("document_files")))
-    changed = base / "changed-files.md"
-    if changed.is_file():
-        text = changed.read_text(encoding="utf-8", errors="replace")
-        result.update(_normalise_scope(re.findall(r"`([^`]+)`", text)))
     override = _read_json(root / ".agents" / "state" / "release" / "scope.json")
-    if isinstance(override, dict) and override.get("work_item") in (None, work_item):
+    if isinstance(override, dict) and (
+        override.get("work_item") in (None, work_item)
+        or (not work_item and override.get("mode") == "maintenance")
+    ):
         result.update(_normalise_scope(override.get("scope")))
+    if work_item:
+        base = root / "docs" / "aiwf-runs" / work_item / "06-implementation"
+        changeset = _read_json(base / "source-document-changeset.json")
+        if isinstance(changeset, dict):
+            result.update(_normalise_scope(changeset.get("source_files")))
+            result.update(_normalise_scope(changeset.get("document_files")))
+        changed = base / "changed-files.md"
+        if changed.is_file():
+            text = changed.read_text(encoding="utf-8", errors="replace")
+            result.update(_normalise_scope(re.findall(r"`([^`]+)`", text)))
     return result
 
 
@@ -153,8 +155,36 @@ def _write_release_authorization(
     dry: bool,
 ) -> dict[str, Any]:
     work_item = _active_work_item(root)
+    release_mode = "workflow"
     if not work_item:
-        raise ReleaseError("release authorization requires an active AIWF work item")
+        scope_config = _read_json(root / ".agents" / "state" / "release" / "scope.json")
+        if not isinstance(scope_config, dict) or scope_config.get("mode") != "maintenance":
+            raise ReleaseError(
+                "maintenance release requires .agents/state/release/scope.json "
+                "with mode=maintenance"
+            )
+        release_mode = "maintenance"
+        authorization: dict[str, Any] = {
+            "schema": "aiwf.release-authorization.v1",
+            "authorized": True,
+            "operation": "release",
+            "release_mode": release_mode,
+            "work_item": None,
+            "version": version,
+            "blueprint_path": None,
+            "blueprint_sha256": None,
+            "debug_path": None,
+            "verification_path": None,
+            "scope": sorted(scope),
+            "scope_sha256": _scope_digest(root, scope),
+            "issued_at": _now_iso(),
+            "expires_at": (_dt.datetime.now(_dt.timezone.utc) + _dt.timedelta(minutes=30)).isoformat(),
+        }
+        if not dry:
+            destination = root / ".agents" / "state" / "release" / "authorization.json"
+            destination.parent.mkdir(parents=True, exist_ok=True)
+            destination.write_text(json.dumps(authorization, indent=2, sort_keys=True) + "\n", encoding="utf-8")
+        return authorization
     blueprint = _blueprint_path(root, work_item)
     debug = _evidence_path(root, work_item, "debug")
     verification = _evidence_path(root, work_item, "verification")
@@ -164,6 +194,7 @@ def _write_release_authorization(
         "schema": "aiwf.release-authorization.v1",
         "authorized": True,
         "operation": "release",
+        "release_mode": release_mode,
         "work_item": work_item,
         "version": version,
         "blueprint_path": blueprint,
@@ -312,7 +343,21 @@ def run(root: Path, cfg: dict, override_part: str | None, dry: bool) -> dict:
         if step.get("step") == "repo-release" and step.get("path") not in baseline_by_repo:
             repo = (root / step["path"]).resolve()
             if repo.is_dir():
-                baseline_by_repo[step["path"]] = set(gitsteps.dirty_files(repo))
+                # A maintenance release owns the explicitly reviewed package
+                # export as a whole. Workflow releases still preserve nested
+                # WIP by diffing against the pre-release baseline.
+                maintenance = (
+                    not _active_work_item(root)
+                    and isinstance(
+                        _read_json(root / ".agents" / "state" / "release" / "scope.json"),
+                        dict,
+                    )
+                    and _read_json(root / ".agents" / "state" / "release" / "scope.json").get("mode") == "maintenance"
+                )
+                baseline_by_repo[step["path"]] = (
+                    set() if maintenance and step["path"] == "public_export"
+                    else set(gitsteps.dirty_files(repo))
+                )
 
     # Pre-write receipt before running release pipeline so that pre-push hook can verify it
     if not dry:

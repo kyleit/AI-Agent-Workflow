@@ -84,6 +84,74 @@ def sync_blueprint_approval_metadata(
     return hashlib.sha256(path.read_bytes()).hexdigest()
 
 
+def has_bound_owner_blueprint_approval(work_item_id: str, blueprint_path: str) -> bool:
+    """Accept approval only when a matching UI/bridge response exists."""
+    runtime_dir = Path.cwd() / ".agents" / "runtime"
+    expected_path = Path(blueprint_path).resolve()
+
+    def _selected(value: Any) -> bool:
+        return str(value or "").strip().lower() in {
+            "approve", "approved", "continue", "proceed", "yes", "y", "true"
+        }
+
+    def _context_matches(context: Any) -> bool:
+        if not isinstance(context, dict):
+            return True
+        context_work_item = str(
+            context.get("work_item_id") or context.get("workflow_id") or ""
+        )
+        context_blueprint = str(context.get("blueprint") or "")
+        if context_work_item and context_work_item != str(work_item_id):
+            return False
+        if context_blueprint and Path(context_blueprint).resolve() != expected_path:
+            return False
+        return True
+
+    pending = _read_json_file(runtime_dir / "pending-choice.json")
+    response = _read_json_file(runtime_dir / "choice-response.json")
+    if (
+        pending.get("id") == "blueprint_approval"
+        and response.get("id") == "blueprint_approval"
+        and _selected(response.get("selected_id") or response.get("selected"))
+        and _context_matches(pending.get("context"))
+    ):
+        return True
+
+    prompt_request = _read_json_file(runtime_dir / "prompt-request.json")
+    prompt_response = _read_json_file(runtime_dir / "prompt-response.json")
+    request_choice = str(prompt_request.get("choice_id") or "")
+    response_choice = str(prompt_response.get("choice_id") or prompt_response.get("id") or "")
+    if (
+        request_choice == "blueprint_approval"
+        and response_choice == request_choice
+        and prompt_request.get("status") == "pending"
+        and bool(prompt_request.get("approval_gate"))
+        and _selected(
+            prompt_response.get("selected_option")
+            or prompt_response.get("selected")
+            or prompt_response.get("response")
+        )
+    ):
+        return True
+
+    receipt = _read_json_file(runtime_dir / "owner-approval.json")
+    return (
+        receipt.get("choice_id") == "blueprint_approval"
+        and receipt.get("work_item_id") == str(work_item_id)
+        and Path(str(receipt.get("blueprint_path") or "")).resolve() == expected_path
+        and _selected(receipt.get("selected_option"))
+        and receipt.get("source") == "bound_prompt"
+    )
+
+
+def _read_json_file(path: Path) -> dict[str, Any]:
+    try:
+        value = json.loads(path.read_text(encoding="utf-8"))
+        return cast(dict[str, Any], value) if isinstance(value, dict) else {}
+    except (OSError, json.JSONDecodeError, TypeError, ValueError):
+        return {}
+
+
 def get_current_project_context() -> dict[str, Any]:
     project_root = _resolve_aiwf_project_root()
     context: dict[str, Any] = {

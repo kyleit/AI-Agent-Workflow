@@ -49,6 +49,8 @@ If the target tag is missing from `git -C public_export ls-remote --tags origin 
 - `--command` (Required): Command being executed
 - `--checkpoint` (Optional):
 - `--step` (Optional):
+- `--blueprint` (Optional): Blueprint path carried into implementation entry
+- `--autonomous` (Optional):
 
 ### `aiwf step`
 
@@ -75,6 +77,12 @@ If the target tag is missing from `git -C public_export ls-remote --tags origin 
 ### `aiwf status`
 
 ### `aiwf resume`
+
+### `aiwf continue`
+
+**Arguments / Flags:**
+- `--budget` (Optional):
+- `--json` (Optional):
 
 ### `aiwf lock`
 
@@ -142,11 +150,16 @@ If the target tag is missing from `git -C public_export ls-remote --tags origin 
 
 #### `aiwf state emit`
 
+**Arguments / Flags:**
+- `--type` (Required): Event type
+- `--payload` (Optional): JSON event payload
+
 #### `aiwf state diagnose`
 
 ### `aiwf usage`
 
 **Arguments / Flags:**
+- `subaction` (Optional): Compatibility usage view [Choices: report, breakdown, diagnose]
 - `--format` (Optional):  [Choices: json, table, text]
 - `--history` (Optional): Show usage history
 - `--provider` (Optional): Filter by provider
@@ -196,6 +209,13 @@ If the target tag is missing from `git -C public_export ls-remote --tags origin 
 - `--agent` (Required): Agent role to dispatch
 - `--task` (Optional): Task description
 - `--skill` (Optional): Target skill
+- `--project-id` (Optional): Lane project identity
+- `--workflow-id` (Optional): Lane workflow identity
+- `--agent-id` (Optional): Lane Agent identity
+- `--task-id` (Optional): Lane task identity
+- `--write-set` (Optional): Repo-relative path owned by this lane (repeatable)
+- `--approval-file` (Optional): Lane-scoped approval JSON file
+- `--artifact-sha256` (Optional): SHA-256 of the approved blueprint
 
 ### `aiwf routing`
 
@@ -243,9 +263,14 @@ If the target tag is missing from `git -C public_export ls-remote --tags origin 
 ### `aiwf blueprint`
 
 **Arguments / Flags:**
-- `action` (Optional):  [Choices: generate, validate, freeze, status]
+- `action` (Optional):  [Choices: generate, validate, freeze, status, retire]
+- `--path` (Optional): Blueprint file path
 - `--work-item` (Optional): Work item ID
 - `--skill` (Optional): Target skill
+- `--approve` (Optional): Record explicit blueprint approval
+- `--reason` (Optional): Required for retire; persisted in the lifecycle tombstone
+- `--replacement` (Optional): Replacement work-item ID for a superseded blueprint
+- `--json` (Optional): Emit a machine-readable result
 
 ### `aiwf suggest`
 
@@ -277,7 +302,9 @@ If the target tag is missing from `git -C public_export ls-remote --tags origin 
 ### `aiwf implement`
 
 **Arguments / Flags:**
-- `--blueprint` (Required): Blueprint file path
+- `action` (Optional):  [Choices: status, resume, abort, partial-release]
+- `--blueprint` (Optional): Blueprint file path
+- `--phase` (Optional): Phase for partial-release
 - `--dry-run` (Optional):
 
 ### `aiwf deps`
@@ -466,6 +493,7 @@ If the target tag is missing from `git -C public_export ls-remote --tags origin 
 - `--question` (Required):
 - `--options` (Required): Pipe-separated options e.g. 'Continue|Cancel'
 - `--default` (Optional):
+- `--response` (Optional): Optional response supplied by the Agent/IDE bridge; avoids stdin interaction.
 
 #### `aiwf prompt confirm`
 
@@ -594,6 +622,14 @@ If the target tag is missing from `git -C public_export ls-remote --tags origin 
 - `--feature-id` (Optional):
 - `--ci` (Optional):
 
+#### `aiwf visual e2e`
+
+**Arguments / Flags:**
+- `--url` (Required):
+- `--feature-id` (Required):
+- `--route` (Optional):
+- `--max-iterations` (Optional):
+
 ### `aiwf vir`
 
 **Subcommands:**
@@ -656,6 +692,14 @@ If the target tag is missing from `git -C public_export ls-remote --tags origin 
 - `--mode` (Optional):  [Choices: cli, ipc, daemon]
 - `--feature-id` (Optional):
 - `--ci` (Optional):
+
+#### `aiwf vir e2e`
+
+**Arguments / Flags:**
+- `--url` (Required):
+- `--feature-id` (Required):
+- `--route` (Optional):
+- `--max-iterations` (Optional):
 
 ### `aiwf var`
 
@@ -720,6 +764,14 @@ If the target tag is missing from `git -C public_export ls-remote --tags origin 
 - `--feature-id` (Optional):
 - `--ci` (Optional):
 
+#### `aiwf var e2e`
+
+**Arguments / Flags:**
+- `--url` (Required):
+- `--feature-id` (Required):
+- `--route` (Optional):
+- `--max-iterations` (Optional):
+
 ### `aiwf telegram`
 
 **Subcommands:**
@@ -774,10 +826,18 @@ If the target tag is missing from `git -C public_export ls-remote --tags origin 
 **Subcommands:**
 #### `aiwf migrate state`
 
+#### `aiwf migrate to-global`
+
+#### `aiwf migrate rollback`
+
 ### `aiwf migration`
 
 **Subcommands:**
 #### `aiwf migration state`
+
+#### `aiwf migration to-global`
+
+#### `aiwf migration rollback`
 
 ### `aiwf api-server`
 
@@ -810,6 +870,7 @@ If the target tag is missing from `git -C public_export ls-remote --tags origin 
 **Arguments / Flags:**
 - `--blueprint` (Optional): Blueprint file path
 - `--strict` (Optional):
+- `--post-implementation` (Optional): Validate an implemented product; default validates Blueprint readiness
 
 ### `aiwf release`
 
@@ -827,12 +888,24 @@ If the target tag is missing from `git -C public_export ls-remote --tags origin 
 - `--commit` (Optional):
 - `--output-dir` (Optional):
 
+### `aiwf gate`
+
+**Arguments / Flags:**
+- `action` (Optional):  [Choices: status, check-git, check-files, check-release-tags]
+- `path` (Optional):
+
 ### `aiwf update`
 
 **Arguments / Flags:**
 - `action` (Optional):  [Choices: framework, skills, runtime, all]
-- `--force` (Optional):
+- `--force`, `-Force` (Optional):
+- `--all`, `-All` (Optional):
+- `--current`, `-Current` (Optional):
+- `--json` (Optional):
 - `--dry-run` (Optional):
+- `--check` (Optional):
+- `--yes` (Optional):
+- `--allow-dirty` (Optional): Inspect dirty global source without mutating it
 - `--version` (Optional): Target version
 
 ### `aiwf update-source`
@@ -840,6 +913,12 @@ If the target tag is missing from `git -C public_export ls-remote --tags origin 
 **Arguments / Flags:**
 - `--branch` (Optional): Target branch
 - `--tag` (Optional): Target tag
+- `--source-path` (Optional): Framework source path
+- `--url` (Optional): Canonical source repository URL
+- `--remote` (Optional): Git remote name
+- `--check` (Optional):
+- `--yes` (Optional):
+- `--json` (Optional):
 - `--dry-run` (Optional):
 - `--no-install` (Optional): Skip pip install after update
 - `--allow-dirty` (Optional): Ignore local uncommitted changes when updating

@@ -150,6 +150,15 @@ def active_work_item(root: Path) -> str | None:
     return data.get("active_workflow") or (data.get("work_item") or {}).get("id")
 
 
+def _active_workflow_id(root: Path) -> str | None:
+    """Return only the current workflow identity used for source authorization."""
+    data = _read_json(root / WORKFLOW_REL)
+    if not isinstance(data, dict):
+        return None
+    value = data.get("active_workflow")
+    return str(value) if isinstance(value, str) and value.strip() else None
+
+
 def _now() -> _dt.datetime:
     return _dt.datetime.now(_dt.timezone.utc)
 
@@ -165,7 +174,13 @@ def _repo_file(root: Path, relative: object) -> Path | None:
     if not isinstance(relative, str) or not relative.strip():
         return None
     value = relative.replace("\\", "/").strip()
-    if value.startswith("/") or value == ".." or value.startswith("../"):
+    if (
+        value.startswith("/")
+        or re.match(r"^[A-Za-z]:/", value)
+        or Path(value).is_absolute()
+        or value == ".."
+        or value.startswith("../")
+    ):
         return None
     candidate = (root / value).resolve()
     if candidate != root and root not in candidate.parents:
@@ -206,8 +221,12 @@ def _release_authorization_status(root: Path, staged: list[str] | None = None) -
         return False, "release authorization is not active"
     if candidate.get("operation") != "release":
         return False, "release authorization operation mismatch"
-    active = active_work_item(root)
-    if not active or candidate.get("work_item") != active:
+    active = _active_workflow_id(root)
+    release_mode = str(candidate.get("release_mode") or "workflow")
+    if release_mode == "maintenance":
+        if active or candidate.get("work_item") is not None:
+            return False, f"maintenance release authorization has active workflow {active}"
+    elif not active or candidate.get("work_item") != active:
         return False, f"release authorization work item mismatch (active={active or 'none'})"
     version = candidate.get("version")
     if not isinstance(version, str) or not version:
@@ -220,15 +239,16 @@ def _release_authorization_status(root: Path, staged: list[str] | None = None) -
     parsed_expiry = _parse_iso(expires) if isinstance(expires, str) else None
     if parsed_expiry is None or parsed_expiry <= _now():
         return False, "release authorization expired or invalid"
-    blueprint = candidate.get("blueprint_path")
-    blueprint_path = _repo_file(root, blueprint)
-    if blueprint_path is None:
-        return False, "release authorization Blueprint is missing"
-    blueprint_hash = candidate.get("blueprint_sha256")
-    if not isinstance(blueprint_hash, str) or blueprint_hash != _sha256_file(blueprint_path):
-        return False, "release authorization Blueprint hash is stale"
-    if not _report_pass(root, candidate.get("debug_path")) or not _report_pass(root, candidate.get("verification_path")):
-        return False, "release debug/verification evidence is not PASS"
+    if release_mode != "maintenance":
+        blueprint = candidate.get("blueprint_path")
+        blueprint_path = _repo_file(root, blueprint)
+        if blueprint_path is None:
+            return False, "release authorization Blueprint is missing"
+        blueprint_hash = candidate.get("blueprint_sha256")
+        if not isinstance(blueprint_hash, str) or blueprint_hash != _sha256_file(blueprint_path):
+            return False, "release authorization Blueprint hash is stale"
+        if not _report_pass(root, candidate.get("debug_path")) or not _report_pass(root, candidate.get("verification_path")):
+            return False, "release debug/verification evidence is not PASS"
     scope = candidate.get("scope")
     scope_paths = {str(item).replace("\\", "/") for item in scope if isinstance(item, str)} if isinstance(scope, list) else set()
     if not scope_paths:
@@ -242,7 +262,8 @@ def _release_authorization_status(root: Path, staged: list[str] | None = None) -
         outside = sorted(staged_source - scope_paths)
         if outside:
             return False, "staged source files exceed release scope: " + ", ".join(outside[:10])
-    return True, f"verified release authorization for {active}"
+    subject = active or "maintenance scope"
+    return True, f"verified release authorization for {subject}"
 
 
 # Workflow phases at/after which source writes are permitted (blueprint has
@@ -265,13 +286,21 @@ def _explicit_authorization(root: Path) -> tuple[bool | None, str]:
         return None, ""
     if not auth.get("authorized"):
         return False, "explicit authorization present but authorized=false"
-    active = active_work_item(root)
+    active = _active_workflow_id(root)
     auth_wi = auth.get("work_item")
-    if active and auth_wi and auth_wi != active:
+    if not active:
+        return False, "explicit authorization has no active workflow"
+    if auth_wi != active:
         return False, f"explicit authorization is for {auth_wi} but active work item is {active}"
     bp = auth.get("blueprint_path")
-    if not bp or not (root / bp).exists():
-        return False, f"explicit authorization blueprint missing: {bp}"
+    blueprint_path = _repo_file(root, bp)
+    if blueprint_path is None:
+        return False, f"explicit authorization blueprint is not a repo-relative file: {bp}"
+    if not _is_canonical_blueprint_path(root, blueprint_path):
+        return False, f"explicit authorization blueprint is not canonical: {bp}"
+    blueprint_hash = auth.get("blueprint_sha256")
+    if not isinstance(blueprint_hash, str) or blueprint_hash != _sha256_file(blueprint_path):
+        return False, "explicit authorization Blueprint hash is stale or missing"
     exp = auth.get("expires_at")
     if exp:
         dt = _parse_iso(exp)
@@ -296,7 +325,7 @@ def _state_authorization(root: Path) -> tuple[bool, str]:
     if status not in ("IN_PROGRESS", "ACTIVE", "WAITING_INPUT"):
         return False, f"no active workflow (status={status or 'missing'})"
 
-    active = active_work_item(root)
+    active = _active_workflow_id(root)
     phase = str(wf.get("active_phase") or wf.get("phase") or "").lower()
     if phase not in IMPLEMENTATION_PHASES:
         return False, (
@@ -316,7 +345,8 @@ def _state_authorization(root: Path) -> tuple[bool, str]:
     path = bp.get("path")
     if not path:
         return False, f"{approval_path.relative_to(root).as_posix()} blueprint has no path"
-    if not (root / path).exists():
+    blueprint_path = _repo_file(root, path)
+    if blueprint_path is None or not _is_canonical_blueprint_path(root, blueprint_path):
         return False, f"approved blueprint doc not found on disk: {path}"
 
     # Bind the approval to the active work item so a stale approval (e.g. an old
@@ -399,6 +429,18 @@ def _code_block_gate_authorization(root: Path, active: str | None, blueprint_pat
             return True, f"strict CODE_BLOCK_GATE PASS ({gate_path.relative_to(root)})"
 
     return False, "strict CODE_BLOCK_GATE not valid: " + "; ".join(reasons)
+
+
+def _is_canonical_blueprint_path(root: Path, path: Path) -> bool:
+    """Require the same relative Blueprint locations used by artifact validators."""
+    try:
+        relative = path.resolve().relative_to(root.resolve()).as_posix()
+    except ValueError:
+        return False
+    return bool(
+        re.match(r"^docs/features/[^/]+/blueprints/[^/]+(?:_blueprint|-blueprint)\.md$", relative, re.IGNORECASE)
+        or re.match(r"^docs/blueprints/[^/]+(?:_blueprint|-blueprint)\.md$", relative, re.IGNORECASE)
+    )
 
 
 def authorization_status(root: Path) -> tuple[bool, str]:
@@ -570,7 +612,7 @@ def _is_commit_or_history_authorized(
     remote_sha: str,
 ) -> bool:
     """Authorize a pushed file only through its exact outgoing commit history."""
-    active = active_work_item(root)
+    active = _active_workflow_id(root)
     receipts = _authorization_receipts(root)
     for commit_sha in _outgoing_commits(root, local_sha, remote_sha):
         parents = _commit_parents(root, commit_sha)
@@ -710,17 +752,19 @@ def cmd_authorize(args) -> int:
     if not root:
         sys.stderr.write("[aiwf-gate] not a git repo\n")
         return 1
-    wi = args.work_item or active_work_item(root)
+    wi = args.work_item or _active_workflow_id(root)
     if not wi:
         sys.stderr.write("[aiwf-gate] cannot resolve work item (pass --work-item)\n")
         return 1
-    if not (root / args.blueprint).exists():
+    blueprint_path = _repo_file(root, args.blueprint)
+    if blueprint_path is None or not _is_canonical_blueprint_path(root, blueprint_path):
         sys.stderr.write(f"[aiwf-gate] blueprint not found: {args.blueprint}\n")
         return 1
     payload = {
         "work_item": wi,
         "authorized": True,
         "blueprint_path": args.blueprint,
+        "blueprint_sha256": _sha256_file(blueprint_path),
         "approved_by": args.by,
         "approved_at": _now().isoformat(),
     }

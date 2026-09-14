@@ -67,8 +67,69 @@ The `requirement-specification` skill produces the authoritative, single-source-
 2. **Normalized Intent is NOT Approved Requirement**: Raw Intent or Normalized Intent MUST NOT bypass formal Requirement Specification and Owner Approval.
 3. **Mandatory Owner Approval Before Brainstorming**: No transition to Brainstorming, Roadmap, Plan, or Blueprint is permitted until explicit Owner Approval is recorded.
 4. **100% Traceability & Verifiability**: Every functional requirement MUST link to at least one verifiable Acceptance Criterion. No orphan requirements or criteria allowed.
+5. **Owner Decision Before Specification Freeze**: The Agent MUST not silently
+   decide unresolved scope, screens/routes, entities, API semantics, storage
+   lifecycle, runtime behavior, or failure handling. These are blocking when
+   they can change implementation scope or acceptance behavior. Present a
+   concise owner question with a recommended option, persist the answer, and
+   stop until resolved.
+
+For a greenfield application or a feature that introduces a new runtime
+surface, the Agent MUST complete a blocking-dimension audit before requesting
+Requirement Approval. Unless the prompt or inspected approved evidence already
+settles the dimension, the ledger MUST contain a blocking row and the Agent
+must obtain an owner decision for:
+
+1. actors, deployment/runtime scope, and in-scope capabilities;
+2. screens, routes, navigation, and user-visible states;
+3. domain entities, fields, relationships, and lifecycle;
+4. API, IPC, event-stream, and integration semantics;
+5. failure, retry, timeout, recovery, and notification behavior;
+6. authentication, authorization, secrets, and data exposure;
+7. persistence, retention, migration, and deletion behavior;
+8. acceptance scenarios, real test fixtures, and observable evidence.
+
+The Agent may group genuinely inseparable dimensions into one question, but it
+must not omit a dimension or move it into Brainstorming merely to reach
+`READY_FOR_REVIEW`. `DISCOVERABLE` is reserved for facts that can be proven
+from the workspace; architecture conventions and recommendations are not
+owner decisions.
 
 ---
+
+### Repository Artifact Boundary
+
+Requirement Specification is a repository deliverable, including when it is
+still waiting for owner decisions. The Agent MUST physically write and read
+back the current artifact before presenting a question or claiming a
+checkpoint:
+
+- `docs/features/<family>/README.md`;
+- `docs/features/<family>/specifications/<slug>_requirement_specification.md`;
+- `docs/features/<family>/questions/Q<nn>_<slug>.md` for every unresolved
+  blocking decision.
+
+The specification MUST preserve the complete capability inventory and mark
+unresolved items as `BLOCKING`/`CLARIFYING`; it must not be replaced by a chat
+summary, IDE brain file, or external implementation plan. External artifacts
+are supplemental provenance only and cannot satisfy persistence, traceability,
+approval, or readiness gates. If the repository artifact cannot be written or
+read back, stop with `BLOCKED: ARTIFACT_PERSISTENCE_REQUIRED`.
+
+Status values such as `REVIEWED`, `APPROVED`, and `READY_FOR_REVIEW` are not
+permissions for the Agent to invent a decision. They require the corresponding
+current workflow review or owner-approval receipt. If a blocking question has
+no exact current owner response, the specification MUST remain
+`CLARIFYING`/`BLOCKED`, even when the Agent has a recommended architecture.
+
+All Markdown references in the specification MUST remain repository-relative.
+User-supplied absolute links are input provenance only and must be rewritten
+to relative Skill, document, or workspace paths before persistence.
+
+For greenfield scope, the specification MUST include actors,
+screens/routes/states, entities, API/events, storage/migrations, runtime
+workers, security, failure/recovery, assets/tooling, and real acceptance
+evidence. A compact summary is not a substitute.
 
 ## 2. Input Contract & Prerequisites Validation
 
@@ -140,6 +201,54 @@ All Specification and Brainstorming artifacts MUST be generated directly into th
 DRAFT → CLARIFYING → READY_FOR_REVIEW → REVIEWED → AWAITING_OWNER_APPROVAL → APPROVED → Brainstorming
 ```
 *Secondary States*: `APPROVED_WITH_CONDITIONS`, `NEEDS_CHANGES`, `REJECTED`, `SUPERSEDED`, `CANCELLED`, `BLOCKED`.
+
+### Specification Clarification Gate
+
+Every Specification MUST include an `Ambiguity and Decision Ledger` with these
+columns: `Item`, `Source`, `Classification`, `Owner Decision`, `Impact`, and
+`Downstream Artifacts`. `DISCOVERABLE` facts must cite inspected evidence;
+`NON_BLOCKING` assumptions must prove they cannot change scope or behavior;
+every `BLOCKING` item must contain a confirmed owner decision. If any blocking
+decision is unresolved, the artifact status is `CLARIFYING` or `BLOCKED`, not
+`READY_FOR_REVIEW`, `REVIEWED`, or `APPROVED`. The Agent MUST pause at this
+checkpoint and wait for the owner response instead of filling the gap from
+memory or convenience.
+
+### Decision Capture And Semantic Consistency
+
+Each `Owner Clarification` ledger row MUST be backed by the current
+question/answer transaction, not by an inferred choice. The Agent MUST retain
+the question topic, the complete option text, the owner's exact answer, and a
+stable response receipt or owner-response reference. When the owner answers by
+ordinal (`Option 1`) or a short confirmation, the Agent MUST resolve it only
+against the immediately active question and then re-read the selected option
+before writing the decision. A decision is invalid when any value in the row
+does not match the selected option, even if the row has an owner-response ID.
+
+Before marking the Specification `READY_FOR_REVIEW`, the Agent MUST audit
+every owner decision for:
+
+- active-question identity and one-decision-per-question binding;
+- exact option-to-decision semantic equivalence;
+- captured owner response evidence and provenance;
+- no values imported from prior questions, model memory, recommendations, or
+  framework defaults.
+
+If any check fails, keep the artifact `CLARIFYING`, identify the mismatched
+decision, and ask the owner a new targeted question. Runtime validation may
+reject missing or contradictory evidence, but the Agent owns interpretation and
+must never silently repair a mismatched decision.
+
+### AI-First Specification Contract
+
+The Agent MUST do the substantive ambiguity analysis before writing the
+Specification: identify facts versus assumptions, enumerate decision options,
+state trade-offs, and ask the owner one blocking question at a time through the
+native structured-question mechanism. Scripts and validators are enforcement
+only. They may reject missing, stale, unbound, or contradictory evidence, but
+they MUST NOT select architecture, schema, API, UX, runtime, security, or
+failure behavior on the Agent's behalf. A generic runtime fallback question is
+not an owner decision and MUST NOT be recorded as one.
 
 ### Approval Binding Requirements
 Explicit Owner Approval MUST be bound to:

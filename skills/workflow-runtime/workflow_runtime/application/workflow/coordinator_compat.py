@@ -40,7 +40,17 @@ class WorkflowCoordinator:
         if not isinstance(blueprint, dict):
             return False
         scoped = str(blueprint.get("work_item_id") or "")
-        return bool(blueprint.get("approved")) and (not scoped or scoped == work_item_id)
+        if not blueprint.get("approved") or (scoped and scoped != work_item_id):
+            return False
+
+        # The approval must bind to the artifact identity as well as the state
+        # record.  This prevents a stale approval record from unlocking a
+        # different work item whose state happens to contain the same scope.
+        path = str(blueprint.get("path") or "")
+        filename_id = Path(path).name.split("_", 1)[0] if path else ""
+        if filename_id and filename_id != work_item_id:
+            return False
+        return True
 
     def _verify_safety_gates(self, skill: str, phase: str) -> bool:
         if phase == "implementation" or skill == "blueprint-to-implementation":

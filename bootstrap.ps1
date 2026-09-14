@@ -151,15 +151,17 @@ switch (`$Command) {
     }
     default {
          function Resolve-FrameworkRoot([string]`$FallbackRoot) {
-             # The global runtime is authoritative. A project's .agents mirror
-             # supplies state/assets but must not shadow a newer global CLI.
-             if (Test-Path (Join-Path `$FallbackRoot "skills/workflow-runtime/workflow_runtime/__main__.py")) {
-                 return `$FallbackRoot
-             }
+             # Commands must execute against the current project's installed
+             # runtime so state, validators, and receipts stay workspace-scoped.
+             # Fall back to the global source only when no installed project
+             # runtime is available.
              `$probe = (Get-Location).Path
              while (`$probe) {
-                 `$localRuntime = Join-Path `$probe "skills/workflow-runtime"
-                 if (Test-Path (Join-Path `$localRuntime "workflow_runtime/__main__.py")) { return `$probe }
+                 `$localRuntime = Join-Path `$probe ".agents/skills/workflow-runtime"
+                 `$projectMarker = Join-Path `$probe ".agents/project.json"
+                 if ((Test-Path (Join-Path `$localRuntime "workflow_runtime/__main__.py")) -and (Test-Path `$projectMarker)) {
+                     return `$probe
+                 }
                  `$parent = Split-Path -Parent `$probe
                  if (`$parent -eq `$probe) { break }
                  `$probe = `$parent
@@ -173,13 +175,15 @@ switch (`$Command) {
              `$runtimeRoot = Join-Path `$resolvedRoot ".agents/skills/workflow-runtime"
          }
          function Invoke-AiwfRuntime([string]`$Root, [array]`$RuntimeArgs) {
+             `$projectRuntime = Join-Path `$Root ".agents/skills/workflow-runtime/workflow_runtime/__main__.py"
              `$runtimeCandidates = @(
                  `$env:AIWF_RUNTIME_EXECUTABLE,
-                 (Join-Path `$env:LOCALAPPDATA "aiwf/runtime/aiwf.exe"),
                  (Join-Path `$Root "packaging/aiwf-runtime/dist/aiwf.exe")
              ) | Where-Object { -not [string]::IsNullOrWhiteSpace(`$_) -and (Test-Path `$_) }
              if (@(`$runtimeCandidates).Count -gt 0) {
                  & `$runtimeCandidates[0] @RuntimeArgs
+             } elseif (-not (Test-Path `$projectRuntime) -and (Test-Path (Join-Path `$env:LOCALAPPDATA "aiwf/runtime/aiwf.exe"))) {
+                 & (Join-Path `$env:LOCALAPPDATA "aiwf/runtime/aiwf.exe") @RuntimeArgs
              } else {
                  python -m workflow_runtime @RuntimeArgs
              }

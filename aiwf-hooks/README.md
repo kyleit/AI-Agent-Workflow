@@ -49,12 +49,18 @@ aiwf gate status                                                   # AI/IDE cano
 # Legacy bridge fallback when the installed command is unavailable:
 python .agents/aiwf-hooks/aiwf_gate.py status                      # show gate state
 
-Do not construct `python tools/aiwf-hooks/aiwf_gate.py ...` inside an
-installed project. Bridge-mode projects intentionally do not contain a copied
-`tools/` tree; the global launcher resolves the authoritative gate and keeps
-the project root isolated.
 python .agents/aiwf-hooks/aiwf_gate.py check-file <path>           # exit 0 allow / 1 block
 python .agents/aiwf-hooks/aiwf_gate.py check-git                   # staged files (pre-commit)
+
+```
+
+Do not construct `python tools/aiwf-hooks/aiwf_gate.py ...` inside an
+installed project. That relative path is valid only from the framework source
+repository. Bridge-mode projects intentionally do not contain a copied
+`tools/` tree; `aiwf gate status` resolves the authoritative global gate and
+keeps the project root isolated.
+
+```bash
 
 # Emergency / bootstrap ONLY — explicit override file (normally unused):
 python .agents/aiwf-hooks/aiwf_gate.py authorize --blueprint docs/features/<id>/blueprint.md [--ttl-hours 24]

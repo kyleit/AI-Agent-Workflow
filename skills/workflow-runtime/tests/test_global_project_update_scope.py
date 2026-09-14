@@ -139,6 +139,23 @@ def test_new_project_bridge_uses_global_assets_without_copying_framework_tree(tm
     assert ProjectSyncPlanner().sync(plan, snapshot) == []
 
 
+def test_new_project_bridge_installs_gate_fallback_and_hooks(tmp_path: Path) -> None:
+    global_root = tmp_path / "global"
+    (global_root / "tools" / "aiwf-hooks").mkdir(parents=True)
+    (global_root / "tools" / "githooks").mkdir(parents=True)
+    for name in ("aiwf_gate.py", "aiwf_gate_bridge.py", "aiwf_gate_launcher.py"):
+        (global_root / "tools" / "aiwf-hooks" / name).write_text(name, encoding="utf-8")
+    (global_root / "tools" / "githooks" / "pre-commit").write_text("hook", encoding="utf-8")
+    project = tmp_path / "project"
+    (project / ".git").mkdir(parents=True)
+
+    ensure_project_bridge(project, global_root)
+
+    assert (project / ".agents" / "aiwf-hooks" / "aiwf_gate.py").is_file()
+    assert (project / ".agents" / "aiwf-hooks" / "aiwf_gate_launcher.py").is_file()
+    assert (project / ".agents" / "githooks" / "pre-commit").is_file()
+
+
 def test_legacy_project_migration_is_reversible_and_keeps_copied_assets(tmp_path: Path) -> None:
     global_root = tmp_path / "global"
     global_root.mkdir()

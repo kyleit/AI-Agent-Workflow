@@ -1,5 +1,6 @@
 from __future__ import annotations
 
+import re
 from dataclasses import dataclass, field
 from typing import Sequence
 
@@ -14,6 +15,44 @@ class BlueprintScopeAssessment:
 
 
 class BlueprintScopeDecomposer:
+    _requirement_pattern = re.compile(r"\b(?:FR|NFR|AC|G|US)-\d+\b", re.IGNORECASE)
+    _file_row_pattern = re.compile(r"^\s*\|\s*[^|]+\|\s*[^|]+\|\s*(?:NEW|MODIFY|DELETE|\[NEW\]|\[MODIFY\]|\[DELETE\])\s*\|", re.IGNORECASE)
+    _task_row_pattern = re.compile(r"^\s*\|\s*\d+\s*\|", re.IGNORECASE)
+
+    def infer_from_blueprint(self, blueprint_text: str) -> dict[str, object]:
+        """Derive planning complexity when the caller has no structured metrics.
+
+        Blueprint validation must judge the artifact that was actually written,
+        rather than trusting an omitted or stale ``declared_phase_count``.
+        Counts are deliberately conservative: duplicate requirement references
+        are collapsed, while file and task rows represent implementation work.
+        """
+        requirements = {
+            match.group(0).upper()
+            for match in self._requirement_pattern.finditer(blueprint_text)
+        }
+        file_rows = [
+            line for line in blueprint_text.splitlines()
+            if self._file_row_pattern.search(line)
+        ]
+        task_rows = [
+            line for line in blueprint_text.splitlines()
+            if self._task_row_pattern.search(line)
+        ]
+        layer_markers = {
+            "domain", "application", "infrastructure", "delivery",
+            "presentation", "frontend", "backend",
+        }
+        lower_text = blueprint_text.lower()
+        cross_layer = sum(marker in lower_text for marker in layer_markers) >= 4
+        return {
+            "capability_count": len(requirements),
+            "file_family_count": len(file_rows),
+            "task_count": len(task_rows),
+            "cross_layer": cross_layer,
+            "line_count": len(blueprint_text.splitlines()),
+        }
+
     def assess(
         self,
         capability_count: int,

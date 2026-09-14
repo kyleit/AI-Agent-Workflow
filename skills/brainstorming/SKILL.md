@@ -90,8 +90,35 @@ The `brainstorming` skill explores, frames, and compares candidate technical app
 2. **Explores WHAT Options, Not Code Implementation**: Brainstorming evaluates high-level architectural approaches, trade-offs, and risks. It DOES NOT write source code or define fine-grained function signatures.
 3. **Brainstorming CANNOT Modify Requirements**: Goals, Non-Goals, Scope, or Acceptance Criteria MUST NOT be altered during Brainstorming. If a requirement change is needed, a formal Requirement Change Request (RCR) MUST be filed.
 4. **Mandatory Feasibility Review Integration**: Every recommended option MUST pass `BRAINSTORMING_READINESS` (score >= 95/100, zero blockers) and obtain Architecture Feasibility Approval (`review_type: FEASIBILITY`) before handoff to Plan/Roadmap.
+5. **No Silent Architecture Decisions**: An unresolved decision that changes
+   boundaries, persistence, API contracts, runtime modes, security, failure
+   recovery, or user-facing surfaces MUST remain `OPEN_DECISION` and be sent
+   to the owner/architect as a structured question. Brainstorming may compare
+   options, but may not silently choose one and mark it confirmed.
 
 ---
+
+### Physical Brainstorming Artifact Contract
+
+Brainstorming MUST persist its complete decision work in the active workspace
+before asking for feasibility approval or returning a design summary:
+
+- `docs/features/<family>/brainstorming/<slug>_brainstorming.md`;
+- `docs/features/<family>/questions/Q<nn>_<slug>.md` for unresolved decisions;
+- the active `docs/aiwf-runs/<workflow-id>/artifact-index.json` entry pointing
+  to both files with their current hashes.
+
+The artifact MUST contain examined evidence, alternatives, trade-offs,
+decision ledger, rejected alternatives, dependency and risk analysis, complete
+surface inventory, and verification implications. An external IDE plan, brain
+artifact, chat narrative, or screenshot is supplemental only and cannot
+authorize the next stage. If persistence or read-back verification fails,
+stop with `BLOCKED: ARTIFACT_PERSISTENCE_REQUIRED`.
+
+For a greenfield or cross-layer request, feasibility review MUST cover every
+derived family and its boundaries. The Agent must ask the owner about genuine
+high-impact choices, but must not use the question itself to omit discoverable
+analysis.
 
 ## 2. Input Contract & Handoff Validation
 
@@ -138,6 +165,11 @@ Preserves approved requirement semantics while creating a technical decision fra
 
 - **Open Decisions for Owner**: Formulates clear, non-technical decision options for the Repository Owner when business trade-offs require input.
 - **Architecture Questions for Architect**: Formulates specific questions across `BOUNDARY`, `INTERFACE`, `DATA_FLOW`, `PERSISTENCE`, `SECURITY`, `PERFORMANCE`, `MIGRATION` for Feasibility Review.
+
+Before feasibility approval, the artifact MUST include a Decision Ledger with
+`Decision`, `Options`, `Recommended Option`, `Evidence`, `Decision Owner`, and
+`Status`. `OPEN_DECISION` entries affecting scope or acceptance keep the
+artifact `BLOCKED` until the owner explicitly resolves them.
 
 ---
 

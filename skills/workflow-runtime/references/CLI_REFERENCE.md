@@ -953,12 +953,16 @@ Verify implementation against blueprint
 
 ```text
 usage: aiwf verify [-h] [--blueprint BLUEPRINT] [--strict]
+                   [--post-implementation]
 
 options:
   -h, --help            show this help message and exit
   --blueprint BLUEPRINT
                         Blueprint file path
   --strict
+  --post-implementation
+                        Validate an implemented product; default validates
+                        Blueprint readiness
 ```
 
 ---

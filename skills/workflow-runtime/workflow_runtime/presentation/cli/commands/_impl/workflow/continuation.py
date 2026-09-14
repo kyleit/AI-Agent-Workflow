@@ -41,6 +41,21 @@ def continue_workflow(root: Path, budget: int = 32) -> CommandResult:
             data={"reason": "INVALID_CONTINUATION_BUDGET", "budget": budget},
         )
 
+    from workflow_runtime.application.workflow.clarification_state import (
+        validate_clarification_state,
+    )
+
+    clarification_state = validate_clarification_state(root)
+    if clarification_state["status"] == "BLOCKED":
+        return CommandResult(
+            command="continue",
+            status="blocked",
+            summary="Clarification state is inconsistent; workflow continuation is stopped.",
+            blocking_findings=tuple(clarification_state["blocking_findings"]),
+            data={"reason": "CLARIFICATION_STATE_INVALID", "hard_stop": True},
+            next_action=NextAction(command="status", required=True),
+        )
+
     state, state_source = _load_continuation_state(root)
     raw_work_item = state.get("work_item")
     work_item = raw_work_item if isinstance(raw_work_item, dict) else {}

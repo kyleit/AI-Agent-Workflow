@@ -39,11 +39,14 @@ class SourceContextValidator:
                 findings.append(f"{block_id}:path_in_excluded_folder")
             if operation == "modify":
                 self._validate_modify(block, block_id, target, findings)
-            elif operation == "create":
+            elif operation in {"create", "generate"}:
                 if target.exists() and not allow_existing_creates:
-                    findings.append(f"{block_id}:create_target_already_exists")
-                if not target.parent.is_dir():
-                    findings.append(f"{block_id}:create_parent_missing")
+                    if operation == "create":
+                        findings.append(f"{block_id}:create_target_already_exists")
+                # A Blueprint is evaluated before implementation and may be the
+                # first artifact in a newly initialized project. Parent folders
+                # are therefore created by the implementation scaffold, not
+                # required to exist during pre-approval.
             elif operation == "delete":
                 if not target.is_file():
                     findings.append(f"{block_id}:delete_target_missing")

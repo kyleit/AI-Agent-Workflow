@@ -44,19 +44,31 @@ class AGYAdapter(IAGYPort):
         if add_dir:
             cmd.extend(["--add-dir", str(add_dir)])
         cmd.append("--print")
-        context_prompt = prompt
+        authoring_contract = (
+            "AIWF EXECUTION CONTRACT: Use native Agent file tools for all "
+            "reasoning-heavy documents. Never use Python, PowerShell, Node, "
+            "shell redirection, heredocs, or scratch scripts to create or "
+            "rewrite specs, plans, Blueprints, phase files, ledgers, or review "
+            "evidence. Scripts are read/parse/validate/hash/gate-only. If this "
+            "cannot be satisfied, stop BLOCKED.\n\n"
+        )
+        context_prompt = authoring_contract + prompt
         if add_dir:
             try:
                 from workflow_runtime.application.workflow.workflow_entry_gateway import build_context_preflight
                 pack = build_context_preflight(prompt, Path(add_dir))
                 context_prompt = (
-                    "AIWF CONTEXT PREFLIGHT (use before source exploration):\n"
+                    authoring_contract
+                    + "AIWF CONTEXT PREFLIGHT (use before source exploration):\n"
                     + json.dumps(pack, ensure_ascii=False, separators=(",", ":"))
                     + "\n\nTASK:\n"
                     + prompt
                 )
             except Exception as exc:
-                context_prompt = f"AIWF CONTEXT PREFLIGHT unavailable ({exc}); inspect targeted files only.\n\nTASK:\n{prompt}"
+                context_prompt = (
+                    authoring_contract
+                    + f"AIWF CONTEXT PREFLIGHT unavailable ({exc}); inspect targeted files only.\n\nTASK:\n{prompt}"
+                )
         cmd.append(context_prompt)
         return cmd
 

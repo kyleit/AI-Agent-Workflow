@@ -2,7 +2,7 @@
   "$schema": "https://json-schema.org/draft/2020-12/schema",
   "title": "AIWF Normalized Raw Intent Schema",
   "type": "object",
-  "version": "1.0.0",
+  "version": "1.1.0",
   "required": [
     "intent_id",
     "version",
@@ -68,6 +68,53 @@
     "user_goal": {
       "type": "string",
       "description": "Abstracted functional goal desired by the user"
+    },
+    "raw_product_intent": {
+      "type": "string",
+      "description": "Product-only intent without Agent-directed workflow instructions"
+    },
+    "workflow_constraints": {
+      "type": "array",
+      "items": {
+        "type": "object",
+        "required": ["id", "description", "owner", "enforcement_stage", "evidence"],
+        "properties": {
+          "id": { "type": "string" },
+          "description": { "type": "string" },
+          "owner": { "type": "string" },
+          "enforcement_stage": { "type": "string" },
+          "evidence": { "type": "string" }
+        }
+      },
+      "description": "Delivery and verification policies kept outside raw_product_intent"
+    },
+    "excluded_from_raw_intent": {
+      "type": "array",
+      "items": {
+        "type": "object",
+        "required": ["statement", "reason", "downstream_enforcement"],
+        "properties": {
+          "statement": { "type": "string" },
+          "reason": { "type": "string" },
+          "downstream_enforcement": { "type": "string" }
+        }
+      },
+      "description": "Process statements intentionally excluded from product intent"
+    },
+    "intent_classification": {
+      "type": "string",
+      "enum": ["GREENFIELD_CROSS_LAYER"],
+      "description": "Greenfield coverage class for downstream Blueprint generation"
+    },
+    "purity_review": {
+      "type": "object",
+      "required": ["product_only", "workflow_separated", "readback_verified"],
+      "properties": {
+        "product_only": { "type": "boolean" },
+        "workflow_separated": { "type": "boolean" },
+        "readback_verified": { "type": "boolean" }
+      },
+      "description": "Read-back evidence for raw-intent purity"
     },
     "desired_outcomes": {
       "type": "array",

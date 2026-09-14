@@ -473,6 +473,17 @@ Update-ItemWithCheck -src (Join-Path $ScriptDir "SKILLS.md") -dest (Join-Path $I
 Update-ItemWithCheck -src (Join-Path $ScriptDir "agents") -dest (Join-Path $InstallTarget "agents")
 Update-ItemWithCheck -src (Join-Path $ScriptDir "runtime") -dest (Join-Path $InstallTarget "runtime")
 
+# Refresh the governance assets consumed by architecture and language gates.
+# Keep this explicit so runtime state under the source .agents tree is never
+# copied into a project installation.
+foreach ($GovernanceDir in @("contracts", "policies", "profiles")) {
+    $GovernanceSource = Join-Path (Join-Path $ScriptDir ".agents") $GovernanceDir
+    $GovernanceTarget = Join-Path $InstallTarget $GovernanceDir
+    if (Test-Path $GovernanceSource) {
+        Update-ItemWithCheck -src $GovernanceSource -dest $GovernanceTarget
+    }
+}
+
 # Refresh AIWF source-write-gate enforcement (git hooks + gate core) and ensure
 # git core.hooksPath is wired. Keeps every AI/editor blocked from committing
 # unapproved source changes across updates.

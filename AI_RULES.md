@@ -16,9 +16,9 @@ The framework is strictly **approval-driven**, but allows dual execution modes d
 
 - **Legacy Mode (`workflow_mode=legacy`)**: Every state-changing action (modifying files, commits, tags, branches) requires explicit human confirmation through native Agent/IDE `ask_question` first. `workflow_runtime.py prompt select` is only a fallback bridge when the host cannot call native `ask_question` directly.
 - **Autonomous Mode (`workflow_mode=autonomous`)**: Workflow execution is managed by the **Workflow Supervisor**. State-changing actions during intermediate compilation, test runs, and static linting are automated. The supervisor strictly halts only at the following **3 Strategic Human Approval Gates**:
-  1. **Gate 1 â€” Workflow Selection Approval**: Human selects the workflow path only when the request is ambiguous or multiple workflow options are valid.
-  2. **Gate 2 â€” Blueprint Approval**: Human validates technical architecture and contracts after the Blueprint has passed all internal review loops.
-  3. **Gate 3 â€” Release Approval**: Human validates production release risk.
+   1. **Gate 1 - Workflow Selection Approval**: Human selects the workflow path only when the request is ambiguous or multiple workflow options are valid.
+   2. **Gate 2 - Blueprint Approval**: Human validates technical architecture and contracts after the Blueprint has passed all internal review loops.
+   3. **Gate 3 - Release Approval**: Human validates production release risk.
 
 *   **No Double Confirmation Policy**: Any action already approved or selected by the user through native Agent/IDE `ask_question`, or through `workflow_runtime.py prompt select` when used as a fallback bridge, MUST NOT be confirmed again in chat. The Agent must directly execute the selected action after receiving the structured prompt result, except selecting the dangerous `unrestricted` mode, which still requires an explicit high-impact confirmation.
 
@@ -106,7 +106,7 @@ Retrieval-Augmented Generation searches must follow a strict priority ordering.
     *   **Level 3**: Implementation Plans (`docs/plans/`).
     *   **Level 4**: Technical Blueprints (`docs/blueprints/`).
     *   **Level 5**: Architectural Decision Records (`docs/adr/`).
-    *   **Level 6**: Targeted source code inspection (only for files identified in Levels 1â€“5).
+     *   **Level 6**: Targeted source code inspection (only for files identified in Levels 1-5).
 *   **Chunk Selection & Fallback**:
     *   Rank results by similarity score.
     *   Fallback to adjacent modules or documentation if direct matches are not found.
@@ -215,7 +215,7 @@ Reliability is enforced through automated builds, testing, and runtime validatio
     *   If building or compiling fails, or if any test fails, or if runtime validation fails: print stdout/stderr/crash logs.
     *   **STOP** immediately. Set status to `Failed verification` and do not proceed with commit, verify, or release activities. Apply self-healing rules (up to 3 retries) within task scope if applicable.
 *   **Background Test Progress Notification**:
-    *   CÃ¡c tiáº¿n trÃ¬nh test cháº¡y ngáº§m (background tests) báº¯t buá»™c pháº£i theo dÃµi tiáº¿n trÃ¬nh vÃ  cá»© má»—i 5% tiáº¿n Ä‘á»™ hoÃ n thÃ nh pháº£i gá»­i thÃ´ng bÃ¡o cáº­p nháº­t lÃªn giao diá»‡n/há»‡ thá»‘ng hoáº·c logs má»™t láº§n Ä‘á»ƒ ngÆ°á»i dÃ¹ng dá»… dÃ ng theo dÃµi trá»±c quan.
+     *   Background tests MUST be monitored, and a progress update MUST be emitted to the UI, system, or logs at every 5% completion so users can track them.
     *   For any background or asynchronous test execution processes, the agent or test coordinator must track execution progress and output a progress notification or log update exactly every 5% of completed tests.
 
 ---
@@ -356,7 +356,7 @@ This is a mandatory global policy. The following rules are absolute and cannot b
 *   **Rule 3: Explicit User Approval**: The Blueprint must be explicitly approved by the user through a structured selection surface. Primary path: native Agent/IDE `ask_question` with `Continue|Cancel`. Fallback path: `aiwf prompt select --question "Approve this Technical Design Blueprint for implementation?" --options "Continue|Cancel" --default "Cancel"` only when the host can render its XML bridge or pipe stdin. `PROMPT_UNAVAILABLE` means no selection happened and MUST NOT be treated as `Cancel`. Manual approval keywords such as `Y`, `Yes`, `Proceed`, or `Continue` are accepted only as fallback evidence when both native `ask_question` and runtime prompt bridge are unavailable and the Agent explicitly reports that unavailability. The AI must never assume blueprint approval.
 *   **Rule 4: Stop Condition**: If a task is about starting implementation and no approved Blueprint exists, the AI must IMMEDIATELY STOP, explain the requirement, recommend generating or approving the Blueprint, and wait for input. Do not apply this stop condition to post-implementation review, debug, verification, or explicit release commands.
 *   **Rule 5: Override Priority**: This policy overrides all implementation-start capable Skills. No exceptions.
-*   **Rule 6: Mandatory SDLC Skill Binding**: Má»i hoáº¡t Ä‘á»™ng chá»‰nh sá»­a, thÃªm, xÃ³a tá»‡p mÃ£ nguá»“n dá»± Ã¡n báº¯t buá»™c pháº£i Ä‘Æ°á»£c thá»±c hiá»‡n trong pháº¡m vi hoáº¡t Ä‘á»™ng cá»§a má»™t SDLC Skill tÆ°Æ¡ng á»©ng (nhÆ° `quick-fix` cho sá»­a lá»—i nhanh, `quick-feature` cho tÃ­nh nÄƒng nhanh). NghiÃªm cáº¥m AI Agent tá»± Ã½ thay Ä‘á»•i file mÃ£ nguá»“n trá»±c tiáº¿p bÃªn ngoÃ i ranh giá»›i cá»§a cÃ¡c Skill nÃ y, ngay cáº£ khi tÃ i liá»‡u láº­p káº¿ hoáº¡ch `implementation_plan.md` á»Ÿ táº§ng IDE Ä‘Ã£ Ä‘Æ°á»£c duyá»‡t.
+ *   **Rule 6: Mandatory SDLC Skill Binding**: Every project source-file change MUST be performed within the scope of a corresponding SDLC Skill (such as `quick-fix` for a quick bug fix or `quick-feature` for a quick feature). The AI Agent MUST NOT modify source files directly outside these Skill boundaries, even when the IDE-level `implementation_plan.md` has been approved.
 *   **Rule 7: Blueprint Quality Gate**: Before a Blueprint is approved, it must be verified that it contains a complete file-by-file analysis table (mapping absolute/relative paths, operations, and responsibilities) and a verifiable implementation checklist. Any Blueprint containing placeholders or generic instructions must be rejected and returned to the draft phase.
 *   **Rule 8: Blueprint Review Evidence Gate**: Before a Blueprint is presented for approval, the Blueprint artifact itself MUST contain `Internal Review Evidence` with reviewer roles, source artifacts, checklist PASS/FAIL rows, failed-point repair history, document-compliance score, and relative-path scan result. A Blueprint without this section is not review-passed and cannot be sent to the user for approval.
 
@@ -495,12 +495,29 @@ To support deep engineering research, architecture reviews, and validation while
 
 ---
 
-## 21. Script-First Execution Policy
+## 21. Agent-First Reasoning and Script Guardrail Policy
 
-To minimize token consumption, eliminate LLM logic errors, and ensure repeatable, verifiable execution of procedural tasks:
-1. **Deterministic Tasks**: All deterministic, repeatable, file-based, validation-based, and state-management actions MUST be executed by Python CLI scripts instead of natural language prompt instructions.
-2. **Hybrid Tasks Separation**: For hybrid tasks (brainstorming, quick-fix, quick-feature, brainstorming-to-plan, plan-to-blueprint, ADR creation, blueprint-to-implementation), the LLM is restricted to reasoning, design, code generation, and rationale writing. The CLI script commands must handle ID allocation, path generation, YAML/markdown validation, checkpoint/session state persistence, and command execution.
-3. **Structured JSON Output**: Every script-first CLI command must return structured JSON formatting on standard output.
+Scripts are used to make mechanical work repeatable and to enforce evidence;
+they are not a substitute for Agent reasoning:
+1. **Deterministic Tasks**: File discovery, hashing, schema validation, path
+   normalization, ID allocation, checkpoint persistence, receipt writing, and
+   repeatable validation/gate checks SHOULD be executed by scripts.
+2. **Reasoning Tasks**: Requirement interpretation, ambiguity discovery,
+   option generation, trade-off analysis, scope decisions, architecture,
+   schema/API/UX/runtime/security design, test strategy, root-cause analysis,
+   and feature decomposition MUST be performed by an Agent. A script MUST NOT
+   infer, recommend, silently choose, or approve any such decision.
+3. **Hybrid Task Boundary**: For brainstorming, specification, planning,
+   blueprinting, implementation, debugging, verification, and release review,
+   the Agent owns the substantive reasoning and authored content. Scripts may
+   persist the Agent's declared result and validate it, but may not manufacture
+   missing content or transform a failed decision into a pass.
+4. **Fail-Closed Evidence**: When an Agent decision ledger, provenance,
+   artifact, or verification evidence is missing, stale, contradictory, or
+   unbound, the runtime MUST return `CLARIFYING`/`BLOCKED` and request Agent or
+   owner action. It MUST NOT fill the gap with a default solution.
+5. **Structured JSON Output**: Every script command MUST return structured
+   JSON containing status, side effects, evidence, and next action.
 
 ---
 
@@ -515,7 +532,7 @@ To prevent the leakage of user directory structures, usernames, and system detai
    AI agents MUST NOT replace it with a placeholder, redact it, delete it,
    drop it from a contract, or silently substitute another repository. This
    public URL is configuration, not personal data or a policy violation.
-3. **Markdown Links**: Táº¥t cáº£ cÃ¡c liÃªn káº¿t tÃ i liá»‡u Markdown trá» tá»›i tá»‡p tin hoáº·c thÆ° má»¥c Báº®T BUá»˜C pháº£i luÃ´n luÃ´n sá»­ dá»¥ng Ä‘Æ°á»ng dáº«n tÆ°Æ¡ng Ä‘á»‘i (relative paths) báº¯t Ä‘áº§u tá»« thÆ° má»¥c gá»‘c cá»§a dá»± Ã¡n (vÃ­ dá»¥: `[session.py](skills/workflow-runtime/scripts/session.py)`). Tuyá»‡t Ä‘á»‘i nghiÃªm cáº¥m viá»‡c sá»­ dá»¥ng Ä‘Æ°á»ng dáº«n tuyá»‡t Ä‘á»‘i hoáº·c Ä‘á»‹nh dáº¡ng giao thá»©c tuyá»‡t Ä‘á»‘i cá»¥c bá»™ nhÆ° `file:///e:/...` hay `file:///C:/...` trong cÃ¡c tÃ i liá»‡u.
+ 3. **Markdown Links**: All Markdown links to files or folders MUST use relative paths beginning at the project root (for example, `[session.py](skills/workflow-runtime/scripts/session.py)`). Absolute paths and local absolute URI schemes such as `file:///e:/...` or `file:///C:/...` are strictly prohibited in project artifacts.
 4. **Scope of Application**: This rule applies universally to all Skills, docs, issues, plans, designs, code comments, tests, and CLI outputs.
 
 ---
@@ -539,43 +556,43 @@ Whenever a Blueprint introduces a new AIWF Skill, it MUST generate the complete 
 No AIWF Skill may access knowledge providers (such as Markdown files, SQLite databases, Qdrant vector databases, or Obsidian local REST APIs) directly. All knowledge operations (including search, read, write, and index updates) must go through the Knowledge Runtime API unless explicitly approved as a compatibility adapter.
 
 *   **Machine-Level Global Provider Manager**:
-    *   Cáº¥u hÃ¬nh thÃ´ng sá»‘ káº¿t ná»‘i vÃ  mÃ£ khÃ³a bÃ­ máº­t (`api_key`) toÃ n cá»¥c Ä‘Æ°á»£c lÆ°u trá»¯ táº¡i `~/.aiwf/providers.json` (macOS/Linux) hoáº·c `%USERPROFILE%\.aiwf\providers.json` (Windows).
-    *   Cáº¥m tuyá»‡t Ä‘á»‘i lÆ°u trá»¯ hoáº·c commit mÃ£ khÃ³a báº£o máº­t (`api_key`) vÃ o tá»‡p cá»¥c bá»™ cá»§a dá»± Ã¡n. Cáº¥u hÃ¬nh dá»± Ã¡n chá»‰ chá»©a cÃ¡c thuá»™c tÃ­nh override cá»¥c bá»™ (vÃ­ dá»¥: táº¯t/báº­t provider hoáº·c thay Ä‘á»•i vault_path).
-    *   Giao tiáº¿p dÃ²ng lá»‡nh CLI cá»§a `provider` Ä‘Æ°á»£c tÃ­ch há»£p qua lá»‡nh `aiwf provider` (`list`, `add`, `enable`, `disable`, `test`, `doctor`).
+     *   Global provider connection settings and secrets (`api_key`) are stored in `~/.aiwf/providers.json` (macOS/Linux) or `%USERPROFILE%\.aiwf\providers.json` (Windows).
+     *   Storing or committing a security key (`api_key`) in a project-local file is strictly prohibited. Project configuration may contain only local override properties (for example, enabling/disabling a provider or changing `vault_path`).
+     *   Provider CLI communication is integrated through `aiwf provider` (`list`, `add`, `enable`, `disable`, `test`, `doctor`).
 
 ---
 
 ## 25. Backend Architectural & Code Quality Policy
 
-Äá»ƒ Ä‘áº£m báº£o dá»± Ã¡n phÃ¡t triá»ƒn bá»n vá»¯ng vÃ  cháº¥t lÆ°á»£ng QA/QC Ä‘Æ°á»£c kiá»ƒm soÃ¡t cháº·t cháº½ á»Ÿ má»©c sáº£n pháº©m tháº­t (production-ready):
+ To ensure sustainable development and production-ready QA/QC quality:
 
 1. **Domain-Driven Design (DDD) & Clean Architecture**:
-   * Táº¥t cáº£ mÃ£ nguá»“n backend pháº£i tuÃ¢n thá»§ nghiÃªm ngáº·t mÃ´ hÃ¬nh Clean Architecture vÃ  DDD.
-   * **Domain Layer**: Chá»©a Entities, Value Objects, Domain Events vÃ  Interface. Lá»›p nÃ y khÃ´ng Ä‘Æ°á»£c phá»¥ thuá»™c vÃ o báº¥t ká»³ thÆ° viá»‡n hay framework bÃªn ngoÃ i nÃ o (nhÆ° HTTP, Web frameworks, ORMs, Database drivers, Message brokers, Cloud SDKs).
-   * **Application Layer**: Chá»©a Use Cases vÃ  Ports. Logic nghiá»‡p vá»¥ á»Ÿ Ä‘Ã¢y chá»‰ phá»‘i há»£p luá»“ng hoáº¡t Ä‘á»™ng cá»§a Domain vÃ  chá»‰ phá»¥ thuá»™c vÃ o Domain abstractions.
+   * All backend source code MUST strictly follow Clean Architecture and DDD.
+   * **Domain Layer**: Contains entities, value objects, domain events, and interfaces. This layer MUST NOT depend on external libraries or frameworks such as HTTP, web frameworks, ORMs, database drivers, message brokers, or cloud SDKs.
+   * **Application Layer**: Contains use cases and ports. Business logic here coordinates Domain flows and depends only on Domain abstractions.
    * **Infrastructure Layer**: Chứa Database adapters, HTTP/gRPC handlers, Wails bindings, file storage adapters.
-   * Logic nghiá»‡p vá»¥ cá»‘t lÃµi khÃ´ng Ä‘Æ°á»£c phÃ©p viáº¿t trá»±c tiáº¿p trong tá»‡p giao tiáº¿p (Wails controller hoáº·c FastAPI routes).
-   * **Dependency Direction Enforcement**: Chiá»u phá»¥ thuá»™c báº¯t buá»™c lÃ  Delivery -> Application -> Domain, Infrastructure -> Application/Domain Interfaces.
+   * Core business logic MUST NOT be written directly in delivery files such as Wails controllers or FastAPI routes.
+   * **Dependency Direction Enforcement**: The required dependency direction is Delivery -> Application -> Domain and Infrastructure -> Application/Domain interfaces.
 
 2. **Automated Architecture Fitness Validation**:
-   * Há»‡ thá»‘ng tá»± Ä‘á»™ng quÃ©t AST (Abstract Syntax Tree) Ä‘á»ƒ phÃ¢n tÃ­ch cÃ¡c imports cá»§a Go vÃ  Python.
-   * **Architecture Compliance Score**: Má»—i Work Item pháº£i cÃ³ Ä‘iá»ƒm sá»‘ kiáº¿n trÃºc tá»‘i thiá»ƒu Ä‘áº¡t **95/100**.
-   * **Cáº¥m tuyá»‡t Ä‘á»‘i Critical Architecture Violations** (báº¥t ká»ƒ tá»•ng Ä‘iá»ƒm):
-     * Domain phá»¥ thuá»™c vÃ o Infrastructure hoáº·c Delivery.
-     * Application phá»¥ thuá»™c trá»±c tiáº¿p vÃ o concrete Infrastructure adapters.
-     * Lá»›p Delivery bá» qua (bypass) Use Cases Ä‘á»ƒ thao tÃ¡c trá»±c tiáº¿p vá»›i Database/Repository.
-     * CÃ³ liÃªn káº¿t phá»¥ thuá»™c vÃ²ng (circular dependency) giá»¯a cÃ¡c lá»›p lÃµi.
+   * The system MUST automatically scan the AST (Abstract Syntax Tree) to analyze Go and Python imports.
+   * **Architecture Compliance Score**: Every Work Item MUST achieve an architecture score of at least **95/100**.
+   * **Critical Architecture Violations are strictly prohibited** regardless of the total score:
+     * Domain depends on Infrastructure or Delivery.
+     * Application depends directly on concrete Infrastructure adapters.
+     * Delivery bypasses Use Cases to access the Database/Repository directly.
+     * Core layers contain circular dependencies.
    * Architecture quality analysis results MUST be recorded at `docs/features/<feature-family>/verification/<WORK_ITEM>_architecture_verify.md`.
 
 3. **Code Lines Limit**:
-   * **Giá»›i háº¡n sá»‘ dÃ²ng tá»‘i Ä‘a trÃªn má»—i tá»‡p**: Má»—i tá»‡p tin mÃ£ nguá»“n backend (Go `.go`, Python `.py`) **KHÃ”NG ÄÆ¯á»¢C VÆ¯á»¢T QUÃ 500 dÃ²ng code**.
-   * Náº¿u tá»‡p tin vÆ°á»£t quÃ¡ 500 dÃ²ng, báº¯t buá»™c pháº£i thá»±c hiá»‡n tÃ¡i cáº¥u trÃºc (refactoring), tÃ¡ch nhá» thÃ nh cÃ¡c module hoáº·c tá»‡p tin con riÃªng biá»‡t cÃ³ trÃ¡ch nhiá»‡m Ä‘Æ¡n nháº¥t (Single Responsibility Principle).
+   * **Maximum Lines Per File**: Every backend source file (Go `.go`, Python `.py`) MUST NOT exceed 500 lines of code.
+   * If a file exceeds 500 lines, it MUST be refactored into smaller modules or child files with a single responsibility.
    * **Family-folder split rule**: When a large file is split only to satisfy the 500-line limit, the extracted sibling files MUST be grouped under one shared family-name directory and exposed through one facade/barrel/aggregate entry file. External modules MUST import/use that aggregate entry point instead of importing scattered internal split files. Splitting into many flat files directly in the parent directory is a policy violation.
 
 4. **QA/QC Embedded Asset Guard**:
-   * **Cáº¥m tuyá»‡t Ä‘á»‘i Dummy Assets khi Build**: Cáº¥m sá»­ dá»¥ng cÃ¡c tá»‡p tin giáº£ láº­p (dummy), tá»‡p tin rá»—ng (nhÆ° index.html trá»‘ng) hoáº·c tÃ i nguyÃªn thiáº¿u (missing JS/CSS) Ä‘á»ƒ vÆ°á»£t qua bÆ°á»›c biÃªn dá»‹ch.
-   * **XÃ¡c thá»±c tá»± Ä‘á»™ng**: Validation pipeline pháº£i thá»±c hiá»‡n quÃ©t phÃ¢n tÃ­ch cÃ¡c thÆ° má»¥c tÃ i nguyÃªn nhÃºng (nhÆ° `frontend/dist`). Náº¿u phÃ¡t hiá»‡n chá»©a tá»‡p dummy hoáº·c kÃ­ch thÆ°á»›c quÃ¡ nhá» (< 1KB), pipeline pháº£i Ä‘Ã¡nh dáº¥u tháº¥t báº¡i ngay láº­p tá»©c (FAIL) vÃ  yÃªu cáº§u build Ä‘áº§y Ä‘á»§ frontend.
-   * **Graceful Runtime Check**: Äáº£m báº£o á»©ng dá»¥ng sau khi khá»Ÿi cháº¡y pháº£i load Ä‘Æ°á»£c tÃ i nguyÃªn giao diá»‡n tháº­t thÃ´ng qua smoke tests kiá»ƒm tra ná»™i dung tráº£ vá», thay vÃ¬ chá»‰ kiá»ƒm tra cá»•ng port má»Ÿ.
+   * **Dummy Build Assets are strictly prohibited**: Do not use dummy files, empty files such as an empty `index.html`, or missing JS/CSS assets to pass compilation.
+   * **Automatic Validation**: The validation pipeline MUST scan embedded asset directories such as `frontend/dist`. If it finds a dummy file or an asset smaller than 1 KB, it MUST fail immediately and require a complete frontend build.
+   * **Graceful Runtime Check**: After startup, the application MUST load real UI assets, proven by smoke tests that inspect returned content rather than only checking that a port is open.
 
 ---
 
@@ -720,7 +737,7 @@ To enforce standard software engineering processes and prevent bypasses, all ope
    Agents may read `.agents/inbox/inbox.json` and non-sensitive files under `.agents/inbox/` without asking for additional workflow confirmation. This allowance is read-only, project-local, and exists only for Telegram inbox messages and user-provided input artifacts routed into the registered workspace. It does not grant permission to read credentials, secrets, `.env` files, private keys, tokens, or any file outside the registered project workspace. Host IDE or sandbox filesystem prompts still take precedence and cannot be bypassed by this policy.
 
 5. **Bidirectional Command Execution & Messaging**:
-   Báº¥t ká»³ khi nÃ o báº¯t Ä‘áº§u má»™t lÆ°á»£t lÃ m viá»‡c (Turn), Agent Báº®T BUá»˜C pháº£i kiá»ƒm tra tá»‡p tin `.agents/inbox/inbox.json`. Náº¿u cÃ³ lá»‡nh/tin nháº¯n tá»« ngÆ°á»i dÃ¹ng gá»­i Ä‘áº¿n, Agent pháº£i xá»­ lÃ½ nÃ³ nhÆ° má»™t yÃªu cáº§u hÆ°á»›ng dáº«n trá»±c tiáº¿p tá»« ngÆ°á»i dÃ¹ng. Sau khi thá»±c thi xong hoáº·c khi cháº¡m Ä‘áº¿n cÃ¡c chá»‘t phÃª duyá»‡t cáº§n dá»«ng láº¡i há»i ngÆ°á»i dÃ¹ng, Agent Báº®T BUá»˜C pháº£i gá»­i tÃ³m táº¯t hoáº¡t Ä‘á»™ng vÃ  ná»™i dung cÃ¢u há»i vá» Telegram cá»§a ngÆ°á»i dÃ¹ng qua sendMessage API (sá»­ dá»¥ng máº«u vÃ  cÃ¡c helper script trong ká»¹ nÄƒng `notify-telegram`), sau Ä‘Ã³ Ä‘áº£m báº£o runtime daemon váº«n Ä‘ang cháº¡y Ä‘á»ƒ supervisor duy trÃ¬ Telegram worker. Agent MUST NOT start a standalone Telegram daemon for this purpose.
+    At the start of every Turn, the Agent MUST inspect `.agents/inbox/inbox.json`. If it contains a user command or message, the Agent MUST process it as a direct user instruction. After completing work or reaching an approval gate that requires a user question, the Agent MUST send an activity summary and the question to the user's Telegram through the sendMessage API using the `notify-telegram` Skill templates and helpers, then ensure the runtime daemon remains running so the supervisor can maintain the Telegram worker. The Agent MUST NOT start a standalone Telegram daemon for this purpose.
 
 ---
 
@@ -759,9 +776,9 @@ To enforce standard software engineering processes and prevent bypasses, all ope
 
 1. **3-Layer Policy Architecture**:
    All managed source files (`*.py`, `*.go`, `*.js`, `*.jsx`, `*.ts`, `*.tsx`) must adhere to a mandatory 3-Layer Policy Model:
-   - **Level 1 (Core Policy)**: `.agents/policies/strict-engineering.md` â€” Enforces DDD, Clean Architecture, DIP/DI, Fail-Fast, 500-Line Limit (physical lines), and No Validator Bypass.
-   - **Level 2 (Language Profiles)**: `.agents/profiles/{python,golang,typescript,javascript}.yaml` â€” Enforces toolchain gates (Pyright STRICT, `golangci-lint`, `tsc` strict, ESLint, `Import Linter`, `depguard`) and forbidden bypasses.
-   - **Level 3 (Project Architecture Contract)**: `.agents/contracts/engineering-quality-gates.yaml` â€” Defines project-specific bounded contexts, layer boundaries, and dependency directions.
+    - **Level 1 (Core Policy)**: `.agents/policies/strict-engineering.md` - Enforces DDD, Clean Architecture, DIP/DI, Fail-Fast, the 500-line physical limit, and no validator bypass.
+    - **Level 2 (Language Profiles)**: `.agents/profiles/{python,golang,typescript,javascript}.yaml` - Enforces toolchain gates (Pyright STRICT, `golangci-lint`, strict `tsc`, ESLint, `Import Linter`, `depguard`) and forbidden bypasses.
+    - **Level 3 (Project Architecture Contract)**: `.agents/contracts/engineering-quality-gates.yaml` - Defines project-specific bounded contexts, layer boundaries, and dependency directions.
 
 2. **Phase Binding**:
    - **Blueprint**: Must identify affected languages, load active language profiles, calculate file line budgets (<500 lines split strategy), define any family-folder split plan plus aggregate/facade entry file, and bind policy hashes.
@@ -784,4 +801,3 @@ To enforce standard software engineering processes and prevent bypasses, all ope
 
 4. **Independent Verification Gate**:
    The `verify` phase MUST NOT trust implementation status claims. `verify` MUST independently inspect physical files on disk and verify repository working tree state. Any discrepancy between claimed changes and disk state results in an immediate `VERIFY FAIL`.
-

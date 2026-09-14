@@ -55,6 +55,33 @@ runtime_requirements:
 ## 1. Role & Authority
 `initialize-workflow` là cơ quan cấp phép và khởi tạo Bootstrap độc nhất của AIWF framework (`MANDATORY_BOOTSTRAP_AUTHORITY`). Mọi yêu cầu từ Wrapper Skill `aiwf` hay bất kỳ giao diện người dùng nào BẮT BUỘC phải thực thi `initialize-workflow` trước để tạo một **Bootstrap Receipt** hợp lệ trước khi được chuyển tiếp sang `workflow-coordinator`.
 
+## 1.1 Preserve Intent For Autonomous Project Initialization
+
+Bootstrap MUST carry the raw request forward without compressing a large
+greenfield project into a generic "feature" label. Detect initialization
+signals such as `new project`, `init`, `from scratch`, `greenfield`, `empty
+repository`, or an absent product source tree together with multiple technical
+boundaries. Persist `project_initialization: true` and the complete normalized
+constraint inventory in the bootstrap handoff.
+
+This detection is performed by the workflow, not by prompt wording. The user
+does not need to provide phase instructions, code-block gate phrases, or a
+master/family layout. The coordinator and Blueprint engine must derive those
+from the inventory and repository evidence, then recursively validate the
+result before requesting approval.
+
+### Greenfield Write Firewall
+
+When the workspace has no product source tree, initialization is a
+documentation-only transaction. The Agent may bootstrap AIWF state and write
+workflow artifacts, but must not scaffold product directories, install
+product dependencies, run product builds, create binaries or databases, or
+execute product E2E before Blueprint Approval and implementation-entry
+authorization. Permission flags and a prior session cannot satisfy this
+boundary. Any stale or external `source-write-authorization.json` is invalid;
+the Agent remains in documentation flow until the current local Blueprint is
+approved.
+
 ---
 
 ## 2. Core Bootstrap Responsibilities

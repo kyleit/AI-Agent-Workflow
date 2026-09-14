@@ -1,4 +1,4 @@
-<!-- AIWF:RULES:BEGIN -->
+﻿<!-- AIWF:RULES:BEGIN -->
 # AI Engineering Workflow Agents
 
 Every AI agent working inside this project **MUST** follow the AI Workflow Framework.
@@ -32,15 +32,10 @@ The following policies are defined in AI_RULES.md and apply to every task:
 9. Release Policy
 10. Workflow Phase Separation Policy
 11. Absolute Path Prohibition Policy
-12. Global Multi-Language Strict Engineering Policy
-13. Physical Repository Write Policy & Disk Mutation Verification Gate
 
 AI_RULES.md is the **single source of truth** for all shared framework behavior. If any instruction conflicts with another document, follow AI_RULES.md.
 
-GitHub Repository: https://github.com/kyleit/AI-Agent-Workflow.git
-
-This public repository URL is intentional source configuration. AI agents must
-not replace, remove, redact, or silently substitute it with a placeholder.
+GitHub Repository: https://github.com/your-org/AI-Agent-Workflow
 
 <!-- AIWF:RULES:END -->
 
@@ -70,8 +65,12 @@ entered an implementation phase. Approving the blueprint via the normal /aiwf
 flow is all that is required; the approval is bound to the active work item so a
 stale approval never unlocks a different task.
 
-Inspect anytime: `python .agents/aiwf-hooks/aiwf_gate.py status`. (An explicit
-override file via `... authorize` exists for emergencies/bootstrap only.)
+Inspect anytime with the canonical cross-project launcher: `aiwf gate status`.
+Do not construct `python tools/aiwf-hooks/aiwf_gate.py ...` from a target
+project; bridge-mode projects intentionally may not contain a copied `tools/`
+tree. If the installed `aiwf` command is unavailable, use the project bridge
+fallback `python .agents/aiwf-hooks/aiwf_gate.py status`. (An explicit override
+file via `... authorize` exists for emergencies/bootstrap only.)
 
 Docs (`docs/`, `*.md`), mirrors (`.agents/`, `public_export/`) and the gate
 tooling itself are never gated. Emergency bypass (agent/CI only, logged):

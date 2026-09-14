@@ -106,6 +106,10 @@ profiles:
     profile: svelte-strict-v1
     path: skills/strict-code-block-gate/profiles/svelte-strict-v1.yaml
     extensions: [.svelte]
+  asset:
+    profile: asset-manifest-strict-v1
+    path: skills/strict-code-block-gate/profiles/asset-manifest-strict-v1.yaml
+    extensions: [.woff2, .woff, .ttf, .otf, .png, .jpg, .jpeg, .webp, .ico, .svg]
   xml:
     profile: xml-strict-v1
     path: skills/strict-code-block-gate/profiles/xml-strict-v1.yaml

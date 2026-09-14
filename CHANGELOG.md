@@ -1,5 +1,10 @@
 # Changelog
 
+## v6.26.6 - 2026-09-14
+
+_No user-facing changes._
+
+
 ## v6.26.5 - 2026-09-10
 
 _No user-facing changes._

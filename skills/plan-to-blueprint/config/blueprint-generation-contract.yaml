@@ -1,0 +1,135 @@
+version: 1
+contract_id: autonomous-greenfield-blueprint-v1
+purpose: >-
+  Machine-readable contract for autonomous generation of complete technical
+  Blueprint artifact sets from a raw project request.
+prompt_dependency:
+  required: false
+  user_must_name_phases: false
+  user_must_repeat_gate_phrases: false
+progressive_refinement:
+  required_chain:
+    - raw_intent_normalization
+    - requirement_specification
+    - architecture_or_brainstorming
+    - roadmap
+    - execution_plan
+    - blueprint_artifact_set
+  monotonic_capability_ledger: true
+  later_artifacts_may_add_detail_only: true
+  missing_or_stale_transition: BLOCKED
+clarification:
+  ai_owns_ambiguity_analysis: true
+  one_blocking_decision_per_question: true
+  native_structured_question_required: true
+  runtime_role: validate_only_and_fail_closed
+  runtime_must_not_choose_domain_solution: true
+  unresolved_blocking_decision: CLARIFYING
+greenfield_detection:
+  intent_tokens: [new project, init, initialize, from scratch, greenfield, scaffold, empty repository]
+  cross_layer_minimum: 2
+  source_absence_is_signal: true
+artifact_hierarchy:
+  root: master
+  family_examples: [backend, frontend, wails]
+  small_feature_required_when:
+    file_rows_gt: 8
+    task_rows_gt: 5
+  phase_ids: local_per_delivery_unit
+  first_phase_id: P01
+  block_ids: globally_unique
+  recommended_blueprint_lines: null
+  size_policy: semantic_ai_decision
+  over_guideline_requires: none
+generation:
+  always_emit_master: true
+  phase_count: derive_from_scope
+  phase_count_fixed: false
+  preserve_master_data_flow_diagram: true
+  preserve_master_sequence_diagram: true
+  repair_until_validated: true
+project_initialization:
+  required_master_flag: project_initialization
+  required_obligations:
+    - backend
+    - frontend
+    - database
+    - desktop_shell
+    - assets
+    - controls_and_dialogs
+    - loading
+    - tooling
+  phase_contracts: [entry_exit, owned_directory_tree, full_file_delivery]
+validation:
+  validators:
+    - blueprint_validation_loop
+    - blueprint_artifact_set_validator
+    - strict_code_block_gate
+    - project_init_completeness_validator
+    - document_compliance_assessment
+    - surface_completeness_validator
+  approval_ready_requires:
+    - recursive_artifact_set_pass
+    - every_file_row_has_code_block
+    - full_file_blocks_for_greenfield_surfaces
+    - coverage_matrix_complete
+    - no_preimplementation_runtime_pass_claims
+    - code_block_gate_pass
+    - upstream_delivery_unit_coverage_complete
+    - upstream_plan_file_materialization_complete
+    - screen_and_route_coverage_complete_when_ui_present
+    - backend_capability_coverage_complete_when_backend_present
+    - implementation_task_contract_complete
+    - complete_file_block_ratio_at_least_100_percent_of_projected_lines
+    - no_source_block_without_full_file_metadata
+    - no_task_without_red_and_green_verification
+surface_completeness:
+  prompt_must_supply_rules: false
+  ui_matrix_heading: "Screen And Route Coverage Matrix"
+  backend_matrix_heading: "Backend Capability Coverage Matrix"
+  ui_row_fields: [route, screen, concrete_files, code_blocks, api_or_data, states, tests, evidence]
+  backend_row_fields: [capability, concrete_files, code_blocks, api_or_data, tests, evidence]
+  required_backend_surfaces: [domain, persistence, application, delivery, verification]
+  conditional_backend_surfaces: [execution, observability]
+  reject_representative_snippets: true
+  recommended_blueprint_lines: null
+  over_guideline_is_not_automatically_blocked: true
+  require_size_decision_when_exceeded: false
+  reject_mechanical_remainder_split: true
+  requirement_specification_is_scope_floor: true
+  route_inventory_source: linked_requirement_specification
+  schema_inventory_source: linked_requirement_specification
+  plan_repair_may_not_reduce_scope: true
+implementation_tasks:
+  required_heading: "Implementation Task Contract"
+  fresh_agent_executable: true
+  required_columns:
+    - task_id
+    - responsibility
+    - exact_files
+    - depends_on
+    - consumes
+    - produces
+    - red_test_or_action
+    - implementation_blocks
+    - green_command_and_expected_result
+    - evidence
+    - rollback
+  require_red_green_sequence: true
+  reject_prose_only_steps: true
+  reject_guessable_interfaces: true
+  review_before_next_task: true
+code_block_completeness:
+  source_block_scope: full-file
+  source_full_file_metadata: true
+  minimum_projected_line_ratio: 1.0
+  reject_representative_snippets: true
+  materialize_before_review: true
+  master_only_for_cross_layer_greenfield: false
+upstream_completeness:
+  roadmap_phase_inventory_is_contract: true
+  require_matrix_heading: "Upstream Delivery Unit Coverage Matrix"
+  every_upstream_phase_maps_to_distinct_discovered_phase_blueprint: true
+  linked_plan_file_impact_map_is_contract: true
+  every_concrete_plan_path_must_appear_in_master_and_owning_phase: true
+  missing_phase_or_file_materialization: BLOCKED

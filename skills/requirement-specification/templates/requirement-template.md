@@ -73,11 +73,26 @@
 
 ---
 
-## 9. Traceability
+## 9. Ambiguity And Decision Ledger
+
+Every unresolved item discovered from Raw Intent and workspace evidence must
+appear here before the Specification can be reviewed. `BLOCKING` rows require
+an owner decision; they cannot be filled with an AI assumption.
+
+| Item | Source | Classification | Owner Decision | Impact | Downstream Artifacts |
+|---|---|---|---|---|---|
+| {{ITEM}} | {{RAW_INTENT_OR_EVIDENCE}} | DISCOVERABLE / NON_BLOCKING / BLOCKING | CONFIRMED DECISION OR PENDING QUESTION | {{SCOPE_DATA_API_UX_RUNTIME_IMPACT}} | {{ARTIFACTS}} |
+
+If any row is `BLOCKING` with a pending decision, set Status to `CLARIFYING`,
+persist the structured question, and stop before generating downstream plans.
+
+---
+
+## 10. Traceability
 `Raw Intent` -> `Normalized Intent` -> `GOAL-01` -> `UC-01` -> `REQ-01` -> `AC-01`
 
 ---
 
-## 10. Approval Record Request
+## 11. Approval Record Request
 - **Approval Status**: `AWAITING_OWNER_APPROVAL`
 - **Required**: `True`

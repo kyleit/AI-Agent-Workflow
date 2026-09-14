@@ -301,6 +301,14 @@ if [ "$DEPS_ONLY" = false ]; then
     copy_item "$SCRIPT_DIR/agents" "$INSTALL_TARGET/agents" true
     copy_item "$SCRIPT_DIR/runtime" "$INSTALL_TARGET/runtime" true
 
+    # Provision the governance assets consumed by architecture and language
+    # gates without copying the source repository's runtime state.
+    for governance_dir in contracts policies profiles; do
+        if [ -d "$SCRIPT_DIR/.agents/$governance_dir" ]; then
+            copy_item "$SCRIPT_DIR/.agents/$governance_dir" "$INSTALL_TARGET/$governance_dir" true
+        fi
+    done
+
     # Deploy AIWF source-write-gate enforcement (git hooks + gate core) and wire
     # git core.hooksPath so every AI/editor is blocked from committing
     # unapproved source changes.
@@ -310,6 +318,18 @@ if [ "$DEPS_ONLY" = false ]; then
     fi
     if [ -d "$SCRIPT_DIR/aiwf-hooks" ]; then
         copy_item "$SCRIPT_DIR/aiwf-hooks" "$INSTALL_TARGET/aiwf-hooks" true
+    fi
+    # Keep the historical project-local command working as a thin bridge.
+    # Bridge-mode projects do not receive a second gate implementation: this
+    # file delegates to the authoritative launcher under .agents/aiwf-hooks.
+    PROJECT_GATE_BRIDGE_DIR="$PROJECT_ROOT/tools/aiwf-hooks"
+    PROJECT_GATE_BRIDGE_SRC="$SCRIPT_DIR/aiwf-hooks/aiwf_gate_bridge.py"
+    PROJECT_GATE_BRIDGE="$PROJECT_GATE_BRIDGE_DIR/aiwf_gate.py"
+    if [ -f "$PROJECT_GATE_BRIDGE_SRC" ] && [ ! -e "$PROJECT_GATE_BRIDGE" ]; then
+        mkdir -p "$PROJECT_GATE_BRIDGE_DIR"
+        cp "$PROJECT_GATE_BRIDGE_SRC" "$PROJECT_GATE_BRIDGE"
+        chmod +x "$PROJECT_GATE_BRIDGE"
+        log_info "Created AIWF gate bridge: $PROJECT_GATE_BRIDGE"
     fi
     # Deploy the config-driven release orchestrator (engine + entry).
     if [ -d "$SCRIPT_DIR/aiwf_release" ]; then

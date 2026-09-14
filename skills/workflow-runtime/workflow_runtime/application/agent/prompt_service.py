@@ -10,6 +10,16 @@ class PromptService:
         "and workflow-coordinator first. No blueprint - no code."
     )
 
+    BLUEPRINT_AUTHORING_CONTRACT = (
+        "BLUEPRINT AUTHORING FIREWALL: Reasoning-heavy specifications, plans, "
+        "Blueprints, phase files, ledgers, and review evidence MUST be created "
+        "with the Agent's native file tools. Do not create or rewrite them with "
+        "Python, PowerShell, Node, shell redirection, heredocs, or scratch "
+        "scripts. Scripts may only read, inspect, hash, parse, validate, run "
+        "gates, or collect evidence. If native file authoring is unavailable, "
+        "stop BLOCKED; never manufacture a PASS."
+    )
+
     SUPPORTED_PLACEHOLDERS: tuple[str, ...] = (
         "<BLUEPRINT_PATH>",
         "<PLAN_PATH>",
@@ -43,7 +53,14 @@ class PromptService:
             return ""
         clean_task = task_description.strip()
         normalized_task = clean_task if clean_task.lower().startswith(("/aiwf", "@aiwf", "aiwf ")) else f"/aiwf {clean_task}"
-        return f"### AIWF Natural Prompt Contract\n{self.NATURAL_AIWF_CONTRACT}\n\n### Current Task\n{normalized_task}"
+        return (
+            "### AIWF Natural Prompt Contract\n"
+            f"{self.NATURAL_AIWF_CONTRACT}\n\n"
+            "### Blueprint Authoring Contract\n"
+            f"{self.BLUEPRINT_AUTHORING_CONTRACT}\n\n"
+            "### Current Task\n"
+            f"{normalized_task}"
+        )
 
     def assemble_prompt(
         self,

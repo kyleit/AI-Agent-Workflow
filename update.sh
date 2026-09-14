@@ -255,6 +255,14 @@ copy_diff_item "$SCRIPT_DIR/SKILLS.md" "$SRC_INSTALL_TARGET/SKILLS.md"
 copy_diff_item "$SCRIPT_DIR/agents" "$SRC_INSTALL_TARGET/agents"
 copy_diff_item "$SCRIPT_DIR/runtime" "$SRC_INSTALL_TARGET/runtime"
 
+# Refresh governance assets consumed by architecture and language gates while
+# excluding runtime state from the source .agents tree.
+for governance_dir in contracts policies profiles; do
+    if [ -d "$SCRIPT_DIR/.agents/$governance_dir" ]; then
+        copy_diff_item "$SCRIPT_DIR/.agents/$governance_dir" "$SRC_INSTALL_TARGET/$governance_dir"
+    fi
+done
+
 # Refresh AIWF source-write-gate enforcement (git hooks + gate core) and ensure
 # git core.hooksPath stays wired across updates.
 if [ -d "$SCRIPT_DIR/githooks" ]; then
@@ -263,6 +271,17 @@ if [ -d "$SCRIPT_DIR/githooks" ]; then
 fi
 if [ -d "$SCRIPT_DIR/aiwf-hooks" ]; then
     copy_diff_item "$SCRIPT_DIR/aiwf-hooks" "$SRC_INSTALL_TARGET/aiwf-hooks"
+fi
+# Repair the historical project-local gate path with a thin bridge. The
+# authoritative gate remains the global launcher under .agents/aiwf-hooks.
+PROJECT_GATE_BRIDGE_DIR="$PROJECT_ROOT/tools/aiwf-hooks"
+PROJECT_GATE_BRIDGE_SRC="$SCRIPT_DIR/aiwf-hooks/aiwf_gate_bridge.py"
+PROJECT_GATE_BRIDGE="$PROJECT_GATE_BRIDGE_DIR/aiwf_gate.py"
+if [ -f "$PROJECT_GATE_BRIDGE_SRC" ] && [ ! -e "$PROJECT_GATE_BRIDGE" ]; then
+    mkdir -p "$PROJECT_GATE_BRIDGE_DIR"
+    cp "$PROJECT_GATE_BRIDGE_SRC" "$PROJECT_GATE_BRIDGE"
+    chmod +x "$PROJECT_GATE_BRIDGE"
+    log_info "Created AIWF gate bridge: $PROJECT_GATE_BRIDGE"
 fi
 # Refresh the config-driven release orchestrator (engine + entry).
 if [ -d "$SCRIPT_DIR/aiwf_release" ]; then

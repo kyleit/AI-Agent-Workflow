@@ -20,7 +20,10 @@ from workflow_runtime.infrastructure.session.session_io import (
     load_session, save_session_atomic)
 from workflow_runtime.presentation.cli.commands._impl import shared_helpers
 from workflow_runtime.presentation.cli.commands._impl.shared_helpers import (
-    extract_work_item_id_from_text, sync_blueprint_approval_metadata)
+    extract_work_item_id_from_text,
+    has_bound_owner_blueprint_approval,
+    sync_blueprint_approval_metadata,
+)
 from workflow_runtime.application.command_contract import CommandResult, NextAction, emit_result
 from workflow_runtime.presentation.cli.commands._impl.workflow.task_state_synchronizer import (
     sync_execution_state_to_session)
@@ -264,6 +267,63 @@ def do_blueprint(args: Any) -> int:
             blocking_findings=findings,
             next_action=NextAction(command=next_command, required=inspection.stale),
         ), sys.stdout)
+    if action == "validate":
+        if not exists:
+            return emit_result(CommandResult(
+                command="blueprint",
+                status="blocked",
+                summary="The blueprint file does not exist.",
+                data={"blueprint": bp_path},
+                blocking_findings=("blueprint_not_found",),
+                next_action=NextAction(command="blueprint --path <path>", required=True),
+            ), sys.stdout)
+        try:
+            from workflow_runtime.application.workflow.blueprint_validation_loop import (
+                BlueprintAutoValidationService,
+            )
+
+            validation = BlueprintAutoValidationService(Path.cwd()).validate_for_approval(
+                Path(bp_path), work_item_id or bp_work_item_id,
+            )
+        except (OSError, ValueError, ImportError) as exc:
+            return emit_result(CommandResult(
+                command="blueprint",
+                status="blocked",
+                summary="Blueprint approval-readiness validation could not run.",
+                data={"path": bp_path, "error": str(exc)},
+                blocking_findings=(f"blueprint_validation_unavailable:{type(exc).__name__}",),
+                next_action=NextAction(command="blueprint --path <path> validate", required=True),
+            ), sys.stdout)
+        validation_status = str(validation.status)
+        validation_passed = (
+            validation_status == "APPROVAL_READY"
+            and int(validation.score) == 100
+            and not validation.blocking_findings
+        )
+        return emit_result(CommandResult(
+            command="blueprint",
+            status="success" if validation_passed else "blocked",
+            summary=(
+                "Blueprint is approval-ready."
+                if validation_passed
+                else "Blueprint is not approval-ready; repair the retained validator findings."
+            ),
+            data={
+                "path": bp_path,
+                "work_item_id": work_item_id or bp_work_item_id,
+                "validation_status": validation_status,
+                "score": validation.score,
+                "evidence": validation.evidence,
+                "result_id": validation.result_id,
+                "blueprint_sha256": validation.blueprint_sha256,
+            },
+            artifacts=tuple(validation.evidence),
+            blocking_findings=tuple(validation.blocking_findings),
+            next_action=NextAction(
+                command=("wait for owner Blueprint approval" if validation_passed else "repair Blueprint and validate again"),
+                required=not validation_passed,
+            ),
+        ), sys.stdout)
     same_approved_blueprint = (
         current_data.get("path") == bp_path and bool(current_data.get("approved"))
     )
@@ -312,6 +372,55 @@ def do_blueprint(args: Any) -> int:
                 data={"blueprint": bp_path, "lifecycle": lifecycle_inspection.payload()},
                 blocking_findings=tuple(lifecycle_inspection.reasons),
                 next_action=NextAction(command="blueprint --path <fresh-blueprint> --approve", required=True),
+            ), sys.stdout)
+        try:
+            from workflow_runtime.application.workflow.blueprint_validation_loop import (
+                BlueprintAutoValidationService,
+            )
+
+            validation = BlueprintAutoValidationService(Path.cwd()).validate_for_approval(
+                Path(bp_path), work_item_id or bp_work_item_id,
+            )
+        except (OSError, ValueError, ImportError) as exc:
+            return emit_result(CommandResult(
+                command="blueprint",
+                status="blocked",
+                summary="Blueprint approval-readiness validation could not run.",
+                data={"path": bp_path, "error": str(exc)},
+                blocking_findings=(f"blueprint_validation_unavailable:{type(exc).__name__}",),
+                next_action=NextAction(command="blueprint --path <path> validate", required=True),
+            ), sys.stdout)
+        if (
+            validation.status != "APPROVAL_READY"
+            or int(validation.score) != 100
+            or validation.blocking_findings
+        ):
+            return emit_result(CommandResult(
+                command="blueprint",
+                status="blocked",
+                summary="Blueprint approval is blocked until full approval-readiness validation passes.",
+                data={
+                    "path": bp_path,
+                    "validation_status": validation.status,
+                    "score": validation.score,
+                    "evidence": validation.evidence,
+                    "result_id": validation.result_id,
+                },
+                artifacts=tuple(validation.evidence),
+                blocking_findings=tuple(validation.blocking_findings) or ("blueprint_not_approval_ready",),
+                next_action=NextAction(command="blueprint --path <path> validate", required=True),
+            ), sys.stdout)
+        if not has_bound_owner_blueprint_approval(work_item_id or bp_work_item_id, bp_path):
+            return emit_result(CommandResult(
+                command="blueprint",
+                status="blocked",
+                summary="Blueprint approval requires a bound owner response from the active approval prompt.",
+                data={"path": bp_path, "work_item_id": work_item_id or bp_work_item_id},
+                blocking_findings=("owner_approval_response_missing_or_unbound",),
+                next_action=NextAction(
+                    command="wait for the active Blueprint approval prompt and select Continue",
+                    required=True,
+                ),
             ), sys.stdout)
         bp_data["approved"] = True
         bp_data["approved_at"] = datetime.now().astimezone().isoformat()

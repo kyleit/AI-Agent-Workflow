@@ -10,6 +10,9 @@ from typing import Any, cast
 from workflow_runtime.application.agent.prompt_service import PromptService
 from workflow_runtime.application.agent.role_service import RoleService
 from workflow_runtime.application.ports.agy_port import IAGYPort
+from workflow_runtime.application.workflow.blueprint_authoring_policy_validator import (
+    BlueprintAuthoringPolicyValidator,
+)
 
 
 @dataclass(frozen=True)
@@ -140,6 +143,17 @@ class AgentDispatchService:
             dry_run=dry_run,
             timeout_seconds=timeout_seconds,
         )
+
+        # A completed Agent turn must not leave a scratch script that authored
+        # workspace content. This is a post-turn fail-closed check; the
+        # document and source gates remain the final authorities.
+        if not dry_run:
+            authoring_policy = BlueprintAuthoringPolicyValidator().validate(Path.cwd())
+            if not authoring_policy.passed:
+                exit_code = 125
+                stderr = "\n".join(
+                    [stderr, *authoring_policy.blocking_findings]
+                ).strip()
 
         status = "SUCCESS" if exit_code == 0 else "FAILED"
         return DispatchResult(

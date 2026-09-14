@@ -466,7 +466,7 @@ Complete directory layout after modifications:
 | Source Artifacts Reviewed | Specification, active Skill, `AI_RULES.md`, `document-compliance-assessment`, memory/RAG/source references |
 | Checklist — No Placeholders | `PASS` / `FAIL` |
 | Checklist — File-by-File Change Matrix | `PASS` / `FAIL` — every file listed with operation + responsibility |
-| Checklist — Line Budget <500 | `PASS` / `FAIL` — every touched source file lists projected physical line count; files projected over 500 define split tasks before approval |
+| Checklist — Source Size Planning | `PASS` / `FAIL` — every touched source file lists honest projected physical size and any required source-level split; Blueprint document length is not scored |
 | Checklist — Family-Folder Split Contract | `PASS` / `FAIL` / `NOT_APPLICABLE` — every split groups extracted files under one family-name directory and defines one facade/barrel/aggregate entry file for outside imports |
 | Checklist — Language Profiles & Lint Plan | `PASS` / `FAIL` — every affected language maps to an active strict profile and lists exact build/lint/typecheck/test commands |
 | Checklist — API & Interface Signatures | `PASS` / `FAIL` — all method signatures have input types, return types, error behavior |
@@ -489,7 +489,7 @@ Complete directory layout after modifications:
 1. Register the blueprint via CLI:
    `aiwf blueprint --path docs/features/<feature-family>/blueprints/FIX-XXX_issue_name_blueprint.md`
 2. Review the blueprint strictly against the Specification, this Skill, `AI_RULES.md`, `strict-code-block-gate`, document-compliance-assessment rules, and `frontend-design` when UI/design is affected.
-3. The Blueprint must contain `Internal Review Evidence`; missing evidence, score below `95/100`, unresolved failed points, relative-path scan FAIL, stale Blueprint hash, missing projected line counts, missing family-folder split plan for any file projected over 500 lines, missing language profile/lint command matrix, missing strict profile, or **canonical CODE_BLOCK_GATE not explicitly marked `PASS`** means review FAIL.
+3. The Blueprint must contain `Internal Review Evidence`; missing evidence, score below `95/100`, unresolved failed points, relative-path scan FAIL, stale Blueprint hash, missing honest projected physical-size evidence, missing source-level split plan when the architecture requires one, missing language profile/lint command matrix, missing strict profile, or **canonical CODE_BLOCK_GATE not explicitly marked `PASS`** means review FAIL. Blueprint document length is not a blocker.
 4. If review fails, state the exact failed points and revise only those points. Repeat until review passes.
 5. **ABSOLUTE USER APPROVAL STOP**: After the Blueprint review passes, present the Design Blueprint summary and ask the user for implementation approval.
    - **PRIMARY (NATIVE UI)**: Use the native Agent/IDE `ask_question` tool first with options `Continue` and `Cancel`.
