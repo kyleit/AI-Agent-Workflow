@@ -125,10 +125,7 @@ class StateCLITests(unittest.TestCase):
 
     # TC-08: state emit with missing --type exits 1
     def test_state_emit_missing_type_fails(self):
-        result = subprocess.run(
-            [sys.executable, SCRIPT, "state", "emit", "--payload", "{}"],
-            capture_output=True, text=True, cwd=self.tmpdir, timeout=10
-        )
+        result = run_cli("state", "emit", "--payload", "{}", cwd=self.tmpdir, timeout=30)
         # argparse will error before our handler is reached — exit non-zero
         self.assertNotEqual(result.returncode, 0)
 

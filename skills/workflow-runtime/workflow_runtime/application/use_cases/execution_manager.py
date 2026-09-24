@@ -2,6 +2,7 @@ from __future__ import annotations
 
 import json
 import os
+import subprocess
 import sys
 import tempfile
 import threading
@@ -128,7 +129,9 @@ class ExecutionManager(ProcessExecutionRunner):
 
     @staticmethod
     def submit(req: Dict[str, Any]) -> str:
-        execution_id = f"EXEC-{int(time.time() * 1000)}"
+        # A millisecond timestamp alone collides when two requests arrive in the
+        # same millisecond, and the second silently overwrites the first.
+        execution_id = f"EXEC-{int(time.time() * 1000)}-{os.urandom(3).hex()}"
 
         item = {
             "execution_id": execution_id,
@@ -260,6 +263,73 @@ class ExecutionManager(ProcessExecutionRunner):
     @staticmethod
     def _placeholder() -> None:
         pass
+
+    # is_pid_alive / recover / run_command_managed were dropped with
+    # execution_manager_ext2.py in aae78025, but cancel(), test_enforcer and
+    # ExecutionGateway still call them.
+    @staticmethod
+    def is_pid_alive(pid: int) -> bool:
+        try:
+            os.kill(pid, 0)
+            return True
+        except OSError:
+            return False
+
+    @staticmethod
+    def recover() -> list[str]:
+        """Re-attach live executions; mark dead ones ORPHANED. Returns re-attached IDs."""
+        data = ProcessRegistry.read()
+        recovered: list[str] = []
+        active = ["STARTING", "RUNNING", "PAUSED", "PAUSING", "RESUMING", "CANCELLING"]
+        for exec_id, item_raw in data.items():
+            if not isinstance(item_raw, dict):
+                continue
+            item = cast(dict[str, Any], item_raw)
+            if item.get("status") not in active:
+                continue
+            pid = item.get("pid")
+            if not pid:
+                ExecutionManager._transition(exec_id, "ORPHANED", {"termination_reason": "No PID recorded."})
+            elif ExecutionManager.is_pid_alive(int(pid)):
+                recovered.append(exec_id)
+            else:
+                ExecutionManager._transition(exec_id, "ORPHANED", {
+                    "termination_reason": "Process is not running on host."
+                })
+        return recovered
+
+    @staticmethod
+    def run_command_managed(cmd_list: list[str], cwd: str = ".", owner_agent_id: str = "AGENT-SYSTEM",
+                            task_id: str = "TASK-SYSTEM", timeout: int = 300) -> subprocess.CompletedProcess[str]:
+        exec_id = ExecutionManager.submit({
+            "command": cmd_list[0],
+            "arguments": cmd_list[1:],
+            "working_directory": cwd,
+            "owner_agent_id": owner_agent_id,
+            "task_id": task_id,
+            "timeout": timeout,
+        })
+        ExecutionManager.tick_scheduler()
+        terminal = ["COMPLETED", "FAILED", "CANCELLED", "TIMED_OUT", "BLOCKED_INTERACTIVE", "ORPHANED"]
+        while True:
+            item = ProcessRegistry.read().get(exec_id)
+            if not isinstance(item, dict):
+                raise RuntimeError(f"Execution record {exec_id} disappeared.")
+            rec = cast(dict[str, Any], item)
+            if rec.get("status") in terminal:
+                outputs: list[str] = []
+                for key in ("stdout_artifact", "stderr_artifact"):
+                    path = str(rec.get(key) or "")
+                    text = ""
+                    if path and os.path.exists(path):
+                        with open(path, "r", encoding="utf-8", errors="ignore") as f:
+                            text = f.read()
+                    outputs.append(text)
+                exit_code = rec.get("exit_code")
+                if exit_code is None:
+                    exit_code = 0 if rec.get("status") == "COMPLETED" else 1
+                return subprocess.CompletedProcess(cmd_list, int(exit_code), outputs[0], outputs[1])
+            time.sleep(0.1)
 
 
 __all__ = [

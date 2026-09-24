@@ -33,6 +33,28 @@ runtime_requirements:
 > **Core Principle:** THINK, don't memorize. ASK, don't assume.
 > **Mandatory Responsive Hierarchy:** **Mobile First: `Mobile (375px-480px)` -> `Desktop (1024px-1440px+)` -> `Tablet (768px-1024px)`**. Always design and build from the mobile viewport upwards; never design desktop-first and shrink down.
 
+> [!CRITICAL]
+> ## ⛔ Mandatory AIWF Frontend Engineering Contract (binds AI_RULES §34–§36)
+> Any UI work MUST comply with, and is gated by, these global policies:
+> 1. **Clean Architecture + DDD + DI on the frontend** — `presentation -> application -> domain`
+>    (+ `infrastructure`); domain is framework-agnostic; components hold no business logic and
+>    never call API clients directly. (AI_RULES §34.1)
+> 2. **≤500 lines per frontend file** (`.svelte/.ts/.tsx/.js/.jsx/.css`); split under a
+>    family-folder with an aggregate/facade entry. (AI_RULES §34.2, §25.3)
+> 3. **Custom controls are MANDATORY, native defaults FORBIDDEN** — replace `input/textarea/
+>    checkbox/radio/select/range/file` and `alert()/confirm()/prompt()` with project custom
+>    components; restyle scrollbars via CSS. Keep them accessible (keyboard + ARIA). (AI_RULES §34.3)
+> 4. **Strict validation, zero bypass (basedpyright bar, ALL languages)** — strict `tsc`,
+>    `svelte-check`, ESLint, and `stylelint` (CSS/SCSS) must pass; no
+>    `@ts-ignore`/`eslint-disable`/`svelte-ignore`/`stylelint-disable`. Backend is held to the
+>    same bar: Go (`golangci-lint`+`depguard`), TS/JS, etc. (AI_RULES §34.4, §32 strict-parity)
+> 5. **Approved stack, offline-first** — Svelte SPA (Hash Router) + Tailwind + Lucide + Google
+>    Fonts, all vendored locally; no runtime CDN. (AI_RULES §35)
+> 6. **Micro-frontend topology** aligned to backend bounded contexts, in the monorepo. (AI_RULES §36)
+> 7. **Spike-Verified Blueprint** — high-risk UI assumptions (offline vendoring, custom-control
+>    accessibility, micro-frontend integration) need a real Spike Record before Blueprint Freeze.
+>    (AI_RULES §13 Rule 9, §36.5)
+
 ## Mandatory AI Build Order
 
 For every frontend change, the Agent MUST execute and record the following order:

@@ -73,7 +73,10 @@ def test_matrix_must_declare_code_block_ids(tmp_path: Path) -> None:
         encoding="utf-8",
     )
     findings = validate_artifact_set([blueprint], [discover(blueprint)])
-    assert "file_matrix_missing_code_block_ids_column:" + str(blueprint) in findings
+    # Findings carry repository-relative paths only (FR-17). This assertion used to
+    # require the absolute path, which encoded the defect rather than the contract.
+    assert "file_matrix_missing_code_block_ids_column:phase.md" in findings
+    assert not any(str(tmp_path) in finding for finding in findings)
 
 
 def test_large_file_matrix_rejects_representative_source_block(tmp_path: Path) -> None:

@@ -6,6 +6,7 @@ import json
 import os
 import socket
 import ssl
+import threading
 import time
 from urllib.parse import quote
 
@@ -23,7 +24,17 @@ class WsClient:
         if getattr(self._config, "secure", False):
             sock = ssl.create_default_context().wrap_socket(sock, server_hostname=self._config.host)
         key = base64.b64encode(os.urandom(16)).decode("ascii")
-        path = f"/ws?token={quote(self._config.token, safe='')}&name={quote(name, safe='')}&since={since}"
+        capabilities = quote(",".join(self._config.capabilities), safe="")
+        path = (
+            f"/ws?token={quote(self._config.token, safe='')}"
+            f"&name={quote(name, safe='')}&since={since}&kind=agent"
+            f"&capabilities={capabilities}"
+            f"&avatar={quote(self._config.avatar, safe='')}"
+            f"&identity={quote(self._config.identity, safe='')}"
+            f"&soul={quote(self._config.soul, safe='')}"
+            f"&machine={quote(self._config.machine, safe='')}"
+            f"&platform={quote(self._config.platform, safe='')}"
+        )
         request = (
             f"GET {path} HTTP/1.1\r\n"
             f"Host: {self._config.host}:{self._config.port}\r\n"
@@ -44,7 +55,15 @@ class WsClient:
         sock.settimeout(None)
         return sock
 
-    def listen(self, on_message, since: int = 0, name: str | None = None) -> None:
+    def listen(
+        self,
+        on_message,
+        since: int = 0,
+        name: str | None = None,
+        on_connected=None,
+        heartbeat_factory=None,
+        heartbeat_interval: float = 15.0,
+    ) -> None:
         """Stream messages, reconnecting from the highest seq seen (no dup/loss).
 
         `on_message(record)` returning a truthy value stops the loop. The resume
@@ -57,9 +76,40 @@ class WsClient:
         while not state["stop"]:
             try:
                 sock = self._connect(name, state["seq"])
+                write_lock = threading.Lock()
+                stop_heartbeat = threading.Event()
+
+                def send_event(payload: dict) -> None:
+                    encoded = json.dumps(payload, ensure_ascii=False).encode("utf-8")
+                    with write_lock:
+                        sock.sendall(ws_protocol.encode(encoded, ws_protocol.OP_TEXT, mask=True))
+
+                def send_control(payload: bytes, opcode: int) -> None:
+                    with write_lock:
+                        sock.sendall(ws_protocol.encode(payload, opcode, mask=True))
+
+                heartbeat = None
                 try:
-                    self._pump(sock, sock.makefile("rb"), on_message, state)
+                    if on_connected is not None:
+                        on_connected(send_event)
+                    if heartbeat_factory is not None and heartbeat_interval > 0:
+                        heartbeat = threading.Thread(
+                            target=self._heartbeat_loop,
+                            args=(send_event, heartbeat_factory, heartbeat_interval, stop_heartbeat),
+                            daemon=True,
+                        )
+                        heartbeat.start()
+                    self._pump(
+                        sock,
+                        sock.makefile("rb"),
+                        on_message,
+                        state,
+                        send_control,
+                    )
                 finally:
+                    stop_heartbeat.set()
+                    if heartbeat is not None:
+                        heartbeat.join(timeout=0.2)
                     sock.close()
             except OSError:
                 pass
@@ -67,7 +117,15 @@ class WsClient:
                 return
             time.sleep(RECONNECT_BACKOFF)
 
-    def _pump(self, sock, rf, on_message, state) -> None:
+    @staticmethod
+    def _heartbeat_loop(send_event, heartbeat_factory, interval, stop_event) -> None:
+        while not stop_event.wait(interval):
+            try:
+                send_event(heartbeat_factory())
+            except OSError:
+                return
+
+    def _pump(self, sock, rf, on_message, state, send_control=None) -> None:
         while True:
             frame = ws_protocol.read_frame(rf)
             if frame is None:
@@ -76,7 +134,10 @@ class WsClient:
             if opcode == ws_protocol.OP_CLOSE:
                 return
             if opcode == ws_protocol.OP_PING:
-                sock.sendall(ws_protocol.encode(data, ws_protocol.OP_PONG, mask=True))
+                if send_control is None:
+                    sock.sendall(ws_protocol.encode(data, ws_protocol.OP_PONG, mask=True))
+                else:
+                    send_control(data, ws_protocol.OP_PONG)
                 continue
             if opcode == ws_protocol.OP_PONG:
                 continue

@@ -111,6 +111,20 @@ First, check the `"status"` field in the session file:
      - If active checkpoint is `7` (Debug Complete): check the next step in the profile. If it is `Frontend Visual Debug` (or other UI debug skill), recommend `/visual-debug`. If the next step is `Feature Verification`, recommend `/verify`.
      - If the dynamic workflow is complete: inform the user that the active feature has been successfully released and recommend starting a new workflow.
 
+## Step 4 — Restore Loop State (additive; `loop-controller`)
+If `.agents/state/loop/<workflow-id>.json` exists, read it and resume the exact
+self-correcting cycle:
+- Restore `current_phase`, `iteration`, `last_verdict`, `failure_signature`,
+  `no_progress_count`, and `transition` so the next controller cycle continues
+  without losing progress.
+- If the file is **absent**, treat it as `iteration 0` (legacy linear resume);
+  do NOT fabricate loop state.
+- If `stop_conditions_met` is non-empty (a prior HALT), do NOT auto-continue:
+  surface the recorded stop-condition and escalation options to the user and
+  wait. Prefer the deterministic engine `aiwf loop load --workflow <id>` (or the
+  `loop-controller` PROTOCOL.md fallback) to read the state.
+- This step is read-only and grants no write authority.
+
 ## Step 5 — Restore Execution Plan (Orchestrator Bypass)
 When resuming, check if `.agents/runtime/execution-plan.json` exists and if `"approved"` is `true`. If both are true:
 - Restore the execution mode from `implementation_execution_mode`, and restore running, queued, and blocked tasks.

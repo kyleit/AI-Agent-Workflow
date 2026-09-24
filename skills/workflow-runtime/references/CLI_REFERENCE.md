@@ -36,7 +36,7 @@ Usage: aiwf <command> [args] [--option=value ...]
     memory                       Project memory: bootstrap, update, query, status
 
   PROVIDER
-    provider                     AI provider management: list, select, configure, test, usage
+    provider                     Knowledge provider management: list, config, status, test, sync
 
   RUNTIME
     execution                    Manage execution plans and running processes
@@ -457,21 +457,25 @@ options:
 - **Aliases:** None
 - **Requires Lock:** Yes
 
-AI provider management: list, select, configure, test, usage
+Knowledge provider management: list, config, status, test, sync
 
 ```text
-usage: aiwf provider [-h] [--name NAME] [--model MODEL] [--api-key API_KEY]
-                     [--base-url BASE_URL] [--timeout TIMEOUT]
-                     [--format {json,table,text}]
-                     [{list,select,config,test,usage,status,reset,add,remove}]
+usage: aiwf provider [-h] [--name NAME] [--project] [--model MODEL]
+                     [--api-key API_KEY] [--base-url BASE_URL]
+                     [--timeout TIMEOUT] [--format {json,table,text}]
+                     [{list,select,config,test,usage,status,reset,add,remove,edit,enable,disable,resolve,sync,path,doctor}]
+                     [target]
 
 positional arguments:
-  {list,select,config,test,usage,status,reset,add,remove}
+  {list,select,config,test,usage,status,reset,add,remove,edit,enable,disable,resolve,sync,path,doctor}
                         Provider action
+  target                Provider name (same as --name)
 
 options:
   -h, --help            show this help message and exit
   --name NAME           Provider name
+  --project             Operate on project overrides
+                        (.agents/memory.config.json)
   --model MODEL         Model name
   --api-key API_KEY     API key (stored securely)
   --base-url BASE_URL   Custom base URL

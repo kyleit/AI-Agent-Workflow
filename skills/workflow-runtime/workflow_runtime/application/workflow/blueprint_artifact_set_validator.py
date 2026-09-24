@@ -4,6 +4,41 @@ import re
 from dataclasses import dataclass, field
 from pathlib import Path
 
+_FILE_MATRIX_HEADING = re.compile(r"^#{1,6}\s+.*file[- ]by[- ]file change matrix", re.IGNORECASE)
+_TABLE_SEPARATOR = re.compile(r"^\s*\|?\s*:?-{2,}:?\s*(?:\|\s*:?-{2,}:?\s*)+\|?\s*$")
+
+
+def _file_matrix_row_count(text: str) -> int:
+    """Count the rows of declared File-By-File Change Matrix tables only.
+
+    The previous count matched any table row whose third cell began with an
+    operation verb, so an implementation task table whose change column read "Add
+    one import line" was counted as a file, and a family could be forced into a
+    deeper directory layout by word choice.
+    """
+    lines = text.splitlines()
+    count = 0
+    index = 0
+    while index < len(lines):
+        if not _FILE_MATRIX_HEADING.match(lines[index].strip()):
+            index += 1
+            continue
+        index += 1
+        while index < len(lines) and not lines[index].lstrip().startswith("|"):
+            if lines[index].lstrip().startswith("#"):
+                break
+            index += 1
+        if (
+            index + 1 < len(lines)
+            and lines[index].lstrip().startswith("|")
+            and _TABLE_SEPARATOR.match(lines[index + 1])
+        ):
+            index += 2
+            while index < len(lines) and lines[index].lstrip().startswith("|"):
+                count += 1
+                index += 1
+    return count
+
 
 @dataclass(frozen=True)
 class ArtifactSetValidationResult:
@@ -72,13 +107,7 @@ class BlueprintArtifactSetValidator:
         for family in sorted({name for name, _ in family_paths if name}):
             family_phase_paths = [path for (name, _), paths in family_paths.items() if name == family for path in paths]
             family_text = "\n".join(path.read_text(encoding="utf-8") for path in family_phase_paths)
-            family_file_count = len(
-                re.findall(
-                    r"^\|\s*[^|]+\|[^|]+\|\s*(?:NEW|MODIFY|DELETE|REPLACE|CREATE|ADD)",
-                    family_text,
-                    re.IGNORECASE | re.MULTILINE,
-                )
-            )
+            family_file_count = _file_matrix_row_count(family_text)
             has_subfeatures = any(name == family and subfeature for name, subfeature in family_paths)
             if family_file_count > 8 and not has_subfeatures:
                 findings.append(f"phase_subfeature_layout_required:{family}:files={family_file_count}")

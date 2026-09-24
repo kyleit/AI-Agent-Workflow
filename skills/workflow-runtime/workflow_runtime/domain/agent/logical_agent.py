@@ -94,8 +94,8 @@ class LogicalAgent:
         if event_store:
             topic = f"agent.{target_status}"
             event_store.append_event(
-                aggregate_id=self.session_id,
-                event_type=topic,
+                self.session_id,
+                topic,
                 payload={"agent_id": self.agent_id, "status": self.status}
             )
 
@@ -110,8 +110,8 @@ class LogicalAgent:
             self.status = "cancelled"
             if event_store:
                 event_store.append_event(
-                    aggregate_id=self.session_id,
-                    event_type="agent.cancelled",
+                    self.session_id,
+                    "agent.cancelled",
                     payload={"agent_id": self.agent_id, "status": "cancelled", "reason": reason}
                 )
 

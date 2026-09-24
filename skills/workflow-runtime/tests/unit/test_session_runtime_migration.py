@@ -8,7 +8,7 @@ import shutil
 # Thêm đường dẫn scripts vào sys.path
 sys.path.insert(0, os.path.abspath(os.path.join(os.path.dirname(__file__), "..", "..", "scripts")))
 
-from workspace_doctor import check_permissions, check_skills, check_supervisor, get_runtime_mode
+from workflow_runtime.application.system.workspace_doctor import check_permissions, check_skills, check_supervisor, get_runtime_mode
 from tests.conftest import run_cli
 
 @pytest.fixture
@@ -84,18 +84,17 @@ def test_init_does_not_spawn_daemon(setup_mock_workspace):
     env = os.environ.copy()
     env["AIWF_STATE_ROOT"] = os.path.join(workspace, ".agents", "state")
     env["AIWF_PERMISSION_CONFIG_ROOT"] = os.path.join(workspace, ".agents", "config")
+    # init probes ~/.aiwf/telegram-daemon.pid and spawns a monitor if a real daemon runs.
+    env["HOME"] = env["USERPROFILE"] = workspace
     
     # QUICK-038: Invoke via python -m workflow_runtime
     result = run_cli("init", cwd=os.path.abspath("."), env=env)
     output = result.stdout
     
-    # Kiểm tra đầu ra chuẩn
-    assert "Workspace:" in output
-    assert "READY" in output
-    assert "Runtime:" in output
-    assert "SESSION_MODE" in output
-    assert "Workflow Supervisor:" in output
-    assert "READY" in output
+    # Kiểm tra đầu ra chuẩn (Initialization Report format since 2d9f5935)
+    assert "Workspace     : READY" in output
+    assert "Runtime       : SESSION_MODE" in output
+    assert "Supervisor    : READY" in output
     
     # Đảm bảo daemon.json không được sinh ra trong mock workspace
     daemon_path = os.path.join(workspace, ".agents", "state", "daemon.json")

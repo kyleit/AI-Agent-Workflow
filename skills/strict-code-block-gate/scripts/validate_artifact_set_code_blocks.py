@@ -4,19 +4,44 @@
 from __future__ import annotations
 
 import re
+import sys
 from pathlib import Path
 
-from validate_code_block_semantics import validate_code_block_semantics
+# Sibling modules resolve by directory, and callers do not all insert it. The
+# gate runner has always self-inserted; doing the same here keeps this module
+# loadable under any loader, including a bare spec_from_file_location.
+sys.path.insert(0, str(Path(__file__).resolve().parent))
 
-
-_MATRIX_HEADING = re.compile(r"^#{1,6}\s+.*file[- ]by[- ]file change matrix", re.IGNORECASE)
-_SCREEN_MATRIX_HEADING = re.compile(
-    r"^#{1,6}\s+.*(?:screen\s+and\s+route|route\s+and\s+screen|screen\s+coverage).*?$",
-    re.IGNORECASE,
+from block_contract import is_region_modify  # noqa: E402
+from matrix_cells import (  # noqa: E402
+    IGNORE_IDS as _IGNORE_IDS,
+    MATRIX_HEADING as _MATRIX_HEADING,
+    SCREEN_MATRIX_HEADING as _SCREEN_MATRIX_HEADING,
+    SEPARATOR as _SEPARATOR,
+    cell_is_not_applicable as _cell_is_not_applicable,
+    cells as _cells,
+    display_path as _display_path,
+    find_column as _find_column,
+    header_key as _header_key,
+    ids as _ids,
+    integer as _integer,
 )
-_SEPARATOR = re.compile(r"^\s*\|?\s*:?-{2,}:?\s*(?:\|\s*:?-{2,}:?\s*)+\|?\s*$")
-_ID_RE = re.compile(r"[A-Za-z][A-Za-z0-9_.:-]*")
-_IGNORE_IDS = {"none", "n/a", "na", "tbd", "todo", "-"}
+from validate_code_block_semantics import validate_code_block_semantics  # noqa: E402
+
+# Initialization-only rules live in their own module, and are re-exported below so
+# that existing callers and tests keep working. This import is the single direction
+# of the dependency; that module must never import this one.
+from validate_project_surface import (  # noqa: E402
+    screen_route_findings,
+    validate_greenfield_completeness_matrices,
+    validate_project_initialization_surface,
+)
+
+# An existing test reaches for the pre-move private name. Keeping the alias means a
+# relocation cannot break a caller that was never part of the public surface.
+_screen_route_findings = screen_route_findings
+
+
 _SOURCE_SUFFIXES = {
     ".go", ".ts", ".tsx", ".js", ".jsx", ".mjs", ".cjs", ".svelte",
     ".vue", ".astro", ".css", ".scss", ".sql", ".html", ".htm", ".yaml",
@@ -41,36 +66,6 @@ _GENERATED_MANIFESTS = {
     "cargo.lock",
 }
 _MAX_PHYSICAL_FILE_LINES = 500
-
-
-def _cells(line: str) -> list[str]:
-    value = line.strip()
-    if value.startswith("|"):
-        value = value[1:]
-    if value.endswith("|"):
-        value = value[:-1]
-    return [cell.strip().strip("`") for cell in value.split("|")]
-
-
-def _header_key(value: str) -> str:
-    return re.sub(r"[^a-z0-9]+", " ", value.lower()).strip()
-
-
-def _find_column(headers: list[str], *needles: str) -> int | None:
-    for index, header in enumerate(headers):
-        key = _header_key(header)
-        if any(needle in key for needle in needles):
-            return index
-    return None
-
-
-def _ids(value: str) -> list[str]:
-    return [item for item in _ID_RE.findall(value) if item.lower() not in _IGNORE_IDS]
-
-
-def _integer(value: str) -> int:
-    match = re.search(r"\d+", value or "")
-    return int(match.group(0)) if match else 0
 
 
 def _intrinsic_line_floor(target: str, code: str) -> int:
@@ -129,11 +124,11 @@ def extract_file_matrix_entries(path: Path) -> tuple[list[dict[str, str]], list[
                 break
             table_index += 1
         if table_index + 1 >= len(lines) or not lines[table_index].lstrip().startswith("|"):
-            findings.append(f"file_matrix_missing_table:{path}")
+            findings.append(f"file_matrix_missing_table:{_display_path(path)}")
             continue
         headers = _cells(lines[table_index])
         if not _SEPARATOR.match(lines[table_index + 1]):
-            findings.append(f"file_matrix_missing_separator:{path}")
+            findings.append(f"file_matrix_missing_separator:{_display_path(path)}")
             continue
         # Match the file column by normalized header, not substring search.
         # "Profile" contains the characters "file" and used to be selected
@@ -149,10 +144,10 @@ def extract_file_matrix_entries(path: Path) -> tuple[list[dict[str, str]], list[
         )
         block_column = _find_column(headers, "code block", "implementation block", "block id")
         if file_column is None:
-            findings.append(f"file_matrix_missing_file_column:{path}")
+            findings.append(f"file_matrix_missing_file_column:{_display_path(path)}")
             continue
         if block_column is None:
-            findings.append(f"file_matrix_missing_code_block_ids_column:{path}")
+            findings.append(f"file_matrix_missing_code_block_ids_column:{_display_path(path)}")
             continue
         row_index = table_index + 2
         while row_index < len(lines) and lines[row_index].lstrip().startswith("|"):
@@ -161,13 +156,18 @@ def extract_file_matrix_entries(path: Path) -> tuple[list[dict[str, str]], list[
                 target = row[file_column].strip()
                 if target and target not in {"-", "---"}:
                     projected_column = _find_column(headers, "projected lines", "lines")
+                    block_cell = row[block_column] if len(row) > block_column else ""
                     entries.append(
                         {
                             "blueprint": str(path),
                             "file": target,
-                            "code_block_ids": ",".join(
-                                _ids(row[block_column]) if len(row) > block_column else []
-                            ),
+                            "code_block_ids": ",".join(_ids(block_cell)),
+                            # plan-to-blueprint documents that a row may declare an
+                            # explicit not-applicable reason instead of a block id,
+                            # for a deliverable that is legitimately not source code.
+                            "not_applicable": "true" if _cell_is_not_applicable(block_cell) else "",
+                            "header_count": str(len(headers)),
+                            "value_count": str(len(row)),
                             "projected_lines": str(
                                 _integer(row[projected_column])
                                 if projected_column is not None and len(row) > projected_column
@@ -179,100 +179,8 @@ def extract_file_matrix_entries(path: Path) -> tuple[list[dict[str, str]], list[
                     )
             row_index += 1
     if not entries and not findings:
-        findings.append(f"file_matrix_missing:{path}")
+        findings.append(f"file_matrix_missing:{_display_path(path)}")
     return entries, findings
-
-
-def _extract_screen_route_contracts(path: Path) -> tuple[list[dict[str, object]], list[str]]:
-    """Extract route rows so declared UI surfaces have concrete implementations."""
-    lines = path.read_text(encoding="utf-8").splitlines()
-    entries: list[dict[str, object]] = []
-    findings: list[str] = []
-    for index, line in enumerate(lines[:-1]):
-        if not _SCREEN_MATRIX_HEADING.match(line.strip()):
-            continue
-        table_index = index + 1
-        while table_index < len(lines) and not lines[table_index].lstrip().startswith("|"):
-            if lines[table_index].lstrip().startswith("#"):
-                break
-            table_index += 1
-        if table_index + 1 >= len(lines) or not lines[table_index].lstrip().startswith("|"):
-            findings.append(f"screen_route_matrix_missing_table:{path}")
-            continue
-        headers = _cells(lines[table_index])
-        if not _SEPARATOR.match(lines[table_index + 1]):
-            findings.append(f"screen_route_matrix_missing_separator:{path}")
-            continue
-        route_column = _find_column(headers, "route", "path", "url")
-        screen_column = _find_column(headers, "screen", "view", "page")
-        files_column = _find_column(headers, "concrete files", "files", "implementation file")
-        blocks_column = _find_column(headers, "code blocks", "code block", "implementation block")
-        if route_column is None or screen_column is None or files_column is None or blocks_column is None:
-            findings.append(f"screen_route_matrix_missing_required_columns:{path}")
-            continue
-        row_index = table_index + 2
-        while row_index < len(lines) and lines[row_index].lstrip().startswith("|"):
-            row = _cells(lines[row_index])
-            required = max(route_column, screen_column, files_column, blocks_column)
-            if len(row) > required:
-                route = row[route_column].strip().strip("`")
-                screen = row[screen_column].strip()
-                files = [
-                    item.strip()
-                    for item in re.findall(r"(?:[A-Za-z0-9_.-]+/)+[A-Za-z0-9_.*-]+", row[files_column])
-                ]
-                block_ids = _ids(row[blocks_column])
-                if route and screen and route not in {"-", "---"} and route.startswith(("#", "/")):
-                    entries.append({"route": route, "screen": screen, "files": files, "code_block_ids": block_ids})
-            row_index += 1
-    return entries, findings
-
-
-def _screen_route_findings(
-    artifact_paths: list[Path],
-    blocks_by_id: dict[str, dict],
-) -> list[str]:
-    """Reject multi-route SPAs whose coverage table hides screens in one shell."""
-    contracts: list[dict[str, object]] = []
-    findings: list[str] = []
-    for path in artifact_paths:
-        discovered, discovered_findings = _extract_screen_route_contracts(path)
-        contracts.extend(discovered)
-        findings.extend(discovered_findings)
-    if len(contracts) < 3:
-        return findings
-
-    covered_files = {
-        str(block.get("file", "")).replace("\\", "/").lower()
-        for block in blocks_by_id.values()
-        if block.get("file")
-    }
-    for contract in contracts:
-        route = str(contract["route"])
-        files = [str(item).replace("\\", "/") for item in contract["files"]]
-        block_ids = [str(item) for item in contract["code_block_ids"]]
-        if not files:
-            findings.append(f"screen_route_concrete_file_missing:{route}")
-            continue
-        if len(files) == 1 and files[0].lower().endswith("/app.svelte") and route not in {"#", "#/", "/"}:
-            findings.append(f"screen_route_shared_app_shell_for_feature_route:{route}:{files[0]}")
-        for target in files:
-            if target.lower() not in covered_files:
-                findings.append(f"screen_route_file_not_covered:{route}:{target}")
-        if not block_ids:
-            findings.append(f"screen_route_missing_code_block_ids:{route}")
-        covered_targets = {
-            str(blocks_by_id[block_id].get("file", "")).replace("\\", "/").lower()
-            for block_id in block_ids
-            if block_id in blocks_by_id
-        }
-        for block_id in block_ids:
-            if block_id not in blocks_by_id:
-                findings.append(f"screen_route_unknown_code_block:{route}:{block_id}")
-        for target in files:
-            if target.lower() not in covered_targets:
-                findings.append(f"screen_route_code_block_file_mismatch:{route}:{target}")
-    return findings
 
 
 def validate_artifact_set(
@@ -311,7 +219,25 @@ def validate_artifact_set(
     covered_files: set[str] = set()
     for entry in entries:
         target = entry["file"].replace("\\", "/")
+        if _integer(entry.get("value_count", "0")) > _integer(entry.get("header_count", "0")):
+            # More values than headers means the row was misread, and every column
+            # after the break holds the wrong field. Name it instead of reporting
+            # whichever field happened to land on a placeholder.
+            findings.append(f"file_matrix_row_column_count_mismatch:{target}")
         block_ids = [item for item in entry["code_block_ids"].split(",") if item]
+        if entry.get("not_applicable"):
+            # A contradiction is decided structurally, never by guessing whether
+            # the text after the marker is an identifier or a free-text reason:
+            # the row says no source code applies, yet a real block targets it.
+            if any(_path_matches(str(block.get("file", "")).replace("\\", "/"), target)
+                   for block in blocks_by_id.values()):
+                findings.append(f"file_matrix_contradictory_coverage:{target}")
+                continue
+            # The row declares a deliverable that is legitimately not source code:
+            # retained evidence, a verification report, a handover note. It is
+            # covered by its declaration, so no block is demanded.
+            covered_files.add(target)
+            continue
         if not block_ids:
             findings.append(f"file_matrix_row_missing_code_block:{target}")
             continue
@@ -326,7 +252,8 @@ def validate_artifact_set(
                 findings.append(f"code_block_file_mismatch:{block_id}:{block_file}!={target}")
             else:
                 suffix = Path(block_file).suffix.lower()
-                if suffix in _SOURCE_SUFFIXES:
+                region_modify = is_region_modify(block)
+                if suffix in _SOURCE_SUFFIXES and not region_modify:
                     generated_manifest = (
                         str(block.get("language", "")).strip().lower() == "generated-manifest"
                         and str(block.get("block_scope", "")).strip().lower() == "generated-manifest"
@@ -341,6 +268,7 @@ def validate_artifact_set(
                 if (
                     strict_contract
                     and suffix in _SOURCE_SUFFIXES
+                    and not region_modify
                     and Path(block_file).name.lower() not in _GENERATED_MANIFESTS
                 ):
                     if projected_lines > _MAX_PHYSICAL_FILE_LINES:
@@ -353,10 +281,11 @@ def validate_artifact_set(
                         )
                 if strict_contract and suffix in _SOURCE_SUFFIXES and not projected_lines:
                     findings.append(f"file_matrix_missing_projected_lines:{target}")
-                if strict_contract and suffix in _SOURCE_SUFFIXES and projected_lines:
+                if strict_contract and suffix in _SOURCE_SUFFIXES and projected_lines and not region_modify:
                     # Projected lines are planning metadata, not a license to
                     # require filler. Full-file integrity is checked against
                     # the observable complexity floor and the 500-line limit.
+                    # A region is sized by its region, so the floor cannot apply.
                     minimum_lines = max(1, _intrinsic_line_floor(block_file, str(block.get("code", ""))))
                     if code_lines < minimum_lines:
                         findings.append(
@@ -373,8 +302,8 @@ def validate_artifact_set(
         findings.append("artifact_set_file_matrix_empty")
     if strict_contract:
         findings.extend(_strict_matrix_findings(entries))
-        findings.extend(_hierarchy_findings(artifact_paths))
-        findings.extend(_screen_route_findings(artifact_paths, blocks_by_id))
+        findings.extend(_hierarchy_findings(artifact_paths, entries))
+        findings.extend(screen_route_findings(artifact_paths, blocks_by_id))
     findings.extend(validate_project_initialization_surface(artifact_paths, entries, blocks_by_id))
     findings.extend(validate_greenfield_completeness_matrices(artifact_paths))
     findings.extend(validate_code_block_semantics(discoveries))
@@ -397,6 +326,10 @@ def _is_strict_artifact_set(artifact_paths: list[Path], entries: list[dict[str, 
 def _strict_matrix_findings(entries: list[dict[str, str]]) -> list[str]:
     findings: list[str] = []
     for entry in entries:
+        if entry.get("not_applicable"):
+            # The row's deliverable is not source code, so a signature, an import
+            # list, or a command for it would be fiction.
+            continue
         target = entry["file"].replace("\\", "/")
         headers = entry.get("headers", [])
         values = entry.get("row_values", [])
@@ -419,7 +352,10 @@ def _strict_matrix_findings(entries: list[dict[str, str]]) -> list[str]:
     return findings
 
 
-def _hierarchy_findings(artifact_paths: list[Path]) -> list[str]:
+def _hierarchy_findings(
+    artifact_paths: list[Path],
+    entries: list[dict[str, str]],
+) -> list[str]:
     """Require family directories for large master/phase artifact sets."""
     if len(artifact_paths) <= 1:
         return []
@@ -446,17 +382,21 @@ def _hierarchy_findings(artifact_paths: list[Path]) -> list[str]:
     for family, count in family_counts.items():
         if count > 8 and not family_subfeatures.get(family):
             findings.append(f"phase_subfeature_layout_required:{family}:artifacts={count}")
+    # Count the rows the extractor actually produced, grouped by the family that
+    # declared them. The previous count came from a regular expression over whole
+    # documents, which treated any table row whose third cell began with an
+    # operation verb as a file, so a task contract inflated the count and forced a
+    # directory layout by word choice.
     file_rows_by_family: dict[str, int] = {}
-    for path in phase_paths:
-        family = path.relative_to(root).parts[0].lower()
-        text = path.read_text(encoding="utf-8")
-        file_rows_by_family[family] = file_rows_by_family.get(family, 0) + len(
-            re.findall(
-                r"^\|\s*[^|]+\|[^|]+\|\s*(?:NEW|MODIFY|DELETE|REPLACE|CREATE|ADD)",
-                text,
-                re.IGNORECASE | re.MULTILINE,
-            )
-        )
+    for entry in entries:
+        try:
+            parts = Path(entry["blueprint"]).relative_to(root).parts
+        except ValueError:
+            continue
+        if len(parts) < 2:
+            continue
+        family = parts[0].lower()
+        file_rows_by_family[family] = file_rows_by_family.get(family, 0) + 1
     for family, count in file_rows_by_family.items():
         if count > 8 and not family_subfeatures.get(family):
             findings.append(f"phase_subfeature_layout_required:{family}:files={count}")
@@ -471,121 +411,6 @@ def _has_data_flow_sequence_heading(text: str) -> bool:
             re.IGNORECASE | re.MULTILINE,
         )
     )
-
-
-def validate_project_initialization_surface(
-    artifact_paths: list[Path],
-    entries: list[dict[str, str]],
-    blocks_by_id: dict[str, dict],
-) -> list[str]:
-    """Catch common greenfield omissions hidden by a high-level capability row."""
-    text = "\n".join(path.read_text(encoding="utf-8").lower() for path in artifact_paths)
-    files = {entry["file"].replace("\\", "/").lower() for entry in entries}
-    requirements: list[tuple[str, bool]] = [
-        ("radio_control", "radio" in text),
-        ("textarea_control", "textarea" in text),
-        ("input_control", "input" in text),
-        ("select_control", "select" in text),
-        ("checkbox_control", "checkbox" in text),
-        ("dialog_host", "alert" in text and "prompt" in text and "confirm" in text),
-        ("hash_router", "hash" in text and "router" in text),
-        ("tailwind_config", "tailwind" in text),
-        ("fiber_routes", "fiber" in text),
-        ("sqlite_migration", "sqlite" in text),
-        ("wails_config", "wails" in text),
-        ("systray", "systray" in text or "tray" in text),
-        ("loading_component", "loading" in text or "skeleton" in text),
-        ("local_font_assets", "font" in text and "local" in text),
-        ("frontend_entrypoint", "svelte" in text and "spa" in text),
-    ]
-    expected_patterns = {
-        "radio_control": ("/radio", "radio."),
-        "textarea_control": ("/textarea", "textarea."),
-        "input_control": ("/input", "input."),
-        "select_control": ("/select", "select."),
-        "checkbox_control": ("/checkbox", "checkbox."),
-        "dialog_host": ("dialog",),
-        "hash_router": ("router",),
-        "tailwind_config": ("tailwind.config",),
-        "fiber_routes": ("routes", "handlers"),
-        "sqlite_migration": (".sql", "migration"),
-        "wails_config": ("wails.json",),
-        "systray": ("systray", "tray"),
-        "loading_component": ("loading", "skeleton", "spinner"),
-        "local_font_assets": (".woff2", ".woff", ".ttf", ".otf"),
-        "frontend_entrypoint": ("frontend/src/main.", "frontend/index.html"),
-    }
-    findings = []
-    for requirement, enabled in requirements:
-        if not enabled:
-            continue
-        patterns = expected_patterns[requirement]
-        if not any(any(pattern in file for pattern in patterns) for file in files):
-            findings.append(f"project_init_required_surface_missing:{requirement}")
-    if "go.mod" in files and "go.sum" not in files:
-        findings.append("project_init_required_surface_missing:go_dependency_lock")
-    if "frontend/package.json" in files:
-        for required in ("frontend/index.html", "frontend/tsconfig.json"):
-            if required not in files:
-                findings.append(f"project_init_required_surface_missing:{required}")
-    if "frontend/tailwind.config.cjs" in files and "frontend/postcss.config.cjs" not in files:
-        findings.append("project_init_required_surface_missing:frontend/postcss.config.cjs")
-    return findings
-
-
-def validate_greenfield_completeness_matrices(artifact_paths: list[Path]) -> list[str]:
-    """Require explicit capability, screen, contract, test, and viewport maps."""
-    master = artifact_paths[0].read_text(encoding="utf-8")
-    lowered = master.lower()
-    if "project_initialization: true" not in lowered:
-        return []
-
-    required: list[tuple[str, tuple[str, ...]]] = [
-        (
-            "Greenfield Completeness Matrix",
-            ("surface", "required files", "code block", "producer", "consumer", "test", "evidence"),
-        ),
-        (
-            "Test Scenario Coverage Matrix",
-            ("test", "entrypoint", "assertion", "command", "evidence"),
-        ),
-    ]
-    if any(token in lowered for token in ("svelte", "frontend", "route", "screen")):
-        required.extend(
-            [
-                ("Screen And Route Coverage Matrix", ("route", "screen", "concrete files", "code blocks")),
-                ("Mobile-First Visual Coverage Matrix", ("mobile", "desktop", "tablet", "state", "evidence")),
-            ]
-        )
-    if any(token in lowered for token in ("fiber", "api", "backend", "sqlite")):
-        required.append(
-            (
-                "Backend Capability Coverage Matrix",
-                ("capability", "endpoint", "persistence", "consumer", "test", "evidence"),
-            )
-        )
-
-    combined = "\n".join(path.read_text(encoding="utf-8") for path in artifact_paths)
-    findings: list[str] = []
-    for heading, required_terms in required:
-        heading_match = re.search(
-            rf"^#{{1,6}}\s+.*{re.escape(heading)}.*$",
-            combined,
-            re.IGNORECASE | re.MULTILINE,
-        )
-        if not heading_match:
-            findings.append(f"greenfield_required_matrix_missing:{heading}")
-            continue
-        next_heading = re.search(r"^#{1,6}\s+", combined[heading_match.end():], re.MULTILINE)
-        section_end = heading_match.end() + (next_heading.start() if next_heading else 4000)
-        section = combined[heading_match.end():section_end].lower()
-        if "|" not in section:
-            findings.append(f"greenfield_required_matrix_table_missing:{heading}")
-            continue
-        for term in required_terms:
-            if term.lower() not in section:
-                findings.append(f"greenfield_required_matrix_column_missing:{heading}:{term}")
-    return findings
 
 
 __all__ = [

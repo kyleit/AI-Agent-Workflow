@@ -81,7 +81,7 @@ class TestAgentsMerge(unittest.TestCase):
         res = subprocess.run([
             "powershell", "-NoProfile", "-ExecutionPolicy", "Bypass",
             "-File", install_script, "-Force"
-        ], cwd=self.test_dir, capture_output=True, text=True)
+        ], cwd=self.test_dir, capture_output=True, text=True, env=self._isolated_home_env())
         return res
 
     def _run_update_powershell(self):
@@ -89,21 +89,28 @@ class TestAgentsMerge(unittest.TestCase):
         res = subprocess.run([
             "powershell", "-NoProfile", "-ExecutionPolicy", "Bypass",
             "-File", update_script, "-Force"
-        ], cwd=self.test_dir, capture_output=True, text=True)
+        ], cwd=self.test_dir, capture_output=True, text=True, env=self._isolated_home_env())
         return res
+
+    def _isolated_home_env(self):
+        # install.sh switches to MINIMAL mode (no project skills) when a global
+        # install exists at $HOME/.agents, so never let it see the real home.
+        home = os.path.join(self.test_dir, ".test-home")
+        os.makedirs(home, exist_ok=True)
+        return dict(os.environ, HOME=home, USERPROFILE=home)
 
     def _run_install_bash(self):
         install_script = self._to_bash_path(os.path.join(self.script_dir, "install.sh"))
         res = subprocess.run([
             self.bash_path, install_script, "-f"
-        ], cwd=self.test_dir, capture_output=True, text=True)
+        ], cwd=self.test_dir, capture_output=True, text=True, env=self._isolated_home_env())
         return res
 
     def _run_update_bash(self):
         update_script = self._to_bash_path(os.path.join(self.script_dir, "update.sh"))
         res = subprocess.run([
             self.bash_path, update_script, "-f"
-        ], cwd=self.test_dir, capture_output=True, text=True)
+        ], cwd=self.test_dir, capture_output=True, text=True, env=self._isolated_home_env())
         return res
 
     # --- PowerShell tests ---

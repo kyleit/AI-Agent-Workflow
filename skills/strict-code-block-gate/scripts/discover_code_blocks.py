@@ -7,9 +7,22 @@ import argparse
 import hashlib
 import json
 import re
+import sys
 from pathlib import Path
 
-FENCE_RE = re.compile(r"^```([A-Za-z0-9_+.#-]*)\s*$")
+# Sibling modules resolve by directory, and callers do not all insert it. The
+# gate runner has always self-inserted; doing the same here keeps this module
+# loadable under any loader, including a bare spec_from_file_location.
+sys.path.insert(0, str(Path(__file__).resolve().parent))
+
+from block_contract import REGION_SCOPE, is_region_modify  # noqa: E402
+
+# CommonMark fences may be longer than three backticks so a block can embed a
+# literal ``` line; such a block closes only on a bare fence at least as long as
+# the opening one. workflow_runtime's markdown_fences module applies the same
+# rule, so the gate and the loop agree on what is code.
+FENCE_RE = re.compile(r"^(`{3,})([A-Za-z0-9_+.#-]*)\s*$")
+CLOSING_FENCE_RE = re.compile(r"^(`{3,})\s*$")
 META_RE = re.compile(r"^([A-Za-z_][\w-]*):\s*(.*?)\s*$")
 PLACEHOLDER_RE = re.compile(
     r"(^|\n)\s*(?:TODO|FIXME|TBD)\b"
@@ -55,6 +68,11 @@ def _metadata(lines: list[str], fence_index: int) -> dict[str, str]:
     return meta
 
 
+def _closes_fence(line: str, fence_length: int) -> bool:
+    closing = CLOSING_FENCE_RE.match(line)
+    return bool(closing) and len(closing.group(1)) >= fence_length
+
+
 def _truthy(value: str | None) -> bool:
     return (value or "").strip().lower() in {"true", "yes", "1", "y"}
 
@@ -70,11 +88,12 @@ def discover(path: Path) -> dict:
         if not match:
             i += 1
             continue
-        fence_language = match.group(1).strip()
+        fence_length = len(match.group(1))
+        fence_language = match.group(2).strip()
         start = i + 1
         code_lines: list[str] = []
         i += 1
-        while i < len(lines) and not lines[i].startswith("```"):
+        while i < len(lines) and not _closes_fence(lines[i], fence_length):
             code_lines.append(lines[i])
             i += 1
         end = i + 1 if i < len(lines) else len(lines)
@@ -99,10 +118,17 @@ def discover(path: Path) -> dict:
         ).hexdigest()
         block = {
             "id": block_id,
+            # Depth is declared per document, but the gate flattens blocks from
+            # the master and every phase into one list. Without the owning
+            # artifact recorded here, a downstream validator cannot apply each
+            # document's own declared depth.
+            "artifact": str(path),
             "language": language,
             "file": meta.get("file", ""),
             "operation": meta.get("operation", ""),
             "symbol": meta.get("symbol", ""),
+            "anchor_symbol": meta.get("anchor_symbol", ""),
+            "base_sha256": meta.get("base_sha256", "").strip().lower(),
             "implementation_ready": implementation_ready,
             "full_file": full_file,
             "block_scope": block_scope,
@@ -147,12 +173,27 @@ def discover(path: Path) -> dict:
                     block["status"] = "BLOCKED"
                     block["findings"].append("generated_lockfile_missing_generator_command")
             elif suffix in FULL_FILE_SUFFIXES:
-                if not full_file:
+                # A modification cannot restate the file's current bytes, so
+                # ADR-202 admits a region declaration for `modify` alone. The
+                # region pays for the relaxation with two fields the gate then
+                # verifies against the real file.
+                if is_region_modify(block):
+                    if not block["base_sha256"]:
+                        block["status"] = "BLOCKED"
+                        block["findings"].append("anchored_region_modify_requires_base_sha256")
+                    if not block["anchor_symbol"]:
+                        block["status"] = "BLOCKED"
+                        block["findings"].append("anchored_region_modify_requires_anchor_symbol")
+                elif block_scope == REGION_SCOPE:
                     block["status"] = "BLOCKED"
-                    block["findings"].append("full_file must be true for source/config/schema/UI files")
-                if block_scope != "full-file":
-                    block["status"] = "BLOCKED"
-                    block["findings"].append("block_scope must be full-file for source/config/schema/UI files")
+                    block["findings"].append("anchored_region_requires_modify_operation")
+                else:
+                    if not full_file:
+                        block["status"] = "BLOCKED"
+                        block["findings"].append("full_file must be true for source/config/schema/UI files")
+                    if block_scope != "full-file":
+                        block["status"] = "BLOCKED"
+                        block["findings"].append("block_scope must be full-file for source/config/schema/UI files")
             if PLACEHOLDER_RE.search(code):
                 block["status"] = "FAIL"
                 block["findings"].append("placeholder or incomplete code detected")

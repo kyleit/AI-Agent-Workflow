@@ -141,7 +141,7 @@ def execute_runtime_bus_request(payload: dict[str, Any]) -> dict[str, Any]:
             raise ValueError("agy.run requires args.prompt")
 
         cmd = ["agy", "--dangerously-skip-permissions"]
-        model = str(args.get("model", "gemini-3.6-flash-high")).strip()
+        model = str(args.get("model", "gemini-3.8-flash-high")).strip()
         if model:
             cmd.extend(["--model", model])
         effort = str(args.get("effort", "high")).strip()

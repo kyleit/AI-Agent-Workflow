@@ -374,6 +374,14 @@ This is a mandatory global policy. The following rules are absolute and cannot b
     including their typed contracts and pure rule bodies. The trade-off is
     explicit: FULL is longer and must be regenerated after design changes, but
     it removes the gap between approved design and runnable implementation.
+    **Default depth strategy (token-aware)**: for any multi-phase build the
+    standard is **master = CONTRACT, each phase = FULL** — the master holds scope,
+    contracts, coverage matrix, and diagrams; the FULL spike-verified full-file
+    code blocks live in their owning phase. A single all-FULL master for a large
+    feature exhausts the agent's token budget before the code-block gate runs,
+    yielding a truncated code-less document; per-phase FULL keeps every step in
+    budget while still delivering complete runnable code. CONTRACT is valid ONLY
+    for the master index — never as a reason for a phase to omit its code blocks.
 
 ---
 
@@ -792,10 +800,18 @@ To enforce standard software engineering processes and prevent bypasses, all ope
 ## Section 32: Global Multi-Language Strict Engineering Policy
 
 1. **3-Layer Policy Architecture**:
-   All managed source files (`*.py`, `*.go`, `*.js`, `*.jsx`, `*.ts`, `*.tsx`) must adhere to a mandatory 3-Layer Policy Model:
+   All managed source files (`*.py`, `*.go`, `*.js`, `*.jsx`, `*.ts`, `*.tsx`, `*.svelte`, `*.css`, `*.scss`) must adhere to a mandatory 3-Layer Policy Model:
     - **Level 1 (Core Policy)**: `.agents/policies/strict-engineering.md` - Enforces DDD, Clean Architecture, DIP/DI, Fail-Fast, the 500-line physical limit, and no validator bypass.
-    - **Level 2 (Language Profiles)**: `.agents/profiles/{python,golang,typescript,javascript}.yaml` - Enforces toolchain gates (Pyright STRICT, `golangci-lint`, strict `tsc`, ESLint, `Import Linter`, `depguard`) and forbidden bypasses.
+    - **Level 2 (Language Profiles)**: `.agents/profiles/{python,golang,typescript,javascript,svelte,css}.yaml` - Enforces toolchain gates (Pyright/**basedpyright STRICT**, `golangci-lint`, strict `tsc`, `svelte-check`, ESLint, `stylelint`, `Import Linter`, `depguard`) and forbidden bypasses.
     - **Level 3 (Project Architecture Contract)**: `.agents/contracts/engineering-quality-gates.yaml` - Defines project-specific bounded contexts, layer boundaries, and dependency directions.
+
+   **Strict-parity mandate (ALL languages, not just Python)**: the strictness bar set by
+   **basedpyright strict** for Python is the minimum bar for every other managed language. Each
+   language MUST run its strictest first-party static gate with zero errors and **no bypasses**:
+   Go = `go vet` + `golangci-lint` (strict) + `depguard`; TypeScript = `tsc --strict` + ESLint
+   (type-checked); JavaScript = ESLint (strict) + JSDoc/type checks where configured; Svelte =
+   `svelte-check` (strict); CSS/SCSS = `stylelint` (strict). No language may be waived because
+   another language passed (no cross-language compensation).
 
 2. **Phase Binding**:
    - **Blueprint**: Must identify affected languages, load active language profiles, calculate file line budgets (<500 lines split strategy), define any family-folder split plan plus aggregate/facade entry file, and bind policy hashes.
@@ -818,3 +834,79 @@ To enforce standard software engineering processes and prevent bypasses, all ope
 
 4. **Independent Verification Gate**:
    The `verify` phase MUST NOT trust implementation status claims. `verify` MUST independently inspect physical files on disk and verify repository working tree state. Any discrepancy between claimed changes and disk state results in an immediate `VERIFY FAIL`.
+
+---
+
+## Section 34: Frontend Architectural & UI Control Policy
+
+Frontend code is a first-class engineering artifact and MUST meet the same bar as backend.
+
+1. **DDD & Clean Architecture + DI (frontend too)**:
+   * Frontend MUST follow Clean Architecture with an explicit dependency direction
+     `presentation (components/pages) -> application (stores/use-cases) -> domain (models/logic)`,
+     with an `infrastructure` layer for API clients, storage, and framework/SDK adapters.
+   * The **domain layer MUST be framework-agnostic** — no Svelte/DOM/HTTP imports; pure models,
+     value objects, and business logic. UI components MUST NOT contain business logic or call
+     API clients directly; they depend on application stores/use-cases, which depend on domain
+     abstractions. Dependencies are injected (props/context/factory), never hard-imported across
+     the direction. Critical violations (domain importing UI/framework, components calling
+     infrastructure directly) are prohibited regardless of score.
+
+2. **500-line limit applies to every frontend file**:
+   * Every managed frontend source file (`.svelte`, `.ts`, `.tsx`, `.js`, `.jsx`, `.css`) MUST
+     NOT exceed 500 lines. Over-limit files MUST be split under a shared family-folder with one
+     aggregate/facade entry (same rule as Section 25.3).
+
+3. **Custom UI controls are MANDATORY — native defaults are FORBIDDEN**:
+   * Do NOT ship the browser's default form/dialog primitives. The following MUST be replaced by
+     project custom components: `input`, `textarea`, `checkbox`, `radio`, `select`/dropdown,
+     `range`, `file`, and every dialog — `alert()`, `confirm()`, `prompt()` (and native
+     `<dialog>` defaults) MUST be replaced by custom modal/toast/confirm components.
+   * Scrollbars MUST be restyled via CSS (custom scrollbar) rather than left as the OS/browser
+     default. Custom controls MUST remain accessible (keyboard focus, ARIA roles, labels).
+
+4. **Strict validation (parity with basedpyright, for the frontend toolchain)**:
+   * Frontend MUST pass, with zero errors and no bypasses: strict `tsc` (`strict: true`),
+     `svelte-check`, ESLint, and `stylelint` for CSS/SCSS. Suppressions (`@ts-ignore`,
+     `eslint-disable`, `svelte-ignore`, `stylelint-disable`) are Root-Cause-Debugging violations
+     under Section 32; fix the cause, do not silence. (See Section 32's strict-parity mandate:
+     every managed language runs its strictest gate at the basedpyright bar.)
+
+---
+
+## Section 35: Approved Frontend Stack & Local Resource Policy
+
+1. **Approved default stack**:
+   * Unless a Blueprint explicitly justifies otherwise, the frontend stack is
+     **Svelte SPA with Hash Router + Tailwind CSS + Lucide Icons + Google Fonts**.
+
+2. **All resources MUST be local / offline-first**:
+   * Fonts (Google Fonts), icons (Lucide), CSS, JS, and any third-party asset MUST be
+     downloaded and vendored into the repository and served locally. Runtime dependence on a
+     remote CDN or Google Fonts endpoint is FORBIDDEN — the app MUST render fully offline.
+   * Build output MUST embed real assets (no dummy/empty files); the embedded-asset guard of
+     Section 25.4 applies.
+
+---
+
+## Section 36: Repository & Service Topology Policy (Microservice / MonoRepo / Micro-frontend)
+
+1. **Backend = Microservices**: backend capabilities MUST be organized as independently
+   deployable microservices with explicit bounded contexts and contracts between them; a
+   service MUST NOT reach into another service's database or internals.
+2. **MonoRepo**: all services and frontends live in one monorepo with a shared, documented
+   layout and shared tooling/quality gates; cross-cutting contracts (schemas, API types) are
+   shared through published internal packages, not copy-paste.
+3. **Micro-frontend**: the frontend MUST be composable as independently buildable
+   micro-frontends aligned to the backend bounded contexts, integrated through a shell/host and
+   well-defined boundaries. Each micro-frontend independently satisfies Sections 34 and 35.
+4. **Blueprint binding**: the Blueprint MUST declare the service map, monorepo layout, and
+   micro-frontend boundaries before implementation; deviations are Blueprint Drift.
+
+5. **Spike-Verified binding (Sections 34–36)**: every high-risk assumption introduced by these
+   policies — service/context boundaries and inter-service contracts, micro-frontend shell
+   integration, offline vendoring of fonts/icons/CSS/JS, custom-control accessibility, and the
+   strict frontend toolchain gates — is subject to the **Spike-Verified Blueprint** gate
+   (Section 13, Rule 9). Such assumptions MUST carry a real Spike Record (ran under
+   `.agents/scratch/`, with command/evidence and adversarial-rejection results) **before
+   Blueprint Freeze**. Memory-written or compile-only evidence does not satisfy the gate.

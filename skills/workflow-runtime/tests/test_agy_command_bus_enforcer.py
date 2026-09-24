@@ -46,7 +46,7 @@ def test_agy_prompt_text_does_not_trigger_test_command_detection() -> None:
         "agy",
         "--dangerously-skip-permissions",
         "--model",
-        "gemini-3.6-flash-high",
+        "gemini-3.8-flash-high",
         "--add-dir",
         ".",
         "--print-timeout",

@@ -17,7 +17,9 @@ SCRIPTS_DIR = os.path.abspath(os.path.join(os.path.dirname(__file__), "..", "scr
 if SCRIPTS_DIR not in sys.path:
     sys.path.insert(0, SCRIPTS_DIR)
 
-from connectors.base import (
+# Canonical path: a legacy ``connectors.base`` import loads a second copy of the
+# module, so isinstance() checks against connector results would fail.
+from workflow_runtime.infrastructure.connectors.base import (
     DetectedProvider,
     DiagnosticsResult,
     NormalizedUsageRecord,
@@ -193,8 +195,13 @@ class TestCostEngine:
     def test_get_version(self):
         assert self.engine.get_version() == "1.0.0"
 
-    def test_is_stale_fresh(self):
-        assert self.engine.is_stale(30) is False
+    def test_is_stale_fresh(self, tmp_path):
+        # Pin updated_at to today so the check does not depend on the wall clock.
+        from datetime import date
+        pricing = dict(self.engine._load(), updated_at=date.today().isoformat())
+        fresh_path = tmp_path / "pricing.json"
+        fresh_path.write_text(json.dumps(pricing), encoding="utf-8")
+        assert CostEngine(pricing_path=str(fresh_path)).is_stale(30) is False
 
     def test_to_dict_structure(self):
         res = self.engine.calculate("antigravity", "gemini-2.5-flash", 100, 50)

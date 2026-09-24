@@ -20,7 +20,7 @@ class DispatchRequest:
     role_id: str
     task_description: str
     replacements: dict[str, str] = field(default_factory=dict[str, str])
-    model: str = "gemini-3.6-flash-high"
+    model: str = "gemini-3.8-flash-high"
     effort: str | None = None
     timeout_seconds: int = 300
     dry_run: bool = False
@@ -33,6 +33,17 @@ class DispatchResult:
     stdout: str
     stderr: str
     payload: dict[str, Any] = field(default_factory=dict[str, Any])
+
+
+@dataclass(frozen=True)
+class DriveResult:
+    """Outcome of a bounded multi-turn AGY authoring drive."""
+
+    completed: bool
+    rounds: int          # continue-turns used (0 = complete on the first turn)
+    exit_code: int
+    escalated: bool
+    detail: str = ""
 
 
 class AgentDispatchService:
@@ -86,7 +97,7 @@ class AgentDispatchService:
         role_id: str,
         task_description: str,
         replacements: dict[str, str] | None = None,
-        model: str = "gemini-3.6-flash-high",
+        model: str = "gemini-3.8-flash-high",
         effort: str | None = None,
     ) -> dict[str, Any]:
         md_path = self.get_agent_file(role_id)
@@ -120,7 +131,7 @@ class AgentDispatchService:
         timeout_seconds: int = 300,
         replacements: dict[str, str] | None = None,
     ) -> DispatchResult:
-        model_name = model or "gemini-3.6-flash-high"
+        model_name = model or "gemini-3.8-flash-high"
         payload = self.build_dispatch_payload(
             role_id=role,
             task_description=task,
@@ -162,6 +173,61 @@ class AgentDispatchService:
             stdout=stdout,
             stderr=stderr,
             payload=payload,
+        )
+
+    def drive_authoring(
+        self,
+        role_id: str,
+        prompt: str,
+        is_complete: Callable[[], bool],
+        next_directive: Callable[[int], str],
+        model: str = "gemini-3.8-flash-high",
+        effort: str | None = None,
+        timeout_seconds: int = 600,
+        add_dir: str = ".",
+        max_rounds: int = 3,
+        dry_run: bool = False,
+    ) -> DriveResult:
+        """Drive AGY across bounded multi-turn `--continue` authoring rounds.
+
+        A single `agy --print` turn often cannot emit a complete multi-phase
+        Blueprint. Run the initial turn, then, while `is_complete()` is False,
+        continue the same conversation (up to `max_rounds`) feeding
+        `next_directive(round)` — the caller's completeness findings (e.g. missing
+        phases from the strict-code-block gate). Never fail-open: an incomplete
+        result returns `escalated=True` (bounded repair loop; MAX_REPAIR_ROUNDS
+        philosophy — never lower the bar, escalate to the owner instead).
+        """
+        cmd = self.agy_adapter.build_command(
+            role_name=role_id, prompt=prompt, model=model, effort=effort,
+            timeout_seconds=timeout_seconds, add_dir=add_dir,
+        )
+        exit_code, _out, _err = self.agy_adapter.execute_dispatch(
+            cmd, dry_run, timeout_seconds
+        )
+        if dry_run:
+            return DriveResult(False, 0, exit_code, False, "dry-run")
+        if is_complete():
+            return DriveResult(True, 0, exit_code, False, "complete on first turn")
+        rounds = 0
+        while rounds < max_rounds:
+            rounds += 1
+            cmd = self.agy_adapter.build_command(
+                role_name=role_id, prompt=next_directive(rounds), model=model,
+                effort=effort, timeout_seconds=timeout_seconds, add_dir=add_dir,
+                continue_session=True,
+            )
+            exit_code, _out, _err = self.agy_adapter.execute_dispatch(
+                cmd, dry_run, timeout_seconds
+            )
+            if is_complete():
+                return DriveResult(
+                    True, rounds, exit_code, False,
+                    f"complete after {rounds} continue-round(s)",
+                )
+        return DriveResult(
+            False, rounds, exit_code, True,
+            f"still incomplete after {max_rounds} continue-rounds; escalate to owner",
         )
 
     def dispatch_async(

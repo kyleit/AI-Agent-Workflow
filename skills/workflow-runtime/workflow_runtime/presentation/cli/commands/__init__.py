@@ -1,5 +1,8 @@
 from __future__ import annotations
 
+from typing import cast
+
+from workflow_runtime.presentation.cli.command_interface import Command
 from workflow_runtime.presentation.cli.registry import CommandRegistry
 
 
@@ -16,6 +19,8 @@ def build_registry() -> CommandRegistry:
     from . import execution_commands  # execution, runtime
     from . import init_command  # init
     from . import knowledge_commands  # knowledge, search
+    from . import loop_commands  # loop (loop-controller engine passthrough)
+    from . import orchestrate_commands  # orchestrate (multi-agent-loop passthrough)
     from . import memory_commands  # memory, env, mail
     from . import provider_command  # provider
     from . import \
@@ -49,6 +54,8 @@ def build_registry() -> CommandRegistry:
         ui_commands,
         memory_commands,
         knowledge_commands,
+        loop_commands,
+        orchestrate_commands,
         visual_commands,
         telegram_commands,
         provider_command,
@@ -61,5 +68,5 @@ def build_registry() -> CommandRegistry:
     registry = CommandRegistry()
     for module in _modules:
         for cmd in module.all_commands():
-            registry.register(cmd)
+            registry.register(cast(Command, cmd))
     return registry

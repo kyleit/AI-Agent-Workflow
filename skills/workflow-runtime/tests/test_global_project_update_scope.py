@@ -39,6 +39,11 @@ def test_global_source_resolver_rejects_current_project_fallback(tmp_path: Path,
     (project / ".git").mkdir(parents=True)
     (project / "AI_RULES.md").write_text("rules", encoding="utf-8")
     monkeypatch.setenv("AIWF_FRAMEWORK_ROOT", str(project))
+    # Isolate from a real global install under the developer's home directory.
+    for var in ("AIWF_GLOBAL_SOURCE", "AIWF_HOME", "AIWF_GLOBAL_ROOT", "USERPROFILE"):
+        monkeypatch.delenv(var, raising=False)
+    monkeypatch.setenv("HOME", str(tmp_path / "home"))
+    monkeypatch.setenv("LOCALAPPDATA", str(tmp_path / "home" / "AppData" / "Local"))
 
     assert resolve_global_source(project) is None
 

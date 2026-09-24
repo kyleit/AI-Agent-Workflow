@@ -83,9 +83,10 @@ class KnowledgeAPI:
 
     def sync(self, provider: str = "obsidian") -> dict[str, Any]:
         if provider == "obsidian":
-            # For brevity, sync logic for obsidian was handled in provider_manager.
-            # In DDD, it would be a specific command. We stub it here for compatibility.
-            return {"status": "success", "message": "Obsidian sync executed (stubbed via new API)."}
+            # Lazy: the infrastructure package imports this application package.
+            from workflow_runtime.infrastructure.knowledge.provider_manager import \
+                sync_obsidian
+            return sync_obsidian(project_root=self.workspace_root)
         return {"status": "failure", "message": f"Sync not supported for provider '{provider}'"}
 
 # Global helper functions for quick access

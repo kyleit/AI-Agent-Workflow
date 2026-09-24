@@ -7,6 +7,8 @@ import sys
 import unittest
 import json
 import sqlite3
+import tempfile
+from unittest import mock
 
 # Ensure scripts dir is in path
 sys.path.append(os.path.abspath(os.path.join(os.path.dirname(__file__), "..", "..", "scripts")))
@@ -70,8 +72,13 @@ class TestDiffEngine(unittest.TestCase):
             "timestamp": "2026-07-09T00:00:00Z"
         }
         
-        save_token_diff(diff_data)
-        retrieved = get_token_diff("test_req_2")
+        # save_token_diff also writes the per-user global DB; keep both in a tmp dir.
+        from workflow_runtime.infrastructure.persistence import provider_usage_records as records
+        with tempfile.TemporaryDirectory() as tmp, \
+                mock.patch.object(records, "PROJECT_DB", os.path.join(tmp, "project.db")), \
+                mock.patch.object(records, "get_global_db_path", lambda: os.path.join(tmp, "global.db")):
+            save_token_diff(diff_data)
+            retrieved = get_token_diff("test_req_2")
         
         self.assertIsNotNone(retrieved)
         self.assertEqual(retrieved["prev_request_id"], "test_req_1")

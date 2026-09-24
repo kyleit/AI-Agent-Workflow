@@ -53,7 +53,15 @@ async def test_cli_session_follow():
     assert "TOPIC: agent.created" in res
 
 @pytest.mark.asyncio
-async def test_orchestrator_supervisor_commands():
+async def test_orchestrator_supervisor_commands(monkeypatch):
+    # SafeOrchestrator resolves its lock/worker managers through the locator that
+    # the CLI composition root (bootstrap_di) wires; mirror that wiring here.
+    from workflow_runtime.application.ports.locator import InfrastructureLocator
+    from workflow_runtime.infrastructure.execution.worker_manager import WorkerManager
+    from workflow_runtime.infrastructure.persistence.lock_manager import LockManager
+    monkeypatch.setattr(InfrastructureLocator, "LockManager", LockManager, raising=False)
+    monkeypatch.setattr(InfrastructureLocator, "WorkerManager", WorkerManager, raising=False)
+
     server = RuntimeAPIServer()
     sdk = RuntimeSDKv3(api_server=server)
     runner = CLIRunner(sdk=sdk)

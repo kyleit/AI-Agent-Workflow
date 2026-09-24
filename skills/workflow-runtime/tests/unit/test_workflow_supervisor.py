@@ -30,7 +30,8 @@ def setup_workspace(tmp_path):
         "skill": "planning",
         "agent": "planning-agent",
         "next": "Gate1_PlanApproval",
-        "evidence": ["implementation_plan.md"]
+        # ArtifactGovernance (0d3aacb7) rejects root-level .md evidence; use the approved plans path.
+        "evidence": ["docs/plans/FEAT-001_plan.md"]
       }
     }
     reg_path = workspace / ".agents" / "config" / "phase_registry.json"

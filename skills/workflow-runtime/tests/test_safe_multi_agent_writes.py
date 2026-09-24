@@ -10,17 +10,30 @@ from datetime import datetime
 sys.path.append(os.path.join(os.path.dirname(os.path.dirname(os.path.abspath(__file__))), "scripts"))
 
 import safe_multi_agent_writes as smaw
+from unittest.mock import patch
+
+import workflow_runtime.application.security.patch_integration_queue as _patch_queue
+import workflow_runtime.application.security.safe_writes_controllers as _controllers
 
 class TestSafeMultiAgentWrites(unittest.TestCase):
     def setUp(self):
         self.temp_dir = os.path.abspath("./temp_test_concurrency")
         os.makedirs(self.temp_dir, exist_ok=True)
-        self.old_state_dir = smaw.STATE_DIR
-        smaw.STATE_DIR = os.path.join(self.temp_dir, "state")
-        os.makedirs(smaw.STATE_DIR, exist_ok=True)
-        
+        self.state_dir = os.path.join(self.temp_dir, "state")
+        os.makedirs(self.state_dir, exist_ok=True)
+        # STATE_DIR is read by the modules that own the writers, not by the
+        # re-export facade. Redirecting only the facade would leave every write
+        # pointed at the real .agents/state.
+        self._state_patches = [
+            patch.object(module, "STATE_DIR", self.state_dir)
+            for module in (_controllers, _patch_queue)
+        ]
+        for state_patch in self._state_patches:
+            state_patch.start()
+
     def tearDown(self):
-        smaw.STATE_DIR = self.old_state_dir
+        for state_patch in self._state_patches:
+            state_patch.stop()
         if os.path.exists(self.temp_dir):
             shutil.rmtree(self.temp_dir)
 

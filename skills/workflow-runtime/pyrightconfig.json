@@ -3,7 +3,9 @@
   "pythonPlatform": "All",
   "typeCheckingMode": "strict",
   "extraPaths": [
-    "."
+    ".",
+    "../loop-controller/scripts",
+    "../multi-agent-loop/scripts"
   ],
   "include": [
     "workflow_runtime"

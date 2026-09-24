@@ -1,0 +1,23 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "aiwf.phase-run/1",
+  "title": "AIWF Phase Run Result",
+  "description": "One headless agent run for one phase; append-only at .agents/state/loop/<workflow-id>.runs.jsonl.",
+  "type": "object",
+  "additionalProperties": false,
+  "required": ["schema", "workflow_id", "phase", "agent_id", "agent_type", "verdict", "exit_code"],
+  "properties": {
+    "schema": { "const": "aiwf.phase-run/1" },
+    "workflow_id": { "type": "string" },
+    "phase": { "type": "string" },
+    "agent_id": { "type": "string" },
+    "agent_type": { "type": "string", "enum": ["claude", "codex", "antigravity"] },
+    "verdict": { "type": "string", "enum": ["PASS", "BLOCK", "FAIL", "ERROR"] },
+    "exit_code": { "type": "integer" },
+    "duration_s": { "type": "number" },
+    "command_redacted": { "type": "string", "description": "Command with the task payload elided; no secrets/absolute paths." },
+    "findings": { "type": "array", "items": { "type": "string" } },
+    "evidence_refs": { "type": "array", "items": { "type": "string" } },
+    "ts": { "type": ["string", "null"] }
+  }
+}

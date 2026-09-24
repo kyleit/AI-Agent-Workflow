@@ -17,6 +17,7 @@ from state_store import get_state_store, reset_state_store, get_active_work_item
 from session import load_session, save_session_atomic
 from checkpoint import validate_checkpoint_level
 
+@pytest.mark.skip(reason="retired in 131d617e (AI-first workflow governance): workflow.json is no longer work-item scoped; it is the root pointer whose active_workflow selects the active work item, so per-item checkpoint isolation via state_store no longer applies")
 class TestScopedCheckpoint(unittest.TestCase):
     def setUp(self):
         os.environ["TESTING"] = "1"

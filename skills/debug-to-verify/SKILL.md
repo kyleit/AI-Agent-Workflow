@@ -195,6 +195,29 @@ Generates `verification-handoff.schema.json` containing:
 - `unverified_items`, `architecture_conformance_record`
 - `git_status: NOT_RUN`, `release_readiness_candidate: false` (NO implied Git or Release approval).
 
+### 11.1 Loop-Controller Verdict Emission (additive)
+
+> [!NOTE]
+> **Additive-only**: this maps the existing verification outcome onto a loop
+> verdict for the `loop-controller`. It changes no verification state, outcome
+> name, or handoff; `NOT_RUN` is never coerced to PASS or FAIL.
+
+When a `loop-controller` state exists for the workflow, this skill supplies the
+`EVALUATE` verdict and blocking findings that drive the engine's `DECIDE` step:
+
+| Verification outcome | Loop verdict | Typical transition |
+|---|---|---|
+| `VERIFIED_WITHOUT_TESTS` / `VERIFIED_WITH_FINDINGS` (no blockers) | `PASS` | `ADVANCE` (or `HALT` `GATE_PASS_FINAL` if terminal + approved) |
+| `VERIFICATION_INCOMPLETE` / recoverable findings | `BLOCK` | `REPEAT` |
+| `FAILED` with a named upstream cause | `FAIL` (+ `backtrack_target`) | `BACKTRACK` |
+| unrecoverable runtime error | `ERROR` | `HALT` `UNRECOVERABLE_ERROR` |
+
+The blocking-finding list is passed to the engine so `failure_signature` (no-
+progress detection) is computed deterministically. Verdict emission is
+read-only evidence; it grants no approval and never executes tests. The engine
+`persist` step appends the ledger row and records the receipt via
+`workflow-command-audit`.
+
 ---
 
 ## 12. Change Control & Auto-Invalidation

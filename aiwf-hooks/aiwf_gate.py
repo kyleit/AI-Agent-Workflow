@@ -123,8 +123,27 @@ def _rel_posix(root: Path, path: str) -> str:
     return rel.as_posix()
 
 
+def _repo_relative(root: Path, path: str) -> str | None:
+    """Return ``path`` relative to ``root``, or None when it lies outside.
+
+    Relative paths are repo-relative (git reports them that way), not relative
+    to the process cwd. Symlinks are resolved on both sides, so a link that
+    points into the repository is still gated while a scratch file elsewhere
+    on disk is not this repository's source.
+    """
+    candidate = Path(path)
+    if not candidate.is_absolute():
+        candidate = root / candidate
+    try:
+        return candidate.resolve().relative_to(root.resolve()).as_posix()
+    except (OSError, RuntimeError, ValueError):
+        return None
+
+
 def is_source_file(root: Path, path: str) -> bool:
-    rel = _rel_posix(root, path)
+    rel = _repo_relative(root, path)
+    if rel is None:
+        return False
     if any(rel == "" or rel.startswith(pref) for pref in EXCLUDED_PREFIXES):
         return False
     if rel.lower().endswith(".md"):

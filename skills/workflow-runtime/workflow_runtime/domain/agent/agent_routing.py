@@ -88,12 +88,11 @@ def validate_routing(manifest_path: str, agents_dir: str) -> list[str]:
 
     agents = load_agents(agents_dir)
 
+    # Mirrors "required" in .agents/agents/agent.schema.json (v2 agent schema).
     required_attributes = [
-        "name", "role", "responsibilities", "artifact_ownership", "allowed_reads",
-        "allowed_writes", "forbidden_actions", "input_contract", "output_contract",
-        "handoff_target", "done_criteria", "can_run_in_parallel", "agent_category",
-        "phase", "required_skills", "required_memory", "required_rag_context",
-        "runtime_requirements"
+        "id", "name", "role", "description", "capabilities", "permissions",
+        "write_mode", "allowed_reads", "allowed_writes", "forbidden_actions",
+        "handoff_targets"
     ]
     for agent_name, agent_meta in agents.items():
         for attr in required_attributes:

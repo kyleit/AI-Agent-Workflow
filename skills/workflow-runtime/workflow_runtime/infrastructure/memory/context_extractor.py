@@ -117,13 +117,20 @@ class ProjectContextExtractor:
             match = re.search(r"(?:def|func|function|fn)\s+(\w+)", content)
             if match:
                 symbol = match.group(1)
+            # Computed outside the f-string: a backslash inside an f-string
+            # expression is a SyntaxError before Python 3.12.
+            anchor_line = next(
+                (i for i, line in enumerate(content.splitlines(), 1)
+                 if re.search(r"(def|func|function|fn)\s+\w+", line)),
+                1,
+            )
             records.append({
                 "path": to_posix_path(rel),
                 "symbol": symbol,
                 "protocol": protocol,
                 "command": f"{basename} entrypoint",
                 "start_condition": "process start",
-                "source_anchor": f"{to_posix_path(rel)}:{next((i for i, line in enumerate(content.splitlines(), 1) if re.search(r'(def|func|function|fn)\s+\w+', line)), 1)}",
+                "source_anchor": f"{to_posix_path(rel)}:{anchor_line}",
             })
         return records
 

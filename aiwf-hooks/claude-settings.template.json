@@ -1,0 +1,32 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "hooks": {
+    "UserPromptSubmit": [
+      {
+        "hooks": [
+          {
+            "type": "command",
+            "shell": "bash",
+            "timeout": 15,
+            "statusMessage": "AIWF: routing prompt through workflow-coordinator",
+            "command": "R=\"tools/aiwf-hooks/aiwf_prompt_router.py\"; [ -f \"$R\" ] || R=\".agents/aiwf-hooks/aiwf_prompt_router.py\"; [ -f \"$R\" ] || exit 0; for PY in python3 python \"py -3\"; do $PY -c \"import sys\" >/dev/null 2>&1 && break; PY=\"\"; done; [ -n \"$PY\" ] || exit 0; $PY \"$R\""
+          }
+        ]
+      }
+    ],
+    "PreToolUse": [
+      {
+        "matcher": "Edit|Write|MultiEdit|NotebookEdit",
+        "hooks": [
+          {
+            "type": "command",
+            "shell": "bash",
+            "timeout": 15,
+            "statusMessage": "AIWF: source-write gate",
+            "command": "G=\"tools/aiwf-hooks/claude_source_write_guard.py\"; [ -f \"$G\" ] || G=\".agents/aiwf-hooks/claude_source_write_guard.py\"; [ -f \"$G\" ] || exit 0; for PY in python3 python \"py -3\"; do $PY -c \"import sys\" >/dev/null 2>&1 && break; PY=\"\"; done; [ -n \"$PY\" ] || exit 0; $PY \"$G\""
+          }
+        ]
+      }
+    ]
+  }
+}

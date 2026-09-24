@@ -12,7 +12,7 @@ from workflow_runtime.infrastructure.connectors.base import (
     ProviderConnector)
 
 _MANIFEST_PATH = os.path.join(
-    os.path.dirname(__file__), "..", "..", "data", "connectors.json"
+    os.path.dirname(__file__), "..", "..", "..", "data", "connectors.json"
 )
 
 
@@ -118,6 +118,10 @@ class ConnectorRegistry:
         except Exception:
             return []
 
+    def list_registered(self) -> list[str]:
+        """Return list of registered provider names."""
+        return list(self._connectors.keys())
+
     def auto_discover(self) -> None:
         """Auto-discover and instantiate connectors defined in connectors.json."""
         manifest = self._load_manifest()
@@ -143,7 +147,24 @@ def build_default_registry() -> ConnectorRegistry:
     """Factory: creates a ConnectorRegistry and runs auto_discover()."""
     registry = ConnectorRegistry()
     registry.auto_discover()
+    if not registry._connectors:  # pyright: ignore[reportPrivateUsage]
+        _register_fallback(registry)
     return registry
+
+
+def _register_fallback(registry: ConnectorRegistry) -> None:
+    """Register the built-in connectors when the manifest is missing or yields none."""
+    for module_name, class_name in (
+        ("antigravity", "AntigravityConnector"),
+        ("claude_code", "ClaudeCodeConnector"),
+        ("cursor", "CursorConnector"),
+        ("vscode_agents", "VSCodeAgentsConnector"),
+    ):
+        try:
+            mod = importlib.import_module(f"{__name__}.{module_name}")
+            registry.register(getattr(mod, class_name)())
+        except Exception:
+            pass
 
 
 __all__ = [

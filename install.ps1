@@ -12,7 +12,12 @@
 [CmdletBinding()]
 param(
     [switch]$Force,
-    [string]$Permission = $null
+    [string]$Permission = $null,
+    [ValidateSet("project", "global")]
+    [string]$Scope = "project",
+    [switch]$AssumeGlobal,
+    [switch]$FullInstall,
+    [switch]$Reclaim
 )
 
 # Logging helpers
@@ -20,6 +25,19 @@ function Log-Info ($msg) { Write-Host "[INFO] $msg" -ForegroundColor Blue }
 function Log-Warn ($msg) { Write-Host "[WARN] $msg" -ForegroundColor Yellow }
 function Log-Error ($msg) { Write-Error "[ERROR] $msg" }
 function Log-Success ($msg) { Write-Host "[SUCCESS] $msg" -ForegroundColor Green }
+
+# Resolve a Python interpreter (>=3.9) once for scope-helper calls.
+$PY = $null
+foreach ($cand in @("python3", "python", "py")) {
+    $found = Get-Command $cand -ErrorAction SilentlyContinue
+    if ($found) {
+        & $cand -c "import sys; raise SystemExit(0 if sys.version_info >= (3,9) else 1)" 2>$null | Out-Null
+        if ($LASTEXITCODE -eq 0) { $PY = $cand; break }
+    }
+}
+$GlobalHomeAgents = Join-Path $HOME ".agents"
+# Managed-block rendering mode (full self-contained vs stub pointer). Set per-run.
+$script:BlockMode = "full"
 
 # 1. Verify current directory is a Git project
 function Test-GitWorkTree {
@@ -42,33 +60,40 @@ function Get-GitRoot {
 $IsGit = $false
 $ProjectRoot = "."
 
-if (Test-GitWorkTree) {
-    $IsGit = $true
-    $ProjectRoot = Get-GitRoot
-} elseif (Test-Path ".git") {
-    $IsGit = $true
-    $ProjectRoot = "."
-}
-
-if (-not $IsGit) {
-    $gitExists = Get-Command git -ErrorAction SilentlyContinue
-    if (-not $gitExists) {
-        Log-Error "git command line tool is missing, and no .git folder/file found."
-    } else {
-        Log-Error "The current directory is not a Git repository."
-        Log-Error "The AI Skill Framework must be installed at the root of a Git project."
+# Global scope installs to ~/.agents and does not require a Git project.
+if ($Scope -eq "project") {
+    if (Test-GitWorkTree) {
+        $IsGit = $true
+        $ProjectRoot = Get-GitRoot
+    } elseif (Test-Path ".git") {
+        $IsGit = $true
+        $ProjectRoot = "."
     }
-    exit 1
-}
 
-Set-Location $ProjectRoot
-Log-Success "Git repository detected."
-Log-Info "Project root: $ProjectRoot"
-Log-Info "Installing AI Skill Framework into $ProjectRoot/.agents"
+    if (-not $IsGit) {
+        $gitExists = Get-Command git -ErrorAction SilentlyContinue
+        if (-not $gitExists) {
+            Log-Error "git command line tool is missing, and no .git folder/file found."
+        } else {
+            Log-Error "The current directory is not a Git repository."
+            Log-Error "The AI Skill Framework must be installed at the root of a Git project."
+        }
+        exit 1
+    }
+
+    Set-Location $ProjectRoot
+    Log-Success "Git repository detected."
+    Log-Info "Project root: $ProjectRoot"
+    Log-Info "Installing AI Skill Framework into $ProjectRoot/.agents"
+} else {
+    $ProjectRoot = (Get-Location).Path
+    Log-Info "Global scope: installing shared framework into $GlobalHomeAgents"
+}
 
 # Locate the framework package directory (where this script lives)
 $ScriptDir = Split-Path -Parent $MyInvocation.MyCommand.Path
 if ([string]::IsNullOrEmpty($ScriptDir)) { $ScriptDir = Get-Location }
+$ScopeHelper = Join-Path (Join-Path $ScriptDir "install-lib") "aiwf_scope.py"
 
 $ManifestPath = Join-Path $ScriptDir "MANIFEST.json"
 if (-not (Test-Path $ManifestPath)) {
@@ -156,7 +181,18 @@ function Merge-AgentsBlock {
         [string]$FilePath,
         [string]$SourcePath
     )
-    
+
+    # Preferred: delegate to the shared scope helper so full/stub block rendering
+    # and idempotent merging are identical across install.sh and install.ps1.
+    if ($PY -and (Test-Path $ScopeHelper)) {
+        & $PY $ScopeHelper apply-block --file $FilePath --mode $script:BlockMode --home $GlobalHomeAgents
+        if ($LASTEXITCODE -eq 0) {
+            Log-Info "Applied AIWF '$($script:BlockMode)' rules block to $FilePath"
+            return
+        }
+        Log-Warn "Scope helper failed for $FilePath; falling back to inline full block."
+    }
+
     $BlockContent = @"
 <!-- AIWF:RULES:BEGIN -->
 # AI Engineering Workflow Agents
@@ -244,11 +280,6 @@ GitHub Repository: https://github.com/your-org/AI-Agent-Workflow
     }
 }
 
-# 4. Copy required files/directories
-Merge-AgentsBlock -FilePath "AGENTS.md" -SourcePath (Join-Path $ScriptDir "AGENTS.md")
-Copy-ItemWithCheck -Src (Join-Path $ScriptDir "AI_RULES.md") -Dest "AI_RULES.md" -IsDir $false
-Merge-AgentsBlock -FilePath (Join-Path $InstallTarget "AGENTS.md") -SourcePath (Join-Path $ScriptDir "AGENTS.md")
-Copy-ItemWithCheck -Src (Join-Path $ScriptDir "AI_RULES.md") -Dest (Join-Path $InstallTarget "AI_RULES.md") -IsDir $false
 function Test-ValidSkillMd {
     param(
         [string]$SkillMdPath,
@@ -277,38 +308,115 @@ function Test-ValidSkillMd {
     return $true
 }
 
-$SkillErrors = 0
-$SrcSkillDir = Join-Path $ScriptDir $SkillDir
-$DestSkillDir = Join-Path $InstallTarget $SkillDir
-if (-not (Test-Path $DestSkillDir)) {
-    New-Item -ItemType Directory -Path $DestSkillDir -Force | Out-Null
-}
-if (Test-Path $SrcSkillDir) {
-    Get-ChildItem -Path $SrcSkillDir -Directory | ForEach-Object {
-        $skillName = $_.Name
-        $skillMd = Join-Path $_.FullName "SKILL.md"
-        if (Test-ValidSkillMd -SkillMdPath $skillMd -SkillName $skillName) {
-            Copy-ItemWithCheck -Src $_.FullName -Dest (Join-Path $DestSkillDir $skillName) -IsDir $true
-        } else {
-            Log-Warn "Keeping existing mirror for $skillName (source has invalid SKILL.md)"
-            $script:SkillErrors++
+function Copy-SharedPayload {
+    param([string]$Target)
+    Copy-ItemWithCheck -Src (Join-Path $ScriptDir "AI_RULES.md") -Dest (Join-Path $Target "AI_RULES.md") -IsDir $false
+    $skillsMd = Join-Path $ScriptDir "SKILLS.md"
+    if (Test-Path $skillsMd) { Copy-ItemWithCheck -Src $skillsMd -Dest (Join-Path $Target "SKILLS.md") -IsDir $false }
+
+    $SrcSkillDir = Join-Path $ScriptDir $SkillDir
+    $DestSkillDir = Join-Path $Target $SkillDir
+    if (-not (Test-Path $DestSkillDir)) { New-Item -ItemType Directory -Path $DestSkillDir -Force | Out-Null }
+    if (Test-Path $SrcSkillDir) {
+        Get-ChildItem -Path $SrcSkillDir -Directory | ForEach-Object {
+            $skillName = $_.Name
+            $skillMd = Join-Path $_.FullName "SKILL.md"
+            if (Test-ValidSkillMd -SkillMdPath $skillMd -SkillName $skillName) {
+                Copy-ItemWithCheck -Src $_.FullName -Dest (Join-Path $DestSkillDir $skillName) -IsDir $true
+            } else {
+                Log-Warn "Keeping existing mirror for $skillName (source has invalid SKILL.md)"
+                $script:SkillErrors++
+            }
+        }
+    }
+    Copy-ItemWithCheck -Src (Join-Path $ScriptDir $TemplateDir) -Dest (Join-Path $Target $TemplateDir) -IsDir $true
+    Copy-ItemWithCheck -Src (Join-Path $ScriptDir "agents") -Dest (Join-Path $Target "agents") -IsDir $true
+    Copy-ItemWithCheck -Src (Join-Path $ScriptDir "runtime") -Dest (Join-Path $Target "runtime") -IsDir $true
+
+    # Governance assets consumed by the architecture and language gates.
+    foreach ($GovernanceDir in @("contracts", "policies", "profiles")) {
+        $GovernanceSource = Join-Path (Join-Path $ScriptDir ".agents") $GovernanceDir
+        if (Test-Path $GovernanceSource) {
+            Copy-ItemWithCheck -Src $GovernanceSource -Dest (Join-Path $Target $GovernanceDir) -IsDir $true
         }
     }
 }
-Copy-ItemWithCheck -Src (Join-Path $ScriptDir $TemplateDir) -Dest (Join-Path $InstallTarget $TemplateDir) -IsDir $true
-Copy-ItemWithCheck -Src (Join-Path $ScriptDir "agents") -Dest (Join-Path $InstallTarget "agents") -IsDir $true
-Copy-ItemWithCheck -Src (Join-Path $ScriptDir "runtime") -Dest (Join-Path $InstallTarget "runtime") -IsDir $true
 
-# Provision the governance assets consumed by the architecture and language
-# gates.  They are intentionally copied as explicit directories rather than
-# copying the source repository's entire .agents tree, which would also copy
-# runtime state and generated data.
-foreach ($GovernanceDir in @("contracts", "policies", "profiles")) {
-    $GovernanceSource = Join-Path (Join-Path $ScriptDir ".agents") $GovernanceDir
-    $GovernanceTarget = Join-Path $InstallTarget $GovernanceDir
-    if (Test-Path $GovernanceSource) {
-        Copy-ItemWithCheck -Src $GovernanceSource -Dest $GovernanceTarget -IsDir $true
+function Invoke-GlobalInstall {
+    $target = $GlobalHomeAgents
+    Log-Info "Installing shared framework payload into $target ..."
+    New-Item -ItemType Directory -Path $target -Force | Out-Null
+    Copy-SharedPayload -Target $target
+
+    # Ship the scope helper globally so re-runs and uninstall can reuse it.
+    $libDest = Join-Path $target "install-lib"
+    New-Item -ItemType Directory -Path $libDest -Force | Out-Null
+    if (Test-Path $ScopeHelper) { Copy-Item -Path $ScopeHelper -Destination (Join-Path $libDest "aiwf_scope.py") -Force }
+
+    # Inject the FULL managed rules block into global agent configs (idempotent).
+    $script:BlockMode = "full"
+    Merge-AgentsBlock -FilePath (Join-Path $target "AGENTS.md") -SourcePath (Join-Path $ScriptDir "AGENTS.md")
+    $claudeDir = Join-Path $HOME ".claude"
+    $codexDir = Join-Path $HOME ".codex"
+    New-Item -ItemType Directory -Path $claudeDir -Force | Out-Null
+    New-Item -ItemType Directory -Path $codexDir -Force | Out-Null
+    Merge-AgentsBlock -FilePath (Join-Path $claudeDir "CLAUDE.md") -SourcePath (Join-Path $ScriptDir "AGENTS.md")
+    Merge-AgentsBlock -FilePath (Join-Path $codexDir "AGENTS.md") -SourcePath (Join-Path $ScriptDir "AGENTS.md")
+
+    # Write the detection marker that puts future project installs into minimal mode.
+    if ($PY -and (Test-Path $ScopeHelper)) {
+        & $PY $ScopeHelper marker-write --version $Version --home $target --agents "claude,codex,antigravity"
+        if ($LASTEXITCODE -eq 0) { Log-Success "Global marker written: $(Join-Path $target 'aiwf-global.json')" }
+    } else {
+        Log-Warn "No Python interpreter: marker not written; project installs won't auto-detect global."
     }
+
+    # -Reclaim: slim the CURRENT project (migrate an existing full install to minimal).
+    if ($Reclaim) {
+        if ($PY -and (Test-Path $ScopeHelper) -and (Test-Path (Join-Path $ProjectRoot ".agents"))) {
+            Log-Info "Reclaiming existing project install at $ProjectRoot into minimal mode..."
+            & $PY $ScopeHelper slim-project --root $ProjectRoot --skill-dir $SkillDir --template-dir $TemplateDir |
+                ForEach-Object { Log-Info "  reclaimed: $_" }
+            Log-Success "Project reclaimed: duplicated payload removed, rules block downgraded to pointer."
+        } else {
+            Log-Warn "-Reclaim: no project .agents at $ProjectRoot (or no Python); nothing to slim."
+        }
+    }
+    Log-Success "Global AIWF install complete at $target."
+    Log-Info "New/existing projects: run '.\install.ps1' (project scope) -> minimal mode automatically."
+}
+
+# 4. Copy required files/directories
+$SkillErrors = 0
+if ($Scope -eq "global") {
+    Invoke-GlobalInstall
+    exit 0
+}
+
+# --- Scope resolution: minimal (global present) vs full project install ---
+$MinimalMode = $false
+if ($Scope -eq "project" -and $PY -and (Test-Path $ScopeHelper)) {
+    $detectArgs = @($ScopeHelper, "detect")
+    if ($AssumeGlobal) { $detectArgs += "--assume-global" }
+    if ($FullInstall) { $detectArgs += "--full" }
+    $detect = (& $PY @detectArgs 2>$null)
+    if ($LASTEXITCODE -eq 0 -and $detect -eq "minimal") { $MinimalMode = $true }
+}
+if ($MinimalMode) {
+    $script:BlockMode = "stub"
+    Log-Info "Global AIWF install detected -> MINIMAL project mode: thin pointer only, shared payload (skills/rules/policies) skipped to avoid duplicated prompt content."
+} else {
+    $script:BlockMode = "full"
+}
+
+# Managed rules block: full (self-contained) or stub (pointer to global).
+Merge-AgentsBlock -FilePath "AGENTS.md" -SourcePath (Join-Path $ScriptDir "AGENTS.md")
+Merge-AgentsBlock -FilePath (Join-Path $InstallTarget "AGENTS.md") -SourcePath (Join-Path $ScriptDir "AGENTS.md")
+
+if (-not $MinimalMode) {
+    Copy-SharedPayload -Target $InstallTarget
+} else {
+    Log-Info "Skipped shared payload (AI_RULES.md, skills, templates, agents, runtime, contracts/policies/profiles) - provided by the global install at $GlobalHomeAgents."
 }
 
 # Deploy AIWF source-write-gate enforcement (git hooks + gate core) and wire
@@ -344,6 +452,31 @@ if (Test-Path $RelEntrySrc) {
 if ($IsGit -and (Test-Path (Join-Path $InstallTarget "githooks"))) {
     git -C $ProjectRoot config core.hooksPath ".agents/githooks" 2>$null
     Log-Success "Source-write gate enabled (git core.hooksPath -> .agents/githooks)."
+}
+
+# Deploy the Claude Code auto-route layer (Claude-only per-prompt hooks):
+# UserPromptSubmit routes every natural-language prompt through AIWF without
+# requiring the user to type /aiwf; PreToolUse re-uses the source-write gate.
+# Codex and Antigravity route via AGENTS.md (auto-read) + the git hard-gate.
+$HookSrc = $null
+foreach ($h in @($GateCoreSrc, (Join-Path $ScriptDir "tools\aiwf-hooks"))) {
+    if (Test-Path $h) { $HookSrc = $h; break }
+}
+if ($HookSrc -and (Test-Path (Join-Path $HookSrc "aiwf_prompt_router.py"))) {
+    $HookDest = Join-Path $InstallTarget "aiwf-hooks"
+    New-Item -ItemType Directory -Path $HookDest -Force | Out-Null
+    Copy-Item -Path (Join-Path $HookSrc "aiwf_prompt_router.py") -Destination (Join-Path $HookDest "aiwf_prompt_router.py") -Force
+}
+if ($HookSrc -and (Test-Path (Join-Path $HookSrc "claude-settings.template.json"))) {
+    $ClaudeDir = Join-Path $ProjectRoot ".claude"
+    New-Item -ItemType Directory -Path $ClaudeDir -Force | Out-Null
+    $ClaudeSettings = Join-Path $ClaudeDir "settings.json"
+    if (-not (Test-Path $ClaudeSettings)) {
+        Copy-Item -Path (Join-Path $HookSrc "claude-settings.template.json") -Destination $ClaudeSettings -Force
+        Log-Success "Claude auto-route hooks installed (.claude/settings.json). Open /hooks or restart Claude Code to activate."
+    } else {
+        Log-Warn "Existing .claude/settings.json kept; merge AIWF hooks from $HookSrc\claude-settings.template.json"
+    }
 }
 
 Remove-InstalledTransientFiles -Root $InstallTarget
@@ -443,7 +576,12 @@ if (Test-Path $AiwfBinInstaller) {
 
 # 6. Validation
 $MissingFiles = 0
-$RequiredFiles = @("AGENTS.md", "AI_RULES.md", "MANIFEST.json", $SkillDir, $TemplateDir, "agents", "runtime", "docs/release-guide.md")
+if ($MinimalMode) {
+    # Minimal mode: shared payload is global; only project-local artifacts are required.
+    $RequiredFiles = @("AGENTS.md", "MANIFEST.json")
+} else {
+    $RequiredFiles = @("AGENTS.md", "AI_RULES.md", "MANIFEST.json", $SkillDir, $TemplateDir, "agents", "runtime", "docs/release-guide.md")
+}
 foreach ($File in $RequiredFiles) {
     $CheckPath = Join-Path $InstallTarget $File
     if (-not (Test-Path $CheckPath)) {
@@ -480,9 +618,17 @@ Log-Success "AI Skill Framework v$VERSION has been successfully installed!"
 Write-Host "--------------------------------------------------"
 Write-Host "Installation Summary:"
 Write-Host "  Location:  $InstallTarget/"
-Write-Host "  Rules:     $(Join-Path $InstallTarget 'AI_RULES.md')"
-Write-Host "  Skills:    $(Join-Path $InstallTarget $SkillDir)/"
-Write-Host "  Templates: $(Join-Path $InstallTarget $TemplateDir)/"
+if ($MinimalMode) {
+    Write-Host "  Mode:      MINIMAL (global install detected at $GlobalHomeAgents)"
+    Write-Host "  Rules:     $(Join-Path $GlobalHomeAgents 'AI_RULES.md') (global; not duplicated per-project)"
+    Write-Host "  Skills:    $(Join-Path $GlobalHomeAgents $SkillDir)/ (global)"
+    Write-Host "  Project:   state/config/hooks + thin pointer block in AGENTS.md"
+} else {
+    Write-Host "  Mode:      FULL project install"
+    Write-Host "  Rules:     $(Join-Path $InstallTarget 'AI_RULES.md')"
+    Write-Host "  Skills:    $(Join-Path $InstallTarget $SkillDir)/"
+    Write-Host "  Templates: $(Join-Path $InstallTarget $TemplateDir)/"
+}
 Write-Host "--------------------------------------------------"
 Log-Info "To use these skills, make sure your AI Agent workspace points to $InstallTarget/."
 

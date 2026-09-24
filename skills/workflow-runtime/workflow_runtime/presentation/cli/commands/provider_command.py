@@ -5,14 +5,14 @@ from typing import Any
 
 from workflow_runtime.presentation.cli.command_interface import CommandMeta
 
-"""Command: provider — AI provider management"""
+"""Command: provider — knowledge provider management"""
 
 
 class ProviderCommand:
     """
-    AI Provider management: list, select, configure, test, usage.
-    Implementation body (do_provider_action, ~794L) stays in workflow_runtime.py
-    and is split into _impl/provider_impl.py + _impl/provider_impl_b.py during P4.
+    Knowledge provider management (``~/.aiwf/providers.json`` + project overrides).
+    Handler: ``_impl/provider/provider_config.py``. ``select``/``usage``/``reset``
+    stay in ``choices`` because CLI_REFERENCE.md lists them; they exit 2.
     """
 
     def __init__(self) -> None:
@@ -23,7 +23,7 @@ class ProviderCommand:
             "provider",
             aliases=[],
             category="provider",
-            help="AI provider management: list, select, configure, test, usage",
+            help="Knowledge provider management: list, config, status, test, sync",
             requires_lock=True,
         )
 
@@ -33,10 +33,14 @@ class ProviderCommand:
             "action",
             nargs="?",
             choices=["list", "select", "config", "test", "usage",
-                     "status", "reset", "add", "remove"],
+                     "status", "reset", "add", "remove", "edit", "enable",
+                     "disable", "resolve", "sync", "path", "doctor"],
             help="Provider action",
         )
+        p.add_argument("target", nargs="?", help="Provider name (same as --name)")
         p.add_argument("--name", help="Provider name")
+        p.add_argument("--project", action="store_true",
+                       help="Operate on project overrides (.agents/memory.config.json)")
         p.add_argument("--model", help="Model name")
         p.add_argument("--api-key", help="API key (stored securely)")
         p.add_argument("--base-url", help="Custom base URL")

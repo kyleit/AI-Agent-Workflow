@@ -7,6 +7,25 @@ from typing import Dict, List, Tuple, Any
 
 def parse_yaml_frontmatter(yaml_str: str) -> dict:
     lines = yaml_str.split("\n")
+
+    def read_block_scalar(start: int, key_indent: int, style: str) -> Tuple[str, int]:
+        # Literal block scalar (`key: |` / `key: |-`), e.g. agy_system_prompt.
+        block: List[str] = []
+        idx = start
+        while idx < len(lines):
+            line = lines[idx]
+            if line.strip() and len(line) - len(line.lstrip(' ')) <= key_indent:
+                break
+            block.append(line)
+            idx += 1
+        while block and not block[-1].strip():
+            block.pop()
+        first = next((l for l in block if l.strip()), "")
+        base = len(first) - len(first.lstrip(' '))
+        text = "\n".join(l[base:] for l in block)
+        if block and style == "|":
+            text += "\n"
+        return text, idx
     
     def parse_lines(line_idx: int, current_indent: int) -> Tuple[Any, int]:
         res = {}
@@ -50,7 +69,9 @@ def parse_yaml_frontmatter(yaml_str: str) -> dict:
                             is_nested = True
                     break
                     
-                if is_list:
+                if v in ("|", "|-"):
+                    res[k], idx = read_block_scalar(idx + 1, indent, v)
+                elif is_list:
                     list_val = []
                     idx = next_idx
                     while idx < len(lines):
@@ -102,7 +123,13 @@ CANONICAL_CAPABILITIES = {
     "brainstorming", "planning", "architecture", "frontend", "backend",
     "database", "testing", "verification", "review", "security", "release",
     "integration", "runtime", "observability", "performance", "accessibility",
-    "documentation"
+    "documentation",
+    # Added with the v2 agent definitions (release 6.20.5).
+    "analysis", "api", "api-design", "audit", "business", "changelog", "css",
+    "dependency", "design", "devops", "discovery", "infrastructure",
+    "javascript", "management", "memory", "migration", "product", "quality",
+    "rag", "refactoring", "requirements", "research", "risk", "schema-design",
+    "search", "ui", "validation", "versioning", "writing"
 }
 
 def load_schema(schema_path: str) -> dict:
@@ -191,6 +218,7 @@ def main(workspace_root: str = ".") -> int:
     agent_ids = set()
     role_owners = {} # role -> filename
     handoffs = {} # id -> handoff_targets
+    prerequisites = {} # id -> requires_prior
     
     print(f"Found {len(agent_files)} agent definitions in {agents_dir}...")
     
@@ -246,6 +274,8 @@ def main(workspace_root: str = ".") -> int:
                 
         # Register handoffs
         handoffs[agent_id] = meta.get("handoff_targets", [])
+        if meta.get("requires_prior"):
+            prerequisites[agent_id] = meta["requires_prior"]
         
         registry["agents"][agent_id] = meta
         
@@ -254,6 +284,9 @@ def main(workspace_root: str = ".") -> int:
         for target in targets:
             if target != "done" and target not in agent_ids:
                 all_errors.append(f"Agent '{aid}' declares handoff target '{target}' which does not exist in registry.")
+    for aid, prior in prerequisites.items():
+        if prior not in agent_ids:
+            all_errors.append(f"Agent '{aid}' requires prior agent '{prior}' which does not exist in registry.")
                 
     # 3. Output results
     if all_errors:

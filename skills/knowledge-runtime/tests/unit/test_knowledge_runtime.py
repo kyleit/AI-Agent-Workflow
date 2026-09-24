@@ -3,21 +3,19 @@ pytestmark = pytest.mark.unit
 
 import os
 import unittest
-import sys
 import shutil
+import tempfile
 
-# Add package directory to sys.path
-sys.path.insert(0, os.path.abspath(os.path.join(os.path.dirname(__file__), "..", "..", "scripts")))
+# knowledge_runtime was consolidated into workflow_runtime (c6df50ce).
+from workflow_runtime.application.knowledge.knowledge_api import KnowledgeAPI, search, read, save, sync
+from workflow_runtime.application.knowledge.cache_manager import CacheManager
 
-from knowledge_runtime import KnowledgeAPI, search, read, save, sync
-from knowledge_runtime.cache import CacheManager
-from knowledge_runtime.index import KnowledgeIndexer
-from knowledge_runtime.analyzer import QualityAnalyzer
+_RETIRED_INDEX = ("retired in c6df50ce: knowledge_runtime/index.py and analyzer.py "
+                  "(KnowledgeIndexer, QualityAnalyzer) were removed with no successor")
 
 class TestKnowledgeRuntime(unittest.TestCase):
     def setUp(self):
-        self.test_dir = os.path.abspath("test_sandbox")
-        os.makedirs(self.test_dir, exist_ok=True)
+        self.test_dir = tempfile.mkdtemp()
         self.config_path = "test_memory.config.json"
         
         # Write dummy config
@@ -54,12 +52,14 @@ class TestKnowledgeRuntime(unittest.TestCase):
         cached_results = manager.get("query_string", 5)
         self.assertEqual(cached_results, dummy_results)
 
+    @unittest.skip(_RETIRED_INDEX)
     def test_indexer_backlinks(self):
         indexer = KnowledgeIndexer()
         text = "This is a note linking to [[First Note]] and [[Second Note]]."
         links = indexer.extract_backlinks(text)
         self.assertEqual(links, ["First Note", "Second Note"])
 
+    @unittest.skip(_RETIRED_INDEX)
     def test_quality_analyzer_orphans(self):
         indexer = KnowledgeIndexer()
         analyzer = QualityAnalyzer(indexer)

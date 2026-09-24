@@ -52,7 +52,8 @@ def skill_with_deprecated_keys(tmp_path):
 @pytest.fixture(autouse=True)
 def patch_skill_finder(tmp_path, monkeypatch):
     """Redirect skill discovery to tmp_path."""
-    import dependency_resolver as dr
+    # _find_skill_md lives in dependency_scanner; resolver/inspector look it up there.
+    import workflow_runtime.application.dependency.dependency_scanner as dr
 
     def _find_skill_md_patched(skill_name):
         candidate = os.path.join(str(tmp_path), "skills", skill_name, "SKILL.md")
@@ -65,7 +66,7 @@ def patch_skill_finder(tmp_path, monkeypatch):
 
 def test_proposes_safe_template_for_missing_requirements(skill_without_requirements, tmp_path, monkeypatch):
     """TC-FIX-01: deps fix proposes safe runtime_requirements template for skill without one."""
-    import dependency_resolver as dr
+    import workflow_runtime.application.dependency.dependency_scanner as dr
     monkeypatch.setattr(dr, "_find_skill_md", lambda n: os.path.join(str(tmp_path), "skills", n, "SKILL.md"))
 
     diff = compute_deps_fix_diff("test-skill")
@@ -82,7 +83,7 @@ def test_proposes_safe_template_for_missing_requirements(skill_without_requireme
 
 def test_reports_all_affected_files_before_writing(skill_without_requirements, tmp_path, monkeypatch):
     """TC-FIX-02: deps fix must report all affected files before any write (approval gate)."""
-    import dependency_resolver as dr
+    import workflow_runtime.application.dependency.dependency_scanner as dr
     monkeypatch.setattr(dr, "_find_skill_md", lambda n: os.path.join(str(tmp_path), "skills", n, "SKILL.md"))
 
     diff = compute_deps_fix_diff("test-skill")
@@ -97,7 +98,7 @@ def test_reports_all_affected_files_before_writing(skill_without_requirements, t
 
 def test_migrates_transcript_sync_to_usage(skill_with_deprecated_keys, tmp_path, monkeypatch):
     """TC-FIX-03: deps fix detects transcript_sync as deprecated and migrates to usage."""
-    import dependency_resolver as dr
+    import workflow_runtime.application.dependency.dependency_scanner as dr
     monkeypatch.setattr(dr, "_find_skill_md", lambda n: os.path.join(str(tmp_path), "skills", n, "SKILL.md"))
 
     diff = compute_deps_fix_diff("legacy-skill")
@@ -110,7 +111,7 @@ def test_migrates_transcript_sync_to_usage(skill_with_deprecated_keys, tmp_path,
 
 def test_migrates_provider_usage_to_provider(skill_with_deprecated_keys, tmp_path, monkeypatch):
     """TC-FIX-04: deps fix detects provider_usage as deprecated and migrates to provider."""
-    import dependency_resolver as dr
+    import workflow_runtime.application.dependency.dependency_scanner as dr
     monkeypatch.setattr(dr, "_find_skill_md", lambda n: os.path.join(str(tmp_path), "skills", n, "SKILL.md"))
 
     diff = compute_deps_fix_diff("legacy-skill")
@@ -122,7 +123,7 @@ def test_migrates_provider_usage_to_provider(skill_with_deprecated_keys, tmp_pat
 
 def test_no_diff_when_already_correct(tmp_path, monkeypatch):
     """TC-FIX-05: No diff when skill already has correct runtime_requirements."""
-    import dependency_resolver as dr
+    import workflow_runtime.application.dependency.dependency_scanner as dr
 
     skill_dir = tmp_path / "skills" / "good-skill"
     skill_dir.mkdir(parents=True)

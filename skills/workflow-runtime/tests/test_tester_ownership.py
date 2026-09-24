@@ -119,13 +119,22 @@ def test_allow_test_command_when_owned_by_tester_agent(mock_state_dir):
     assert allowed is True
     assert "Valid owner found" in msg
 
-def test_subprocess_run_interceptor_rejects(mock_state_dir):
+def test_subprocess_run_interceptor_rejects(mock_state_dir, monkeypatch):
     # Setup ledger with no running test task
     tasks_path = mock_state_dir / "tasks.json"
     tasks_data = {"tasks": {}}
     with open(tasks_path, "w") as f:
         json.dump(tasks_data, f)
-        
+
+    # A direct call from a pytest process hits the runner bypass and would spawn a
+    # real nested pytest; simulate the Execution Manager caller so the ownership
+    # check under test is exercised instead.
+    import test_enforcer
+    monkeypatch.setattr(test_enforcer, "is_caller_authorized", lambda: True)
+    monkeypatch.setattr(test_enforcer, "is_cli_test_gateway_caller", lambda: False)
+    monkeypatch.delenv("AIWF_WORKFLOW_MODE", raising=False)
+    monkeypatch.delenv("AIWF_AUTONOMOUS_VALIDATION", raising=False)
+
     with pytest.raises(PermissionError) as exc_info:
         subprocess.run("pytest")
     assert "Policy Violation: Test execution blocked." in str(exc_info.value)

@@ -11,7 +11,7 @@ AGENTS_DIR_CANDIDATES = [
     Path(".agents/agents"),
 ]
 
-AGY_MODEL = "gemini-3.6-flash-high"
+AGY_MODEL = "gemini-3.8-flash-high"
 AGY_DEFAULT_EFFORT = "high"
 AGY_DEFAULT_TIMEOUT = "15m"
 
@@ -130,11 +130,22 @@ def dispatch(role: str, task: str, replacements: dict[str, str], timeout: str, e
     print(f"  Effort:      {effort}  Timeout: {timeout}")
     print(f"{'='*60}\n")
 
+    # `accept-edits` is REQUIRED so agy actually writes files (else it narrates a
+    # fake completion). Anchor writes to the repo so artifacts do not land in agy's
+    # scratch sandbox (relative/bare paths resolve there, not to --add-dir).
+    workspace_abs = str(Path(project_root).resolve())
+    final_prompt = (
+        "AIWF WORKSPACE WRITE ROOT: Write EVERY file inside the project workspace "
+        f"directory `{workspace_abs}`. NEVER write to a scratch/sandbox folder; "
+        "artifacts outside the workspace DO NOT COUNT (disk = truth, AI_RULES §33).\n\n"
+        + final_prompt
+    )
     cmd = [
         "agy",
         "--model", AGY_MODEL,
         "--effort", effort,
         "--dangerously-skip-permissions",
+        "--mode", "accept-edits",
         "--add-dir", project_root,
         "--print-timeout", timeout,
         "--print", final_prompt,
@@ -146,6 +157,7 @@ def dispatch(role: str, task: str, replacements: dict[str, str], timeout: str, e
         print(f"    --model {AGY_MODEL} \\")
         print(f"    --effort {effort} \\")
         print(f"    --dangerously-skip-permissions \\")
+        print(f"    --mode accept-edits \\")
         print(f"    --add-dir \"{project_root}\" \\")
         print(f"    --print-timeout {timeout} \\")
         print(f"    --print \"[{len(final_prompt)} chars — prompt omitted in dry run]\"")

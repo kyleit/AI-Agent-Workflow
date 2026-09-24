@@ -30,7 +30,7 @@ class UsageNormalizer:
         """
         Map a provider-specific dict to NormalizedUsageRecord.
         """
-        payload = raw
+        payload: dict[str, Any] = raw if isinstance(raw, dict) else {}
 
         return NormalizedUsageRecord(
             provider=str(provider),

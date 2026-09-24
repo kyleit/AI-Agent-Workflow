@@ -120,7 +120,10 @@ def test_task_graph_json_written():
     graph = build_task_graph(plan)
 
     import task_orchestrator as to
-    written = json.loads(open(to.TASK_GRAPH_PATH, encoding="utf-8").read())
+    # Graph JSON is persisted through the state store (keyed by file basename),
+    # so read it back through the matching state_sync reader.
+    from workflow_runtime.infrastructure.session.state_sync import read_json_safe
+    written = read_json_safe(to.TASK_GRAPH_PATH)
     assert written["feature_id"] == "TEST-001"
     assert "T1" in written["tasks"]
     assert "T2" in written["tasks"]

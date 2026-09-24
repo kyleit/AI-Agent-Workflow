@@ -1,0 +1,13 @@
+{
+  "pythonVersion": "3.11",
+  "pythonPlatform": "All",
+  "typeCheckingMode": "strict",
+  "extraPaths": ["."],
+  "include": ["loop_engine"],
+  "exclude": ["**/__pycache__", "**/tests"],
+  "reportAny": "error",
+  "reportExplicitAny": "error",
+  "reportImplicitStringConcatenation": "none",
+  "reportMissingTypeStubs": "none",
+  "reportUnnecessaryTypeIgnoreComment": "error"
+}

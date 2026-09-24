@@ -10,8 +10,16 @@ from __future__ import annotations
 import argparse
 import json
 import re
+import sys
 from pathlib import Path
 from typing import Any
+
+# Sibling modules resolve by directory, and callers do not all insert it. The
+# gate runner has always self-inserted; doing the same here keeps this module
+# loadable under any loader, including a bare spec_from_file_location.
+sys.path.insert(0, str(Path(__file__).resolve().parent))
+
+from block_contract import is_region_modify  # noqa: E402
 
 
 def _frontmatter(text: str) -> dict[str, str]:
@@ -30,6 +38,39 @@ def _frontmatter(text: str) -> dict[str, str]:
 
 def _implementation_blocks(blocks: list[dict[str, Any]]) -> list[dict[str, Any]]:
     return [item for item in blocks if item.get("implementation_ready")]
+
+
+# A language is in scope when the Blueprint declares one of its source files or
+# its dependency manifest. Scanning prose for a language name cannot work: the
+# mandatory `NO-GO Conditions` heading contains a word-boundary match for `go`,
+# so every template-compliant document used to declare Go scope.
+_GO_MANIFESTS = {"go.mod", "go.sum", "go.work", "go.work.sum"}
+
+
+def _is_go_scope(implementation: list[dict[str, Any]]) -> bool:
+    """Decide Go scope from the declared file list, never from document prose."""
+    for item in implementation:
+        name = Path(str(item.get("file", "")).replace("\\", "/")).name.lower()
+        if name in _GO_MANIFESTS or name.endswith(".go"):
+            return True
+    return False
+
+
+def _artifact_depth(artifact: str, cache: dict[str, str]) -> str:
+    """Return one artifact's declared depth, memoized per validation call.
+
+    Depth is declared per document, so it must be read per document. Reading only
+    the master let a master declaring CONTRACT silently disable the completeness
+    check for every phase beneath it.
+    """
+    if artifact not in cache:
+        try:
+            cache[artifact] = _frontmatter(
+                Path(artifact).read_text(encoding="utf-8")
+            ).get("blueprint_depth", "").upper()
+        except (OSError, UnicodeError):
+            cache[artifact] = ""
+    return cache[artifact]
 
 
 def validate(
@@ -90,16 +131,19 @@ def validate(
         if project_root is not None and workflow_id:
             scratch_root = project_root / ".agents" / "scratch" / workflow_id
             if not scratch_root.is_dir():
-                findings.append(f"greenfield_scratch_missing:{scratch_root.as_posix()}")
+                # Findings are read by authors and copied into reports, so they
+                # carry repository-relative paths only.
+                try:
+                    shown = scratch_root.relative_to(project_root).as_posix()
+                except ValueError:
+                    shown = scratch_root.name
+                findings.append(f"greenfield_scratch_missing:{shown}")
             evidence_text = "\n".join(
                 path.read_text(encoding="utf-8")
                 for path in scratch_root.rglob("*")
                 if path.is_file() and path.suffix.lower() in {".log", ".md", ".txt", ".json"}
             ) if scratch_root.is_dir() else ""
-            is_go_scope = bool(re.search(r"\bgo\b|\.go\b", text, re.IGNORECASE)) or any(
-                str(item.get("file", "")).lower().endswith(".go") for item in implementation
-            )
-            if is_go_scope:
+            if _is_go_scope(implementation):
                 for command in ("gofmt -l .", "go build ./...", "go vet ./...", "go test ./... -v"):
                     if command not in evidence_text:
                         findings.append(f"spike_verified_exact_command_missing:{command}")
@@ -125,13 +169,34 @@ def validate(
             if required and required.lower() not in review_text.lower():
                 findings.append(f"spike_verified_internal_review_row_missing:{required}")
 
-    if depth == "FULL":
+    # Depth is a per-document declaration. AI_RULES.md Rule 10 permits CONTRACT
+    # for the master index only; a phase must be FULL. Reading the master alone
+    # meant a CONTRACT master disabled completeness for every phase, and a phase
+    # declaring CONTRACT was never rejected at all.
+    master = str(blueprint)
+    depth_cache: dict[str, str] = {master: depth}
+    contract_phases: list[str] = []
+    full_depth_blocks: list[dict[str, Any]] = []
+    for block in implementation:
+        artifact = str(block.get("artifact", "")) or master
+        artifact_depth = depth if artifact == master else _artifact_depth(artifact, depth_cache)
+        if artifact != master and artifact_depth == "CONTRACT":
+            name = Path(artifact).name
+            if name not in contract_phases:
+                contract_phases.append(name)
+        if artifact_depth == "FULL":
+            full_depth_blocks.append(block)
+    for name in contract_phases:
+        findings.append(f"phase_depth_contract_not_permitted:{name}")
+
+    if depth == "FULL" or full_depth_blocks:
         if not re.search(r"end[- ]to[- ]end|entrypoint|real run|runs?", text, re.IGNORECASE):
             findings.append("full_depth_end_to_end_evidence_missing")
         incomplete = [
             block.get("id", "")
-            for block in implementation
+            for block in (full_depth_blocks or implementation)
             if block.get("block_scope") != "full-file"
+            and not is_region_modify(block)
             and Path(str(block.get("file", ""))).suffix.lower() in {".py", ".go", ".ts", ".tsx", ".js", ".sql"}
         ]
         if incomplete:

@@ -27,8 +27,13 @@ class IAGYPort(ABC):
         effort: str | None,
         timeout_seconds: int,
         add_dir: Path | str | None,
+        continue_session: bool = False,
     ) -> list[str]:
-        """Constructs the command-line arguments list for the agent invocation."""
+        """Constructs the command-line arguments list for the agent invocation.
+
+        `continue_session=True` resumes the most recent conversation (multi-turn
+        authoring drive).
+        """
         ...
 
     @abstractmethod

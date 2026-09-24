@@ -96,6 +96,60 @@ Data lives in `.agents/devteam/` (roster, charters, state, board) and
 <!-- AIWF:DEVTEAM:END -->
 
 
+<!-- AIWF:LOOP-CONTROLLER:BEGIN (hand-maintained) -->
+## Self-correcting loop controller
+
+The linear AIWF pipeline runs under a **bounded self-correcting loop**
+(`skills/loop-controller`). Each cycle is turn-driven (no daemon): LOAD →
+EXECUTE (a phase skill) → EVALUATE (a gate verdict) → DECIDE one of
+`{ADVANCE, REPEAT, BACKTRACK, HALT}` → PERSIST. Hard stop-conditions guarantee
+termination: `MAX_ITERATIONS` (default 8), `NO_PROGRESS` (same failure signature
+×3), `GATE_PASS_FINAL`, `USER_HALT`, `UNRECOVERABLE_ERROR`. A failed
+risk-assumption **Spike** (`plan-to-blueprint` §8.1) routes `BACKTRACK` to
+`brainstorming`; spike code is throwaway.
+
+Run one cycle (Windows / Linux / macOS — pick the first that is available):
+
+- **Canonical (all tools/OS):** `aiwf loop load|decide|persist ...` — the `aiwf`
+  wrapper resolves the interpreter (POSIX `bootstrap.sh`, Windows `bootstrap.ps1`,
+  or the bundled `aiwf.exe`).
+- **No `aiwf` CLI:** `skills/loop-controller/scripts/loop_engine.sh` (Linux/macOS/
+  Git-Bash) or `loop_engine.ps1` (Windows PowerShell 5.1 / pwsh 7) — both
+  auto-detect `python3` → `python` → `py -3` (Python ≥ 3.9).
+- **No interpreter at all:** read `skills/loop-controller/PROTOCOL.md` and run the
+  transition table by hand. All paths produce identical state.
+
+State lives in `.agents/state/loop/<workflow-id>.json` (+ `.ledger.jsonl`).
+<!-- AIWF:LOOP-CONTROLLER:END -->
+
+
+<!-- AIWF:MULTI-AGENT-LOOP:BEGIN (hand-maintained) -->
+## Multi-agent loop orchestration
+
+`skills/multi-agent-loop` drives the loop with **multiple heterogeneous agents**
+(Claude, Codex, Antigravity) spawned **headless per phase** on one shared workspace,
+until HALT. It is a **foreground** orchestrator (no daemon) that reuses the
+loop-controller (transition authority) and devteam (shared-workspace mailbox).
+
+- **Assignment is dynamic by capability**: `.agents/config/agent-registry.json`
+  (`aiwf.agent-registry/1`) declares each agent's `type`, `priority`, `capabilities`
+  (phases) and headless `invocation`. The engine selects per phase (priority → LRU → id).
+  Codex needs `--skip-git-repo-check` outside a git repo (default registry includes it).
+- **Continuous run, human gates preserved**: auto-runs through non-approval phases; at
+  Blueprint/Implementation approval it HALTs (`AWAITING_APPROVAL`) — agents are never
+  spawned to approve. After the user approves, re-running resumes from loop-state.
+
+Run (Windows / Linux / macOS):
+```bash
+aiwf malo run --workflow <id> --phases plan,blueprint,implement,verify
+# no aiwf CLI: skills/multi-agent-loop/scripts/malo.sh run ...  (or malo.ps1 on Windows)
+# no interpreter: skills/multi-agent-loop/PROTOCOL.md by hand
+```
+Run ledger: `.agents/state/loop/<workflow-id>.runs.jsonl` (`aiwf.phase-run/1`).
+No registry → the current session agent runs every phase (backward compatible).
+<!-- AIWF:MULTI-AGENT-LOOP:END -->
+
+
 
 
 

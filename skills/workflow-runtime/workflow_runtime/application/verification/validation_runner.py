@@ -226,7 +226,7 @@ def run_pipeline(project_type: str, cwd: str = ".") -> Tuple[bool, str, list[str
             # explicitly so the AI receives a real runtime result.
             cmd = [os.path.abspath(os.path.join(scope.working_directory, "bin", "app.exe"))]
         elif project_type == "python":
-            subprocess.run([sys.executable, "-m", "py_compile"], cwd=cwd, check=True, capture_output=True)
+            subprocess.run(list(scope.build_command), cwd=scope.working_directory, check=True, capture_output=True)
             cmd = [sys.executable, "main.py"]
         else:
             return True, f"Bypassed build verification for {project_type} project type.", []

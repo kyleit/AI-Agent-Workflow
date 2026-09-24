@@ -22,4 +22,7 @@ def test_phase_discovery_accepts_phase_id_filenames(tmp_path: Path) -> None:
     discovered = _MODULE.discover_phase_paths(master)
 
     assert phase.resolve() in discovered
-    assert unrelated.resolve() in discovered
+    # A flat sibling of the master is an index or another master, never a phase.
+    # This assertion used to require the opposite, which encoded the defect that
+    # let unrelated work items contaminate each other's gate results.
+    assert unrelated.resolve() not in discovered

@@ -142,6 +142,49 @@ Skills follow **Semantic Versioning** (`MAJOR.MINOR.PATCH`).
 * **Updates**: Refreshes only the managed block in `AGENTS.md`, preserving all user-customized rules outside the markers.
 * **Idempotency**: Multiple installations or updates will always maintain exactly one managed rules block and will never duplicate it.
 
+---
+
+## Install Scopes: Global vs Project (avoid duplicated prompt content)
+
+If you use several projects on one machine, installing the full framework into **every**
+project makes each AI agent load the same rules/skills twice (once globally, once per project),
+wasting context tokens. Use a **global** install plus **minimal** project installs instead.
+
+### Install once, globally
+```bash
+./install.sh --scope global        # POSIX / Git-Bash
+.\install.ps1 -Scope global        # Windows PowerShell
+```
+This installs the shared framework into `~/.agents`, injects the managed rules block into your
+global agent configs (`~/.claude/CLAUDE.md`, `~/.codex/AGENTS.md`), and writes a detection
+marker at `~/.agents/aiwf-global.json`.
+
+### Then per project (automatic minimal mode)
+```bash
+./install.sh                       # detects the global marker -> MINIMAL install
+```
+Minimal mode installs only project-local pieces (state/config, `agent-registry`, memory, the
+auto-route + source-write-gate hooks) and writes a **thin pointer** block in `AGENTS.md` instead
+of duplicating the rules/skills/policies. Force a full project install anyway with `--full`
+(`-FullInstall`), or simulate detection with `--assume-global` (`-AssumeGlobal`).
+
+### Migrate an existing project install up to global (reclaim)
+On a machine that already installed per-project, promote to global **and** slim the current
+project in one step:
+```bash
+cd /path/to/existing/project
+./install.sh --scope global --reclaim      # .\install.ps1 -Scope global -Reclaim
+```
+`--reclaim` removes the duplicated shared payload from the project's `.agents/`, downgrades its
+`AGENTS.md` block to the pointer, then leaves the shared framework only in `~/.agents`.
+
+### Uninstall the global install
+```bash
+./uninstall.sh --global            # .\uninstall.ps1 -Global
+```
+Removes `~/.agents`, the marker, and the managed block from the global agent configs. Projects
+previously in minimal mode can be restored with `./install.sh --full`.
+
 ### Backward Compatibility
 * Existing workflows should continue to work with minor/patch upgrades.
 * Input and output schemas (expressed in YAML in each `SKILL.md`) will deprecate parameters rather than remove them abruptly. Deprecation notices will be documented in the `CHANGELOG.md`.

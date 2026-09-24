@@ -25,6 +25,8 @@ from workflow_runtime.application.workflow.source_context_validator import (
 from workflow_runtime.application.workflow.blueprint_authoring_policy_validator import (
     BlueprintAuthoringPolicyValidator,
 )
+from workflow_runtime.application.workflow.runtime_link import linked_install_root
+from workflow_runtime.application.workflow.markdown_fences import CODE, FENCE, PROSE, fence_states
 
 
 @dataclass(frozen=True)
@@ -506,15 +508,9 @@ class BlueprintAutoValidationService:
             for obligation_id, aliases in obligations.items():
                 if not any(alias in init_text for alias in aliases):
                     findings.append(f"project_initialization_obligation_missing:{obligation_id}")
-        prose_lines: list[str] = []
-        in_fence = False
-        for line in text.splitlines():
-            if line.lstrip().startswith("```"):
-                in_fence = not in_fence
-                continue
-            if not in_fence:
-                prose_lines.append(line)
-        prose_text = "\n".join(prose_lines)
+        prose_text = "\n".join(
+            line for line, state in fence_states(text.splitlines()) if state == PROSE
+        )
         # Require a path boundary so URL schemes such as ``https://`` are not
         # mistaken for Windows drive-letter paths.
         drive_path_pattern = r"(?<![A-Za-z0-9])[A-Za-z]" + ":" + r"[\\/]"
@@ -741,21 +737,19 @@ class BlueprintAutoValidationService:
             "fiber rest", "wails", "font offline", "custom control",
             "schema migration", "probe engine", "api readiness",
         )
-        in_fence = False
         headings = [line.strip().lower() for line in text.splitlines() if line.lstrip().startswith("#")]
         scoped_validation = any(
             any(marker in heading for marker in ("qa verification matrix", "runtime evidence", "e2e evidence"))
             for heading in headings
         )
         current_heading = ""
-        for line in text.splitlines():
-            if line.lstrip().startswith("```"):
-                in_fence = not in_fence
+        for line, state in fence_states(text.splitlines()):
+            if state == FENCE:
                 continue
             if line.lstrip().startswith("#"):
                 current_heading = line.strip().lower()
                 continue
-            if in_fence or not line.strip().startswith("|"):
+            if state == CODE or not line.strip().startswith("|"):
                 continue
             if scoped_validation and not any(
                 marker in current_heading
@@ -782,12 +776,25 @@ class BlueprintAutoValidationService:
             for marker in ("new", "greenfield", "from scratch", "empty repository", "khởi tạo dự án")
         )
 
+    def _gate_runner_candidates(self) -> list[Path]:
+        """Every location the gate runner may live, in order of preference.
+
+        A linked-mode project deliberately holds no copy of the skills, so the two
+        project-local paths never exist there; the runner lives in the global
+        install named by the runtime link.
+        """
+        runner = Path("skills") / "strict-code-block-gate" / "scripts" / "run_strict_code_block_gate.py"
+        candidates = [
+            self.workspace_root / runner,
+            self.workspace_root / ".agents" / runner,
+        ]
+        linked = linked_install_root(self.workspace_root)
+        if linked is not None:
+            candidates.extend([linked / runner, linked / ".agents" / runner])
+        return candidates
+
     def _run_code_block_gate(self, relative_blueprint: Path, work_item_id: str, output: Path) -> dict[str, object]:
-        candidates = (
-            self.workspace_root / "skills" / "strict-code-block-gate" / "scripts" / "run_strict_code_block_gate.py",
-            self.workspace_root / ".agents" / "skills" / "strict-code-block-gate" / "scripts" / "run_strict_code_block_gate.py",
-        )
-        runner = next((candidate for candidate in candidates if candidate.is_file()), None)
+        runner = next((candidate for candidate in self._gate_runner_candidates() if candidate.is_file()), None)
         if runner is None:
             return {
                 "decision": "BLOCKED",

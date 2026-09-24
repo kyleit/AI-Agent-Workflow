@@ -161,9 +161,56 @@ def run_cli(
     )
 
 
+_DB_PATH_HOLDERS = (
+    "workflow_runtime.infrastructure.persistence.db",
+    "workflow_runtime.infrastructure.persistence.db_connections",
+    "workflow_runtime.infrastructure.persistence.provider_usage_records",
+    "workflow_runtime.infrastructure.persistence.metadata_insight_records",
+    "workflow_runtime.infrastructure.persistence.timeline_event_records",
+    "workflow_runtime.application.analytics.usage_sync_service",
+)
+
+
+def redirect_runtime_dbs(project_db: str, global_db: str):
+    """Point every module that bound PROJECT_DB / the db path helpers at test paths.
+
+    The persistence package re-exports these names, so patching only the `db`
+    facade leaves the record modules writing to the real project DB and to the
+    global DB under the home directory. Returns a callable that undoes the patch.
+    """
+    import contextlib
+    import importlib
+    from unittest import mock
+
+    stack = contextlib.ExitStack()
+    for mod_name in _DB_PATH_HOLDERS:
+        mod = importlib.import_module(mod_name)
+        for attr, value in (
+            ("PROJECT_DB", project_db),
+            ("get_project_db_path", lambda: project_db),
+            ("get_global_db_path", lambda: global_db),
+        ):
+            if hasattr(mod, attr):
+                stack.enter_context(mock.patch.object(mod, attr, value))
+    return stack.close
+
+
+_AGENTS_SKIP_ENTRIES = {
+    "state", "runtime", "memory-state.json", "history.db",
+    "scratch", "tmp", "temp", "cache", ".cache",
+    "__pycache__", ".pytest_cache", ".mypy_cache", ".ruff_cache",
+}
+_IGNORE_CACHES = shutil.ignore_patterns(
+    "__pycache__", ".pytest_cache", ".mypy_cache", ".ruff_cache", "*.pyc",
+)
+
+
 @pytest.fixture(autouse=True, scope="function")
 def isolated_workspace():
     previous_state_root = os.environ.pop("AIWF_STATE_ROOT", None)
+    # Several suites set TESTING / AIWF_* and never unset them, which made later
+    # tests order-dependent; restore the environment after every test.
+    environ_snapshot = dict(os.environ)
     # 1. Create a unique isolated root directory under OS temp
     temp_workspace = tempfile.mkdtemp(prefix="aiwf-test-ws-")
 
@@ -176,12 +223,14 @@ def isolated_workspace():
         for item in os.listdir(src_agents):
             s = os.path.join(src_agents, item)
             d = os.path.join(dst_agents, item)
-            # Skip states, locks, and history database to ensure a clean slate
-            if item in ["state", "runtime", "memory-state.json", "history.db"]:
+            # Skip states, locks, and history database to ensure a clean slate,
+            # and transient output (gate scratch, temp dirs, caches) that can
+            # grow large and was copied again for every single test.
+            if item in _AGENTS_SKIP_ENTRIES:
                 continue
             try:
                 if os.path.isdir(s):
-                    shutil.copytree(s, d, dirs_exist_ok=True)
+                    shutil.copytree(s, d, dirs_exist_ok=True, ignore=_IGNORE_CACHES)
                 else:
                     shutil.copy2(s, d)
             except Exception:
@@ -192,7 +241,10 @@ def isolated_workspace():
         src_dir = os.path.join(ORIG_CWD, root_dir)
         if os.path.exists(src_dir):
             try:
-                shutil.copytree(src_dir, os.path.join(temp_workspace, root_dir), dirs_exist_ok=True)
+                shutil.copytree(
+                    src_dir, os.path.join(temp_workspace, root_dir),
+                    dirs_exist_ok=True, ignore=_IGNORE_CACHES,
+                )
             except Exception:
                 pass
 
@@ -210,7 +262,7 @@ def isolated_workspace():
 
     # Reset state store singleton to force re-initialization relative to new CWD
     try:
-        from workflow_runtime.infrastructure.session.session import reset_state_store
+        from workflow_runtime.infrastructure.session.state_store import reset_state_store
         reset_state_store(None)
     except Exception:
         pass
@@ -219,6 +271,8 @@ def isolated_workspace():
 
     # Restore original CWD
     os.chdir(ORIG_CWD)
+    os.environ.clear()
+    os.environ.update(environ_snapshot)
 
     # Clean up isolated state folder
     try:

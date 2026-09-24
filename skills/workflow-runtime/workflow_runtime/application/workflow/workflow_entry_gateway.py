@@ -271,18 +271,38 @@ class WorkflowEntryGateway:
         """
         request_lower = request_text.lower()
 
-        read_only_keywords = [
-            r"^\s*(help|status|doctor|version)\b",
-            r"\b(show|read|inspect|explain|describe|summarize)\b",
-            r"\b(trạng thái|hướng dẫn|giải thích|đọc|xem)\b",
-        ]
-        for kw in read_only_keywords:
-            if re.search(kw, request_lower):
-                return "read_only"
+        # 1. Explicit read-only CLI commands (unambiguous; must win up front).
+        if re.search(r"^\s*(help|status|doctor|version)\b", request_lower):
+            return "read_only"
 
+        # 2. Greenfield / new-build intent wins over specialized-change intents:
+        # building something NEW that happens to do CRUD ("thêm/sửa/xóa"), use an
+        # architecture ("Clean Architecture") or migrations is a feature_request,
+        # not a bug fix / refactor / architecture change to existing code.
+        greenfield_noun = (
+            r"(phần mềm|phan mem|ứng dụng|ung dung|app|application|software|"
+            r"hệ thống|he thong|website|web app|dịch vụ|dich vu|dashboard|"
+            r"màn hình|man hinh|module|bảng|bang|chức năng|chuc nang|tính năng|tinh nang|"
+            r"api|tool|công cụ|cong cu|platform|trang|page|table|monitor)"
+        )
+        greenfield_keywords = [
+            r"\b(xây dựng|xay dung|xây|xay)\b",
+            r"\b(build|develop|scaffold|bootstrap)\s+(a|an|the|our|new|một|mot|1)?\s*"
+            + greenfield_noun + r"\b",
+            r"\b(create|make)\s+(a|an|the|our|new)?\s*" + greenfield_noun + r"\b",
+            r"\btạo\b[^.\n]{0,25}?\b" + greenfield_noun + r"\b",
+        ]
+        for kw in greenfield_keywords:
+            if re.search(kw, request_lower):
+                return "feature_request"
+
+        # 3. Engineering / build intents take PRECEDENCE over informational
+        # verbs: a build request that merely mentions "view / xem / explain /
+        # monitor" is still a build request. (Fixes greenfield prompts being
+        # misclassified as read_only and blocked at intake.)
         bug_keywords = [
             r"\bfix\b", r"\bbug\b", r"\berror\b", r"\bissue\b", r"\btypo\b", r"\bmismatch\b", r"\bbroken\b", r"\bregression\b",
-            r"\bsửa\b", r"\blỗi\b", r"\bhỏng\b", r"\bsai\b", r"\blệch\b",
+            r"\bsửa (lỗi|loi|bug)\b", r"\bfix lỗi\b", r"\bbáo lỗi\b", r"\bgặp lỗi\b", r"\bbị lỗi\b", r"\bhỏng\b",
         ]
         for kw in bug_keywords:
             if re.search(kw, request_lower):
@@ -317,6 +337,26 @@ class WorkflowEntryGateway:
         for kw in feat_keywords:
             if re.search(kw, request_lower):
                 return "feature_request"
+
+        # 3. Informational Q&A -> chat (bypasses the workflow).
+        chat_keywords = [
+            r"^\s*(what|why|how|when|which|who)\b",
+            r"\b(explain|describe|summarize|clarify|compare)\b",
+            r"\bdifference between\b",
+            r"\b(giải thích|là gì|khác nhau|so sánh|nghĩa là)\b",
+        ]
+        for kw in chat_keywords:
+            if re.search(kw, request_lower):
+                return "chat"
+
+        # 4. Soft read-only (view/list/read) only when no build/chat intent.
+        soft_read_keywords = [
+            r"\b(show|read|inspect|list|view)\b",
+            r"\b(trạng thái|hướng dẫn|đọc|xem)\b",
+        ]
+        for kw in soft_read_keywords:
+            if re.search(kw, request_lower):
+                return "read_only"
 
         return "natural_workflow_request"
 
@@ -573,6 +613,21 @@ class WorkflowEntryGateway:
 
         if intent == "read_only":
             return self._read_only_status(req_id, source, active_session_id)
+
+        if intent == "chat":
+            chat_emit: Any = getattr(self.logger, "emit", None)
+            if callable(chat_emit):
+                chat_emit(
+                    "workflow.request.received",
+                    {"request_id": req_id, "intent": intent, "request_text": request_text, "source": source or "system", "session_id": active_session_id},
+                )
+            return {
+                "status": "BYPASS",
+                "intent": "chat",
+                "request_id": req_id,
+                "source": source or "system",
+                "session_id": active_session_id,
+            }
 
         memory_readiness = ensure_project_memory(self.workspace_root)
         agent_context = build_agent_context(self.workspace_root, request_text, memory_readiness)

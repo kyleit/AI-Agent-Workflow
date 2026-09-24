@@ -16,7 +16,11 @@ from event_logger import get_logger
 from session import load_session
 
 @pytest.fixture
-def temp_ws():
+def temp_ws(monkeypatch):
+    # Other suites leak TESTING/AIWF_STATE_ROOT (rerouting session persistence) and
+    # the gateway exports AIWF_* context; monkeypatch restores all of them afterwards.
+    for var in ("TESTING", "AIWF_STATE_ROOT", "AIWF_WORKFLOW_ID", "AIWF_EXECUTION_MODE", "AIWF_CURRENT_PHASE"):
+        monkeypatch.delenv(var, raising=False)
     # Setup temporary mock workspace
     temp_dir = tempfile.mkdtemp(prefix="gateway-test-ws-")
     
@@ -97,7 +101,10 @@ def test_gateway_engineering_flow(temp_ws):
     # Verify session persistence
     sdata = load_session()
     assert sdata.get("work_item", {}).get("id") == "FEAT-401"
-    assert sdata.get("execution_mode") == "workflow"
+    # Since 2b75f9a5 (FEAT-404) workflow mode lives in env + workflow.json; the
+    # session's execution_mode is the agents.json parallel/sequential mode (FEAT-022).
+    with open(os.path.join(temp_ws, ".agents", "state", "workflow.json"), encoding="utf-8") as f:
+        assert json.load(f)["active_workflow"] == "FEAT-401"
 
 @patch("sys.argv", ["mock_app.py"])
 @patch.dict(os.environ, {}, clear=True)

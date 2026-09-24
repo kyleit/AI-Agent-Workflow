@@ -1,3 +1,5 @@
+from types import SimpleNamespace
+
 from workflow_runtime.application.command_contract import CommandResult, NextAction
 from workflow_runtime.application.workflow.supervisor_loop import (
     WorkflowRequest,
@@ -65,6 +67,14 @@ def test_start_implementation_synchronizes_active_phase(monkeypatch) -> None:
     monkeypatch.setattr(session_lifecycle, "update_context_health", lambda _session: None)
     monkeypatch.setattr(session_lifecycle, "load_session", lambda: dict(session))
     monkeypatch.setattr(session_lifecycle, "save_session_atomic", lambda value: saved.append(dict(value)))
+    # Decouple this unit test from the physical blueprint file: the approved,
+    # in-scope blueprint is asserted via state; the on-disk lifecycle inspection
+    # is stubbed non-stale (its own coverage lives in the lifecycle tests).
+    monkeypatch.setattr(
+        "workflow_runtime.application.workflow.blueprint_lifecycle."
+        "BlueprintLifecycleService.inspect",
+        lambda self, path, work_item_id: SimpleNamespace(stale=False, reasons=()),
+    )
 
     args = type(
         "Args",

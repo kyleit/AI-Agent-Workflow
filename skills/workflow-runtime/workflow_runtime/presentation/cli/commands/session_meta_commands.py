@@ -24,6 +24,15 @@ class SessionMetaCommand:
         sub.add_parser("clean", help="Clean stale sessions")
         d = sub.add_parser("delete", help="Delete a session")
         d.add_argument("--id", required=True, help="Session ID")
+        # Session bootstrap guard subactions handled by do_session_command
+        # (dropped from the parser in 3f37c9b0 while the handler kept them).
+        for name, help_text in (
+            ("status", "Show bootstrap status of a session"),
+            ("initialize", "Initialize the workspace for a session"),
+            ("reset", "Reset a session's bootstrap state"),
+        ):
+            sp = sub.add_parser(name, help=help_text)
+            sp.add_argument("--session-id", type=str, default=None)
         self._parser = p
         return p
 

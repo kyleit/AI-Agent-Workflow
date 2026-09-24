@@ -1,0 +1,43 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "aiwf.agent-registry/1",
+  "title": "AIWF Agent Registry",
+  "description": "Declares the agents the multi-agent-loop orchestrator may spawn. Stored at .agents/config/agent-registry.json.",
+  "type": "object",
+  "additionalProperties": false,
+  "required": ["schema", "agents"],
+  "properties": {
+    "schema": { "const": "aiwf.agent-registry/1" },
+    "agents": {
+      "type": "array",
+      "items": {
+        "type": "object",
+        "additionalProperties": false,
+        "required": ["id", "type", "capabilities", "invocation"],
+        "properties": {
+          "id": { "type": "string", "pattern": "^[A-Za-z0-9._-]{1,128}$" },
+          "type": { "type": "string", "enum": ["claude", "codex", "antigravity"] },
+          "enabled": { "type": "boolean", "default": true },
+          "priority": { "type": "integer", "default": 0 },
+          "capabilities": {
+            "type": "array",
+            "items": { "type": "string" },
+            "description": "Phase names this agent can run (e.g. plan, blueprint, implement, verify)."
+          },
+          "invocation": {
+            "type": "array",
+            "items": { "type": "string" },
+            "minItems": 1,
+            "description": "Headless argv template; ${task}/${workflow}/${phase} are substituted per element (no shell)."
+          },
+          "verdict_source": {
+            "type": "string",
+            "enum": ["stdout-json", "stdout-text", "verdict-file"],
+            "default": "stdout-text"
+          },
+          "cost_hint": { "type": "string", "enum": ["low", "med", "high"], "default": "med" }
+        }
+      }
+    }
+  }
+}

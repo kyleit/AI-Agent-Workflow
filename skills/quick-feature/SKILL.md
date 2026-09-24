@@ -170,7 +170,7 @@ Step 6:  Internal Spec Review Gate (No User Stop)
           - Review the Specification against this skill, AI_RULES.md, the user request, and frontend-design when UI/design is affected.
           - Write or update the Specification's `Internal Review Evidence` section with concrete PASS/FAIL evidence.
           - If review FAILS, explain the failed points and revise the Specification only in those points.
-          - Repeat review/revision until PASS.
+          - Repeat review/revision until PASS, bounded to MAX_REPAIR_ROUNDS = 3. If still failing after 3 rounds, STOP and escalate to Ba with the exact failed points (never auto-pass, never lower the bar).
           - Do NOT ask the user for approval at this gate.
          ↓
 Step 7:  Generate Technical Design Blueprint (docs/features/<feature-family>/blueprints/QUICK-XXX_feature_name_blueprint.md)
@@ -179,7 +179,7 @@ Step 8:  Internal Blueprint Review + Final User Approval Gate
           - Run python CLI to register blueprint.
           - Review the Blueprint against this skill, AI_RULES.md, the Specification, document-compliance-assessment rules, and frontend-design when UI/design is affected.
           - Write or update the Blueprint's `Internal Review Evidence` section with concrete PASS/FAIL evidence.
-          - If review FAILS, clearly state each failed point and revise only those points. Repeat until PASS.
+          - If review FAILS, clearly state each failed point and revise only those points. Repeat until PASS, bounded to MAX_REPAIR_ROUNDS = 3; if still failing after 3 rounds, STOP and escalate to Ba with the failed points (never auto-pass).
           - After review PASS, request approval through native Agent/IDE `ask_question` first. Use `aiwf prompt select` only as a fallback bridge when native prompting is unavailable. `PROMPT_UNAVAILABLE` means no prompt was shown and must not be treated as `Cancel`.
           - User-facing output at this gate must cite artifact paths as project-relative paths only. Do not print drive-letter paths or `file:///` links.
           - **ABSOLUTE USER APPROVAL STOP**: The AGENT MUST STOP CALLING TOOLS IMMEDIATELY AND END TURN.
@@ -515,7 +515,7 @@ Complete directory layout after modifications:
    `aiwf blueprint --path docs/features/<feature-family>/blueprints/QUICK-XXX_feature_name_blueprint.md`
 2. Review the blueprint strictly against the Specification, this Skill, `AI_RULES.md`, `strict-code-block-gate`, document-compliance-assessment rules, and `frontend-design` when UI/design is affected.
 3. The Blueprint must contain `Internal Review Evidence`; missing evidence, score below `95/100`, unresolved failed points, relative-path scan FAIL, stale Blueprint hash, missing honest projected physical-size evidence, missing source-level split plan when the architecture requires one, missing language profile/lint command matrix, missing strict profile, or **canonical CODE_BLOCK_GATE not explicitly marked `PASS`** means review FAIL. Blueprint document length is not a blocker.
-4. If review fails, state the exact failed points and revise only those points. Repeat until review passes.
+4. If review fails, state the exact failed points and revise only those points. Repeat until review passes, bounded to MAX_REPAIR_ROUNDS = 3; if still failing after 3 rounds, STOP and escalate to Ba with the failed points (never auto-pass).
 5. **ABSOLUTE USER APPROVAL STOP**: After the Blueprint review passes, present the Design Blueprint summary and ask the user for implementation approval.
    - **PRIMARY (NATIVE UI)**: Use the native Agent/IDE `ask_question` tool first with options `Continue` and `Cancel`.
    - **FALLBACK BRIDGE (CLI)**: Only if native `ask_question` is unavailable, attempt the CLI prompt bridge: `aiwf prompt select --question "Approve this QUICK Technical Design Blueprint for implementation?" --options "Continue|Cancel" --default "Cancel"`. If it returns `PROMPT_UNAVAILABLE`, no user selection occurred.

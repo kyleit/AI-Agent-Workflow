@@ -1,0 +1,18 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "aiwf.agent-assignment/1",
+  "title": "AIWF Agent Assignment",
+  "description": "The agent selected for a phase (computed per cycle by the orchestrator).",
+  "type": "object",
+  "additionalProperties": true,
+  "required": ["schema", "workflow_id", "phase", "selected_agent_id"],
+  "properties": {
+    "schema": { "const": "aiwf.agent-assignment/1" },
+    "workflow_id": { "type": "string" },
+    "phase": { "type": "string" },
+    "selected_agent_id": { "type": ["string", "null"] },
+    "agent_type": { "type": "string" },
+    "reason": { "type": "string" },
+    "candidates": { "type": "array", "items": { "type": "string" } }
+  }
+}

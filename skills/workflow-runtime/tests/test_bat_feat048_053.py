@@ -29,7 +29,9 @@ def run_cli(*args, cwd=None) -> tuple[int, dict | str]:
         [sys.executable, "-m", "workflow_runtime", *args],
         capture_output=True,
         text=True,
-        cwd=cwd or WORKSPACE,
+        # Default to the per-test isolated workspace (conftest chdir) so CLI
+        # commands never mutate the real repository's .agents/state.
+        cwd=cwd or os.getcwd(),
         env=env,
         timeout=30,
     )
@@ -459,6 +461,8 @@ class TestFEAT052_SafeOrchestrator(unittest.TestCase):
         P1: Completion gate pass khi không có active locks và active workers.
         """
         from orchestrator import SafeOrchestrator  # type: ignore
+        from workflow_runtime.presentation.cli.bootstrap import bootstrap_di
+        bootstrap_di()  # SafeOrchestrator resolves LockManager/WorkerManager via the locator
         with tempfile.TemporaryDirectory() as tmpdir:
             os.makedirs(os.path.join(tmpdir, ".agents", "runtime"), exist_ok=True)
             os.makedirs(os.path.join(tmpdir, ".agents", "runtime", "logs"), exist_ok=True)

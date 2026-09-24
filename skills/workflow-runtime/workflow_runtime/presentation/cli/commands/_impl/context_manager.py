@@ -11,6 +11,7 @@ from workflow_runtime.infrastructure.session.session_io import load_session
 from workflow_runtime.infrastructure.session.state_sync import (
     deconstruct_state, read_json_safe, write_json_atomic)
 from workflow_runtime.infrastructure.events.event_logger import EventLogger
+from workflow_runtime.shared.utils import atomic_write_json
 
 
 def _state_read_json(path: str) -> dict[str, Any]:
@@ -151,7 +152,8 @@ def do_state_action(args: Any) -> None:
         report_path = os.path.join(state_dir, "recovery", "state-migration-report.json")
         migrated = [name for name in ["context.json", "workflow.json", "runtime.json", "approvals.json", "usage.json", "agents.json"] if os.path.exists(os.path.join(state_dir, name))]
         report: dict[str, Any] = {"status": "success", "migrated_files": migrated, "updated_at": datetime.now().astimezone().isoformat()}
-        _state_write_json(report_path, report)
+        # A real file write: the key-based state store drops the recovery/ subdirectory.
+        atomic_write_json(report_path, report)
         print(json.dumps(report, indent=2))
 
     elif subaction == "aggregate":

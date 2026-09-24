@@ -79,7 +79,7 @@ class Task:
             if callable(append_fn):
                 append_fn(
                     session_id=self.session_id,
-                    topic="task.transitioned",
+                    topic=f"task.{target_status}",
                     payload={
                         "task_id": self.task_id,
                         "status": self.status,

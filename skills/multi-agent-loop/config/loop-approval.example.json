@@ -1,0 +1,11 @@
+{
+  "schema": "aiwf.loop-approval/1",
+  "mode": "auto",
+  "auto_gates": ["clarification", "blueprint", "implementation"],
+  "never_auto_gates": ["git", "release", "deploy"],
+  "clarification_strategy": "first-option",
+  "gate_commands": {
+    "blueprint": ["aiwf", "blueprint", "--approve", "--work-item", "${workflow}"],
+    "implementation": ["aiwf", "blueprint", "--approve", "--work-item", "${workflow}"]
+  }
+}

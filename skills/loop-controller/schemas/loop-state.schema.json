@@ -1,0 +1,87 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "aiwf.loop/1",
+  "title": "AIWF Loop State",
+  "description": "Turn-driven loop controller state persisted at .agents/state/loop/<workflow-id>.json. Additive-only over the linear pipeline; absence of this file implies iteration 0.",
+  "type": "object",
+  "additionalProperties": false,
+  "required": [
+    "schema",
+    "workflow_id",
+    "current_phase",
+    "iteration",
+    "max_iterations"
+  ],
+  "properties": {
+    "schema": {
+      "const": "aiwf.loop/1"
+    },
+    "workflow_id": {
+      "type": "string",
+      "pattern": "^[A-Za-z0-9._-]{1,128}$"
+    },
+    "current_phase": {
+      "type": "string",
+      "minLength": 1,
+      "description": "The workflow phase the controller is currently on."
+    },
+    "iteration": {
+      "type": "integer",
+      "minimum": 0,
+      "description": "Rework attempts on current_phase; reset to 0 on ADVANCE/BACKTRACK."
+    },
+    "max_iterations": {
+      "type": "integer",
+      "minimum": 1,
+      "default": 8,
+      "description": "Hard ceiling of rework attempts before a MAX_ITERATIONS HALT."
+    },
+    "no_progress_count": {
+      "type": "integer",
+      "minimum": 0,
+      "default": 0,
+      "description": "Consecutive cycles with an identical failure_signature."
+    },
+    "no_progress_threshold": {
+      "type": "integer",
+      "minimum": 1,
+      "default": 3,
+      "description": "Additive config: no-progress cycles before a NO_PROGRESS HALT."
+    },
+    "last_verdict": {
+      "type": ["string", "null"],
+      "enum": ["PASS", "BLOCK", "FAIL", "ERROR", null]
+    },
+    "failure_signature": {
+      "type": "string",
+      "default": "",
+      "description": "SHA-256 hex over normalized blocking findings; empty when none."
+    },
+    "transition": {
+      "type": ["string", "null"],
+      "enum": ["ADVANCE", "REPEAT", "BACKTRACK", "HALT", null]
+    },
+    "backtrack_target": {
+      "type": ["string", "null"],
+      "description": "Phase a BACKTRACK points to (e.g. spike fail -> brainstorming)."
+    },
+    "stop_conditions_met": {
+      "type": "array",
+      "items": {
+        "type": "string",
+        "enum": [
+          "MAX_ITERATIONS",
+          "NO_PROGRESS",
+          "GATE_PASS_FINAL",
+          "USER_HALT",
+          "UNRECOVERABLE_ERROR"
+        ]
+      },
+      "default": []
+    },
+    "updated_at": {
+      "type": ["string", "null"],
+      "description": "ISO-8601 UTC timestamp stamped at persist time."
+    }
+  }
+}

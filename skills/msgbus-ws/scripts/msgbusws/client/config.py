@@ -3,6 +3,8 @@ from __future__ import annotations
 
 import json
 import os
+import platform as system_platform
+import socket
 from dataclasses import dataclass
 from pathlib import Path
 
@@ -37,6 +39,12 @@ class ClientConfig:
     sender: str
     e2ee_key: str | None
     secure: bool = False  # TLS: https + wss (e.g. behind a k8s Ingress on a domain)
+    capabilities: tuple[str, ...] = ()
+    avatar: str = ""
+    identity: str = "AI agent"
+    soul: str = "Collaborate clearly and leave verifiable handoffs."
+    machine: str = ""
+    platform: str = ""
 
     @property
     def base_url(self) -> str:
@@ -70,7 +78,45 @@ def load_config(args) -> ClientConfig:
     token = pick("token", "MSGBUS_TOKEN", "token", "changeme")
     sender = pick("sender", "MSGBUS_FROM", "from", "") or generate_vietnamese_name()
     e2ee_key = pick("e2ee_key", "MSGBUS_E2EE_KEY", "e2ee_key", None) or None
-    return ClientConfig(host=host, port=port, token=token, sender=sender, e2ee_key=e2ee_key, secure=secure)
+    raw_capabilities = pick("capabilities", "MSGBUS_CAPABILITIES", "capabilities", "")
+    if isinstance(raw_capabilities, list):
+        capability_items = raw_capabilities
+    else:
+        capability_items = str(raw_capabilities).split(",")
+    capabilities = tuple(
+        str(item).strip()[:64]
+        for item in capability_items[:32]
+        if str(item).strip()
+    )
+    avatar = str(pick("avatar", "MSGBUS_AVATAR", "avatar", ""))[:8]
+    identity = str(pick("identity", "MSGBUS_IDENTITY", "identity", "AI agent"))[:120]
+    soul = str(pick(
+        "soul",
+        "MSGBUS_SOUL",
+        "soul",
+        "Collaborate clearly and leave verifiable handoffs.",
+    ))[:280]
+    machine = str(pick("machine", "MSGBUS_MACHINE", "machine", socket.gethostname()))[:80]
+    platform_name = str(pick(
+        "platform",
+        "MSGBUS_PLATFORM",
+        "platform",
+        system_platform.system() or "Unknown",
+    ))[:40]
+    return ClientConfig(
+        host=host,
+        port=port,
+        token=token,
+        sender=sender,
+        e2ee_key=e2ee_key,
+        secure=secure,
+        capabilities=capabilities,
+        avatar=avatar,
+        identity=identity,
+        soul=soul,
+        machine=machine,
+        platform=platform_name,
+    )
 
 
 def save_profile(config: ClientConfig, save_sender: bool = False) -> Path:
@@ -82,6 +128,14 @@ def save_profile(config: ClientConfig, save_sender: bool = False) -> Path:
         data["e2ee_key"] = config.e2ee_key
     if save_sender and config.sender:
         data["from"] = config.sender
+    if config.capabilities:
+        data["capabilities"] = list(config.capabilities)
+    if config.avatar:
+        data["avatar"] = config.avatar
+    data["identity"] = config.identity
+    data["soul"] = config.soul
+    data["machine"] = config.machine
+    data["platform"] = config.platform
     path.write_text(json.dumps(data, ensure_ascii=False, indent=2), encoding="utf-8")
     try:
         os.chmod(path, 0o600)  # token inside — restrict on POSIX

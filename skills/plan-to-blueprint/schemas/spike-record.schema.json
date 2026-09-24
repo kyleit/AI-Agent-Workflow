@@ -1,0 +1,87 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "aiwf.spike/1",
+  "title": "AIWF Spike Record",
+  "description": "Evidence that a high-risk blueprint assumption was proven (or explicitly user-waived) before Blueprint Freeze. Additive-only artifact stored under .agents/spikes/<id>/. Spike code is throwaway and MUST NOT be promoted to product source.",
+  "type": "object",
+  "additionalProperties": false,
+  "required": [
+    "schema",
+    "id",
+    "assumption",
+    "risk",
+    "verdict",
+    "throwaway",
+    "ts"
+  ],
+  "properties": {
+    "schema": { "const": "aiwf.spike/1" },
+    "id": {
+      "type": "string",
+      "pattern": "^spike-[0-9]{3,}$",
+      "description": "Stable spike identifier, e.g. spike-001."
+    },
+    "assumption": {
+      "type": "string",
+      "minLength": 1,
+      "description": "The high-risk assumption/decision being validated."
+    },
+    "risk": {
+      "type": "string",
+      "enum": ["low", "med", "high"],
+      "description": "Risk level from the Risk Register. Only 'high' requires a spike."
+    },
+    "hypothesis": {
+      "type": "string",
+      "description": "Testable statement the spike sets out to confirm or refute."
+    },
+    "method": {
+      "type": "string",
+      "description": "How the spike was executed (throwaway probe, measurement, etc.)."
+    },
+    "evidence_artifact": {
+      "type": "string",
+      "description": "Repository-relative path to captured evidence (no absolute paths)."
+    },
+    "verdict": {
+      "type": "string",
+      "enum": ["pass", "fail"],
+      "description": "pass = assumption proven; fail => engine BACKTRACK to brainstorming/plan."
+    },
+    "decided_by": {
+      "type": "string",
+      "description": "Role/authority that decided the verdict or granted the waiver."
+    },
+    "waived": {
+      "type": "boolean",
+      "default": false,
+      "description": "true when a high-risk item is user-waived instead of proven."
+    },
+    "waiver_reason": {
+      "type": "string",
+      "default": "",
+      "description": "Required, non-empty rationale when waived=true (decided_by=user)."
+    },
+    "throwaway": {
+      "type": "boolean",
+      "const": true,
+      "description": "Spike code is always throwaway; re-implement cleanly in Implementation."
+    },
+    "ts": {
+      "type": "string",
+      "description": "ISO-8601 UTC timestamp."
+    }
+  },
+  "allOf": [
+    {
+      "if": { "properties": { "waived": { "const": true } } },
+      "then": {
+        "required": ["waiver_reason", "decided_by"],
+        "properties": {
+          "waiver_reason": { "type": "string", "minLength": 1 },
+          "decided_by": { "const": "user" }
+        }
+      }
+    }
+  ]
+}

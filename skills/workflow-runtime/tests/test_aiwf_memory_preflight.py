@@ -2,10 +2,17 @@ from __future__ import annotations
 
 import hashlib
 import json
+import shutil
+
+import pytest
 
 from workflow_runtime.application.workflow.workflow_entry_gateway import build_context_preflight
 from workflow_runtime.infrastructure.memory.search import RAGSearcher
 from workflow_runtime.presentation.cli.bootstrap import bootstrap_di
+
+# First-query source discovery shells out to ripgrep; without it RAGSearcher
+# only matches files named after a query keyword.
+requires_ripgrep = pytest.mark.skipif(shutil.which("rg") is None, reason="ripgrep (rg) is not installed")
 
 
 def test_context_preflight_persists_bounded_memory_and_rag_receipt(tmp_path, monkeypatch) -> None:
@@ -65,6 +72,7 @@ def test_context_preflight_persists_bounded_memory_and_rag_receipt(tmp_path, mon
     assert persisted["rag_provider"] == "sqlite-fts5"
 
 
+@requires_ripgrep
 def test_local_rag_indexes_current_source_anchors(tmp_path) -> None:
     memory = tmp_path / ".agents" / "memory"
     memory.mkdir(parents=True)
@@ -89,6 +97,7 @@ def test_local_rag_indexes_current_source_anchors(tmp_path) -> None:
     assert any(item["file"] == "src/lane_runtime.py" for item in result["results"])
 
 
+@requires_ripgrep
 def test_local_rag_updates_only_changed_source_file(tmp_path) -> None:
     memory = tmp_path / ".agents" / "memory"
     memory.mkdir(parents=True)

@@ -1,0 +1,35 @@
+{
+  "schema": "aiwf.agent-registry/1",
+  "agents": [
+    {
+      "id": "claude-main",
+      "type": "claude",
+      "enabled": true,
+      "priority": 5,
+      "capabilities": ["requirements", "brainstorming", "plan", "technical", "blueprint", "implement", "debug", "verify", "visual-debug"],
+      "invocation": ["claude", "-p", "${task}", "--output-format", "text"],
+      "verdict_source": "stdout-text",
+      "cost_hint": "med"
+    },
+    {
+      "id": "codex-impl",
+      "type": "codex",
+      "enabled": true,
+      "priority": 10,
+      "capabilities": ["implement", "debug"],
+      "invocation": ["codex", "exec", "--skip-git-repo-check", "${task}"],
+      "verdict_source": "stdout-text",
+      "cost_hint": "med"
+    },
+    {
+      "id": "antigravity-verify",
+      "type": "antigravity",
+      "enabled": true,
+      "priority": 10,
+      "capabilities": ["verify", "visual-debug"],
+      "invocation": ["agy", "--dangerously-skip-permissions", "--mode", "accept-edits", "--print", "${task}"],
+      "verdict_source": "stdout-text",
+      "cost_hint": "low"
+    }
+  ]
+}

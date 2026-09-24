@@ -24,6 +24,10 @@ def mock_base_env(tmp_path, monkeypatch):
     # Redefine REGISTRY_PATH in registry for isolations
     reg_path = state_dir / "executions.json"
     monkeypatch.setattr("execution_manager.REGISTRY_PATH", str(reg_path))
+    # ProcessRegistry resolves the path from its own module, not the re-export.
+    monkeypatch.setattr(
+        "workflow_runtime.application.use_cases.process_registry.REGISTRY_PATH", str(reg_path)
+    )
     monkeypatch.setattr("execution_manager.LOGS_DIR", str(tmp_path / "logs"))
     os.makedirs(str(tmp_path / "logs"), exist_ok=True)
     
@@ -59,6 +63,10 @@ def mock_base_env(tmp_path, monkeypatch):
         json.dump(agents_data, f)
         
     monkeypatch.setenv("AIWF_BASE_DIR", str(tmp_path))
+    # Simulate running inside the Workflow Gateway so validate_request does not
+    # fall back to the real repo's .agents/.session.json.
+    monkeypatch.setenv("AIWF_EXECUTION_MODE", "workflow")
+    monkeypatch.setenv("AIWF_WORKFLOW_ID", "WF-TEST-EXEC-MANAGER")
     yield tmp_path
 
 def test_strict_enforcement_prohibits_direct_run(mock_base_env, monkeypatch):

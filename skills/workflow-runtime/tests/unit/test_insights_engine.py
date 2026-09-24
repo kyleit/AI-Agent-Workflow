@@ -14,17 +14,21 @@ sys.path.append(os.path.abspath(os.path.join(os.path.dirname(__file__), "..", ".
 
 import insights_engine
 import db
+from tests.conftest import redirect_runtime_dbs
 
 class TestInsightsEngine(unittest.TestCase):
     def setUp(self):
         # Redirect DB to a temp location for unit test safety
         self.temp_db_fd, self.temp_db_path = tempfile.mkstemp()
-        db.PROJECT_DB = self.temp_db_path
+        self.temp_global_fd, self.temp_global_path = tempfile.mkstemp()
+        self.addCleanup(redirect_runtime_dbs(self.temp_db_path, self.temp_global_path))
         
     def tearDown(self):
         os.close(self.temp_db_fd)
-        if os.path.exists(self.temp_db_path):
-            os.remove(self.temp_db_path)
+        os.close(self.temp_global_fd)
+        for path in (self.temp_db_path, self.temp_global_path):
+            if os.path.exists(path):
+                os.remove(path)
 
     def test_efficiency_score_calculation(self):
         # Empty requests list

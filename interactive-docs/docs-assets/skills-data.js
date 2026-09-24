@@ -105,7 +105,7 @@ const skillsData = [
     "command": "/devteam",
     "category": "orchestration",
     "checkpoint": "N/A",
-    "purpose": "DevTeam lets several AI sessions work one repository in parallel without context bloat. A **leader** coordinates; each **dev-seat** owns one non-overlapping slice of the repo. Sessions coordinate through append-only file mailboxes and hand a seat off via a living `seat-state` whose key field is **NEXT STEP NOW**, so a fresh session resumes with zero knowledge loss. It is agent-agnostic: Claude Code, Codex CLI, and Antigravity all interoperate on the same plain files.",
+    "purpose": "Split a repo across a leader + N dev-seats, coordinate via file mailboxes, and hand off between AI sessions with zero knowledge loss. Agent-agnostic (Claude Code, Codex CLI, Antigravity). Deterministic Python engine + MCP + thin adapters, with a PROTOCOL.md fallback.",
     "input": "See the skill documentation for required inputs and runtime prerequisites.",
     "output": "Skill-specific artifacts, checks, reports, or runtime state updates.",
     "pitfall": "Follow AI_RULES.md, approval gates, and skill-specific hard rules before modifying files."
@@ -261,11 +261,31 @@ const skillsData = [
     "pitfall": "Follow AI_RULES.md, approval gates, and skill-specific hard rules before modifying files."
   },
   {
+    "name": "loop-controller",
+    "command": "/loop",
+    "category": "runtime",
+    "checkpoint": "N/A",
+    "purpose": "Turn-driven, no-daemon self-correcting loop controller for the AIWF pipeline. Wraps the existing linear handoff with a bounded LOAD -> EXECUTE -> EVALUATE -> DECIDE -> PERSIST cycle, deciding one transition of {ADVANCE, REPEAT, BACKTRACK, HALT} per invocation from gate verdicts, with hard stop-conditions (max iterations, no-progress, gate-pass-final, user-halt, unrecoverable error). Deterministic Python engine (Script-First) plus a PROTOCOL.md hand-execution fallback; agent-agnostic via thin adapters.",
+    "input": "See the skill documentation for required inputs and runtime prerequisites.",
+    "output": "Skill-specific artifacts, checks, reports, or runtime state updates.",
+    "pitfall": "Follow AI_RULES.md, approval gates, and skill-specific hard rules before modifying files."
+  },
+  {
     "name": "msgbus-ws",
     "command": "/msgbus",
     "category": "communication",
     "checkpoint": "N/A",
     "purpose": ">",
+    "input": "See the skill documentation for required inputs and runtime prerequisites.",
+    "output": "Skill-specific artifacts, checks, reports, or runtime state updates.",
+    "pitfall": "Follow AI_RULES.md, approval gates, and skill-specific hard rules before modifying files."
+  },
+  {
+    "name": "multi-agent-loop",
+    "command": "/malo",
+    "category": "runtime",
+    "checkpoint": "N/A",
+    "purpose": "Turn-driven, foreground (no-daemon) orchestrator that drives the loop-controller across heterogeneous agents (Claude, Codex, Antigravity) on one shared workspace until the loop HALTs. Two drive modes - `tick` (agent-driven: the IDE agent is worker AND driver, one CLI call per turn, no spawn - default for IDE) and `run` (autonomous: spawns agents headless per phase, for CI). Assigns phase->agent dynamically by a capability registry, runs continuously through non-approval phases, and HALTs (never auto-approves git/release/deploy) at approval gates.",
     "input": "See the skill documentation for required inputs and runtime prerequisites.",
     "output": "Skill-specific artifacts, checks, reports, or runtime state updates.",
     "pitfall": "Follow AI_RULES.md, approval gates, and skill-specific hard rules before modifying files."

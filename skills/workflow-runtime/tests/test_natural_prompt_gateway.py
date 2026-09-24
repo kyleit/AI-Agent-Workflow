@@ -9,7 +9,8 @@ def test_plain_vietnamese_prompt_routes_into_aiwf_workflow(tmp_path, monkeypatch
     (tmp_path / ".agents" / "state").mkdir(parents=True)
 
     gateway = WorkflowEntryGateway(str(tmp_path))
-    result = gateway.handle_request("sửa toàn bộ lệnh cli cho đúng")
+    # Since 5e95e105 a bare "sửa" (edit) is not a bug signal; "sửa lỗi" is.
+    result = gateway.handle_request("sửa lỗi toàn bộ lệnh cli cho đúng")
 
     assert result["status"] == "ROUTED"
     assert result["intent"] == "bug_fix"

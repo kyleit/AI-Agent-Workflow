@@ -1,0 +1,12 @@
+{
+  "pythonVersion": "3.11",
+  "pythonPlatform": "All",
+  "typeCheckingMode": "strict",
+  "extraPaths": [".", "../../loop-controller/scripts"],
+  "include": ["malo"],
+  "exclude": ["**/__pycache__", "**/tests"],
+  "reportAny": "error",
+  "reportExplicitAny": "error",
+  "reportMissingTypeStubs": "none",
+  "reportUnnecessaryTypeIgnoreComment": "error"
+}

@@ -125,6 +125,20 @@ The `readiness-and-approval-gates` skill enforces deterministic, multi-dimension
 23. `DEPENDENCY_UNKNOWN`
 24. `ROLLBACK_MISSING`
 25. `MIGRATION_UNSAFE`
+26. `SPIKE_UNVERIFIED` *(additive)* — a Blueprint has a `risk=high` register item without a Spike Record `verdict=pass` and without a valid user waiver. Blocks Blueprint Freeze independently of the 95/100 score.
+27. `LOOP_MAX_ITERATIONS` *(additive)* — the loop controller reached `iteration + 1 ≥ max_iterations`; requires user escalation before continuing.
+28. `LOOP_NO_PROGRESS` *(additive)* — the loop controller observed an identical `failure_signature` for `no_progress_threshold` consecutive cycles; requires user escalation.
+
+> [!NOTE]
+> **Spike Gate & Loop stop-conditions (additive, `loop-controller`)**:
+> - `SPIKE_UNVERIFIED` is evaluated against the Blueprint Risk Register and its
+>   Spike Records (`aiwf.spike/1`). A Blueprint is spike-verified only when every
+>   `risk=high` item has a Spike Record `verdict=pass` **or** `waived=true` with a
+>   non-empty `waiver_reason` and `decided_by=user`. When there are no `risk=high`
+>   items, spike verification is inferred satisfied (backward compatible).
+> - `LOOP_MAX_ITERATIONS` and `LOOP_NO_PROGRESS` map to the loop controller HALT
+>   stop-conditions and MUST surface a 2–3 option user escalation. They do not
+>   alter the 95/100 threshold; they gate loop continuation only.
 
 ---
 

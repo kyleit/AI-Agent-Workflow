@@ -249,6 +249,34 @@ def test_static_readiness_pass_rows_are_not_runtime_evidence(tmp_path: Path) -> 
     assert findings == ["preimplementation_runtime_pass_claim:master"]
 
 
+
+def test_rows_inside_a_long_fence_embedding_a_short_one_are_not_runtime_claims(tmp_path: Path) -> None:
+    # A toggle on every ``` line left the four-backtick block at the embedded
+    # fence, so an example row inside it was reported as a runtime PASS claim.
+    service = BlueprintAutoValidationService(tmp_path)
+    fence3, fence4 = "`" * 3, "`" * 4
+    text = "\n".join([
+        f"{fence4}markdown",
+        f"{fence3}json",
+        "| Wails startup runtime | PASS |",
+        fence3,
+        fence4,
+        "| Desktop shell | Wails startup | PASS |",
+    ])
+
+    findings = service._preimplementation_runtime_pass_findings(text, "master")
+
+    assert findings == ["preimplementation_runtime_pass_claim:master"]
+
+
+def test_fence_states_keep_embedded_fences_inside_a_long_fence() -> None:
+    from workflow_runtime.application.workflow.markdown_fences import CODE, FENCE, PROSE, fence_states
+
+    fence3, fence4 = "`" * 3, "`" * 4
+    lines = [f"{fence4}md", f"{fence3}json", "C:/inside.json", fence3, fence4, "see /Users/x/file"]
+
+    assert [state for _line, state in fence_states(lines)] == [FENCE, CODE, CODE, CODE, FENCE, PROSE]
+
 def test_upstream_plan_and_roadmap_scope_cannot_be_silently_dropped(tmp_path: Path) -> None:
     docs = tmp_path / "docs" / "features" / "demo"
     (docs / "blueprints" / "backend" / "storage").mkdir(parents=True)

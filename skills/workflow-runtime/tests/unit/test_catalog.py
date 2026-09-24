@@ -22,12 +22,13 @@ class TestAgentCatalog(unittest.TestCase):
         # Should contain 5 core agents + 35 specialists = 40 agents total (or more)
         self.assertTrue(len(agents) >= 40, f"Expected at least 40 agents, got {len(agents)}")
         
+        # Catalog contract per .agents/agents/agent.schema.json (v6.14.0 schema;
+        # handoff_target/phase became handoff_targets/phase_ownership).
         required_attributes = [
-            "name", "role", "responsibilities", "artifact_ownership", "allowed_reads",
-            "allowed_writes", "forbidden_actions", "input_contract", "output_contract",
-            "handoff_target", "done_criteria", "can_run_in_parallel", "agent_category",
-            "phase", "required_skills", "required_memory", "required_rag_context",
-            "runtime_requirements"
+            "id", "name", "role", "description", "capabilities", "permissions",
+            "write_mode", "allowed_reads", "allowed_writes", "forbidden_actions",
+            "input_contract", "output_contract", "handoff_targets", "done_criteria",
+            "can_run_in_parallel", "agent_category", "phase_ownership", "required_skills",
         ]
         
         for name, meta in agents.items():

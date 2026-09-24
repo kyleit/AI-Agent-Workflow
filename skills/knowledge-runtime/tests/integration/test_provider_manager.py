@@ -5,13 +5,11 @@ import os
 import unittest
 import shutil
 import tempfile
-import sys
 import warnings
 
-# Ensure package directory is in sys.path
-sys.path.insert(0, os.path.abspath(os.path.join(os.path.dirname(__file__), "..", "..", "scripts")))
-
-from knowledge_runtime import provider_manager
+# knowledge_runtime.provider_manager was consolidated into workflow_runtime
+# (c6df50ce) and restored as workflow_runtime.infrastructure.knowledge.provider_manager.
+from workflow_runtime.infrastructure.knowledge import provider_manager
 
 class TestProviderManager(unittest.TestCase):
     def setUp(self):
@@ -92,7 +90,7 @@ class TestProviderManager(unittest.TestCase):
             json.dump(proj_cfg, f)
             
         # Resolve config
-        resolved = provider_manager.resolve_provider_config("obsidian", project_root=self.project_dir)
+        resolved = provider_manager.resolve_all_providers(workspace_root=self.project_dir)["providers"]["obsidian"]
         self.assertEqual(resolved["mode"], "file-sync") # overridden
         self.assertEqual(resolved["api_key"], "global-secret") # inherited
         self.assertEqual(resolved["host"], "127.0.0.1") # inherited
@@ -122,6 +120,35 @@ class TestProviderManager(unittest.TestCase):
         self.assertEqual(masked["api_key"], "********")
         self.assertEqual(masked["host"], "127.0.0.1")
         self.assertEqual(masked["nested"]["token"], "********")
+
+    def test_secret_masking_strict_coverage(self):
+        # One implementation serves the CLI and provider_manager: it must keep the
+        # CLI's "credential" marker and mask whole non-string values under secret keys.
+        cfg = {
+            "client_credential": "cred-value",
+            "credentials": {"user": "alice", "pass": "hunter2"},
+            "api_keys": ["k1", "k2"],
+            "auth_token": 123456,
+            "password": "",
+            "refresh_token": None,
+            "host": "127.0.0.1",
+            "servers": [{"name": "a", "secret": "s1"}, [{"access_key": "k3"}]],
+        }
+        masked = provider_manager.mask_secrets(cfg)
+        self.assertEqual(masked["client_credential"], "********")
+        self.assertEqual(masked["credentials"], "********")
+        self.assertEqual(masked["api_keys"], "********")
+        self.assertEqual(masked["auth_token"], "********")
+        self.assertEqual(masked["password"], "")
+        self.assertIsNone(masked["refresh_token"])
+        self.assertEqual(masked["host"], "127.0.0.1")
+        self.assertEqual(masked["servers"][0], {"name": "a", "secret": "********"})
+        self.assertEqual(masked["servers"][1], [{"access_key": "********"}])
+        self.assertEqual(provider_manager.mask_secrets([{"token": "t"}]), [{"token": "********"}])
+        for leaked in ("cred-value", "hunter2", "k1", "123456", "s1", "k3"):
+            self.assertNotIn(leaked, repr(masked))
+        # The input is not mutated.
+        self.assertEqual(cfg["credentials"]["pass"], "hunter2")
 
     def test_enable_disable_provider(self):
         provider_manager.enable_provider("obsidian")

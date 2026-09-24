@@ -40,3 +40,12 @@ class RestClient:
 
     def list_files(self) -> list:
         return json.loads(self._request("GET", "/list"))
+
+    def task_update(self, task_id: str, status: str, output: str = "") -> dict:
+        payload = json.dumps({"status": status, "output": output}).encode("utf-8")
+        return json.loads(self._request(
+            "POST",
+            f"/api/tasks/{quote(task_id, safe='')}/status",
+            data=payload,
+            headers={"Content-Type": "application/json"},
+        ))

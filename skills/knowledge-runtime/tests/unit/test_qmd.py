@@ -5,14 +5,29 @@ pytestmark = pytest.mark.unit
 import unittest
 import sys
 import os
+import tempfile
+from unittest import mock
 
 # Add workflow-runtime/scripts and knowledge-runtime/scripts paths dynamically
 sys.path.insert(0, os.path.abspath(os.path.join(os.path.dirname(__file__), "..", "..", "workflow-runtime", "scripts")))
 sys.path.insert(0, os.path.abspath(os.path.join(os.path.dirname(__file__), "..", "..", "scripts")))
 
 import db
+from workflow_runtime.infrastructure.persistence import metadata_insight_records
 
 class TestQmdDatabase(unittest.TestCase):
+    def setUp(self):
+        # Keep QMD writes out of the repo's project DB and the user's global DB.
+        self._tmp = tempfile.TemporaryDirectory()
+        self.addCleanup(self._tmp.cleanup)
+        for name, value in (
+            ("PROJECT_DB", os.path.join(self._tmp.name, "project.db")),
+            ("get_global_db_path", lambda: os.path.join(self._tmp.name, "global.db")),
+        ):
+            patcher = mock.patch.object(metadata_insight_records, name, value)
+            patcher.start()
+            self.addCleanup(patcher.stop)
+
     def test_save_and_get_qmd_metadata(self):
         # Clear existing
         db.clear_qmd_metadata(project_id="test_proj")

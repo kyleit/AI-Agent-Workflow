@@ -9,7 +9,7 @@ sys.path.append(os.path.abspath(os.path.join(os.path.dirname(__file__), "..", "s
 from workflow_runtime import do_orchestrator
 
 class TestLegacyOrchestratorAlias(unittest.TestCase):
-    @patch("workflow_runtime.do_workflow")
+    @patch("workflow_runtime.presentation.cli.commands._impl.workflow.orchestrator.do_workflow")
     def test_legacy_run_redirection(self, mock_do_workflow):
         args = argparse.Namespace()
         args.subaction = "run"

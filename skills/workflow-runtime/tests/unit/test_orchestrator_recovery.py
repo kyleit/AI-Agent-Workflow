@@ -46,12 +46,13 @@ def test_do_orchestrator_retry(tmp_path, monkeypatch):
         
     monkeypatch.chdir(tmp_path)
     
-    args = ArgsMock("retry", task_id="TASK-1")
+    # aae78025 renamed task actions: retry -> retry_task, which re-queues as "pending".
+    args = ArgsMock("retry_task", task_id="TASK-1")
     do_orchestrator(args)
     
     with open(tg_file, "r") as f:
         tg = json.load(f)
-    assert tg["tasks"]["TASK-1"]["status"] == "ready"
+    assert tg["tasks"]["TASK-1"]["status"] == "pending"
 
 def test_do_orchestrator_cancel(tmp_path, monkeypatch):
     state_dir = tmp_path / ".agents" / "state" / "orchestrator"
@@ -67,7 +68,8 @@ def test_do_orchestrator_cancel(tmp_path, monkeypatch):
         
     monkeypatch.chdir(tmp_path)
     
-    args = ArgsMock("cancel", task_id="TASK-1")
+    # aae78025: task-level cancel is cancel_task; plain "cancel" now cancels the whole run.
+    args = ArgsMock("cancel_task", task_id="TASK-1")
     do_orchestrator(args)
     
     with open(tg_file, "r") as f:
@@ -105,7 +107,8 @@ def test_do_orchestrator_restore_checkpoint(tmp_path, monkeypatch):
     with open(obj_file, "w") as f:
         json.dump({"status": "failed"}, f)
         
-    cp_file = cp_dir / "checkpoint_CP-001.json"
+    # aae78025: restore_checkpoint -> restore, reading checkpoints/<id>.json as written by "checkpoint".
+    cp_file = cp_dir / "CP-001.json"
     with open(cp_file, "w") as f:
         json.dump({
             "checkpoint_id": "CP-001",
@@ -118,7 +121,7 @@ def test_do_orchestrator_restore_checkpoint(tmp_path, monkeypatch):
         
     monkeypatch.chdir(tmp_path)
     
-    args = ArgsMock("restore_checkpoint", task_id="CP-001")
+    args = ArgsMock("restore", task_id="CP-001")
     do_orchestrator(args)
     
     with open(obj_file, "r") as f:

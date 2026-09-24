@@ -96,6 +96,46 @@
       "execution_mode": "sequential"
     },
     {
+      "name": "loop-controller",
+      "command": "loop",
+      "aliases": [
+        "loop-engine",
+        "self-correcting-loop"
+      ],
+      "category": "runtime",
+      "tags": [
+        "loop",
+        "controller",
+        "runtime",
+        "self-correcting",
+        "deterministic"
+      ],
+      "owner_agent": "planner",
+      "specialist_agents": [],
+      "phase": "runtime",
+      "execution_mode": "sequential"
+    },
+    {
+      "name": "multi-agent-loop",
+      "command": "malo",
+      "aliases": [
+        "orchestrate",
+        "agent-loop"
+      ],
+      "category": "runtime",
+      "tags": [
+        "orchestration",
+        "multi-agent",
+        "loop",
+        "headless",
+        "runtime"
+      ],
+      "owner_agent": "planner",
+      "specialist_agents": [],
+      "phase": "runtime",
+      "execution_mode": "sequential"
+    },
+    {
       "name": "workflow-activation-governance",
       "command": "activation-govern",
       "aliases": [
@@ -1025,7 +1065,6 @@
       ],
       "owner_agent": "planner",
       "specialist_agents": [
-        "planner",
         "architect",
         "coder",
         "auditor",
@@ -1054,7 +1093,6 @@
       ],
       "owner_agent": "frontend-developer",
       "specialist_agents": [
-        "frontend-developer",
         "qa-reviewer"
       ],
       "phase": "implementation",
@@ -1122,7 +1160,7 @@
       "owner_agent": "reviewer",
       "specialist_agents": [
         "compliance-auditor",
-        "governance-architect"
+        "auditor"
       ],
       "phase": "governance",
       "execution_mode": "sequential"

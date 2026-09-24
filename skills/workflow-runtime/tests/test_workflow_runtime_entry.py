@@ -34,7 +34,13 @@ class WorkflowRuntimeEntryTests(RuntimeTestBase):
         self.patch_logger = patch("state_path.get_events_path", return_value=os.path.join(self.workspace, ".agents", "state", "events", "events.jsonl"))
         self.patch_logger.start()
 
+        # `workflow submit` routes through WorkflowEntryGateway("."), so run
+        # inside the isolated workspace instead of the real repository.
+        self._orig_cwd = os.getcwd()
+        os.chdir(self.workspace)
+
     def tearDown(self):
+        os.chdir(self._orig_cwd)
         self.patch_logger.stop()
         super().tearDown()
 
@@ -43,17 +49,8 @@ class WorkflowRuntimeEntryTests(RuntimeTestBase):
         args = argparse.Namespace()
         args.subaction = "submit"
         args.prompt = "Create a new visual editor interface"
-        
-        # Override state directory to our test workspace safely
-        original_join = os.path.join
-        def mock_join(*parts):
-            if len(parts) > 0 and parts[0] == ".agents":
-                return original_join(self.workspace, *parts)
-            return original_join(*parts)
-            
-        with patch("workflow_runtime.os.path.join", side_effect=mock_join):
-            with patch("workflow_runtime.os.path.exists", return_value=False):
-                do_workflow(args)
+
+        do_workflow(args)
                 
         # Check that state files were created
         wf_path = os.path.join(self.workspace, ".agents", "state", "workflow.json")
@@ -67,22 +64,15 @@ class WorkflowRuntimeEntryTests(RuntimeTestBase):
         with open(wf_path, "r") as f:
             wf = json.load(f)
         self.assertEqual(wf["active_phase"], "brainstorming")
-        self.assertEqual(wf["work_item"]["id"], "FEAT-312") # Default fallback since no brainstorm files exist
+        # The gateway allocates the next free FEAT id; an empty workspace starts at 001.
+        self.assertEqual(wf["work_item"]["id"], "FEAT-001")
         
     def test_workflow_submit_bug_fix(self):
         args = argparse.Namespace()
         args.subaction = "submit"
         args.prompt = "Fix authorization loop bug"
-        
-        original_join = os.path.join
-        def mock_join(*parts):
-            if len(parts) > 0 and parts[0] == ".agents":
-                return original_join(self.workspace, *parts)
-            return original_join(*parts)
-            
-        with patch("workflow_runtime.os.path.join", side_effect=mock_join):
-            with patch("workflow_runtime.os.path.exists", return_value=False):
-                do_workflow(args)
+
+        do_workflow(args)
                 
         ctx_path = os.path.join(self.workspace, ".agents", "state", "context.json")
         self.assertTrue(os.path.exists(ctx_path))
@@ -100,7 +90,8 @@ class WorkflowRuntimeEntryTests(RuntimeTestBase):
         args.work_item_opt = None
         args.work_item = None
         
-        with patch("workflow_runtime.do_workflow") as mock_do_workflow:
+        # do_orchestrator resolves do_workflow from its own module, not the package facade.
+        with patch("workflow_runtime.presentation.cli.commands._impl.workflow.orchestrator.do_workflow") as mock_do_workflow:
             do_orchestrator(args)
             mock_do_workflow.assert_called_once()
             mock_args = mock_do_workflow.call_args[0][0]

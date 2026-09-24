@@ -2,14 +2,21 @@ from __future__ import annotations
 
 import os
 import re
+import time
 from dataclasses import dataclass, field
 from pathlib import Path
+
+from workflow_runtime.application.workflow.runtime_link import linked_install_root
 
 
 @dataclass(frozen=True)
 class BlueprintAuthoringPolicyResult:
     passed: bool
     blocking_findings: list[str] = field(default_factory=list[str])
+    # "We could not audit" is not "we detected a violation". Reporting an
+    # undetectable baseline as a blocking finding would make every fresh or
+    # isolated workspace unapprovable, which is worse than the defect it guards.
+    diagnostics: list[str] = field(default_factory=list[str])
 
 
 class BlueprintAuthoringPolicyValidator:
@@ -58,9 +65,12 @@ class BlueprintAuthoringPolicyValidator:
     ) -> BlueprintAuthoringPolicyResult:
         root = workspace_root.resolve()
         target = blueprint_path.resolve() if blueprint_path is not None else root
-        baseline = self._framework_baseline(root)
+        baseline, baseline_reason = self._framework_baseline(root)
         roots = brain_roots if brain_roots is not None else self._default_brain_roots()
         findings: list[str] = []
+        diagnostics: list[str] = []
+        if baseline_reason:
+            diagnostics.append(f"authoring_audit_baseline_unavailable:{baseline_reason}")
 
         for brain_root in roots:
             candidate_root = Path(brain_root).expanduser()
@@ -94,20 +104,54 @@ class BlueprintAuthoringPolicyValidator:
                     continue
                 findings.extend(transcript_findings)
 
-        return BlueprintAuthoringPolicyResult(not findings, list(dict.fromkeys(findings)))
-
-    def _framework_baseline(self, root: Path) -> float:
-        candidates = (
-            root / ".agents" / "skills" / "aiwf" / "SKILL.md",
-            root / ".agents" / "skills" / "plan-to-blueprint" / "SKILL.md",
+        return BlueprintAuthoringPolicyResult(
+            not findings, list(dict.fromkeys(findings)), list(dict.fromkeys(diagnostics))
         )
-        mtimes = []
-        for path in candidates:
+
+    def _linked_install_root(self, root: Path) -> Path | None:
+        """Resolve the global install root when this project is linked, not copied."""
+        return linked_install_root(root)
+
+    def _framework_baseline(self, root: Path) -> tuple[float, str]:
+        """Return the audit baseline and, when it had to be guessed, why.
+
+        A zero baseline means "every record in every session is newer than the
+        framework", which flags all history. That is never the right answer, so it
+        is never returned. In linked-install mode the project holds no copy of the
+        candidate files, so the linked install is consulted next, then the work-item
+        registry. If nothing can be derived, the current time is used, which flags
+        nothing, and the caller reports that it could not establish a baseline.
+        """
+        relative_candidates = (
+            Path(".agents") / "skills" / "aiwf" / "SKILL.md",
+            Path(".agents") / "skills" / "plan-to-blueprint" / "SKILL.md",
+        )
+        mtimes: list[float] = []
+        for relative in relative_candidates:
             try:
-                mtimes.append(path.stat().st_mtime)
+                mtimes.append((root / relative).stat().st_mtime)
             except OSError:
                 pass
-        return max(mtimes, default=0.0)
+        if mtimes:
+            return max(mtimes), ""
+
+        linked = self._linked_install_root(root)
+        if linked is not None:
+            for relative in ("skills/aiwf/SKILL.md", "skills/plan-to-blueprint/SKILL.md"):
+                try:
+                    mtimes.append((linked / relative).stat().st_mtime)
+                except OSError:
+                    pass
+            if mtimes:
+                return max(mtimes), ""
+
+        try:
+            registry = root / ".agents" / "state" / "active-work-items.json"
+            return registry.stat().st_mtime, ""
+        except OSError:
+            pass
+
+        return time.time(), "no framework baseline, linked install, or work-item registry found"
 
     @staticmethod
     def _default_brain_roots() -> list[Path]:
@@ -180,7 +224,7 @@ class BlueprintAuthoringPolicyValidator:
 
         for line in lines:
             lowered = line.replace("\\", "/").lower()
-            if not self._targets_workspace(line, root, target):
+            if not self._targets_artifact(line, root, target):
                 continue
             if not self._INLINE_SCRIPT.search(line):
                 continue
@@ -196,6 +240,13 @@ class BlueprintAuthoringPolicyValidator:
 
     @staticmethod
     def _targets_workspace(content: str, root: Path, target: Path) -> bool:
+        """Broad predicate, used for this Agent's own scratch scripts.
+
+        A scratch script that writes anywhere into the workspace during Blueprint
+        authoring is suspicious on its own, so breadth is deliberate here. It is
+        kept unchanged; see `_targets_artifact` for why foreign transcripts need a
+        stricter rule.
+        """
         lowered = re.sub(r"/+", "/", content.replace("\\", "/").lower())
         root_forms = {
             re.sub(r"/+", "/", str(root).replace("\\", "/").lower()).rstrip("/"),
@@ -209,6 +260,35 @@ class BlueprintAuthoringPolicyValidator:
         # transcript can poison isolated fixture projects.
         current_workspace = Path.cwd().resolve() == root
         return current_workspace and "docs/features" in lowered and "blueprint" in lowered
+
+    @staticmethod
+    def _targets_artifact(content: str, root: Path, target: Path) -> bool:
+        """Strict predicate, used for another tool's session transcripts.
+
+        A foreign transcript is not this Agent's scratch space. Accepting any
+        mention of the workspace root — or, worse, any line containing both
+        `docs/features` and `blueprint` — meant every past session that had ever
+        worked in this repository was held against every future Blueprint, forever.
+        The accusation is that a script authored *this document*, so the evidence
+        must name *this document*.
+
+        Known limitation, accepted deliberately: a command that changes directory
+        first and then names only a bare unrecognizable path would be missed.
+        Blueprint filenames here are long and work-item prefixed, so the file name
+        is included as a match form to keep that gap narrow.
+        """
+        if target == root or target.is_dir():
+            return False
+        lowered = re.sub(r"/+", "/", content.replace("\\", "/").lower())
+        forms = {
+            re.sub(r"/+", "/", str(target).replace("\\", "/").lower()),
+            target.name.lower(),
+        }
+        try:
+            forms.add(target.relative_to(root).as_posix().lower())
+        except ValueError:
+            pass
+        return any(form and form in lowered for form in forms)
 
     @staticmethod
     def _safe_relative(path: Path, root: Path) -> Path:

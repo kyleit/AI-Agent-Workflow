@@ -53,7 +53,7 @@ allowed_reads:
   - "Project Memory (.agents/memory/)"
   - "Full source tree (read-only)"
 allowed_writes:
-  - "Frontend source files listed in Blueprint only"
+  - "frontend source files listed in Blueprint only"
   - ".agents/runtime/tests.log"
   - "docs/reports/assets/<work-item-id>/"
 forbidden_actions:

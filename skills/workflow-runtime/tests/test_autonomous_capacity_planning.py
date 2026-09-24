@@ -11,6 +11,11 @@ sys.path.append(os.path.abspath(os.path.join(os.path.dirname(__file__), "../scri
 from capacity_controller import CapacityController
 from adaptive_scheduler import AdaptiveTeamPlanner, RuntimeScheduler, SchedulerMetrics
 from confidence_gate import ConfidenceGate
+from workflow_runtime.presentation.cli.bootstrap import bootstrap_di
+
+# Infrastructure classes reach the scheduler through InfrastructureLocator, which
+# only the composition root wires.
+bootstrap_di()
 
 @pytest.fixture
 def mock_workspace(tmp_path):

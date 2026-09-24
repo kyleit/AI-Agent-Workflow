@@ -13,7 +13,7 @@ class InfrastructureLocator:
     get_project_db_path: Callable[[], str] = lambda: ""
     connect_db: Callable[[str], Any] = lambda p: None
     init_db_schema: Callable[[], None] = lambda: None
-    get_workflow_summary: Callable[[], dict[str, Any]] = lambda: {}
+    get_workflow_summary: Callable[..., dict[str, Any]] = lambda *args, **kwargs: {}
 
     is_process_alive: Callable[[int], bool] = lambda p: False
 
@@ -34,12 +34,14 @@ class InfrastructureLocator:
     ProjectAnalyzer: Any = None
     RAGSearcher: Any = None
     RuntimeAPIServer: Any = None
+    # JSON-RPC codes emitted by infrastructure/network/websocket_server.ERROR_CODES;
+    # RuntimeSDKv3 maps server errors back to typed exceptions with these.
     ERROR_CODES: dict[str, int] = {
-        "SESSION_NOT_FOUND": 404,
-        "PERMISSION_DENIED": 403,
-        "INVALID_STATE_TRANSITION": 400,
-        "TASK_CANCELLED": 409,
-        "TOOL_EXECUTION_FAILED": 500,
+        "SESSION_NOT_FOUND": -32001,
+        "PERMISSION_DENIED": -32002,
+        "INVALID_STATE_TRANSITION": -32003,
+        "TASK_CANCELLED": -32004,
+        "TOOL_EXECUTION_FAILED": -32005,
     }
 
 

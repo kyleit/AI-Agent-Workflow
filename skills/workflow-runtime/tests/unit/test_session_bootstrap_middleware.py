@@ -68,7 +68,7 @@ def test_failed_initialization_on_write_error(temp_ws):
     os.chmod(agents_dir, 0o700)
 
 def test_cli_session_commands(temp_ws):
-    from workflow_runtime import main
+    from workflow_runtime.__main__ import main
     import sys
     from unittest.mock import patch
     from io import StringIO

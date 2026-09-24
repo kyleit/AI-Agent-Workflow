@@ -1,0 +1,49 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "aiwf.loop.ledger/1",
+  "title": "AIWF Loop Ledger Entry",
+  "description": "One append-only JSONL line per controller cycle at .agents/state/loop/<workflow-id>.ledger.jsonl.",
+  "type": "object",
+  "additionalProperties": false,
+  "required": ["iter", "phase", "action", "verdict", "next"],
+  "properties": {
+    "iter": {
+      "type": "integer",
+      "minimum": 0,
+      "description": "Resulting iteration after this cycle."
+    },
+    "phase": {
+      "type": "string",
+      "minLength": 1,
+      "description": "The phase that was executed/evaluated this cycle."
+    },
+    "action": {
+      "type": "string",
+      "enum": ["ADVANCE", "REPEAT", "BACKTRACK", "HALT"],
+      "description": "The transition taken."
+    },
+    "gate": {
+      "type": ["string", "null"],
+      "description": "Gate that produced the verdict (e.g. BLUEPRINT_READINESS, SPIKE_GATE)."
+    },
+    "verdict": {
+      "type": "string",
+      "enum": ["PASS", "BLOCK", "FAIL", "ERROR"]
+    },
+    "evidence_refs": {
+      "type": "array",
+      "items": { "type": "string" },
+      "default": [],
+      "description": "Repository-relative evidence paths (no absolute paths)."
+    },
+    "next": {
+      "type": "string",
+      "minLength": 1,
+      "description": "The resulting phase after the transition."
+    },
+    "ts": {
+      "type": ["string", "null"],
+      "description": "ISO-8601 UTC timestamp stamped at persist time."
+    }
+  }
+}

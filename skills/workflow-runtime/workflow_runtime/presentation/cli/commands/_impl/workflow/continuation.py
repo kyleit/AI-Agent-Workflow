@@ -15,6 +15,46 @@ def _read_object(path: Path) -> dict[str, Any] | None:
     return value if isinstance(value, dict) else None
 
 
+def _read_loop_state(root: Path) -> dict[str, Any] | None:
+    """Load the most recent loop-controller state (schema aiwf.loop/1), if any.
+
+    Additive continuation authority: a workflow driven only by the
+    loop-controller (see skills/loop-controller) persists its state under
+    .agents/state/loop/<workflow-id>.json with no workflow.json/runtime.json.
+    """
+    loop_dir = root / ".agents" / "state" / "loop"
+    if not loop_dir.is_dir():
+        return None
+    candidates = sorted(
+        (p for p in loop_dir.glob("*.json") if p.is_file()),
+        key=lambda p: p.stat().st_mtime,
+        reverse=True,
+    )
+    for path in candidates:
+        obj = _read_object(path)
+        if obj is not None and obj.get("schema") == "aiwf.loop/1":
+            return obj
+    return None
+
+
+def _loop_as_continuation(loop: dict[str, Any]) -> dict[str, Any]:
+    """Map a loop-state document onto the continuation state contract."""
+    mapped: dict[str, Any] = {
+        "active_workflow": loop.get("workflow_id"),
+        "active_phase": loop.get("current_phase"),
+    }
+    stops = loop.get("stop_conditions_met")
+    if isinstance(stops, list) and stops:
+        # A halted loop must not silently auto-continue; surface the stop so
+        # continue_workflow blocks and (for NO_PROGRESS/MAX_ITERATIONS) escalates.
+        mapped["waiting_for"] = f"LOOP_HALTED:{stops[0]}"
+    else:
+        # Hand a live loop back to the coordinator to re-dispatch by transition.
+        mapped["suggested_next_skill"] = "workflow-coordinator"
+        mapped["suggested_next_command"] = "tick"
+    return mapped
+
+
 def _load_continuation_state(root: Path) -> tuple[dict[str, Any], str]:
     workflow = _read_object(root / ".agents" / "state" / "workflow.json")
     if workflow is not None:
@@ -29,7 +69,14 @@ def _load_continuation_state(root: Path) -> tuple[dict[str, Any], str]:
         return runtime, "runtime"
 
     legacy = _read_object(root / ".agents" / ".session.json")
-    return legacy or {}, "legacy"
+    if legacy is not None:
+        return legacy, "legacy"
+
+    loop = _read_loop_state(root)
+    if loop is not None:
+        return _loop_as_continuation(loop), "loop"
+
+    return {}, "legacy"
 
 
 def continue_workflow(root: Path, budget: int = 32) -> CommandResult:

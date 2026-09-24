@@ -14,6 +14,13 @@ SCRIPT_DIR = Path(__file__).resolve().parent
 sys.path.insert(0, str(SCRIPT_DIR))
 
 from aggregate_gate_results import aggregate  # noqa: E402
+from block_contract import (  # noqa: E402
+    REGION_SCOPE,
+    anchor_present,
+    content_hash,
+    is_region_modify,
+    normalized_source,
+)
 from discover_code_blocks import discover  # noqa: E402
 from materialize_validation_scope import materialize  # noqa: E402
 from resolve_language_profile import load_registry, resolve  # noqa: E402
@@ -54,31 +61,136 @@ def sha256_file(path: Path) -> str:
     return hashlib.sha256(path.read_bytes()).hexdigest()
 
 
+_MASTER_REFERENCE = re.compile(r"^master_blueprint:\s*(.+?)\s*$", re.MULTILINE)
+
+
+def _declared_master(path: Path) -> Path | None:
+    """Return the master a document names in its front matter, if it names one."""
+    try:
+        text = path.read_text(encoding="utf-8")
+    except (OSError, UnicodeError):
+        return None
+    if not text.startswith("---"):
+        return None
+    parts = text.split("---", 2)
+    if len(parts) < 3:
+        return None
+    match = _MASTER_REFERENCE.search(parts[1])
+    if match is None:
+        return None
+    reference = match.group(1).strip().strip("`\"'")
+    return (path.parent / reference).resolve() if reference else None
+
+
 def discover_phase_paths(blueprint_abs: Path) -> list[Path]:
-    """Discover all Markdown phase artifacts below the master blueprint."""
-    return sorted(
-        path.resolve()
-        for path in blueprint_abs.parent.rglob("*.md")
-        if path.resolve() != blueprint_abs
-    )
+    """Discover this master's own phase artifacts, and nothing else.
+
+    Every Markdown file below the master's directory used to become a phase, so a
+    family keeping several masters flat in one blueprints directory had every one
+    of them validated as a phase of whichever master was gated. A document is now
+    a phase only by structure: it declares this master in its front matter, or it
+    sits in a subdirectory below the master's scope and declares no other master.
+    A flat sibling is another master or an index, never a phase.
+    """
+    master = blueprint_abs.resolve()
+    in_master_folder = master.parent.name.lower() == "master"
+    scope = master.parent.parent if in_master_folder else master.parent
+    phases: list[Path] = []
+    for candidate in scope.rglob("*.md"):
+        path = candidate.resolve()
+        if path == master:
+            continue
+        declared = _declared_master(path)
+        if declared is not None:
+            if declared == master:
+                phases.append(path)
+            continue
+        try:
+            relative = path.relative_to(scope)
+        except ValueError:
+            continue
+        if len(relative.parts) < 2:
+            continue
+        if relative.parts[0].lower() == "master":
+            continue
+        phases.append(path)
+    return sorted(phases)
+
+
+def _relative_target(root: Path, block: dict, label: str, findings: list[str]) -> Path | None:
+    """Resolve a block target inside the workspace, or record why it cannot be."""
+    block_id = str(block.get("id", ""))
+    relative = str(block.get("file", "")).replace("\\", "/").strip()
+    if not relative or re.match(r"^(?:[A-Za-z]:|/|\\\\)", relative):
+        findings.append(f"{label}_absolute_or_empty_target:{block_id}:{relative}")
+        return None
+    target = (root / Path(relative)).resolve()
+    try:
+        target.relative_to(root.resolve())
+    except ValueError:
+        findings.append(f"{label}_target_outside_root:{block_id}:{relative}")
+        return None
+    return target
+
+
+def validate_region_modify_alignment(root: Path, block: dict, findings: list[str]) -> None:
+    """Prove an anchored-region modification was written against the real file.
+
+    A region does not restate the whole file, so byte equality cannot be used.
+    ADR-202 replaces it with two checks a memory-written block cannot satisfy: the
+    declared pre-edit hash must equal the target's current normalized content, and
+    the declared anchor must already exist in that content.
+    """
+    block_id = str(block.get("id", ""))
+    target = _relative_target(root, block, "anchored_region", findings)
+    if target is None:
+        return
+    relative = str(block.get("file", "")).replace("\\", "/").strip()
+    if not target.is_file():
+        findings.append(f"anchored_region_target_missing:{block_id}:{relative}")
+        return
+    declared = str(block.get("base_sha256", "")).strip().lower()
+    if not declared:
+        findings.append(f"anchored_region_base_sha256_missing:{block_id}:{relative}")
+        return
+    try:
+        actual = normalized_source(target)
+    except (OSError, UnicodeError) as exc:
+        findings.append(f"anchored_region_read_failed:{block_id}:{type(exc).__name__}")
+        return
+    if content_hash(actual) != declared:
+        findings.append(f"anchored_region_base_sha256_mismatch:{block_id}:{relative}")
+        return
+    anchor = str(block.get("anchor_symbol") or block.get("symbol", "")).strip()
+    if not anchor:
+        findings.append(f"anchored_region_anchor_missing:{block_id}:{relative}")
+        return
+    if not anchor_present(actual, anchor):
+        findings.append(f"anchored_region_anchor_not_found:{block_id}:{anchor}")
 
 
 def validate_real_file_alignment(root: Path, blocks: list[dict]) -> list[str]:
-    """Compare declared full-file blocks with already materialized workspace files."""
+    """Compare declared blocks with already materialized workspace files.
+
+    A full-file block must restate the file exactly. A region modification block
+    cannot, so it is proved a different way; see validate_region_modify_alignment.
+    """
     findings: list[str] = []
     for block in blocks:
-        if not block.get("implementation_ready") or not block.get("full_file"):
+        if not block.get("implementation_ready"):
+            continue
+        if is_region_modify(block):
+            validate_region_modify_alignment(root, block, findings)
+            continue
+        if str(block.get("block_scope", "")).strip().lower() == REGION_SCOPE:
+            findings.append(f"anchored_region_requires_modify_operation:{block.get('id', '')}")
+            continue
+        if not block.get("full_file"):
+            continue
+        target = _relative_target(root, block, "code_block", findings)
+        if target is None:
             continue
         relative = str(block.get("file", "")).replace("\\", "/").strip()
-        if not relative or re.match(r"^(?:[A-Za-z]:|/|\\\\)", relative):
-            findings.append(f"code_block_absolute_or_empty_target:{block.get('id', '')}:{relative}")
-            continue
-        target = (root / Path(relative)).resolve()
-        try:
-            target.relative_to(root.resolve())
-        except ValueError:
-            findings.append(f"code_block_target_outside_root:{block.get('id', '')}:{relative}")
-            continue
         if not target.is_file() or target.suffix.lower() in _BINARY_ASSET_SUFFIXES:
             continue
         try:
@@ -229,6 +341,10 @@ def validate_blueprint_location(root: Path, blueprint: Path) -> list[str]:
     except ValueError:
         return ["blueprint_outside_root"]
     if re.match(r"^docs/features/[^/]+/blueprints/[^/]+\.md$", relative, re.IGNORECASE):
+        return []
+    # AI_RULES.md Rule 2 declares the multi-phase master folder canonical, so the
+    # location check must accept it rather than force every master to stay flat.
+    if re.match(r"^docs/features/[^/]+/blueprints/master/[^/]+\.md$", relative, re.IGNORECASE):
         return []
     if re.match(r"^docs/blueprints/[^/]+\.md$", relative, re.IGNORECASE):
         return []

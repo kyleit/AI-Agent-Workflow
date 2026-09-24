@@ -45,6 +45,7 @@ qdrant_storage
 
 # Local desktop build output
 desktop/bin/
+desktop/dist/
 
 # Telegram Bot Credentials
 .agents/config/.env.telegram-notify

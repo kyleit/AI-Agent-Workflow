@@ -120,6 +120,10 @@ class RuntimeSDKv3:
         )
         return cast(dict[str, Any], res) if isinstance(res, dict) else {}
 
+    async def get_session_events(self, session_id: str) -> list[dict[str, Any]]:
+        res = await self._send_request("stream_session_events", {"session_id": session_id})
+        return cast(list[dict[str, Any]], res) if isinstance(res, list) else []
+
 
 __all__ = [
     "SDKError",

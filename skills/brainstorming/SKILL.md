@@ -159,6 +159,25 @@ Preserves approved requirement semantics while creating a technical decision fra
 - Evaluates risks across categories: `SCOPE`, `SECURITY`, `PRIVACY`, `DATA`, `COMPATIBILITY`, `PERFORMANCE`, `RELIABILITY`, `OPERATIONS`, `MIGRATION`, `CONCURRENCY`, `DEPENDENCY`, `DELIVERY`, `MAINTAINABILITY`, `USER_EXPERIENCE`.
 - Recommends the optimal solution supported by empirical evidence and key trade-offs. Retains rejected options in history with clear rejection reasons.
 
+### 6.1 Risk Register Seeding (additive — feeds the Spike Gate)
+
+> [!NOTE]
+> **Additive-only**: this seeds the Risk Register consumed downstream by
+> `plan-to-blueprint` §8.1 (Spike Gate). No existing risk category, driver,
+> state, or handoff is renamed or removed.
+
+- Every recommendation-critical **assumption or decision** MUST be tagged with a
+  `risk ∈ {low, med, high}` and carried in a **Risk Register** entry
+  (`assumption`, `risk`, evidence status).
+- Any `risk=high` assumption MUST be flagged `spike_required: true`. It is later
+  proven by a Spike Record (`aiwf.spike/1`) or explicitly user-waived before
+  Blueprint Freeze; a `high` item with an unproven, un-waived assumption is a
+  downstream `SPIKE_UNVERIFIED` blocker, not a brainstorming blocker.
+- **Loop linkage**: `brainstorming` is the canonical `backtrack_target` for a
+  failed Spike — when `plan-to-blueprint` reports a Spike `verdict=fail`, the
+  `loop-controller` returns `BACKTRACK` here to re-derive the approach with the
+  new empirical evidence attached.
+
 ---
 
 ## 7. Open Decisions & Architecture Questions

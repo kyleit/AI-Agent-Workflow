@@ -6,6 +6,9 @@ import pytest
 sys.path.insert(0, os.path.join(os.path.dirname(__file__), "..", "..", "scripts"))
 
 from autonomous_orchestrator import create_authorization, run_autonomous_delivery
+# autonomous_orchestrator is now a re-export facade; the path constants live in
+# the modules that use them.
+from workflow_runtime.application.use_cases import orchestrator_core, orchestrator_delivery
 
 def test_create_authorization(tmp_path, monkeypatch):
     monkeypatch.chdir(tmp_path)
@@ -15,9 +18,9 @@ def test_create_authorization(tmp_path, monkeypatch):
     os.makedirs(art_dir, exist_ok=True)
     
     # Patch target directory paths inside autonomous_orchestrator
-    monkeypatch.setattr("autonomous_orchestrator.AUTH_PATH", str(tmp_path / ".agents" / "state" / "authorization.json"))
-    monkeypatch.setattr("autonomous_orchestrator.AUTH_ORCH_PATH", str(state_dir / "authorization.json"))
-    monkeypatch.setattr("autonomous_orchestrator.ART_DIR", str(art_dir))
+    monkeypatch.setattr(orchestrator_core, "AUTH_PATH", str(tmp_path / ".agents" / "state" / "authorization.json"))
+    monkeypatch.setattr(orchestrator_core, "AUTH_ORCH_PATH", str(state_dir / "authorization.json"))
+    monkeypatch.setattr(orchestrator_core, "ART_DIR", str(art_dir))
     
     from autonomous_orchestrator import resolve_auth_path
     auth = create_authorization("FEAT-111")
@@ -26,17 +29,23 @@ def test_create_authorization(tmp_path, monkeypatch):
     assert os.path.exists(resolve_auth_path("FEAT-111"))
 
 def test_run_autonomous_delivery(tmp_path, monkeypatch):
+    monkeypatch.chdir(tmp_path)
     state_dir = tmp_path / ".agents" / "state" / "orchestrator"
     os.makedirs(state_dir, exist_ok=True)
     art_dir = tmp_path / "artifacts" / "autonomous-orchestrator"
     os.makedirs(art_dir, exist_ok=True)
     
-    monkeypatch.setattr("autonomous_orchestrator.STATE_DIR", str(state_dir))
-    monkeypatch.setattr("autonomous_orchestrator.CP_DIR", str(state_dir / "checkpoints"))
-    monkeypatch.setattr("autonomous_orchestrator.ART_DIR", str(art_dir))
-    monkeypatch.setattr("autonomous_orchestrator.AUTH_PATH", str(tmp_path / ".agents" / "state" / "authorization.json"))
-    monkeypatch.setattr("autonomous_orchestrator.AUTH_ORCH_PATH", str(state_dir / "authorization.json"))
+    monkeypatch.setattr(orchestrator_delivery, "STATE_DIR", str(state_dir))
+    monkeypatch.setattr(orchestrator_delivery, "CP_DIR", str(state_dir / "checkpoints"))
+    monkeypatch.setattr(orchestrator_delivery, "ART_DIR", str(art_dir))
+    monkeypatch.setattr(orchestrator_core, "ART_DIR", str(art_dir))
+    monkeypatch.setattr(orchestrator_delivery, "AUTH_PATH", str(tmp_path / ".agents" / "state" / "authorization.json"))
+    monkeypatch.setattr(orchestrator_delivery, "AUTH_ORCH_PATH", str(state_dir / "authorization.json"))
     
+    # run_autonomous_delivery resolves CapacityController via the locator.
+    from workflow_runtime.presentation.cli.bootstrap import bootstrap_di
+    bootstrap_di()
+
     # Run simulation
     run_autonomous_delivery("FEAT-111")
     

@@ -203,6 +203,8 @@ The `blueprint-to-implementation` skill manages the controlled execution of task
 3. **Single Writer Governance**: Under `MODE_B_MULTI_AGENT_SINGLE_WRITER`, all file edits ARE EXCLUSIVELY EXECUTED by the assigned `Main Writer`. Mode C is blocked (`MODE_C_NOT_ELIGIBLE`) unless explicit OCC runtime prerequisites exist.
 4. **Pre-Write Base-Hash Verification**: Every write operation validates that the target file's current SHA-256 matches the authorized base hash. Stale base hashes trigger `STALE_BASE` write blocks.
 5. **Append-Only Change Ledger**: All modifications ARE RECORDED in an immutable change ledger (`schemas/change-ledger.schema.json`).
+6. **Assumption-Spike Throwaway Boundary** *(additive)*: Code written inside a **risk-assumption Spike** (`aiwf.spike/1`, `throwaway: true`, from `plan-to-blueprint` §8.1) MUST NOT be promoted or copied into product source. Every such assumption MUST be **re-implemented cleanly** here under normal single-writer, base-hash, and change-ledger governance. Spike evidence artifacts are inputs/justification only, never a source. This is distinct from the CODE_BLOCK_GATE FULL "verified spike" (Entry Firewall), whose already-verified material is copied as designed.
+7. **Loop-State Awareness** *(additive)*: When a `loop-controller` state exists at `.agents/state/loop/<workflow-id>.json`, the orchestrator reads `current_phase`/`iteration` to resume the exact cycle. Absence of loop state is treated as `iteration 0` (legacy linear behavior). Reading loop state grants no write authority; the Source-Write Guard and Implementation Approval remain the sole write authorizers.
 
 ---
 

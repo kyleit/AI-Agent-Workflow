@@ -9,7 +9,7 @@
     "version": { "type": "STRING" },
     "agent_category": { 
       "type": "STRING", 
-      "enum": ["discovery", "planning", "architecture", "implementation", "review", "release"] 
+      "enum": ["discovery", "planning", "architecture", "implementation", "review", "release", "management"] 
     },
     "role": { "type": "STRING" },
     "description": { "type": "STRING" },
@@ -25,7 +25,7 @@
       "type": "ARRAY",
       "items": { 
         "type": "STRING", 
-        "enum": ["brainstorm", "planning", "blueprint", "implementation", "validation", "review", "release"] 
+        "enum": ["discovery", "brainstorm", "planning", "blueprint", "implementation", "debug", "verification", "validation", "review", "release"] 
       }
     },
     "spawn_conditions": {
@@ -115,7 +115,10 @@
     "observability": { "type": "STRING" },
     "runtime_visibility": { "type": "BOOLEAN" },
     "can_run_in_parallel": { "type": "BOOLEAN" },
-    "isolation_required": { "type": "BOOLEAN" }
+    "isolation_required": { "type": "BOOLEAN" },
+    "zero_trust": { "type": "BOOLEAN" },
+    "requires_prior": { "type": "STRING" },
+    "agy_system_prompt": { "type": "STRING" }
   },
   "required": [
     "id", "name", "role", "description", "capabilities", "permissions", "write_mode",

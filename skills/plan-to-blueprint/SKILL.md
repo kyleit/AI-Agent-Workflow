@@ -29,6 +29,11 @@ readiness_threshold: 95
 architecture_review_type: BLUEPRINT_APPROVAL
 approval_authority: none
 freeze_is_implementation_approval: false
+spike_gate_required: true
+spike_verified_required_for_freeze: true
+spike_record_schema: schemas/spike-record.schema.json
+risk_register_required: true
+spike_backtrack_target: brainstorming
 default_next_route: implementation_entry_gate
 description: Transforms an architecture-approved execution plan into a production-grade Technical Blueprint, specifying component boundaries, interface contracts, data models, concurrency, error handling, file impact maps, implementation sequences, and verification matrices. Evaluates Blueprint Readiness (95/100), requests Blueprint Architecture Approval, executes Blueprint Freeze, and prepares handoff for Implementation Entry.
 runtime_requirements:
@@ -70,6 +75,17 @@ runtime_requirements:
 > findings, and `decision=PASS` with zero blocking per-block findings permits
 > an owner approval question. Any missing/failed/unread evidence is
 > `BLOCKED`; continue repair and never ask the owner to approve a draft.
+
+> [!IMPORTANT]
+> **Repair Loop Bound (token guard).** The autonomous repair loop is bounded to
+> **`MAX_REPAIR_ROUNDS = 3`** per gate (one round = one author→validate cycle).
+> "Never ask the owner to approve a draft" still holds — you never lower the bar
+> or auto-pass. But if the artifact set is still `BLOCKED` after 3 rounds, the
+> Agent MUST **STOP repairing and ESCALATE to the owner** with the exact
+> unresolved findings and the smallest options (narrow scope, provide a decision,
+> or cancel). This escalation is for guidance, NOT an approval request, and it
+> prevents an unbounded repair loop from exhausting the token budget before the
+> gate can pass. Record the round count in the repair record.
 
 ### Authoring Ledger Before Markdown
 
@@ -355,6 +371,18 @@ contract, while detailed implementation blocks belong in their owning phase
 when that is the coherent boundary. A size note is optional and informative;
 its absence MUST never block approval.
 
+**Blueprint Depth Strategy (default, token-aware).** For any multi-phase build,
+the standard is **master = CONTRACT depth, each phase = FULL depth**: the master
+Blueprint carries the complete scope, coverage matrix, contracts, and diagrams
+(no full-file bodies), while the FULL spike-verified full-file code blocks live in
+their owning phase. This is the required default because a single all-FULL master
+for a large feature is what exhausts an agent's token budget before the gate runs
+(producing a truncated, code-less contract). Splitting FULL code per phase keeps
+each step within budget while still delivering complete, runnable, spike-verified
+code. A single-phase (small) feature MAY be FULL in one document. `blueprint_depth`
+MUST still be declared per artifact (Rule 10); CONTRACT is valid ONLY for the
+master index, never as an excuse to omit a phase's code blocks.
+
 1. Always write one master Blueprint containing the complete scope, all
    requirements, all cross-phase dependencies, the complete data-flow and
    sequence diagrams, and the Feature Coverage Matrix.
@@ -614,8 +642,9 @@ repository command that invokes that service) against the Master and every
 recursively discovered phase. The only acceptable pre-approval result is
 `status=APPROVAL_READY`, `score=100`, and an empty findings list. A strict
 `CODE_BLOCK_GATE: PASS` with runtime status `BLOCKED`, `NOT_RUN`, or missing is
-still `NO-GO`; the Agent MUST continue the repair loop and MUST NOT ask the
-owner to approve it.
+still `NO-GO`; the Agent MUST continue the repair loop (bounded to
+`MAX_REPAIR_ROUNDS = 3`, then escalate per the Repair Loop Bound above) and MUST
+NOT ask the owner to approve it.
 
 The Master MUST use the literal headings `Feature Coverage Matrix`,
 `Project Initialization Coverage Matrix`, `Screen And Route Coverage Matrix`
@@ -820,12 +849,69 @@ a real entrypoint run is FAIL.
 
 ---
 
+## 8.1 Risk Register & Spike-Verified Blueprint (Spike Gate)
+
+> [!NOTE]
+> This **Assumption Spike Gate** is distinct from the CODE_BLOCK_GATE "runnable
+> spike" in §8 (which validates code-block extraction). This gate validates
+> **high-risk architectural assumptions** before Freeze. It is **additive** and
+> **independent of the 95/100 readiness score** — a 100/100 Blueprint is still
+> `BLOCKED` from Freeze while a high-risk assumption is unproven.
+
+### Risk Register (produced in `brainstorming`, carried into the Blueprint)
+Every blueprint assumption or decision MUST carry a `risk ∈ {low, med, high}`.
+The register lists, per item: `assumption`, `risk`, and — for `high` — the
+linked Spike Record. `low`/`med` items need no spike.
+
+### Spike Record (artifact)
+Each `risk=high` item MUST have a Spike Record conforming to
+`schemas/spike-record.schema.json` (`aiwf.spike/1`), stored under
+`.agents/spikes/<spike-id>/` with its evidence artifact. Fields: `id`,
+`assumption`, `risk`, `hypothesis`, `method`, `evidence_artifact` (repository-
+relative), `verdict ∈ {pass, fail}`, `decided_by`, `waived`, `waiver_reason`,
+`throwaway`, `ts`. **Spike code is always `throwaway: true`** — it MUST NOT be
+promoted to product source; it is re-implemented cleanly during Implementation.
+
+### Spike Gate (BLOCKS Blueprint Freeze)
+The Blueprint gains a new boolean state `spike_verified` computed as:
+
+```text
+spike_verified = every register item with risk=high has EITHER
+                   a Spike Record with verdict=pass
+                 OR waived=true WITH a non-empty waiver_reason AND decided_by=user
+```
+
+- If `spike_verified = false` → **Blueprint Freeze is BLOCKED** (blocking
+  condition `SPIKE_UNVERIFIED`), regardless of the readiness score.
+- **Backward compatibility**: when the register contains **no** `risk=high`
+  items, `spike_verified` is inferred `true` (legacy Blueprints are unaffected).
+
+### Loop Engine linkage (`loop-controller`)
+- A Spike Record with `verdict=fail` yields loop verdict `FAIL` with
+  `backtrack_target=brainstorming` → the loop engine returns **`BACKTRACK`** to
+  `brainstorming`/`plan` (a failed spike is never a dead-end).
+- A user waiver (`waived=true`, `decided_by=user`) unblocks the gate and lets
+  the loop **`ADVANCE`** to Freeze.
+
+### Freeze approval identity binding
+When `spike_verified` unblocks Freeze, the Blueprint Freeze approval record
+(SHA-256, §10.3) additionally references the **full SHA-256 of the ordered
+Spike Record set**, so any later change to a Spike Record invalidates the
+Freeze approval (per §12 Change Control).
+
+---
+
 ## 9. Blueprint State Machine Lifecycle
 
 ```text
 DRAFT → CURRENT_STATE_ANALYZING → TARGET_STATE_DESIGNING → CONTRACTS_DEFINING → RISKS_VALIDATING → READY_FOR_REVIEW → REVIEWED → AWAITING_ARCHITECTURE_APPROVAL → ARCHITECTURE_APPROVED → FROZEN → Implementation Entry Gate
 ```
 *Secondary States*: `ARCHITECTURE_APPROVED_WITH_CONDITIONS`, `NEEDS_CHANGES`, `BLOCKED`, `INVALIDATED`, `SUPERSEDED`, `CANCELLED`.
+
+> [!IMPORTANT]
+> The `RISKS_VALIDATING` state now additionally requires `spike_verified = true`
+> (or all-`high` items user-waived) before the machine may reach `FROZEN`. This
+> is additive: no state name, order, or transition is renamed or removed.
 
 ---
 
@@ -845,7 +931,7 @@ DRAFT → CURRENT_STATE_ANALYZING → TARGET_STATE_DESIGNING → CONTRACTS_DEFIN
    - Valid evidence is native `ask_question` returning `Continue`, the fallback UI/CLI bridge returning `Continue`, or a bound chat fallback that is immediately persisted through `aiwf blueprint --path <path> --approve` and verified through its scoped approval artifact and command receipt.
    - Any chat approval without that pending-request and artifact-binding evidence is **NOT** valid.
    - Claiming bridge unavailability in the same turn as the Blueprint presentation and then continuing to implement is a **CRITICAL VIOLATION**.
-3. **Blueprint Freeze**: Once approved, issues `blueprint-freeze.schema.json` recording full SHA-256 hash, baseline commit, allowed/protected files, and freeze timestamp.
+3. **Blueprint Freeze**: **PRECONDITION — Spike Gate (§8.1) MUST report `spike_verified = true`**; otherwise Freeze is `BLOCKED` with `SPIKE_UNVERIFIED` even at score 100/100. Once approved AND spike-verified, issues `blueprint-freeze.schema.json` recording full SHA-256 hash, baseline commit, allowed/protected files, freeze timestamp, and the full SHA-256 of the ordered Spike Record set.
 4. **Implementation Entry Gate**: Passes handoff (`schemas/implementation-entry-handoff.schema.json`) to `IMPLEMENTATION_ENTRY` gate.
 5. **Live Checklist Ticking during Implementation** (applies when agent proceeds to implementation after approval):
 

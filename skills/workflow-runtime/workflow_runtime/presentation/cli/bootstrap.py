@@ -6,8 +6,12 @@ from workflow_runtime.application.knowledge.knowledge_provider_factory import (
     KnowledgeProviderFactory)
 from workflow_runtime.application.ports.locator import InfrastructureLocator
 from workflow_runtime.infrastructure.agy.agy_adapter import AGYAdapter
+from workflow_runtime.infrastructure.connectors import build_default_registry
+from workflow_runtime.infrastructure.execution.capacity_controller import (
+    CapacityController)
 from workflow_runtime.infrastructure.execution.execution_manager import (
     ExecutionGateway)
+from workflow_runtime.infrastructure.execution.worker_manager import WorkerManager
 from workflow_runtime.infrastructure.knowledge.memory_store_adapter import (
     MemoryStoreAdapter)
 from workflow_runtime.infrastructure.knowledge.providers.markdown_provider import (
@@ -26,6 +30,7 @@ from workflow_runtime.infrastructure.memory.search import RAGSearcher
 from workflow_runtime.infrastructure.persistence.db_records import (
     save_insight_snapshot)
 from workflow_runtime.infrastructure.persistence.ledger import ImplementationLedger
+from workflow_runtime.infrastructure.persistence.lock_manager import LockManager
 from workflow_runtime.infrastructure.registry.registry_adapter import (
     RegistryAdapter)
 
@@ -73,6 +78,10 @@ def bootstrap_di() -> None:
     setattr(InfrastructureLocator, "ProjectAnalyzer", ProjectAnalyzer)
     setattr(InfrastructureLocator, "ProjectScanner", ProjectScanner)
     setattr(InfrastructureLocator, "RAGSearcher", RAGSearcher)
+    setattr(InfrastructureLocator, "get_connector_registry", build_default_registry)
+    setattr(InfrastructureLocator, "CapacityController", CapacityController)
+    setattr(InfrastructureLocator, "LockManager", LockManager)
+    setattr(InfrastructureLocator, "WorkerManager", WorkerManager)
 
 
 __all__ = ["bootstrap_di"]

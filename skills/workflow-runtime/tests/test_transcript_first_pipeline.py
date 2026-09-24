@@ -11,6 +11,7 @@ sys.path.append(os.path.join(os.path.dirname(__file__), "..", "scripts"))
 
 from reconciliation_engine import ReconciliationEngine
 from db import init_db_schema
+from connectors import build_default_registry
 from cost_engine import CostEngine
 
 class TestTranscriptFirstPipeline(unittest.TestCase):
@@ -52,7 +53,7 @@ class TestTranscriptFirstPipeline(unittest.TestCase):
 
         try:
             # 2. Run reconciliation sync
-            engine = ReconciliationEngine(self.conn)
+            engine = ReconciliationEngine(self.conn, connector_registry=build_default_registry())
             report = engine.sync(transcript_paths=[temp_log])
             
             # 3. Check reports

@@ -24,20 +24,22 @@ from context import estimate_context_usage, parse_transcript
 from db import PROJECT_DB, get_global_db_path, save_usage_to_dbs, get_workflow_summary, get_project_summary, get_global_summary
 import db
 import analytics_engine
-from tests.conftest import run_cli
+from tests.conftest import redirect_runtime_dbs, run_cli
 
 class TestRuntimeEngine(unittest.TestCase):
     def setUp(self):
-        os.environ["TESTING"] = "1"
-        os.environ["AIWF_TESTING_PERMISSIONS"] = "true"
+        from unittest import mock
+        env_patcher = mock.patch.dict(os.environ, {"TESTING": "1", "AIWF_TESTING_PERMISSIONS": "true"})
+        env_patcher.start()
+        self.addCleanup(env_patcher.stop)
         
         # Isolate databases to a temp directory
         self.test_dir = os.path.abspath(os.path.join(os.path.dirname(__file__), "temp_test_db"))
         os.makedirs(self.test_dir, exist_ok=True)
-        self.original_project_db = db.PROJECT_DB
-        db.PROJECT_DB = os.path.join(self.test_dir, "test_project_runtime.db")
-        self.original_get_global_db = db.get_global_db_path
-        db.get_global_db_path = lambda: os.path.join(self.test_dir, "test_global_runtime.db")
+        self.addCleanup(redirect_runtime_dbs(
+            os.path.join(self.test_dir, "test_project_runtime.db"),
+            os.path.join(self.test_dir, "test_global_runtime.db"),
+        ))
         
         # Isolate lock and lease files for testing
         self.lock_file = os.path.join(".agents", "runtime", "workflow.lock")
@@ -91,11 +93,6 @@ class TestRuntimeEngine(unittest.TestCase):
                 pass
             
     def tearDown(self):
-        os.environ.pop("AIWF_TESTING_PERMISSIONS", None)
-        # Restore DB paths
-        db.PROJECT_DB = self.original_project_db
-        db.get_global_db_path = self.original_get_global_db
-        
         # Clean up temp test directory
         if os.path.exists(self.test_dir):
             try:
@@ -147,7 +144,17 @@ class TestRuntimeEngine(unittest.TestCase):
             except Exception:
                 pass
             
+    def _without_testing_shortcut(self):
+        # TESTING=1 makes save_session_atomic write the raw payload verbatim; the
+        # merge / conversation_id contract under test lives on the normal path.
+        from unittest import mock
+        patcher = mock.patch.dict(os.environ)
+        patcher.start()
+        self.addCleanup(patcher.stop)
+        os.environ.pop("TESTING", None)
+
     def test_atomic_write_and_missing_session(self):
+        self._without_testing_shortcut()
         session = load_session()
         self.assertEqual(session, {})
         
@@ -160,6 +167,7 @@ class TestRuntimeEngine(unittest.TestCase):
         self.assertIn("conversation_id", loaded)
         
     def test_conversation_preservation(self):
+        self._without_testing_shortcut()
         conv_id = str(uuid.uuid4())
         save_session_atomic({"conversation_id": conv_id})
         
@@ -336,8 +344,7 @@ class TestRuntimeEngine(unittest.TestCase):
             }
             
             # Mock configuration
-            orig_project_db = db.PROJECT_DB
-            db.PROJECT_DB = db_path
+            restore_dbs = redirect_runtime_dbs(db_path, os.path.join(self.test_dir, "test_global_runtime.db"))
             try:
                 save_usage_to_dbs("mock_conversation_123", "proj_123", "skill", "cmd", legacy_usage)
                 
@@ -360,13 +367,14 @@ class TestRuntimeEngine(unittest.TestCase):
                 self.assertEqual(row[1], 10000)  # scaled down by 10
                 conn.close()
             finally:
-                db.PROJECT_DB = orig_project_db
+                restore_dbs()
                 if os.path.exists(db_path):
                     os.remove(db_path)
         finally:
             if os.path.exists(mock_log):
                 os.remove(mock_log)
 
+    @pytest.mark.skip(reason="retired in ed802ff2: blueprint lifecycle now requires a docs/ path and a work-item-scoped registry and emits aiwf.command.v1 JSON instead of the session-flag register/approve flow")
     def test_blueprint_registration_and_approval(self):
         # Initial empty session
         save_session_atomic({"checkpoint": 1})
@@ -409,6 +417,7 @@ class TestRuntimeEngine(unittest.TestCase):
             if os.path.exists(mock_bp):
                 os.remove(mock_bp)
 
+    @pytest.mark.skip(reason="retired in 3f37c9b0 (QUICK-039 command registry refactor): 'suggest --request/--recommend' and the legacy 'start' suggestion-gate flow were removed")
     def test_suggestion_gate_scenarios(self):
         import subprocess
         # Scenario 1: Raw bug request suggests quick-fix
@@ -552,6 +561,7 @@ class TestRuntimeEngine(unittest.TestCase):
         session = load_session()
         self.assertEqual(session["current_skill"], "implementation-to-release")
 
+    @pytest.mark.skip(reason="retired in 3f37c9b0 (QUICK-039 command registry refactor): 'init --permission' was removed; permission mode is managed by the permission command")
     def test_permission_mode_scenarios(self):
         import subprocess
         # S1: Default init sets sandbox
@@ -683,6 +693,7 @@ class TestRuntimeEngine(unittest.TestCase):
             if os.path.exists(snapshot_file):
                 os.remove(snapshot_file)
 
+    @pytest.mark.skip(reason="retired in 3f37c9b0 (QUICK-039 command registry refactor): 'execution recommend/mode/summary' subactions were removed")
     def test_execution_modes_and_persistence(self):
         plan_file = os.path.join(".agents", "runtime", "execution-plan.json")
         tasks_file = os.path.join(".agents", "runtime", "parallel-tasks.json")
@@ -784,6 +795,7 @@ class TestRuntimeEngine(unittest.TestCase):
                 if os.path.exists(fpath):
                     os.remove(fpath)
 
+    @pytest.mark.skip(reason="retired in 3f37c9b0 (QUICK-039 command registry refactor): 'execution recommend/mode' subactions were removed")
     def test_parallel_scope_constraints(self):
         plan_file = os.path.join(".agents", "runtime", "execution-plan.json")
         session_file = os.path.join(".agents", ".session.json")
@@ -857,6 +869,7 @@ class TestRuntimeEngine(unittest.TestCase):
             elif os.path.exists(session_file):
                 os.remove(session_file)
 
+    @pytest.mark.skip(reason="retired in 3f37c9b0 (QUICK-039 command registry refactor): 'analysis-agent add/merge/clear' was replaced by 'analysis-agent' with a code or architecture target")
     def test_analysis_agent_lifecycle(self):
         session_file = SESSION_FILE
         analysis_file = os.path.join(".agents", "runtime", "analysis-agents.json")
@@ -934,6 +947,7 @@ class TestRuntimeEngine(unittest.TestCase):
                     pass
 
 
+    @pytest.mark.skip(reason="retired in 131d617e (AI-first workflow governance): 'start' reports blueprint_not_approved as aiwf.command.v1 JSON and approval comes from the blueprint lifecycle registry, not session['blueprint']['approved']")
     def test_start_implementation_without_approved_blueprint(self):
         # 1. Setup session with unapproved blueprint
         session = {
@@ -984,7 +998,7 @@ class TestRuntimeEngine(unittest.TestCase):
             os.rename(config_path, backup_path)
             
         try:
-            from session import load_workflow_config
+            from workflow_runtime.infrastructure.session.session_lock import load_workflow_config
             cfg = load_workflow_config()
             self.assertEqual(cfg["git_flow"]["development_branch"], "main")
             self.assertEqual(cfg["git_flow"]["sync_method"], "merge")
@@ -1010,7 +1024,7 @@ class TestRuntimeEngine(unittest.TestCase):
             with open(config_path, "w", encoding="utf-8") as f:
                 json.dump(custom_data, f)
                 
-            from session import load_workflow_config
+            from workflow_runtime.infrastructure.session.session_lock import load_workflow_config
             cfg = load_workflow_config()
             self.assertEqual(cfg["project_name"], "test-project")
             self.assertEqual(cfg["git_flow"]["development_branch"], "dev")
@@ -1042,12 +1056,13 @@ class TestRuntimeEngine(unittest.TestCase):
         try:
             # Test 1: No config file -> should load defaults
             from unittest.mock import patch
-            from workflow_runtime import update_context_health
+            from workflow_runtime.presentation.cli import workflow_runtime_shared as wrs
+            from workflow_runtime.presentation.cli.workflow_runtime_shared import update_context_health
             
             with patch('analytics_engine.update_analytics') as mock_analytics, \
-                 patch('workflow_runtime.get_project_summary') as mock_project_summary, \
-                 patch('workflow_runtime.get_global_summary') as mock_global_summary, \
-                 patch('workflow_runtime.save_usage_to_dbs'):
+                 patch.object(wrs, 'get_project_summary') as mock_project_summary, \
+                 patch.object(wrs, 'get_global_summary') as mock_global_summary, \
+                 patch.object(wrs, 'save_usage_to_dbs'):
                  
                  mock_analytics.return_value = {
                      "active_context": {"total_tokens": 120000, "limit_tokens": 1000000, "percentage": 12.0},
@@ -1101,9 +1116,9 @@ class TestRuntimeEngine(unittest.TestCase):
             }
             
             with patch('analytics_engine.update_analytics') as mock_analytics, \
-                 patch('workflow_runtime.get_project_summary') as mock_project_summary, \
-                 patch('workflow_runtime.get_global_summary') as mock_global_summary, \
-                 patch('workflow_runtime.save_usage_to_dbs'):
+                 patch.object(wrs, 'get_project_summary') as mock_project_summary, \
+                 patch.object(wrs, 'get_global_summary') as mock_global_summary, \
+                 patch.object(wrs, 'save_usage_to_dbs'):
                  
                  mock_analytics.return_value = {
                      "active_context": {"total_tokens": 120000, "limit_tokens": 1000000, "percentage": 12.0},

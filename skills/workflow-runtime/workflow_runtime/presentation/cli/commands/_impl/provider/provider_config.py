@@ -3,42 +3,42 @@ from __future__ import annotations
 
 import os
 import sys
-from typing import Any, cast
+from typing import Any
 
 from workflow_runtime.presentation.cli.commands._impl.provider.provider_data import \
     kill_all_telegram_processes
+from workflow_runtime.presentation.cli.commands._impl.provider.provider_status import (
+    UNSUPPORTED_ACTIONS, reject_unsupported_action, show_provider_config,
+    show_provider_status)
 from workflow_runtime.presentation.cli.commands._impl.shared_helpers import (
     ForbiddenAISourceError, extract_work_item_id_from_text,
     get_current_project_context, is_telegram_daemon_running,
     sync_analysis_agents_to_session)
 
 
-def _mask_provider_secrets(value: Any) -> Any:
-    secret_keys = ("token", "key", "secret", "password", "credential")
-    if isinstance(value, dict):
-        val_dict = cast(dict[str, Any], value)
-        masked: dict[str, Any] = {}
-        for key, item in val_dict.items():
-            if any(secret in str(key).lower() for secret in secret_keys):
-                masked[key] = "***" if item else item
-            else:
-                masked[key] = _mask_provider_secrets(item)
-        return masked
-    if isinstance(value, list):
-        val_list = cast(list[Any], value)
-        return [_mask_provider_secrets(item) for item in val_list]
-    return value
-    return value
+_NAMED_ACTIONS = frozenset({"add", "edit", "remove", "enable", "disable", "test", "resolve", "sync"})
+
 
 def do_provider_action(args: Any):
     import json
     import os
 
-    from workflow_runtime.application.knowledge.knowledge_provider_factory import \
-        KnowledgeProviderFactory
-    provider_manager = cast(Any, KnowledgeProviderFactory)
+    from workflow_runtime.infrastructure.knowledge import provider_manager
 
-    "." if getattr(args, "project", False) else None
+    action = getattr(args, 'action', None) or getattr(args, 'subaction', None)
+    if not getattr(args, "name", None):
+        # Docs use the positional form (`aiwf provider enable obsidian`); --name is equivalent.
+        args.name = getattr(args, "target", None)
+    if action in _NAMED_ACTIONS and not args.name:
+        print(f"aiwf provider {action}: provider name is required "
+              f"(e.g. `aiwf provider {action} obsidian`).", file=sys.stderr)
+        return 2
+    if action in UNSUPPORTED_ACTIONS:
+        return reject_unsupported_action(action)
+    if action == "config":
+        return show_provider_config(args.name)
+    if action == "status":
+        return show_provider_status(args.name)
 
     if (getattr(args, 'action', None) or getattr(args, 'subaction', None)) == "path":
         print(provider_manager.get_global_config_path())
@@ -48,7 +48,7 @@ def do_provider_action(args: Any):
         if getattr(args, "project", False):
             res = provider_manager.list_providers(project_root=".")
         else:
-            res = _mask_provider_secrets(provider_manager.load_global_config().get("providers", {}))
+            res = provider_manager.mask_secrets(provider_manager.load_global_config().get("providers", {}))
         print(json.dumps(res, indent=2))
         return
 
@@ -259,7 +259,7 @@ def do_provider_action(args: Any):
         name = args.name
         res = provider_manager.test_provider(name, project_root="." if getattr(args, "project", False) else None)
         print(json.dumps(res, indent=2))
-        return
+        return 0 if res.get("status") == "success" else 1
 
     elif (getattr(args, 'action', None) or getattr(args, 'subaction', None)) == "resolve":
         name = args.name
@@ -269,7 +269,7 @@ def do_provider_action(args: Any):
                 resolved_folder = provider_manager.resolve_obsidian_project_folder(project_root=".")
                 exists = os.path.exists(resolved_folder)
                 obs_cfg = provider_manager.resolve_provider_config("obsidian", ".")
-                masked = _mask_provider_secrets(obs_cfg)
+                masked = provider_manager.mask_secrets(obs_cfg)
 
                 project_slug = ""
                 map_path = os.path.join(".", ".agents", "knowledge", "obsidian-project-map.json")
@@ -296,10 +296,12 @@ def do_provider_action(args: Any):
 
     elif (getattr(args, 'action', None) or getattr(args, 'subaction', None)) == "sync":
         name = args.name
-        if name == "obsidian":
-            res = provider_manager.sync_obsidian(project_root=".")
-            print(json.dumps(res, indent=2))
-        return
+        if name != "obsidian":
+            print(f"aiwf provider sync: only `obsidian` can be synced (got `{name}`).", file=sys.stderr)
+            return 2
+        res = provider_manager.sync_obsidian(project_root=".")
+        print(json.dumps(res, indent=2))
+        return 0 if res.get("status") == "success" else 1
 
     elif (getattr(args, 'action', None) or getattr(args, 'subaction', None)) == "doctor":
         name = getattr(args, "name", None)
@@ -428,7 +430,6 @@ def start_telegram_daemon(daemon_script: str, log_file: str, pid_file: str) -> i
 
 
 __all__ = [
-    "_mask_provider_secrets",
     "do_provider_action",
     "ForbiddenAISourceError",
     "extract_work_item_id_from_text",

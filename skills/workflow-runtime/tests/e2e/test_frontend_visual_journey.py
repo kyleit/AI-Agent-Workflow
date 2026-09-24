@@ -39,8 +39,17 @@ def test_visual_e2e_command_is_agent_facing():
     assert args.max_iterations == 8
 
 
+def _require_playwright_browser() -> None:
+    sync_api = pytest.importorskip("playwright.sync_api")
+    try:
+        with sync_api.sync_playwright() as pw:
+            pw.chromium.launch(headless=True).close()
+    except Exception as exc:  # browser binaries not installed (`playwright install`)
+        pytest.skip(f"Playwright browser unavailable: {str(exc).splitlines()[0]}")
+
+
 def test_real_browser_runs_mobile_desktop_tablet_and_writes_hashes(tmp_path):
-    pytest.importorskip("playwright")
+    _require_playwright_browser()
     page = (
         "data:text/html,<meta name='viewport' content='width=device-width'>"
         "<style>body{margin:0}button{min-width:44px;min-height:44px}</style>"

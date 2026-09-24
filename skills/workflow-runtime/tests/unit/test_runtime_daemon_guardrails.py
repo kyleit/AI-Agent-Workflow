@@ -67,19 +67,30 @@ def test_windows_autostart_does_not_create_visible_startup_cmd(monkeypatch, tmp_
     assert "-WindowStyle Hidden" in startup_cmd.read_text(encoding="utf-8")
 
 
+def _read_governance_doc(path):
+    # public_export/ is a git submodule that is not checked out in every clone.
+    if path.startswith("public_export/") and not os.path.isdir(os.path.join(ORIG_CWD, "public_export")):
+        return None
+    with open(os.path.join(ORIG_CWD, path), "r", encoding="utf-8") as f:
+        return f.read()
+
+
 def test_aiwf_skill_requires_native_prompt_gates():
     for path in [
         "skills/aiwf/SKILL.md",
         ".agents/skills/aiwf/SKILL.md",
         "public_export/skills/aiwf/SKILL.md",
     ]:
-        with open(os.path.join(ORIG_CWD, path), "r", encoding="utf-8") as f:
-            content = f.read()
+        content = _read_governance_doc(path)
+        if content is None:
+            continue
 
-        assert "NATIVE PROMPT GATES ONLY" in content
+        # dfdd1856 (v6.26.5) reworded "GATES ONLY" -> "GATES FIRST" and chat approval to a
+        # bound fallback that is "never the primary approval path".
+        assert "NATIVE PROMPT GATES" in content
         assert "ask_question" in content
         assert 'aiwf prompt select --options "Continue|Cancel"' in content
-        assert "MUST NOT be requested as the primary approval path" in content
+        assert "primary approval path" in content
         assert "InputValidationError" in content
         assert "raw JSON" in content
         assert "malformed `\\uXXXX`" in content
@@ -91,8 +102,9 @@ def test_ai_rules_require_prompt_tool_json_hygiene():
         ".agents/AI_RULES.md",
         "public_export/AI_RULES.md",
     ]:
-        with open(os.path.join(ORIG_CWD, path), "r", encoding="utf-8") as f:
-            content = f.read()
+        content = _read_governance_doc(path)
+        if content is None:
+            continue
 
         assert "Tool Invocation JSON Hygiene" in content
         assert "MUST NOT hand-author raw JSON strings" in content
@@ -119,11 +131,14 @@ def test_blueprint_quality_gate_requires_code_gate_line_budget_family_and_lint()
         ".agents/skills/software-development-workflow/SKILL.md",
         "public_export/skills/software-development-workflow/SKILL.md",
     ]:
-        with open(os.path.join(ORIG_CWD, path), "r", encoding="utf-8") as f:
-            content = f.read()
+        content = _read_governance_doc(path)
+        if content is None:
+            continue
 
         assert "CODE_BLOCK_GATE" in content
-        assert "500" in content
+        # f0b18c3c (v6.26.6) replaced the skills' "Line Budget <500" checklist with honest
+        # projected physical-size planning; the 500-line source cap itself stays in AI_RULES.md.
+        assert "500" in content or "projected physical" in content.lower()
         assert "family" in content.lower()
         assert "language" in content.lower()
         assert "lint" in content.lower() or "typecheck" in content.lower()

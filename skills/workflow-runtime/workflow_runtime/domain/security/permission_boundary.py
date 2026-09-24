@@ -65,8 +65,8 @@ class PermissionBoundary:
         self._permissions[perm.permission_id] = perm
         if self.event_store:
             self.event_store.append_event(
-                aggregate_id=perm.session_id,
-                event_type="permission.created",
+                perm.session_id,
+                "permission.created",
                 payload=perm.to_dict()
             )
 
@@ -76,8 +76,8 @@ class PermissionBoundary:
             perm.is_revoked = True
             if self.event_store:
                 self.event_store.append_event(
-                    aggregate_id=perm.session_id,
-                    event_type="permission.revoked",
+                    perm.session_id,
+                    "permission.revoked",
                     payload={"permission_id": permission_id}
                 )
 
@@ -86,8 +86,8 @@ class PermissionBoundary:
         if parent.is_expired():
             if self.event_store:
                 self.event_store.append_event(
-                    aggregate_id=parent.session_id,
-                    event_type="permission.expired",
+                    parent.session_id,
+                    "permission.expired",
                     payload={"permission_id": parent.permission_id}
                 )
             raise PermissionError("Parent permission has expired.")
@@ -100,8 +100,8 @@ class PermissionBoundary:
             if cap not in parent.capabilities:
                 if self.event_store:
                     self.event_store.append_event(
-                        aggregate_id=parent.session_id,
-                        event_type="permission.violation",
+                        parent.session_id,
+                        "permission.violation",
                         payload={"reason": f"privilege escalation: child requests '{cap}'"}
                     )
                 raise PrivilegeEscalationError(
@@ -118,8 +118,8 @@ class PermissionBoundary:
             if not is_subset:
                 if self.event_store:
                     self.event_store.append_event(
-                        aggregate_id=parent.session_id,
-                        event_type="permission.violation",
+                        parent.session_id,
+                        "permission.violation",
                         payload={"reason": f"scope escalation: path '{path}'"}
                     )
                 raise PrivilegeEscalationError(
@@ -128,8 +128,8 @@ class PermissionBoundary:
 
         if self.event_store:
             self.event_store.append_event(
-                aggregate_id=child.session_id or parent.session_id,
-                event_type="permission.granted",
+                child.session_id or parent.session_id,
+                "permission.granted",
                 payload=child.to_dict()
             )
 
@@ -137,8 +137,8 @@ class PermissionBoundary:
         if agent_perm.is_expired() or agent_perm.is_revoked:
             if self.event_store:
                 self.event_store.append_event(
-                    aggregate_id=agent_perm.session_id,
-                    event_type="permission.denied",
+                    agent_perm.session_id,
+                    "permission.denied",
                     payload={"agent_id": agent_perm.owner_id, "command": command}
                 )
             raise PermissionError("Agent permission is invalid, revoked, or expired.")
@@ -162,8 +162,8 @@ class PermissionBoundary:
         if not is_in_scope:
             if self.event_store:
                 self.event_store.append_event(
-                    aggregate_id=agent_perm.session_id,
-                    event_type="permission.denied",
+                    agent_perm.session_id,
+                    "permission.denied",
                     payload={"reason": "scope out of bound", "target_path": target_path}
                 )
             raise PermissionError(f"Directory '{target_path}' is out of the allowed agent write scope.")

@@ -14,7 +14,9 @@ from datetime import datetime, timedelta
 sys.path.append(os.path.join(os.path.dirname(__file__), "..", "..", "scripts"))
 
 from fingerprint import calculate_project_fingerprint
-from state_sync import write_json_atomic, read_json_safe, aggregate_state, deconstruct_state
+from state_sync import read_json_safe, aggregate_state, deconstruct_state
+# state_sync.write_json_atomic now writes to the state store; the file writer lives here.
+from workflow_runtime.infrastructure.filesystem.atomic_writer import write_json_atomic
 from session import load_session, save_session_atomic
 from workflow_runtime import do_init
 
@@ -166,7 +168,7 @@ def test_cli_commands_and_state_recovery(tmp_path, monkeypatch, capsys):
     save_session_atomic(session)
     
     # Import main & mock sys.argv
-    from workflow_runtime import main
+    from workflow_runtime.__main__ import main
     
     # 1. Test 'context' command
     monkeypatch.setattr("sys.argv", ["workflow_runtime.py", "context"])
@@ -210,6 +212,7 @@ def test_cli_commands_and_state_recovery(tmp_path, monkeypatch, capsys):
     assert res["status"] == "success"
     assert os.path.exists(os.path.join(".agents", "state", "context.json"))
 
+@pytest.mark.skip(reason="retired in c6df50ce: state_sync moved onto the state store and StateFileLock was removed")
 def test_state_file_lock_and_granular_writes(tmp_path, monkeypatch):
     monkeypatch.chdir(tmp_path)
     from state_sync import StateFileLock, deconstruct_state

@@ -15,7 +15,12 @@ class BlueprintScopeAssessment:
 
 
 class BlueprintScopeDecomposer:
-    _requirement_pattern = re.compile(r"\b(?:FR|NFR|AC|G|US)-\d+\b", re.IGNORECASE)
+    # A capability is something the Blueprint commits to deliver: a functional
+    # requirement, a user story, or a goal. Acceptance criteria and non-functional
+    # requirements describe how a capability is judged, not further capabilities.
+    # Counting them meant a Blueprint citing its own acceptance criteria was told to
+    # produce more phase documents than its scope warranted.
+    _capability_pattern = re.compile(r"\b(?:FR|US|G)-\d+\b", re.IGNORECASE)
     _file_row_pattern = re.compile(r"^\s*\|\s*[^|]+\|\s*[^|]+\|\s*(?:NEW|MODIFY|DELETE|\[NEW\]|\[MODIFY\]|\[DELETE\])\s*\|", re.IGNORECASE)
     _task_row_pattern = re.compile(r"^\s*\|\s*\d+\s*\|", re.IGNORECASE)
 
@@ -29,7 +34,7 @@ class BlueprintScopeDecomposer:
         """
         requirements = {
             match.group(0).upper()
-            for match in self._requirement_pattern.finditer(blueprint_text)
+            for match in self._capability_pattern.finditer(blueprint_text)
         }
         file_rows = [
             line for line in blueprint_text.splitlines()

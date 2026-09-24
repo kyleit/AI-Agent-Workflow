@@ -10,6 +10,11 @@ from unittest.mock import patch, MagicMock
 sys.path.append(os.path.join(os.path.dirname(os.path.dirname(os.path.abspath(__file__))), "scripts"))
 
 from adaptive_scheduler import AdaptiveTeamPlanner, RuntimeScheduler, SchedulerMetrics
+from workflow_runtime.presentation.cli.bootstrap import bootstrap_di
+
+# Infrastructure classes reach the scheduler through InfrastructureLocator, which
+# only the composition root wires.
+bootstrap_di()
 
 class TestRuntimeScheduler(unittest.TestCase):
     def test_mode_classification(self):

@@ -5,8 +5,16 @@ import json
 import subprocess
 import shutil
 
-# Add scripts/ folder to sys.path
-sys.path.insert(0, os.path.abspath(os.path.join(os.path.dirname(__file__), "..", "..", "scripts")))
+_RUNTIME_ROOT = os.path.abspath(os.path.join(os.path.dirname(__file__), "..", ".."))
+
+
+def _run_doctor(workspace):
+    # scripts/workspace_doctor.py moved into the package (f63cd392, FEAT-500).
+    env = dict(os.environ, PYTHONPATH=_RUNTIME_ROOT + os.pathsep + os.environ.get("PYTHONPATH", ""))
+    return subprocess.run(
+        [sys.executable, "-m", "workflow_runtime.application.system.workspace_doctor", workspace],
+        capture_output=True, text=True, env=env,
+    )
 
 @pytest.fixture
 def setup_test_env(tmp_path):
@@ -60,10 +68,9 @@ def setup_test_env(tmp_path):
 
 def test_doctor_success_flow(setup_test_env):
     workspace = setup_test_env
-    script_path = os.path.abspath(os.path.join(os.path.dirname(__file__), "..", "..", "scripts", "workspace_doctor.py"))
     
     # Run workspace_doctor.py passing the mock workspace as target
-    res = subprocess.run([sys.executable, script_path, workspace], capture_output=True, text=True)
+    res = _run_doctor(workspace)
     
     assert res.returncode == 0
     data = json.loads(res.stdout)
@@ -79,13 +86,12 @@ def test_doctor_success_flow(setup_test_env):
 
 def test_doctor_missing_permissions(setup_test_env):
     workspace = setup_test_env
-    script_path = os.path.abspath(os.path.join(os.path.dirname(__file__), "..", "..", "scripts", "workspace_doctor.py"))
     
     # Remove permissions.json
     perm_file = os.path.join(workspace, ".agents", "config", "permissions.json")
     os.remove(perm_file)
     
-    res = subprocess.run([sys.executable, script_path, workspace], capture_output=True, text=True)
+    res = _run_doctor(workspace)
     
     # Exit code should be 1 since status is FAIL
     assert res.returncode == 1
@@ -97,13 +103,12 @@ def test_doctor_missing_permissions(setup_test_env):
 
 def test_doctor_missing_skills_registry(setup_test_env):
     workspace = setup_test_env
-    script_path = os.path.abspath(os.path.join(os.path.dirname(__file__), "..", "..", "scripts", "workspace_doctor.py"))
     
     # Remove registry.json
     reg_file = os.path.join(workspace, ".agents", "skills", "registry.json")
     os.remove(reg_file)
     
-    res = subprocess.run([sys.executable, script_path, workspace], capture_output=True, text=True)
+    res = _run_doctor(workspace)
     
     assert res.returncode == 1
     data = json.loads(res.stdout)
@@ -114,13 +119,12 @@ def test_doctor_missing_skills_registry(setup_test_env):
 
 def test_doctor_project_stack_detection(setup_test_env):
     workspace = setup_test_env
-    script_path = os.path.abspath(os.path.join(os.path.dirname(__file__), "..", "..", "scripts", "workspace_doctor.py"))
     
     # Create go.mod to simulate Golang project
     with open(os.path.join(workspace, "go.mod"), "w", encoding="utf-8") as f:
         f.write("module test\ngo 1.21\n")
         
-    res = subprocess.run([sys.executable, script_path, workspace], capture_output=True, text=True)
+    res = _run_doctor(workspace)
     data = json.loads(res.stdout)
     
     assert "Go" in data["workspace"]["languages"]
@@ -131,10 +135,9 @@ def test_doctor_project_stack_detection(setup_test_env):
 
 def test_doctor_json_schema_compliance(setup_test_env):
     workspace = setup_test_env
-    script_path = os.path.abspath(os.path.join(os.path.dirname(__file__), "..", "..", "scripts", "workspace_doctor.py"))
     schema_path = os.path.abspath(os.path.join(os.path.dirname(__file__), "..", "..", "workspace_doctor.schema.json"))
     
-    res = subprocess.run([sys.executable, script_path, workspace], capture_output=True, text=True)
+    res = _run_doctor(workspace)
     data = json.loads(res.stdout)
     
     # Load schema

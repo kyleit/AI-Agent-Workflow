@@ -12,14 +12,17 @@ import json
 sys.path.append(os.path.join(os.path.dirname(__file__), "..", "..", "scripts"))
 import db
 from context import sync_request_history
+from tests.conftest import redirect_runtime_dbs
 
 class TestRequestHistory(unittest.TestCase):
     def setUp(self):
         # Override project DB for testing
         self.test_dir = os.path.join(os.path.dirname(__file__), "temp_test_db")
         os.makedirs(self.test_dir, exist_ok=True)
-        self.original_db = db.PROJECT_DB
-        db.PROJECT_DB = os.path.join(self.test_dir, "test_runtime.db")
+        self.addCleanup(redirect_runtime_dbs(
+            os.path.join(self.test_dir, "test_runtime.db"),
+            os.path.join(self.test_dir, "test_global_runtime.db"),
+        ))
         
         # Setup mock session file
         self.session_file = os.path.join(".agents", ".session.json")
@@ -39,8 +42,6 @@ class TestRequestHistory(unittest.TestCase):
             json.dump(session_data, f, indent=2)
 
     def tearDown(self):
-        # Restore db path
-        db.PROJECT_DB = self.original_db
         if os.path.exists(self.test_dir):
             shutil.rmtree(self.test_dir)
             

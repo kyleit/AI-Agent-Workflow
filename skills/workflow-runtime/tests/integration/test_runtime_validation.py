@@ -26,6 +26,7 @@ from session import save_session_atomic
 
 class TestRuntimeValidationPipeline(unittest.TestCase):
     def setUp(self):
+        self.original_testing = os.environ.get("TESTING")
         os.environ["TESTING"] = "1"
         self.test_dir = os.path.abspath(os.path.join(os.path.dirname(__file__), "temp_validation_test"))
         os.makedirs(self.test_dir, exist_ok=True)
@@ -51,6 +52,14 @@ class TestRuntimeValidationPipeline(unittest.TestCase):
         with open("requirements.txt", "w", encoding="utf-8") as f:
             f.write("pytest")
             
+        # The python pipeline compiles and boots main.py, which must serve HTTP on $PORT
+        with open("main.py", "w", encoding="utf-8") as f:
+            f.write(
+                "import http.server, os\n"
+                "http.server.ThreadingHTTPServer(('127.0.0.1', int(os.environ['PORT'])),"
+                " http.server.SimpleHTTPRequestHandler).serve_forever()\n"
+            )
+
         # Create mock tests directory and dummy test file to satisfy pytest execution
         os.makedirs("tests", exist_ok=True)
         with open(os.path.join("tests", "test_dummy.py"), "w", encoding="utf-8") as f:
@@ -58,6 +67,11 @@ class TestRuntimeValidationPipeline(unittest.TestCase):
 
     def tearDown(self):
         os.chdir(self.original_cwd)
+        # TESTING=1 switches session persistence to the legacy file path; do not leak it.
+        if self.original_testing is not None:
+            os.environ["TESTING"] = self.original_testing
+        else:
+            os.environ.pop("TESTING", None)
         if self.original_state_root is not None:
             os.environ["AIWF_STATE_ROOT"] = self.original_state_root
         else:

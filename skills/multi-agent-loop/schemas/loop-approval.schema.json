@@ -1,0 +1,43 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "aiwf.loop-approval/1",
+  "title": "AIWF Loop Approval Policy",
+  "description": "How the multi-agent loop treats approval gates. Stored at .agents/config/loop-approval.json. git/release/deploy are NEVER auto-approved.",
+  "type": "object",
+  "additionalProperties": false,
+  "required": ["schema", "mode"],
+  "properties": {
+    "schema": { "const": "aiwf.loop-approval/1" },
+    "mode": {
+      "type": "string",
+      "enum": ["auto", "manual"],
+      "default": "auto",
+      "description": "auto = record a real approval and continue; manual = HALT for a human."
+    },
+    "auto_gates": {
+      "type": "array",
+      "items": { "type": "string" },
+      "default": ["clarification", "blueprint", "implementation"],
+      "description": "Gates auto mode may approve. git/release/deploy are excluded by policy regardless."
+    },
+    "never_auto_gates": {
+      "type": "array",
+      "items": { "type": "string" },
+      "default": ["git", "release", "deploy"],
+      "description": "Always-manual gates; unioned with the hard defaults git/release/deploy."
+    },
+    "clarification_strategy": {
+      "type": "string",
+      "enum": ["first-option", "recommended", "config"],
+      "default": "first-option"
+    },
+    "gate_commands": {
+      "type": "object",
+      "description": "Per-gate canonical CLI command (argv array) that records the approval. ${workflow}/${gate} are substituted. Missing command => that gate falls back to manual.",
+      "additionalProperties": {
+        "type": "array",
+        "items": { "type": "string" }
+      }
+    }
+  }
+}

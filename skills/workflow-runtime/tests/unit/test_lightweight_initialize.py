@@ -51,7 +51,7 @@ class TestNoHeavyInitOperations:
             import context as ctx
             with patch.object(ctx, "parse_transcript", MagicMock(side_effect=AssertionError("parse_transcript called!"))) as mock_parse:
                 # Simulate init sequence
-                from validator import detect_project_version_cached
+                from workflow_runtime.shared.version_detector import detect_project_version_cached
                 detect_project_version_cached()
                 mock_parse.assert_not_called()
 
@@ -68,7 +68,8 @@ class TestNoHeavyInitOperations:
 
         with patch.object(ctx, "parse_transcript", spy_parse):
             # Simulate init: read cached state files only
-            from validator import detect_project_version_cached, detect_work_item_cached
+            from workflow_runtime.shared.version_detector import detect_project_version_cached
+            from validator import detect_work_item_cached
             detect_project_version_cached()
             detect_work_item_cached()
 
@@ -99,7 +100,7 @@ class TestNoHeavyInitOperations:
     def test_git_describe_tags_not_called(self):
         """TC-LITE-06: git describe --tags must NOT be called during init."""
         with patch("subprocess.run") as mock_run:
-            from validator import detect_project_version_cached
+            from workflow_runtime.shared.version_detector import detect_project_version_cached
             detect_project_version_cached()
             # Verify git describe was never called
             for call_args in mock_run.call_args_list:
@@ -109,7 +110,7 @@ class TestNoHeavyInitOperations:
 
     def test_no_manifest_scan_for_version(self):
         """TC-LITE-07: Version must NOT come from package.json/go.mod/pyproject.toml scans."""
-        from validator import detect_project_version_cached
+        from workflow_runtime.shared.version_detector import detect_project_version_cached
         with patch("builtins.open", side_effect=lambda p, **kw: _safe_open(p, **kw)):
             result = detect_project_version_cached()
         # Result should come from context.json, not scanned manifests
@@ -120,7 +121,7 @@ class TestNoHeavyInitOperations:
         """TC-LITE-08: refresh_context_usage_for_active_conversation() must NOT be called during init."""
         import context as ctx
         with patch.object(ctx, "parse_transcript", MagicMock(side_effect=AssertionError("transcript parsed!"))) as mock:
-            from dependency_resolver import load_usage_cached
+            from workflow_runtime.application.dependency.runtime_context_loaders import load_usage_cached
             result = load_usage_cached()
             mock.assert_not_called()
         # Usage should come from state files, not transcript
@@ -146,8 +147,10 @@ class TestInitLatency:
 
     def test_cached_reads_complete_under_800ms(self, tmp_path):
         """TC-PERF-01: Cached reads for version, usage, work-item complete under 800ms."""
-        from validator import detect_project_version_cached, detect_work_item_cached, read_environment_snapshot
-        from dependency_resolver import load_usage_cached, load_memory_cached
+        from workflow_runtime.shared.version_detector import detect_project_version_cached
+        from validator import detect_work_item_cached, read_environment_snapshot
+        from workflow_runtime.application.dependency.runtime_context_loaders import load_usage_cached
+        from dependency_resolver import load_memory_cached
 
         start = time.perf_counter()
         detect_project_version_cached()

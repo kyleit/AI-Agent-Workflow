@@ -15,16 +15,33 @@ show_help() {
     echo "  -f, --force         Force overwrite of existing files without prompting"
     echo "  -d, --deps-only     Only install/verify dependencies without copying files"
     echo "  -p, --permission    Set permission mode (sandbox, full_access, unrestricted)"
+    echo "      --scope SCOPE   Install scope: project (default) or global (~/.agents)"
+    echo "      --assume-global Treat this project as if a global install exists (minimal mode)"
+    echo "      --full          Force a full project install even if a global install is detected"
+    echo "      --reclaim       With --scope global: after installing globally, slim the CURRENT"
+    echo "                      project (remove duplicated payload, downgrade block to a pointer)"
     echo "  -h, --help          Show this help message"
+    echo ""
+    echo "Scope behavior:"
+    echo "  --scope global      Installs the shared framework to ~/.agents, injects rules into"
+    echo "                      global agent configs, and writes ~/.agents/aiwf-global.json."
+    echo "  --scope project     If a global install is detected (marker present or --assume-global),"
+    echo "                      installs MINIMAL: project-local state/config/hooks + a thin pointer"
+    echo "                      to the global rules, avoiding duplicated prompt content."
     echo ""
     echo "Example:"
     echo "  ./install.sh --force --permission sandbox"
+    echo "  ./install.sh --scope global"
 }
 
 # Parse options
 FORCE=false
 PERMISSION=""
 DEPS_ONLY=false
+SCOPE="project"
+ASSUME_GLOBAL=false
+FULL_INSTALL=false
+RECLAIM=false
 while [ $# -gt 0 ]; do
     case "$1" in
         -f|--force)
@@ -39,6 +56,22 @@ while [ $# -gt 0 ]; do
             PERMISSION="$2"
             shift 2
             ;;
+        --scope)
+            SCOPE="$2"
+            shift 2
+            ;;
+        --assume-global)
+            ASSUME_GLOBAL=true
+            shift
+            ;;
+        --full)
+            FULL_INSTALL=true
+            shift
+            ;;
+        --reclaim)
+            RECLAIM=true
+            shift
+            ;;
         -h|--help)
             show_help
             exit 0
@@ -49,6 +82,20 @@ while [ $# -gt 0 ]; do
             exit 1
             ;;
     esac
+done
+
+if [ "$SCOPE" != "project" ] && [ "$SCOPE" != "global" ]; then
+    echo "Invalid --scope: $SCOPE (expected 'project' or 'global')"
+    exit 1
+fi
+
+# Resolve a Python interpreter (>=3.9) once for scope-helper calls.
+PY=""
+for cand in python3 python "py -3"; do
+    if $cand -c 'import sys; raise SystemExit(0 if sys.version_info >= (3, 9) else 1)' >/dev/null 2>&1; then
+        PY="$cand"
+        break
+    fi
 done
 
 # Logging helpers
@@ -66,37 +113,45 @@ get_git_root() {
 }
 
 # 1. Verify current directory is a Git project (supporting worktrees and submodules)
-if ! command -v git &> /dev/null; then
-    # Git command not found, check fallback
-    if [ -d ".git" ] || [ -f ".git" ]; then
-        PROJECT_ROOT="."
-    else
-        log_error "git command line tool is missing, and no .git folder/file found."
-        log_error "Please install git or run this script from a Git repository root."
-        exit 1
-    fi
-else
-    # Git command exists
-    if ! is_git_worktree; then
+# Global scope installs to ~/.agents and does not require a Git project.
+if [ "$SCOPE" = "project" ]; then
+    if ! command -v git &> /dev/null; then
+        # Git command not found, check fallback
         if [ -d ".git" ] || [ -f ".git" ]; then
             PROJECT_ROOT="."
         else
-            log_error "The current directory is not a Git repository."
-            log_error "The AI Skill Framework must be installed at the root of a Git project."
+            log_error "git command line tool is missing, and no .git folder/file found."
+            log_error "Please install git or run this script from a Git repository root."
             exit 1
         fi
     else
-        PROJECT_ROOT="$(get_git_root)"
+        # Git command exists
+        if ! is_git_worktree; then
+            if [ -d ".git" ] || [ -f ".git" ]; then
+                PROJECT_ROOT="."
+            else
+                log_error "The current directory is not a Git repository."
+                log_error "The AI Skill Framework must be installed at the root of a Git project."
+                exit 1
+            fi
+        else
+            PROJECT_ROOT="$(get_git_root)"
+        fi
     fi
-fi
 
-cd "$PROJECT_ROOT" || exit 1
-log_success "Git repository detected."
-log_info "Project root: $PROJECT_ROOT"
-log_info "Installing AI Skill Framework into $PROJECT_ROOT/.agents"
+    cd "$PROJECT_ROOT" || exit 1
+    log_success "Git repository detected."
+    log_info "Project root: $PROJECT_ROOT"
+    log_info "Installing AI Skill Framework into $PROJECT_ROOT/.agents"
+else
+    PROJECT_ROOT="$(pwd)"
+    log_info "Global scope: installing shared framework into \$HOME/.agents"
+fi
 
 # Locate the framework package directory (where this script lives)
 SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
+SCOPE_HELPER="$SCRIPT_DIR/install-lib/aiwf_scope.py"
+GLOBAL_HOME_AGENTS="$HOME/.agents"
 
 # Verify MANIFEST.json exists in source
 if [ ! -f "$SCRIPT_DIR/MANIFEST.json" ]; then
@@ -172,7 +227,18 @@ remove_installed_transient_files() {
 merge_agents_block() {
     local file_path=$1
     local src_agents=$2
-    
+    local mode="${BLOCK_MODE:-full}"
+
+    # Preferred: delegate to the shared scope helper so full/stub block rendering
+    # and idempotent merging are identical across install.sh and install.ps1.
+    if [ -n "$PY" ] && [ -f "$SCOPE_HELPER" ]; then
+        if $PY "$SCOPE_HELPER" apply-block --file "$file_path" --mode "$mode" --home "$GLOBAL_HOME_AGENTS"; then
+            log_info "Applied AIWF '$mode' rules block to $file_path"
+            return 0
+        fi
+        log_warn "Scope helper failed for $file_path; falling back to inline full block."
+    fi
+
     local block_content='<!-- AIWF:RULES:BEGIN -->
 # AI Engineering Workflow Agents
 
@@ -246,68 +312,150 @@ with open(file_path, 'w', encoding='utf-8') as f:
     fi
 }
 
+do_global_install() {
+    local target="$GLOBAL_HOME_AGENTS"
+    log_info "Installing shared framework payload into $target ..."
+    mkdir -p "$target"
+    copy_item "$SCRIPT_DIR/AI_RULES.md" "$target/AI_RULES.md" false
+    [ -f "$SCRIPT_DIR/SKILLS.md" ] && copy_item "$SCRIPT_DIR/SKILLS.md" "$target/SKILLS.md" false
+    [ -d "$SCRIPT_DIR/$SKILL_DIR" ] && copy_item "$SCRIPT_DIR/$SKILL_DIR" "$target/$SKILL_DIR" true
+    [ -d "$SCRIPT_DIR/$TEMPLATE_DIR" ] && copy_item "$SCRIPT_DIR/$TEMPLATE_DIR" "$target/$TEMPLATE_DIR" true
+    [ -d "$SCRIPT_DIR/agents" ] && copy_item "$SCRIPT_DIR/agents" "$target/agents" true
+    [ -d "$SCRIPT_DIR/runtime" ] && copy_item "$SCRIPT_DIR/runtime" "$target/runtime" true
+    for governance_dir in contracts policies profiles; do
+        [ -d "$SCRIPT_DIR/.agents/$governance_dir" ] && \
+            copy_item "$SCRIPT_DIR/.agents/$governance_dir" "$target/$governance_dir" true
+    done
+    # Ship the scope helper globally so re-runs and uninstall can reuse it.
+    mkdir -p "$target/install-lib"
+    [ -f "$SCOPE_HELPER" ] && cp "$SCOPE_HELPER" "$target/install-lib/aiwf_scope.py"
+
+    # Inject the FULL managed rules block into global agent configs (idempotent).
+    BLOCK_MODE="full"
+    merge_agents_block "$target/AGENTS.md" "$SCRIPT_DIR/AGENTS.md"
+    mkdir -p "$HOME/.claude" "$HOME/.codex"
+    merge_agents_block "$HOME/.claude/CLAUDE.md" "$SCRIPT_DIR/AGENTS.md"
+    merge_agents_block "$HOME/.codex/AGENTS.md" "$SCRIPT_DIR/AGENTS.md"
+
+    # Write the detection marker that puts future project installs into minimal mode.
+    if [ -n "$PY" ] && [ -f "$SCOPE_HELPER" ]; then
+        if $PY "$SCOPE_HELPER" marker-write --version "$VERSION" --home "$target" \
+                --agents "claude,codex,antigravity"; then
+            log_success "Global marker written: $target/aiwf-global.json"
+        fi
+    else
+        log_warn "No Python interpreter: marker not written; project installs won't auto-detect global."
+    fi
+    # --reclaim: slim the CURRENT project (migrate an existing full install to minimal).
+    if [ "$RECLAIM" = true ]; then
+        if [ -n "$PY" ] && [ -f "$SCOPE_HELPER" ] && [ -d "$PROJECT_ROOT/.agents" ]; then
+            log_info "Reclaiming existing project install at $PROJECT_ROOT into minimal mode..."
+            $PY "$SCOPE_HELPER" slim-project --root "$PROJECT_ROOT" \
+                --skill-dir "$SKILL_DIR" --template-dir "$TEMPLATE_DIR" | \
+                while read -r line; do log_info "  reclaimed: $line"; done
+            log_success "Project reclaimed: duplicated payload removed, rules block downgraded to pointer."
+        else
+            log_warn "--reclaim: no project .agents at $PROJECT_ROOT (or no Python); nothing to slim."
+        fi
+    fi
+
+    log_success "Global AIWF install complete at $target."
+    log_info "New/existing projects: run './install.sh' (project scope) -> minimal mode automatically."
+    if [ "$RECLAIM" = false ]; then
+        log_info "To migrate an existing project here: re-run with '--scope global --reclaim' from that project."
+    fi
+}
+
 # 4. Copy required files/directories (Only if DEPS_ONLY is false)
 if [ "$DEPS_ONLY" = false ]; then
+    if [ "$SCOPE" = "global" ]; then
+        do_global_install
+        exit 0
+    fi
+    # --- Scope resolution: minimal (global present) vs full project install ---
+    MINIMAL_MODE=false
+    if [ "$SCOPE" = "project" ] && [ -n "$PY" ] && [ -f "$SCOPE_HELPER" ]; then
+        DETECT_FLAGS=""
+        [ "$ASSUME_GLOBAL" = true ] && DETECT_FLAGS="$DETECT_FLAGS --assume-global"
+        [ "$FULL_INSTALL" = true ] && DETECT_FLAGS="$DETECT_FLAGS --full"
+        # shellcheck disable=SC2086
+        DETECT=$($PY "$SCOPE_HELPER" detect $DETECT_FLAGS 2>/dev/null || echo full)
+        [ "$DETECT" = "minimal" ] && MINIMAL_MODE=true
+    fi
+    if [ "$MINIMAL_MODE" = true ]; then
+        BLOCK_MODE="stub"
+        log_info "Global AIWF install detected -> MINIMAL project mode: thin pointer only, shared payload (skills/rules/policies) skipped to avoid duplicated prompt content."
+    else
+        BLOCK_MODE="full"
+    fi
+
+    # Managed rules block: full (self-contained) or stub (pointer to global).
     merge_agents_block "AGENTS.md" "$SCRIPT_DIR/AGENTS.md"
-    copy_item "$SCRIPT_DIR/AI_RULES.md" "AI_RULES.md" false
     merge_agents_block "$INSTALL_TARGET/AGENTS.md" "$SCRIPT_DIR/AGENTS.md"
-    copy_item "$SCRIPT_DIR/AI_RULES.md" "$INSTALL_TARGET/AI_RULES.md" false
-    copy_item "$SCRIPT_DIR/SKILLS.md" "$INSTALL_TARGET/SKILLS.md" false
 
-    # Validate SKILL.md frontmatter before copying each skill
     SKILL_ERRORS=0
-    validate_skill_md() {
-        local skill_md=$1
-        local skill_name=$2
-        [ -f "$skill_md" ] || return 0
-        local first3
-        first3=$(head -c 3 "$skill_md" | od -An -tx1 | tr -d ' \n')
-        if [ "$first3" = "efbbbf" ]; then
-            log_warn "SKIP $skill_name: SKILL.md has UTF-8 BOM — frontmatter unreadable"
-            return 1
-        fi
-        if ! head -n 1 "$skill_md" | grep -q '^---'; then
-            log_warn "SKIP $skill_name: SKILL.md has no frontmatter delimiter"
-            return 1
-        fi
-        local fm
-        fm=$(awk 'NR > 1 { sub(/\r$/, ""); if ($0 == "---") exit; print }' "$skill_md")
-        if ! echo "$fm" | grep -q '^name:'; then
-            log_warn "SKIP $skill_name: SKILL.md missing 'name:' in frontmatter"
-            return 1
-        fi
-        if ! echo "$fm" | grep -q '^description:'; then
-            log_warn "SKIP $skill_name: SKILL.md missing 'description:' in frontmatter"
-            return 1
-        fi
-        return 0
-    }
+    if [ "$MINIMAL_MODE" = false ]; then
+        # Full project install: ship the shared framework payload.
+        copy_item "$SCRIPT_DIR/AI_RULES.md" "AI_RULES.md" false
+        copy_item "$SCRIPT_DIR/AI_RULES.md" "$INSTALL_TARGET/AI_RULES.md" false
+        copy_item "$SCRIPT_DIR/SKILLS.md" "$INSTALL_TARGET/SKILLS.md" false
 
-    if [ -d "$SCRIPT_DIR/$SKILL_DIR" ]; then
-        mkdir -p "$INSTALL_TARGET/$SKILL_DIR"
-        for skill_src in "$SCRIPT_DIR/$SKILL_DIR"/*/; do
-            [ -d "$skill_src" ] || continue
-            local_skill_name=$(basename "$skill_src")
-            skill_md_path="$skill_src/SKILL.md"
-            if validate_skill_md "$skill_md_path" "$local_skill_name"; then
-                copy_item "$skill_src" "$INSTALL_TARGET/$SKILL_DIR/$local_skill_name" true
-            else
-                log_warn "Keeping existing mirror for $local_skill_name (source has invalid SKILL.md)"
-                SKILL_ERRORS=$((SKILL_ERRORS + 1))
+        # Validate SKILL.md frontmatter before copying each skill
+        validate_skill_md() {
+            local skill_md=$1
+            local skill_name=$2
+            [ -f "$skill_md" ] || return 0
+            local first3
+            first3=$(head -c 3 "$skill_md" | od -An -tx1 | tr -d ' \n')
+            if [ "$first3" = "efbbbf" ]; then
+                log_warn "SKIP $skill_name: SKILL.md has UTF-8 BOM — frontmatter unreadable"
+                return 1
+            fi
+            if ! head -n 1 "$skill_md" | grep -q '^---'; then
+                log_warn "SKIP $skill_name: SKILL.md has no frontmatter delimiter"
+                return 1
+            fi
+            local fm
+            fm=$(awk 'NR > 1 { sub(/\r$/, ""); if ($0 == "---") exit; print }' "$skill_md")
+            if ! echo "$fm" | grep -q '^name:'; then
+                log_warn "SKIP $skill_name: SKILL.md missing 'name:' in frontmatter"
+                return 1
+            fi
+            if ! echo "$fm" | grep -q '^description:'; then
+                log_warn "SKIP $skill_name: SKILL.md missing 'description:' in frontmatter"
+                return 1
+            fi
+            return 0
+        }
+
+        if [ -d "$SCRIPT_DIR/$SKILL_DIR" ]; then
+            mkdir -p "$INSTALL_TARGET/$SKILL_DIR"
+            for skill_src in "$SCRIPT_DIR/$SKILL_DIR"/*/; do
+                [ -d "$skill_src" ] || continue
+                local_skill_name=$(basename "$skill_src")
+                skill_md_path="$skill_src/SKILL.md"
+                if validate_skill_md "$skill_md_path" "$local_skill_name"; then
+                    copy_item "$skill_src" "$INSTALL_TARGET/$SKILL_DIR/$local_skill_name" true
+                else
+                    log_warn "Keeping existing mirror for $local_skill_name (source has invalid SKILL.md)"
+                    SKILL_ERRORS=$((SKILL_ERRORS + 1))
+                fi
+            done
+        fi
+        copy_item "$SCRIPT_DIR/$TEMPLATE_DIR" "$INSTALL_TARGET/$TEMPLATE_DIR" true
+        copy_item "$SCRIPT_DIR/agents" "$INSTALL_TARGET/agents" true
+        copy_item "$SCRIPT_DIR/runtime" "$INSTALL_TARGET/runtime" true
+
+        # Provision the governance assets consumed by architecture and language
+        # gates without copying the source repository's runtime state.
+        for governance_dir in contracts policies profiles; do
+            if [ -d "$SCRIPT_DIR/.agents/$governance_dir" ]; then
+                copy_item "$SCRIPT_DIR/.agents/$governance_dir" "$INSTALL_TARGET/$governance_dir" true
             fi
         done
+    else
+        log_info "Skipped shared payload (AI_RULES.md, skills, templates, agents, runtime, contracts/policies/profiles) — provided by the global install at $GLOBAL_HOME_AGENTS."
     fi
-    copy_item "$SCRIPT_DIR/$TEMPLATE_DIR" "$INSTALL_TARGET/$TEMPLATE_DIR" true
-    copy_item "$SCRIPT_DIR/agents" "$INSTALL_TARGET/agents" true
-    copy_item "$SCRIPT_DIR/runtime" "$INSTALL_TARGET/runtime" true
-
-    # Provision the governance assets consumed by architecture and language
-    # gates without copying the source repository's runtime state.
-    for governance_dir in contracts policies profiles; do
-        if [ -d "$SCRIPT_DIR/.agents/$governance_dir" ]; then
-            copy_item "$SCRIPT_DIR/.agents/$governance_dir" "$INSTALL_TARGET/$governance_dir" true
-        fi
-    done
 
     # Deploy AIWF source-write-gate enforcement (git hooks + gate core) and wire
     # git core.hooksPath so every AI/editor is blocked from committing
@@ -341,6 +489,28 @@ if [ "$DEPS_ONLY" = false ]; then
     if command -v git >/dev/null 2>&1 && git -C "$PROJECT_ROOT" rev-parse --is-inside-work-tree >/dev/null 2>&1 && [ -d "$INSTALL_TARGET/githooks" ]; then
         git -C "$PROJECT_ROOT" config core.hooksPath ".agents/githooks" 2>/dev/null || true
         log_success "Source-write gate enabled (git core.hooksPath -> .agents/githooks)."
+    fi
+
+    # Deploy the Claude Code auto-route layer (Claude-only per-prompt hooks):
+    # UserPromptSubmit routes every natural-language prompt through AIWF without
+    # requiring the user to type /aiwf; PreToolUse re-uses the source-write gate.
+    # Codex and Antigravity route via AGENTS.md (auto-read) + the git hard-gate.
+    HOOK_SRC=""
+    for h in "$SCRIPT_DIR/aiwf-hooks" "$SCRIPT_DIR/tools/aiwf-hooks"; do
+        [ -d "$h" ] && { HOOK_SRC="$h"; break; }
+    done
+    if [ -n "$HOOK_SRC" ] && [ -f "$HOOK_SRC/aiwf_prompt_router.py" ]; then
+        mkdir -p "$INSTALL_TARGET/aiwf-hooks"
+        cp "$HOOK_SRC/aiwf_prompt_router.py" "$INSTALL_TARGET/aiwf-hooks/aiwf_prompt_router.py" 2>/dev/null || true
+    fi
+    if [ -n "$HOOK_SRC" ] && [ -f "$HOOK_SRC/claude-settings.template.json" ]; then
+        mkdir -p "$PROJECT_ROOT/.claude"
+        if [ ! -e "$PROJECT_ROOT/.claude/settings.json" ]; then
+            cp "$HOOK_SRC/claude-settings.template.json" "$PROJECT_ROOT/.claude/settings.json"
+            log_success "Claude auto-route hooks installed (.claude/settings.json). Open /hooks or restart Claude Code to activate."
+        else
+            log_warn "Existing .claude/settings.json kept; merge AIWF hooks from $HOOK_SRC/claude-settings.template.json"
+        fi
     fi
 
     remove_installed_transient_files "$INSTALL_TARGET"
@@ -469,7 +639,13 @@ fi
 
 # 6. Validation and Summary
 MISSING_FILES=0
-for file in "AGENTS.md" "AI_RULES.md" "MANIFEST.json" "$SKILL_DIR" "$TEMPLATE_DIR" "agents" "runtime"; do
+if [ "${MINIMAL_MODE:-false}" = true ]; then
+    # Minimal mode: shared payload is global; only project-local artifacts are required.
+    VALIDATE_FILES="AGENTS.md MANIFEST.json"
+else
+    VALIDATE_FILES="AGENTS.md AI_RULES.md MANIFEST.json $SKILL_DIR $TEMPLATE_DIR agents runtime"
+fi
+for file in $VALIDATE_FILES; do
     if [ ! -e "$INSTALL_TARGET/$file" ]; then
         log_error "Validation failed: Missing $INSTALL_TARGET/$file"
         MISSING_FILES=$((MISSING_FILES + 1))
@@ -502,8 +678,16 @@ log_success "AI Skill Framework v$VERSION has been successfully installed!"
 echo "--------------------------------------------------"
 echo "Installation Summary:"
 echo "  Location:  $INSTALL_TARGET/"
-echo "  Rules:     $INSTALL_TARGET/AI_RULES.md"
-echo "  Skills:    $INSTALL_TARGET/$SKILL_DIR/"
-echo "  Templates: $INSTALL_TARGET/$TEMPLATE_DIR/"
+if [ "${MINIMAL_MODE:-false}" = true ]; then
+    echo "  Mode:      MINIMAL (global install detected at $GLOBAL_HOME_AGENTS)"
+    echo "  Rules:     $GLOBAL_HOME_AGENTS/AI_RULES.md (global; not duplicated per-project)"
+    echo "  Skills:    $GLOBAL_HOME_AGENTS/$SKILL_DIR/ (global)"
+    echo "  Project:   state/config/hooks + thin pointer block in AGENTS.md"
+else
+    echo "  Mode:      FULL project install"
+    echo "  Rules:     $INSTALL_TARGET/AI_RULES.md"
+    echo "  Skills:    $INSTALL_TARGET/$SKILL_DIR/"
+    echo "  Templates: $INSTALL_TARGET/$TEMPLATE_DIR/"
+fi
 echo "--------------------------------------------------"
 log_info "To use these skills, make sure your AI Agent workspace points to $INSTALL_TARGET/."

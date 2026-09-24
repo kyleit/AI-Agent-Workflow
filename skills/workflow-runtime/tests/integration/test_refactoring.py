@@ -17,6 +17,16 @@ sys.path.append(os.path.join(os.path.dirname(__file__), "..", "..", "scripts"))
 from session import load_session, save_session_atomic, SESSION_FILE
 from tests.conftest import run_cli
 
+RETIRED_CHOICE_CLI = unittest.skip(
+    "retired in 3f37c9b0: `aiwf choice` is now a single --title/--options menu; "
+    "the create/wait/read subcommands are no longer exposed by the CLI parser"
+)
+RETIRED_ACTIVE_WORKFLOW_CLI = unittest.skip(
+    "retired in aae78025: `aiwf active-workflow` subactions (set/get/set-waiting/clear/"
+    "resume/validate-blueprint/suggest-branch/branch-options) were removed"
+)
+
+
 class TestRefactoringEngine(unittest.TestCase):
     def setUp(self):
         os.environ["TESTING"] = "1"
@@ -72,19 +82,18 @@ class TestRefactoringEngine(unittest.TestCase):
             os.remove(self.session_backup)
 
     def run_cli(self, args_list, input_str=None, env=None):
-        cmd = [sys.executable, self.cli_path] + args_list
         run_env = os.environ.copy()
         if "TESTING" in run_env:
             del run_env["TESTING"]
         if env:
             run_env.update(env)
-        res = subprocess.run(cmd, input=input_str, capture_output=True, text=True, encoding="utf-8", env=run_env)
-        return res
+        return run_cli(*args_list, input=input_str, encoding="utf-8", env=run_env)
 
     # ==========================================
     # 1. CHOICE PROTOCOL SCENARIOS (7 scenarios)
     # ==========================================
 
+    @RETIRED_CHOICE_CLI
     def test_s1_1_choice_create(self):
         # Scenario 1.1: choice create builds correct JSON
         res = self.run_cli([
@@ -108,6 +117,7 @@ class TestRefactoringEngine(unittest.TestCase):
         self.assertEqual(data["type"], "choice")
         self.assertTrue(data["allow_cancel"])
 
+    @RETIRED_CHOICE_CLI
     def test_s1_2_choice_wait_ui_response(self):
         # Scenario 1.2: choice wait resolves instantly with UI response
         # First create pending choice
@@ -122,6 +132,7 @@ class TestRefactoringEngine(unittest.TestCase):
         self.assertEqual(res.returncode, 0)
         self.assertIn("Choice resolved: o2", res.stdout)
 
+    @RETIRED_CHOICE_CLI
     def test_s1_3_choice_wait_text_fallback_number(self):
         # Scenario 1.3: choice wait text fallback processes option index
         self.run_cli(["choice", "create", "--id", "c3", "--title", "T", "--options", "o1,o2"])
@@ -130,6 +141,7 @@ class TestRefactoringEngine(unittest.TestCase):
         self.assertEqual(res.returncode, 0)
         self.assertIn("Choice resolved: o2", res.stdout)
 
+    @RETIRED_CHOICE_CLI
     def test_s1_4_choice_wait_text_fallback_direct_label(self):
         # Scenario 1.4: choice wait text fallback processes option label case-insensitively
         self.run_cli(["choice", "create", "--id", "c4", "--title", "T", "--options", "o1,o2"])
@@ -138,6 +150,7 @@ class TestRefactoringEngine(unittest.TestCase):
         self.assertEqual(res.returncode, 0)
         self.assertIn("Choice resolved: o2", res.stdout)
 
+    @RETIRED_CHOICE_CLI
     def test_s1_5_choice_wait_approval_yes_no(self):
         # Scenario 1.5: choice wait handles Y/N for approval type
         self.run_cli(["choice", "create", "--id", "c5", "--title", "T", "--options", "Yes,No", "--type", "approval"])
@@ -145,6 +158,7 @@ class TestRefactoringEngine(unittest.TestCase):
         self.assertEqual(res.returncode, 0)
         self.assertIn("Choice resolved: approve", res.stdout)
 
+    @RETIRED_CHOICE_CLI
     def test_s1_6_choice_wait_cancel(self):
         # Scenario 1.6: choice wait text fallback cancels on C/cancel if allowed
         self.run_cli(["choice", "create", "--id", "c6", "--title", "T", "--options", "o1,o2", "--allow-cancel"])
@@ -152,6 +166,7 @@ class TestRefactoringEngine(unittest.TestCase):
         self.assertEqual(res.returncode, 0)
         self.assertIn("Choice resolved: cancel", res.stdout)
 
+    @RETIRED_CHOICE_CLI
     def test_s1_7_choice_read(self):
         # Scenario 1.7: choice read returns selection or empty
         res = self.run_cli(["choice", "read", "--id", "c7"])
@@ -169,6 +184,7 @@ class TestRefactoringEngine(unittest.TestCase):
     # 2. ACTIVE-WORKFLOW SCENARIOS (5 scenarios)
     # ==========================================
 
+    @RETIRED_ACTIVE_WORKFLOW_CLI
     def test_s2_1_active_workflow_set(self):
         # Scenario 2.1: active-workflow set writes state to session
         save_session_atomic({"checkpoint": 1})
@@ -192,6 +208,7 @@ class TestRefactoringEngine(unittest.TestCase):
         self.assertEqual(aw["artifact_id"], "FIX-001")
         self.assertEqual(aw["waiting_for"], "spec_approval")
 
+    @RETIRED_ACTIVE_WORKFLOW_CLI
     def test_s2_2_active_workflow_get(self):
         # Scenario 2.2: active-workflow get returns saved state JSON
         save_session_atomic({
@@ -204,6 +221,7 @@ class TestRefactoringEngine(unittest.TestCase):
         self.assertEqual(data["type"], "quick-fix")
         self.assertEqual(data["phase"], "spec")
 
+    @RETIRED_ACTIVE_WORKFLOW_CLI
     def test_s2_3_active_workflow_set_waiting_and_clear(self):
         # Scenario 2.3: active-workflow set-waiting updates waiting_for, clear removes it
         save_session_atomic({
@@ -222,6 +240,7 @@ class TestRefactoringEngine(unittest.TestCase):
         session = load_session()
         self.assertNotIn("active_workflow", session)
 
+    @RETIRED_ACTIVE_WORKFLOW_CLI
     def test_s2_4_active_workflow_resume(self):
         # Scenario 2.4: active-workflow resume restores checkpoint and current step
         save_session_atomic({
@@ -241,6 +260,7 @@ class TestRefactoringEngine(unittest.TestCase):
         self.assertEqual(session["checkpoint"], 4)
         self.assertEqual(session["current_step"], "Writing Design Blueprint")
 
+    @RETIRED_ACTIVE_WORKFLOW_CLI
     def test_s2_5_active_workflow_resume_nlp(self):
         # Scenario 2.5: Resumption logic (NLP classification suggestion)
         # Note: Handled by orchestrator/SDLC classification helper script,
@@ -263,6 +283,7 @@ class TestRefactoringEngine(unittest.TestCase):
     # 3. BLUEPRINT VALIDATION SCENARIOS (3 scenarios)
     # ==========================================
 
+    @RETIRED_ACTIVE_WORKFLOW_CLI
     def test_s3_1_validate_blueprint_success(self):
         # Scenario 3.1: validate-blueprint succeeds with valid file
         bp_dir = "docs/blueprints"
@@ -299,6 +320,7 @@ This is rollback plan.
             if os.path.exists(bp_path):
                 os.remove(bp_path)
 
+    @RETIRED_ACTIVE_WORKFLOW_CLI
     def test_s3_2_validate_blueprint_missing_section(self):
         # Scenario 3.2: validate-blueprint fails if header is missing
         bp_dir = "docs/blueprints"
@@ -324,6 +346,7 @@ This is scope.
             if os.path.exists(bp_path):
                 os.remove(bp_path)
 
+    @RETIRED_ACTIVE_WORKFLOW_CLI
     def test_s3_3_validate_blueprint_mismatched_prefix(self):
         # Scenario 3.3: validate-blueprint fails on prefix mismatch
         bp_dir = "docs/blueprints"
@@ -356,6 +379,7 @@ name: FEAT-125 Test
     # 4. GIT BRANCH & CHOICE UI SCENARIOS (3 scenarios)
     # ==========================================
 
+    @RETIRED_ACTIVE_WORKFLOW_CLI
     def test_s4_1_suggest_branch(self):
         # Scenario 4.1: suggest-branch cleans slug and appends correct prefix
         res = self.run_cli(["active-workflow", "suggest-branch", "--artifact-id", "FIX-456", "--slug", "Fix memory crash!"])
@@ -366,6 +390,7 @@ name: FEAT-125 Test
         self.assertEqual(res2.returncode, 0)
         self.assertEqual(res2.stdout.strip(), "quick/quick-789-add-button")
 
+    @RETIRED_ACTIVE_WORKFLOW_CLI
     def test_s4_2_branch_options(self):
         # Scenario 4.2: branch-options returns branch choice list with actual branch name
         res = self.run_cli(["active-workflow", "branch-options", "--artifact-id", "FEAT-001", "--slug", "Login Flow"])

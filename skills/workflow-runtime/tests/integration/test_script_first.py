@@ -8,15 +8,45 @@ import json
 import sys
 import subprocess
 import shutil
+import tempfile
 from tests.conftest import run_cli
 
 TEST_DIR = os.path.dirname(os.path.abspath(__file__))
 sys.path.append(os.path.join(TEST_DIR, "..", "..", "scripts"))
 sys.path.append(os.path.join(TEST_DIR, "..", "..", "scripts", "memory"))
 
+def _enter_minimal_python_project(test):
+    """chdir into a fresh python project with a runnable main.py.
+
+    The debug/verify pipelines compile and scan the whole cwd and launch main.py
+    on $PORT (the mock http.server fallback was removed in aae78025), so running
+    them in the copied framework workspace is non-hermetic.
+    """
+    from workflow_runtime.infrastructure.session.state_store import reset_state_store
+    previous_cwd = os.getcwd()
+    project_dir = tempfile.mkdtemp(prefix="aiwf-script-first-app-")
+    os.chdir(project_dir)
+    reset_state_store(None)
+
+    def _leave():
+        os.chdir(previous_cwd)
+        reset_state_store(None)
+        shutil.rmtree(project_dir, ignore_errors=True)
+
+    test.addCleanup(_leave)
+    with open("requirements.txt", "w", encoding="utf-8") as f:
+        f.write("")
+    with open("main.py", "w", encoding="utf-8") as f:
+        f.write(
+            "import http.server, os\n"
+            "http.server.HTTPServer(('127.0.0.1', int(os.environ['PORT'])),"
+            " http.server.SimpleHTTPRequestHandler).serve_forever()\n"
+        )
+
+
 class TestScriptFirstExecution(unittest.TestCase):
     def setUp(self):
-        self.self.session_file = os.path.join(".agents", ".session.json")
+        self.session_file = os.path.join(".agents", ".session.json")
         self.session_backup = None
         if os.path.exists(self.session_file):
             self.session_backup = self.session_file + ".testbackup"
@@ -83,7 +113,7 @@ class TestScriptFirstExecution(unittest.TestCase):
             
     # Scenario 1: Skill classifier
     def test_skill_classifier(self):
-        from skill_classifier import classify_intent
+        from workflow_runtime.application.skills.skill_classifier import classify_intent
         res = classify_intent("Tôi bị lỗi crash")
         self.assertEqual(res["recommended_skill"], "quick-fix")
         
@@ -120,7 +150,9 @@ class TestScriptFirstExecution(unittest.TestCase):
 
     # Scenario 5: project-discovery detects project stacks
     def test_project_discovery(self):
-        from project_discovery import run_discovery
+        from workflow_runtime.application.system.project_discovery import run_discovery
+        from workflow_runtime.presentation.cli.bootstrap import bootstrap_di
+        bootstrap_di()  # run_discovery resolves ProjectAnalyzer via InfrastructureLocator
         res = run_discovery()
         self.assertEqual(res["status"], "success")
         profile_path = os.path.join(".agents", "project-profile.json")
@@ -131,41 +163,41 @@ class TestScriptFirstExecution(unittest.TestCase):
 
     # Scenario 6: memory bootstrap
     def test_memory_bootstrap(self):
-        from memory.bootstrap import run_bootstrap
+        from workflow_runtime.infrastructure.memory.bootstrap import run_bootstrap
         res = run_bootstrap()
         self.assertEqual(res["status"], "success")
         self.assertTrue(os.path.exists(os.path.join(".agents", "memory", "project-summary.md")))
 
     # Scenario 7: memory update
     def test_memory_update(self):
-        from memory.update import run_update
+        from workflow_runtime.infrastructure.memory.update import run_update
         res = run_update()
         self.assertEqual(res["status"], "success")
 
     # Scenario 8: RAG search fallback
     def test_memory_search(self):
-        from memory.search import RAGSearcher
+        from workflow_runtime.infrastructure.memory.search import RAGSearcher
         searcher = RAGSearcher()
         res = searcher.execute_search("workflow")
         self.assertEqual(res["status"], "success")
 
     # Scenario 9: blueprint validation fails for missing
     def test_blueprint_validation_missing(self):
-        from artifact_validator import validate_blueprint_file
+        from workflow_runtime.application.docs.artifact_validator import validate_blueprint_file
         res = validate_blueprint_file("docs/blueprints/non_existent_blueprint.md")
         self.assertEqual(res["status"], "failure")
 
     # Scenario 10: implementation gate blocks non-blueprint input
     # Verified by checking blueprint files missing or unapproved
     def test_implementation_gate_blocks(self):
-        from artifact_validator import validate_blueprint_file
+        from workflow_runtime.application.docs.artifact_validator import validate_blueprint_file
         res = validate_blueprint_file("docs/blueprints/non_existent_blueprint.md", "FEAT-")
         self.assertEqual(res["status"], "failure")
 
     # Scenario 11 & 12: quick-fix and quick-feature stops after specs
     # Verified by checking validator command blocks if active spec is unapproved
     def test_quick_workflow_stops(self):
-        from artifact_validator import validate_artifact_general
+        from workflow_runtime.application.docs.artifact_validator import validate_artifact_general
         res = validate_artifact_general("non_existent_spec.md")
         self.assertEqual(res["status"], "failure")
 
@@ -174,18 +206,20 @@ class TestScriptFirstExecution(unittest.TestCase):
         print("DIAGNOSTIC - CWD:", os.path.abspath("."))
         print("DIAGNOSTIC - LISTDIR:", os.listdir("."))
         from validation_runner import run_debug
+        _enter_minimal_python_project(self)
         res = run_debug()
         self.assertEqual(res["status"], "success")
 
     def test_verify_runner_blocks_release(self):
         from validation_runner import run_verify
         from session import save_session_atomic
+        _enter_minimal_python_project(self)
         bp_path = "docs/blueprints/FEAT-021_script_first_execution_blueprint.md"
         os.makedirs(os.path.dirname(bp_path), exist_ok=True)
         with open(bp_path, "w", encoding="utf-8") as f:
             f.write("# FEAT-021 Blueprint\n\n## Technical Blueprint\n## System Architecture\n## Implementation Plan\n## Verification Plan")
-        save_session_atomic({"checkpoint": 7, "active_workflow": {"blueprint_path": bp_path}})
-        res = run_verify()
+        save_session_atomic({"checkpoint": 7})
+        res = run_verify(blueprint_path=bp_path)
         self.assertIn("Release is currently blocked", res["warnings"][0])
 
     # Scenario 15: release manager refuses tag/push without approval
@@ -197,7 +231,8 @@ class TestScriptFirstExecution(unittest.TestCase):
 
     # Scenario 16: CLI JSON validation
     def test_cli_json_output(self):
-        res = run_cli("env", "health", capture_output=True, text=True)
+        # `env health` became plain `env` when the CLI moved to command classes (3f37c9b0).
+        res = run_cli("env", capture_output=True, text=True)
         self.assertEqual(res.returncode, 0)
         data = json.loads(res.stdout)
         self.assertEqual(data["status"], "success")
@@ -205,7 +240,7 @@ class TestScriptFirstExecution(unittest.TestCase):
 
     # Scenario 17: cross-platform path checks
     def test_cross_platform(self):
-        from artifact_validator import validate_blueprint_file
+        from workflow_runtime.application.docs.artifact_validator import validate_blueprint_file
         # Checks normalized slashes handle Windows path representations
         res = validate_blueprint_file("docs\\designs\\non_existent_blueprint.md")
         self.assertEqual(res["status"], "failure")

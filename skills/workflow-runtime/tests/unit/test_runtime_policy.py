@@ -80,6 +80,9 @@ def test_invalid_schema_rejected(tmp_path, monkeypatch):
 
 def test_init_idempotent(tmp_path, monkeypatch):
     monkeypatch.chdir(tmp_path)
+    # do_init touches the per-user global runtime DB; keep it out of the real home.
+    monkeypatch.setenv("HOME", str(tmp_path / "home"))
+    monkeypatch.setenv("APPDATA", str(tmp_path / "home"))
     monkeypatch.setenv("AIWF_RUNTIME_POLICY_ROOT", str(tmp_path))
     
     agents_dir = tmp_path / ".agents"
@@ -92,8 +95,10 @@ def test_init_idempotent(tmp_path, monkeypatch):
     # Mock subprocess.Popen and pid_exists to avoid starting real daemon
     with patch("subprocess.Popen") as mock_popen, \
          patch("psutil.pid_exists", return_value=True), \
-         patch("workflow_runtime.get_git_info", return_value={"is_git_repository": True, "branch": "main"}), \
-         patch("workflow_runtime.get_version_info", return_value={"version": "1.0.0"}), \
+         patch("workflow_runtime.presentation.cli.commands._impl.session.session_init.get_git_info", return_value={"is_git_repository": True, "branch": "main"}), \
+         patch("workflow_runtime.presentation.cli.commands._impl.session.session_init.get_version_info", return_value={"version": "1.0.0"}), \
+         patch("workflow_runtime.presentation.cli.workflow_runtime_shared.get_git_info", return_value={"is_git_repository": True, "branch": "main"}), \
+         patch("workflow_runtime.presentation.cli.workflow_runtime_shared.get_version_info", return_value={"version": "1.0.0"}), \
          patch("validator.get_git_info", return_value={"is_git_repository": True, "branch": "main"}), \
          patch("validator.get_version_info", return_value={"version": "1.0.0"}), \
          patch("drift.get_git_info", return_value={"is_git_repository": True, "branch": "main"}):
@@ -132,6 +137,8 @@ def test_cli_actions(tmp_path, monkeypatch, capsys):
     
     # Test display policy
     args = ArgsMock()
+    # The real `runtime` parser sets only `subaction`; `action` takes precedence.
+    args.action = None
     args.subaction = "policy"
     do_runtime_action(args)
     captured = capsys.readouterr()

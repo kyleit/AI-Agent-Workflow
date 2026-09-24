@@ -9,7 +9,8 @@
 
 [CmdletBinding()]
 param(
-    [switch]$Force
+    [switch]$Force,
+    [switch]$Global
 )
 
 # Logging helpers
@@ -17,6 +18,51 @@ function Log-Info ($msg) { Write-Host "[INFO] $msg" -ForegroundColor Blue }
 function Log-Warn ($msg) { Write-Host "[WARN] $msg" -ForegroundColor Yellow }
 function Log-Error ($msg) { Write-Error "[ERROR] $msg" }
 function Log-Success ($msg) { Write-Host "[SUCCESS] $msg" -ForegroundColor Green }
+
+# Global uninstall: remove ~/.agents, the detection marker, and the managed
+# rules block from the global agent configs. Does not require a project manifest.
+if ($Global) {
+    $GlobalHomeAgents = Join-Path $HOME ".agents"
+    $PY = $null
+    foreach ($cand in @("python3", "python", "py")) {
+        if (Get-Command $cand -ErrorAction SilentlyContinue) { $PY = $cand; break }
+    }
+    $ScriptDir = Split-Path -Parent $MyInvocation.MyCommand.Path
+    $ScopeHelper = Join-Path (Join-Path $GlobalHomeAgents "install-lib") "aiwf_scope.py"
+    if (-not (Test-Path $ScopeHelper)) {
+        $ScopeHelper = Join-Path (Join-Path $ScriptDir "install-lib") "aiwf_scope.py"
+    }
+
+    if (-not $Force) {
+        $Choice = Read-Host "[PROMPT] Uninstall the GLOBAL AIWF install at $GlobalHomeAgents? (y/N)"
+        if ($Choice -notmatch "^(y|yes)$") { Log-Info "Global uninstall cancelled."; exit 0 }
+    }
+
+    if ($PY -and (Test-Path $ScopeHelper)) {
+        & $PY $ScopeHelper marker-remove | Out-Null
+        Log-Info "Removed global marker."
+        foreach ($cfg in @((Join-Path (Join-Path $HOME ".claude") "CLAUDE.md"),
+                           (Join-Path (Join-Path $HOME ".codex") "AGENTS.md"),
+                           (Join-Path $GlobalHomeAgents "AGENTS.md"))) {
+            if (Test-Path $cfg) {
+                & $PY $ScopeHelper remove-block --file $cfg | Out-Null
+                Log-Info "Stripped managed block: $cfg"
+            }
+        }
+    } else {
+        Log-Warn "No Python/helper: skipped marker + block cleanup. Remove them manually."
+        $marker = Join-Path $GlobalHomeAgents "aiwf-global.json"
+        if (Test-Path $marker) { Remove-Item -Path $marker -Force -ErrorAction SilentlyContinue }
+    }
+
+    if (Test-Path $GlobalHomeAgents) {
+        Remove-Item -Path $GlobalHomeAgents -Recurse -Force -ErrorAction SilentlyContinue
+        Log-Success "Removed global framework directory: $GlobalHomeAgents"
+    }
+    Log-Success "Global AIWF uninstall complete."
+    Log-Info "Existing projects in minimal mode: re-run '.\install.ps1 -FullInstall' to restore a full project install."
+    exit 0
+}
 
 $InstallTarget = ".agents"
 $TargetManifestPath = Join-Path $InstallTarget "MANIFEST.json"

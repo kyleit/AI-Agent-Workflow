@@ -22,7 +22,7 @@ class TestAutonomousApprovalBypass(unittest.TestCase):
     def tearDown(self):
         shutil.rmtree(self.temp_dir)
 
-    @patch("workflow_runtime.load_session")
+    @patch("workflow_runtime.presentation.cli.commands._impl.ui.ui_prompts.load_session")
     def test_blueprint_gate_not_bypassed_in_autonomous_mode(self, mock_load):
         # Setup session with autonomous_delivery = True
         mock_load.return_value = {
@@ -32,6 +32,7 @@ class TestAutonomousApprovalBypass(unittest.TestCase):
         
         # Mock args
         args = MagicMock()
+        args.action = None  # do_choice reads `action` before `subaction`
         args.subaction = "wait"
         args.id = "blueprint_approval"
         args.timeout = 5
@@ -56,7 +57,7 @@ class TestAutonomousApprovalBypass(unittest.TestCase):
             self.assertEqual(res["selected"], "cancel")
             self.assertTrue(res["cancelled"])
 
-    @patch("workflow_runtime.load_session")
+    @patch("workflow_runtime.presentation.cli.commands._impl.ui.ui_prompts.load_session")
     def test_protected_gate_not_bypassed(self, mock_load):
         # Setup session with autonomous_delivery = True
         mock_load.return_value = {
@@ -65,6 +66,7 @@ class TestAutonomousApprovalBypass(unittest.TestCase):
         }
         
         args = MagicMock()
+        args.action = None  # do_choice reads `action` before `subaction`
         args.subaction = "wait"
         args.id = "release_approval" # Protected gate
         args.timeout = 1

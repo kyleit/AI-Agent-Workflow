@@ -12,7 +12,8 @@ class TestNoAbsolutePaths(unittest.TestCase):
         self.assertTrue(has_absolute_paths(content))
         
     def test_has_absolute_paths_win(self):
-        content = "Windows path ${USERPROFILE}\\workspace"
+        # fc4d7efd path-scrubbing replaced the original drive-letter fixture with a placeholder
+        content = "Windows path D:\\projects\\workspace"
         self.assertTrue(has_absolute_paths(content))
         
     def test_has_no_absolute_paths(self):

@@ -886,6 +886,52 @@ Frontend/Desktop Visual Debug           Skipped (Backend Only)
 
 ---
 
+## 27. `loop-controller` (command: `/loop`)
+* **Aliases**: `/loop-engine`, `/self-correcting-loop`
+* **Category**: `runtime`
+* **Tags**: `#loop`, `#controller`, `#runtime`, `#self-correcting`, `#deterministic`
+* **Purpose**: Turn-driven, no-daemon self-correcting loop wrapping the linear AIWF pipeline. Each cycle runs LOAD → EXECUTE → EVALUATE → DECIDE → PERSIST and chooses one transition ∈ `{ADVANCE, REPEAT, BACKTRACK, HALT}` from the gate verdict.
+* **Responsibilities**:
+  1. Load loop state (`aiwf.loop/1`) or initialize `iteration 0` when absent (backward compatible).
+  2. Decide the transition deterministically; a failed risk-assumption Spike routes `BACKTRACK` to `brainstorming`.
+  3. Enforce hard stop-conditions: `MAX_ITERATIONS` (default 8), `NO_PROGRESS` (same failure signature ×3), `GATE_PASS_FINAL`, `USER_HALT`, `UNRECOVERABLE_ERROR`.
+  4. Persist state atomically and append an append-only ledger (`aiwf.loop.ledger/1`); record the receipt via `workflow-command-audit`.
+* **Input**: `aiwf loop <load|decide|persist> [flags]` (canonical), the `loop_engine.sh`/`loop_engine.ps1` launcher, or PROTOCOL.md hand-execution.
+* **Output**: `.agents/state/loop/<workflow-id>.json` + `.agents/state/loop/<workflow-id>.ledger.jsonl`.
+* **Capability Boundary**: Decides transitions only. `approval_authority: none`; never writes source code, runs tests, or unlocks a gate. Cross-platform (Windows/Linux/macOS), Python ≥ 3.9, else hand-execution.
+* **Recommended Next Skill**: The phase skill selected by the transition (`workflow-coordinator` dispatches).
+* **Example Invocation**:
+  ```bash
+  aiwf loop decide --workflow FEAT-001 --phase blueprint --verdict FAIL --backtrack-target brainstorming
+  ```
+* **Current Status**: Production Stable (v1.0.0 — Runtime Loop Layer).
+* **Dependencies**: Valid Bootstrap Receipt; `plan-to-blueprint` §8.1 Spike Gate for spike-driven backtracking.
+
+---
+
+## 28. `multi-agent-loop` (command: `/orchestrate`)
+* **Aliases**: `/malo`, `/agent-loop`
+* **Category**: `runtime`
+* **Tags**: `#orchestration`, `#multi-agent`, `#loop`, `#headless`, `#runtime`
+* **Purpose**: Foreground (no-daemon) orchestrator that drives the loop-controller and spawns heterogeneous agents (Claude, Codex, Antigravity) **headless per phase** on one shared workspace until HALT.
+* **Responsibilities**:
+  1. Select the agent per phase dynamically from `.agents/config/agent-registry.json` (`aiwf.agent-registry/1`): capability → priority → least-recently-used.
+  2. Spawn the selected agent CLI headless in the shared workspace; capture a `PASS|BLOCK|FAIL|ERROR` verdict.
+  3. Hand the verdict to the loop-controller (transition authority) and persist loop-state + an append-only run ledger (`aiwf.phase-run/1`).
+  4. Run continuously through non-approval phases; HALT `AWAITING_APPROVAL` at Blueprint/Implementation gates (never auto-approve); resume after the user approves.
+* **Input**: `aiwf malo select|run [flags]` (canonical), `scripts/malo.sh`/`malo.ps1` launcher, or PROTOCOL.md hand-execution.
+* **Output**: `.agents/state/loop/<workflow-id>.runs.jsonl` + loop-controller state.
+* **Capability Boundary**: Orchestration only. `approval_authority: none`; never writes source, runs tests, or unlocks a gate. Additive over loop-controller; backward compatible (no registry → one session agent). Cross-platform, Python ≥ 3.9, else hand-execution.
+* **Recommended Next Skill**: the phase skill selected per cycle (via `workflow-coordinator`).
+* **Example Invocation**:
+  ```bash
+  aiwf malo run --workflow FEAT-001 --phases plan,blueprint,implement,verify
+  ```
+* **Current Status**: Production Stable (v1.0.0 — Multi-Agent Runtime Layer).
+* **Dependencies**: Valid Bootstrap Receipt; `loop-controller` (transition authority); `devteam` (shared-workspace coordination).
+
+---
+
 ## 🛠️ Script-First Skill Architecture
 
 Starting with version 5.0.0, the AI Skill Framework implements a **Script-First Skill Architecture**. Under this model, all deterministic, repeatable, file-based validation, and environment inspection tasks are executed by specialized Python scripts instead of being simulated or processed manually by the LLM in natural language prompt text.

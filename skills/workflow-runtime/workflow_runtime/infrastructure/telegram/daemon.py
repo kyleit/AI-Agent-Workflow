@@ -128,7 +128,9 @@ def route_update(token: str, update: dict[str, Any], proxy: str | None = None) -
     text = str(msg.get("text", ""))
     photo: list[dict[str, Any]] | None = cast(list[dict[str, Any]], msg.get("photo")) if isinstance(msg.get("photo"), list) else None
     document: dict[str, Any] | None = cast(dict[str, Any], msg.get("document")) if isinstance(msg.get("document"), dict) else None
-    update_id = str(update.get("update_id", "0"))
+    # Inbox payloads carry Telegram's integer update_id (documented contract in
+    # skills/notify-telegram/SKILL.md); file names format it via f-strings.
+    update_id = update.get("update_id", 0)
 
     # 1. Match by Chat/Group ID (direct routing)
     registry = load_projects_registry()

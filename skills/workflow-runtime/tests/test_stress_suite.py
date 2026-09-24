@@ -12,6 +12,7 @@ sys.path.append(os.path.join(os.path.dirname(__file__), "..", "scripts"))
 
 from reconciliation_engine import ReconciliationEngine
 from db import init_db_schema
+from connectors import build_default_registry
 
 class TestStressSuite(unittest.TestCase):
     def setUp(self):
@@ -48,7 +49,7 @@ class TestStressSuite(unittest.TestCase):
                     f.write(json.dumps(turn_data) + "\n")
 
         try:
-            engine = ReconciliationEngine(self.conn)
+            engine = ReconciliationEngine(self.conn, connector_registry=build_default_registry())
             start_time = time.time()
             report = engine.sync(transcript_paths=[temp_log])
             duration = time.time() - start_time

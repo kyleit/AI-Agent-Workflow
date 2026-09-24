@@ -88,3 +88,39 @@ def test_confidence_gates_thresholds():
     assert planner["confidence_threshold"]["brainstorm"] == 95
     assert planner["confidence_threshold"]["planning"] == 95
     assert architect["confidence_threshold"]["blueprint"] == 95
+
+
+def _agent_definitions():
+    from validate_registry import parse_yaml_frontmatter
+    for fn in sorted(os.listdir(agents_dir)):
+        if fn.endswith(".md") and fn != "README.md":
+            with open(os.path.join(agents_dir, fn), encoding="utf-8") as f:
+                yield fn, parse_yaml_frontmatter(f.read().split("---", 2)[1])
+
+def test_all_agent_definitions_validate():
+    from validate_registry import load_schema, validate_agent
+    schema = load_schema(os.path.join(agents_dir, "agent.schema.json"))
+    for fn, meta in _agent_definitions():
+        assert validate_agent(meta, schema, fn) == [], fn
+
+def test_block_scalar_prompt_parsed_as_text():
+    from validate_registry import parse_yaml_frontmatter
+    meta = parse_yaml_frontmatter('id: "x"\nagy_system_prompt: |\n  Step 1: read rules\n\n  - DO NOT guess\nnext: 1\n')
+    assert meta["agy_system_prompt"] == "Step 1: read rules\n\n- DO NOT guess\n"
+    assert meta["next"] == 1
+
+def test_schema_rejects_unknown_fields_and_phases():
+    from validate_registry import custom_validate, load_schema
+    schema = load_schema(os.path.join(agents_dir, "agent.schema.json"))
+    props = schema["properties"]
+    assert custom_validate(["discovery", "debug", "verification"], props["phase_ownership"]) == []
+    assert custom_validate(["deploy"], props["phase_ownership"]) != []
+    assert custom_validate("ops", props["agent_category"]) != []
+    assert any("unknown_field" in e for e in custom_validate({"unknown_field": 1}, schema))
+
+def test_compiled_registry_matches_definitions():
+    with open(os.path.join(agents_dir, "registry.json"), encoding="utf-8") as f:
+        registry = json.load(f)["agents"]
+    definitions = {meta["id"]: meta for _, meta in _agent_definitions()}
+    assert {"auditor", "manager"} <= set(registry)
+    assert registry == definitions, "agents/registry.json is stale: run validate_registry.main()"

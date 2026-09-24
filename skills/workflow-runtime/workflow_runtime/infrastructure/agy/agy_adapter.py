@@ -23,17 +23,24 @@ class AGYAdapter(IAGYPort):
         self,
         role_name: str,
         prompt: str,
-        model: str = "gemini-3.6-flash-high",
+        model: str = "gemini-3.8-flash-high",
         effort: str | None = None,
         timeout_seconds: int = 300,
         add_dir: Path | str | None = None,
+        continue_session: bool = False,
     ) -> list[str]:
         """Formulates the exact agy CLI argument list.
+
+        `continue_session=True` resumes the most recent agy conversation (multi-turn
+        authoring drive). `--continue` MUST precede `--print` (agy attaches the
+        prompt to `--print`; a flag right after `--print` is swallowed as the prompt).
 
         Returns:
             List of command-line token strings.
         """
         cmd = [self.binary_name]
+        if continue_session:
+            cmd.append("--continue")
         if role_name:
             cmd.extend(["--agent", role_name])
         if model:
@@ -41,9 +48,28 @@ class AGYAdapter(IAGYPort):
         if effort:
             cmd.extend(["--effort", effort])
         cmd.append("--dangerously-skip-permissions")
+        # `accept-edits` is REQUIRED: without it agy runs read-only/plan mode and
+        # narrates a fake completion (claims files written) without touching disk.
+        cmd.extend(["--mode", "accept-edits"])
+        workspace_abs = ""
         if add_dir:
-            cmd.extend(["--add-dir", str(add_dir)])
+            workspace_abs = str(Path(add_dir).resolve())
+            cmd.extend(["--add-dir", workspace_abs])
         cmd.append("--print")
+        # agy resolves relative/bare paths to its OWN scratch sandbox, not the
+        # --add-dir repo. Anchor every write to the absolute workspace so real
+        # artifacts land in the project working tree (disk = truth, AI_RULES §33).
+        workspace_directive = (
+            (
+                "AIWF WORKSPACE WRITE ROOT: Write EVERY file inside the project "
+                f"workspace directory `{workspace_abs}` (create paths relative to "
+                "it). NEVER write to a scratch/sandbox folder such as "
+                "`~/.gemini/antigravity-cli/scratch`; artifacts written outside "
+                "the workspace DO NOT COUNT and fail the disk-truth gate.\n\n"
+            )
+            if workspace_abs
+            else ""
+        )
         authoring_contract = (
             "AIWF EXECUTION CONTRACT: Use native Agent file tools for all "
             "reasoning-heavy documents. Never use Python, PowerShell, Node, "
@@ -51,7 +77,7 @@ class AGYAdapter(IAGYPort):
             "rewrite specs, plans, Blueprints, phase files, ledgers, or review "
             "evidence. Scripts are read/parse/validate/hash/gate-only. If this "
             "cannot be satisfied, stop BLOCKED.\n\n"
-        )
+        ) + workspace_directive
         context_prompt = authoring_contract + prompt
         if add_dir:
             try:

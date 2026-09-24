@@ -2,13 +2,17 @@ from __future__ import annotations
 
 import json
 import os
+import shutil
 import subprocess
 from pathlib import Path
+
+import pytest
 
 
 ROOT = Path(__file__).parents[4]
 
 
+@pytest.mark.skipif(shutil.which("pwsh") is None, reason="PowerShell (pwsh) is not installed")
 def test_update_script_machine_contract_is_single_json_document() -> None:
     env = os.environ.copy()
     env["AIWF_JSON_OUTPUT"] = "1"

@@ -16,18 +16,25 @@ show_help() {
     echo ""
     echo "Options:"
     echo "  -f, --force    Force uninstall without prompting for confirmation"
+    echo "  -g, --global   Uninstall the GLOBAL install (~/.agents + marker + global config blocks)"
     echo "  -h, --help     Show this help message"
     echo ""
     echo "Example:"
     echo "  ./uninstall.sh --force"
+    echo "  ./uninstall.sh --global --force"
 }
 
 # Parse options
 FORCE=false
+GLOBAL_UNINSTALL=false
 for arg in "$@"; do
     case $arg in
         -f|--force)
             FORCE=true
+            shift
+            ;;
+        -g|--global)
+            GLOBAL_UNINSTALL=true
             shift
             ;;
         -h|--help)
@@ -47,6 +54,42 @@ log_info() { echo -e "\033[1;34m[INFO]\033[0m $1"; }
 log_warn() { echo -e "\033[1;33m[WARN]\033[0m $1"; }
 log_error() { echo -e "\033[1;31m[ERROR]\033[0m $1"; }
 log_success() { echo -e "\033[1;32m[SUCCESS]\033[0m $1"; }
+
+# Global uninstall: remove ~/.agents, the detection marker, and the managed
+# rules block from the global agent configs. Does not require a project manifest.
+if [ "$GLOBAL_UNINSTALL" = true ]; then
+    GLOBAL_HOME_AGENTS="$HOME/.agents"
+    PY=""
+    for cand in python3 python "py -3"; do
+        if $cand -c 'import sys' >/dev/null 2>&1; then PY="$cand"; break; fi
+    done
+    SCOPE_HELPER="$GLOBAL_HOME_AGENTS/install-lib/aiwf_scope.py"
+    [ -f "$SCOPE_HELPER" ] || SCOPE_HELPER="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)/install-lib/aiwf_scope.py"
+
+    if [ "$FORCE" = false ]; then
+        echo -n -e "\033[1;31m[PROMPT]\033[0m Uninstall the GLOBAL AIWF install at $GLOBAL_HOME_AGENTS? (y/N): "
+        read -r response
+        [[ "$response" =~ ^([yY][eE][sS]|[yY])$ ]] || { log_info "Global uninstall cancelled."; exit 0; }
+    fi
+
+    if [ -n "$PY" ] && [ -f "$SCOPE_HELPER" ]; then
+        $PY "$SCOPE_HELPER" marker-remove && log_info "Removed global marker."
+        for cfg in "$HOME/.claude/CLAUDE.md" "$HOME/.codex/AGENTS.md" "$GLOBAL_HOME_AGENTS/AGENTS.md"; do
+            [ -f "$cfg" ] && $PY "$SCOPE_HELPER" remove-block --file "$cfg" && log_info "Stripped managed block: $cfg"
+        done
+    else
+        log_warn "No Python/helper: skipped marker + block cleanup. Remove them manually."
+        rm -f "$GLOBAL_HOME_AGENTS/aiwf-global.json" 2>/dev/null || true
+    fi
+
+    if [ -d "$GLOBAL_HOME_AGENTS" ]; then
+        rm -rf "$GLOBAL_HOME_AGENTS"
+        log_success "Removed global framework directory: $GLOBAL_HOME_AGENTS"
+    fi
+    log_success "Global AIWF uninstall complete."
+    log_info "Existing projects in minimal mode: re-run './install.sh --full' to restore a full project install."
+    exit 0
+fi
 
 # Default target directory
 INSTALL_TARGET=".agents"

@@ -5,9 +5,16 @@ pytestmark = pytest.mark.unit
 import unittest
 import os
 import shutil
+import tempfile
 import sys
 import json
 from unittest.mock import patch
+
+# Project-memory modules moved from runtime/scripts/project_memory into the package.
+from workflow_runtime.infrastructure.memory import (analyzer, bootstrap, common,
+                                                    config, filesystem, git_diff,
+                                                    scanner, search, sqlite_writer,
+                                                    update)
 
 # Thêm đường dẫn để import các module
 TEST_DIR = os.path.dirname(os.path.abspath(__file__))
@@ -17,20 +24,7 @@ sys.path.append(os.path.join(TEST_DIR, "..", "..", "..", "..", "runtime", "scrip
 class TestProjectMemoryEngine(unittest.TestCase):
     def setUp(self):
         # Thiết lập thư mục giả lập dự án
-        self.test_root = os.path.join(TEST_DIR, "temp_test_project")
-        os.makedirs(self.test_root, exist_ok=True)
-        
-        # Nạp trực tiếp các module nghiệp vụ
-        import common
-        import config
-        import filesystem
-        import git_diff
-        import scanner
-        import analyzer
-        import sqlite_writer
-        import search
-        import bootstrap
-        import update
+        self.test_root = tempfile.mkdtemp(prefix="aiwf-project-memory-")
         
         # Lưu các hàm gốc và patch dynamically
         self.orig_funcs = {}
@@ -74,16 +68,6 @@ class TestProjectMemoryEngine(unittest.TestCase):
 
     def tearDown(self):
         # Khôi phục các hàm gốc
-        import common
-        import config
-        import filesystem
-        import git_diff
-        import scanner
-        import analyzer
-        import sqlite_writer
-        import search
-        import bootstrap
-        import update
 
         modules_to_restore = [
             ("common", common), ("config", config), ("filesystem", filesystem),
@@ -107,8 +91,7 @@ class TestProjectMemoryEngine(unittest.TestCase):
 
 
     def test_bootstrap_empty_project(self):
-        from bootstrap import run_bootstrap
-        import config
+        from workflow_runtime.infrastructure.memory.bootstrap import run_bootstrap
         
         # Tạo một vài file mã nguồn giả lập
         os.makedirs(os.path.join(self.test_root, "src"), exist_ok=True)
@@ -116,7 +99,7 @@ class TestProjectMemoryEngine(unittest.TestCase):
             _ = f.write("def hello():\n    print('hello')\n")
             
         # Chạy bootstrap
-        res = run_bootstrap()
+        res = run_bootstrap(target_dir=self.test_root)
         self.assertEqual(res["status"], "success")
         
         # Kiểm tra sự hiện diện của các tệp tri thức
@@ -126,11 +109,11 @@ class TestProjectMemoryEngine(unittest.TestCase):
         self.assertTrue(os.path.exists(os.path.join(mem_paths["memory_root"], "indexes", "file-map.json")))
 
     def test_update_incremental_timestamp(self):
-        from bootstrap import run_bootstrap
-        from update import run_update
+        from workflow_runtime.infrastructure.memory.bootstrap import run_bootstrap
+        from workflow_runtime.infrastructure.memory.update import run_update
         
         # Khởi tạo bộ nhớ trước
-        run_bootstrap()
+        run_bootstrap(target_dir=self.test_root)
         
         # Giả lập thay đổi tệp tin bằng cách sửa file main.py và cập nhật timestamp
         src_dir = os.path.join(self.test_root, "src")
@@ -147,15 +130,16 @@ class TestProjectMemoryEngine(unittest.TestCase):
         os.utime(main_py, (future_time, future_time))
             
         # Chạy update (dự án test không có git nên sẽ fallback sang timestamp)
-        res = run_update()
+        res = run_update(target_dir=self.test_root)
         self.assertEqual(res["status"], "success")
         self.assertEqual(res["data"]["files_changed_count"], 1)
 
 
+    @unittest.skip("retired in 5b26adde: RAGSearcher level-based retrieval (knowledge_runtime, "
+                   "retrieval_level) was replaced by the provider_chain search contract")
     def test_rag_search_local_fallback(self):
-        from bootstrap import run_bootstrap
-        import config
-        from search import RAGSearcher
+        from workflow_runtime.infrastructure.memory.bootstrap import run_bootstrap
+        from workflow_runtime.infrastructure.memory.search import RAGSearcher
         
         # Force fallback to Level 1 and mock MarkdownProvider.search
         with patch("knowledge_runtime.api.search", side_effect=Exception("Simulated KR failure")), \
@@ -164,7 +148,7 @@ class TestProjectMemoryEngine(unittest.TestCase):
                  "snippet": "Visualizer Bug - Problem: Connection lost during sync.",
                  "score": 0.5
              }]):
-            run_bootstrap()
+            run_bootstrap(target_dir=self.test_root)
             
             # Ghi một lỗi giả lập vào known-problems
             mem_paths = config.get_memory_paths(self.mem_config)

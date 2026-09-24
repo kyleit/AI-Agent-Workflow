@@ -51,7 +51,7 @@ allowed_reads:
   - "Project Memory (.agents/memory/)"
   - "Full source tree (read-only)"
 allowed_writes:
-  - "Backend source files listed in Blueprint only"
+  - "backend source files listed in Blueprint only"
   - ".agents/runtime/tests.log"
 forbidden_actions:
   - "Implementing features beyond Blueprint scope"

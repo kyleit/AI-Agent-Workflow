@@ -28,7 +28,7 @@ class TestReconciliationEngine(unittest.TestCase):
             pass
 
     def test_sync_empty_transcripts(self):
-        engine = ReconciliationEngine(db_conn=self.conn)
+        engine = ReconciliationEngine(db_conn=self.conn, connector_registry=build_default_registry())
         report = engine.sync(transcript_paths=[])
         self.assertEqual(report.requests_discovered, 0)
         self.assertEqual(report.requests_parsed, 0)
@@ -41,7 +41,7 @@ class TestReconciliationEngine(unittest.TestCase):
             f.write('{"conversation_id": "test", "usage": {"input_tokens": 100}}\n') # missing model
         
         try:
-            engine = ReconciliationEngine(db_conn=self.conn)
+            engine = ReconciliationEngine(db_conn=self.conn, connector_registry=build_default_registry())
             report = engine.sync(transcript_paths=[temp_log])
             self.assertEqual(report.requests_discovered, 2)
             self.assertEqual(report.corrupted_transcripts, 1) # first is corrupt

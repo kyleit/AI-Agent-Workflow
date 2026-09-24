@@ -1,7 +1,8 @@
 python_version = "3.14"
 
 # Tell Pyrefly that the package root is the current directory (where workflow_runtime/ lives)
-search_path = ["."]
+# Sibling skill engines reached via runtime sys.path passthrough (loop / malo).
+search_path = [".", "../loop-controller/scripts", "../multi-agent-loop/scripts"]
 
 # Exclude generated/cache/test dirs
 project_excludes = [

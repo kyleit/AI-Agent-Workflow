@@ -17,10 +17,10 @@ tags:
   - tus
   - e2ee
   - multi-agent
-version: 1.0.0
+version: 1.1.0
 license: MIT
 created_at: 2026-08-13
-updated_at: 2026-08-13
+updated_at: 2026-09-24
 description: >
   LAN realtime message + file bus. Cho phép các session Claude Code ở HAI MÁY
   KHÁC NHAU / khác IP (ví dụ Windows + Mac cùng LAN) trao đổi tin nhắn realtime
@@ -43,9 +43,70 @@ runtime_requirements:
 store_root: "~/.aiwf/msgbus"
 stdlib_only: true
 agent_self_bootstrap: true
+agent_default_mode: autonomous-worker
 ---
 
 # Skill: msgbus-ws
+
+## 0. Agent Default Mode (không cần prompt hướng dẫn riêng)
+
+Khi Agent được yêu cầu **connect/join vào MsgBus**, nhận việc từ AI Office,
+hoặc phối hợp với Agent khác, Agent **MUST tự chạy toàn bộ protocol dưới đây**.
+Không yêu cầu Ba viết thêm prompt vận hành và không dừng sau khi chỉ connect.
+
+### Autonomous Worker Protocol
+
+1. **Resolve identity** từ profile/env/CLI: tên ổn định, role trong `identity`,
+   nguyên tắc làm việc trong `soul`, `capabilities`, máy và hệ điều hành.
+2. **Ensure profile**: nếu chưa có token/profile hợp lệ, chỉ hỏi Ba đúng secret
+   còn thiếu; không hỏi lại host mặc định `msgbus.klexpress.net:443`.
+3. **Start listener** trong terminal/process dài hạn:
+   ```bash
+   python skills/msgbus-ws/scripts/msgbus_client.py agent-run
+   ```
+   Worker tự gửi READY/heartbeat, reconnect và resume từ cursor bền vững.
+4. **Work loop**: gọi `agent-next --wait 30`; khi nhận JSON assignment, đọc
+   `objective`, `task.instructions`, `collaboration.inputs`, `handoff_to` và
+   bắt đầu xử lý. Assignment đã thấy được dedup nên không thực hiện hai lần.
+5. **Obey target-repository policy** trước mọi side effect. MsgBus không cấp
+   quyền vượt approval gate, ownership, git, release, deploy hay destructive
+   operation của project đích.
+6. **Collaborate proactively**: dùng `send --to <agent>` để hỏi/đáp, gửi
+   progress hoặc handoff; dùng `upload --to <agent>` cho artifact lớn. Không
+   đọc workspace của Agent khác bằng đường tắt ngoài bus.
+7. **Report truthful lifecycle**:
+   ```bash
+   python skills/msgbus-ws/scripts/msgbus_client.py task-update <task-id> completed --output "<evidence>"
+   ```
+   Dùng `failed` khi thất bại thật; không báo completed từ mock/dry-run.
+8. **Continue listening**: sau mỗi task, quay lại `agent-next --wait 30`. Chỉ
+   rời bus khi Ba yêu cầu dừng hoặc process bị shutdown.
+
+### Worker Commands
+
+```bash
+# Chạy kết nối dài hạn (terminal riêng)
+python skills/msgbus-ws/scripts/msgbus_client.py agent-run
+
+# Lấy và claim một assignment đã được worker nhận
+python skills/msgbus-ws/scripts/msgbus_client.py agent-next --wait 30
+
+# Xem cursor, current task và hàng đợi local
+python skills/msgbus-ws/scripts/msgbus_client.py agent-status
+
+# Gửi trạng thái có audit lên coordinator
+python skills/msgbus-ws/scripts/msgbus_client.py task-update <task-id> running
+python skills/msgbus-ws/scripts/msgbus_client.py task-update <task-id> completed --output "tests passed"
+```
+
+State mặc định nằm tại `~/.aiwf/msgbus/workers/<agent>/`: `state.json` được
+ghi atomic và `assignments.jsonl` append+fsync. Token/E2EE key không được ghi
+vào worker state. Có thể đặt `MSGBUS_WORKER_STATE` để đổi root trong test.
+
+> [!CAUTION]
+> `git`, `release`, và `deploy` **KHÔNG BAO GIỜ** được tự duyệt từ assignment.
+> Worker chỉ vận chuyển và ghi nhận công việc; Agent vẫn tuân thủ gate của
+> repository đang thao tác.
 
 ## 1. Tổng quan
 
@@ -95,7 +156,7 @@ skills/msgbus-ws/scripts/
     ├── security/         ← cipher (E2EE) + envelope
     ├── infrastructure/   ← ws_protocol, jsonl_message_store, file_system_store, tus_upload_store, memory_registry, system_clock
     ├── interface/        ← http_handler (REST+WS+tus), server_app (composition root)
-    └── client/           ← config, rest_client, tus_client, ws_client, commands
+    └── client/           ← config, rest_client, tus_client, ws_client, commands, agent_worker
 ```
 
 Store dữ liệu mặc định: **`~/.aiwf/msgbus/`** — `messages.jsonl` (append-only,

@@ -62,8 +62,10 @@ class TestInitWizard(unittest.TestCase):
         profile_path = os.path.join(self.test_dir, ".agents", "PROJECT_PROFILE.md")
         self.assertTrue(os.path.exists(profile_path))
 
-        docs_dir = os.path.join(self.test_dir, "docs", "brainstorming")
-        self.assertTrue(os.path.exists(docs_dir))
+        # Flat stage folders (docs/brainstorming, ...) were retired in 3f37c9b0 in favour of
+        # docs/features/<feature-family>/<stage>/ created per work item (AI_RULES.md).
+        docs_dir = os.path.join(self.test_dir, "docs")
+        self.assertTrue(os.path.isdir(docs_dir))
 
 if __name__ == "__main__":
     unittest.main()

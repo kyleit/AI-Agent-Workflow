@@ -210,6 +210,25 @@ All user-facing workspace-document links MUST use project-relative Markdown
 paths. Never emit `file:///`, drive-letter paths, or other absolute local-file
 URIs in coordinator output; absolute paths are for internal tool calls only.
 
+## Loop-Controller Transition Dispatch (additive)
+
+The "automatic loop repair" above is governed by the `loop-controller` skill,
+which makes the coordinator's dispatch **transition-aware** without changing the
+canonical handoff order or any delegation target:
+
+- After a phase skill returns a gate verdict, the coordinator reads the loop
+  decision (`aiwf loop decide ...`, or the `loop-controller` PROTOCOL.md
+  fallback) and dispatches accordingly: `ADVANCE` → the existing downstream
+  delegation; `REPEAT` → re-invoke the same phase skill with refined inputs;
+  `BACKTRACK` → re-invoke the failure's named upstream skill (e.g. a failed
+  Spike routes to `brainstorming`); `HALT` → stop and, for `NO_PROGRESS` /
+  `MAX_ITERATIONS`, escalate to the user with the recorded 2–3 options.
+- The transition selects **which existing skill** to dispatch; it never invents
+  a new route, skips the Bootstrap Receipt, bypasses the documentation sync
+  gate, or unlocks any approval. All fail-closed guards remain in force.
+- When no loop state exists, dispatch is exactly the legacy linear behavior
+  (`iteration 0`). This block is additive and renames nothing.
+
 ## Progressive Refinement Invariant
 
 For every raw feature request, the coordinator MUST preserve a monotonic
