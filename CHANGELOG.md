@@ -1,5 +1,10 @@
 # Changelog
 
+## v6.27.1 - 2026-09-27
+
+### Fixes
+- Stage explicitly allowlisted tracked files even when a parent directory is ignored.
+
 ## v6.27.0 - 2026-09-27
 
 ### Features

@@ -27,4 +27,4 @@ def test_repo_release_dry_run_has_no_add_all(tmp_path: Path) -> None:
     )
     assert result["files"] == ["src/app.py"]
     assert not any("add -A" in line for line in result["logs"])
-    assert any("git add -- src/app.py" in line for line in result["logs"])
+    assert any("git add -f -- src/app.py" in line for line in result["logs"])

@@ -160,7 +160,7 @@ def repo_release(
     if outside:
         logs.append(_run(repo, ["reset", "--", *outside], dry))
     if safe_files:
-        logs.append(_run(repo, ["add", "--", *safe_files], dry))
+        logs.append(_run(repo, ["add", "-f", "--", *safe_files], dry))
     else:
         logs.append(f"({repo}) nothing selected for staging")
 
