@@ -101,7 +101,8 @@ def _evidence_path(root: Path, work_item: str, kind: str) -> str | None:
     for path in candidates:
         if path.is_file():
             return path.relative_to(root).as_posix()
-    return None
+    matches = sorted(root.glob(f"docs/features/**/{kind}/**/{work_item}_*.md"))
+    return matches[0].relative_to(root).as_posix() if matches else None
 
 
 def _blueprint_path(root: Path, work_item: str) -> str | None:
@@ -112,7 +113,7 @@ def _blueprint_path(root: Path, work_item: str) -> str | None:
             path = root / blueprint["path"]
             if path.is_file():
                 return path.relative_to(root).as_posix()
-    matches = sorted(root.glob(f"docs/features/**/blueprints/{work_item}_*.md"))
+    matches = sorted(root.glob(f"docs/features/**/blueprints/**/{work_item}_*.md"))
     return matches[0].relative_to(root).as_posix() if matches else None
 
 
@@ -320,8 +321,6 @@ def run(root: Path, cfg: dict, override_part: str | None, dry: bool) -> dict:
     version = plan["next"]
     remote = cfg.get("remote_name", "origin")
     branch = cfg.get("default_branch", "main")
-    tagname = f"v{version}"
-
     receipt: dict[str, Any] = {
         "version": version,
         "previous_version": plan["current"],

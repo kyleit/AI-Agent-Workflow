@@ -55,3 +55,30 @@ def test_generated_manifest_may_be_materialized_during_project_init(tmp_path: Pa
 
     assert result.passed is True
     assert "B04:operation_unknown" not in result.blocking_findings
+
+
+def test_post_implementation_allows_replaced_modify_anchor(tmp_path: Path) -> None:
+    target = tmp_path / "src.py"
+    target.write_text("def replacement():\n    return 2\n", encoding="utf-8")
+
+    result = SourceContextValidator(tmp_path).validate_blocks([{
+        "id": "B05",
+        "operation": "modify",
+        "file": "src.py",
+        "symbol": "original",
+        "implementation_ready": True,
+    }], post_implementation=True)
+
+    assert result.passed is True
+
+
+def test_post_implementation_requires_materialized_target(tmp_path: Path) -> None:
+    result = SourceContextValidator(tmp_path).validate_blocks([{
+        "id": "B06",
+        "operation": "create",
+        "file": "missing.py",
+        "implementation_ready": True,
+    }], post_implementation=True)
+
+    assert result.passed is False
+    assert "B06:post_implementation_target_missing" in result.blocking_findings

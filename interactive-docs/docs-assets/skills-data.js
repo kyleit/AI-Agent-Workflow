@@ -105,7 +105,7 @@ const skillsData = [
     "command": "/devteam",
     "category": "orchestration",
     "checkpoint": "N/A",
-    "purpose": "Split a repo across a leader + N dev-seats, coordinate via file mailboxes, and hand off between AI sessions with zero knowledge loss. Agent-agnostic (Claude Code, Codex CLI, Antigravity). Deterministic Python engine + MCP + thin adapters, with a PROTOCOL.md fallback.",
+    "purpose": "DevTeam lets several AI sessions work one repository in parallel without context bloat. A **leader** coordinates; each **dev-seat** owns one non-overlapping slice of the repo. Sessions coordinate through append-only file mailboxes and hand a seat off via a living `seat-state` whose key field is **NEXT STEP NOW**, so a fresh session resumes with zero knowledge loss. It is agent-agnostic: Claude Code, Codex CLI, and Antigravity all interoperate on the same plain files.",
     "input": "See the skill documentation for required inputs and runtime prerequisites.",
     "output": "Skill-specific artifacts, checks, reports, or runtime state updates.",
     "pitfall": "Follow AI_RULES.md, approval gates, and skill-specific hard rules before modifying files."
@@ -285,7 +285,7 @@ const skillsData = [
     "command": "/malo",
     "category": "runtime",
     "checkpoint": "N/A",
-    "purpose": "Turn-driven, foreground (no-daemon) orchestrator that drives the loop-controller across heterogeneous agents (Claude, Codex, Antigravity) on one shared workspace until the loop HALTs. Two drive modes - `tick` (agent-driven: the IDE agent is worker AND driver, one CLI call per turn, no spawn - default for IDE) and `run` (autonomous: spawns agents headless per phase, for CI). Assigns phase->agent dynamically by a capability registry, runs continuously through non-approval phases, and HALTs (never auto-approves git/release/deploy) at approval gates.",
+    "purpose": ">-",
     "input": "See the skill documentation for required inputs and runtime prerequisites.",
     "output": "Skill-specific artifacts, checks, reports, or runtime state updates.",
     "pitfall": "Follow AI_RULES.md, approval gates, and skill-specific hard rules before modifying files."

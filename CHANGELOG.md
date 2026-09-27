@@ -1,5 +1,16 @@
 # Changelog
 
+## v6.27.0 - 2026-09-27
+
+### Features
+- Add a persistent `msgbus-ws` client with independent project, conversation, agent, and platform identity.
+- Add heartbeat-backed registration, capability rooms, durable local event claim/ACK, and silent daemon operation.
+
+### Fixes
+- Use the RFC 6455 WebSocket handshake GUID for Control Center interoperability.
+- Support canonical nested Blueprint and semantic debug/verification report paths in post-implementation release gates.
+- Quote the `multi-agent-loop` metadata description so the full skill catalog validates as YAML.
+
 ## v6.26.7 - 2026-09-14
 
 _No user-facing changes._

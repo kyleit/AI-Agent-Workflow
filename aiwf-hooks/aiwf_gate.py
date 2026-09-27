@@ -458,6 +458,7 @@ def _is_canonical_blueprint_path(root: Path, path: Path) -> bool:
         return False
     return bool(
         re.match(r"^docs/features/[^/]+/blueprints/[^/]+(?:_blueprint|-blueprint)\.md$", relative, re.IGNORECASE)
+        or re.match(r"^docs/features/[^/]+/blueprints/master/[^/]+(?:_blueprint|-blueprint)\.md$", relative, re.IGNORECASE)
         or re.match(r"^docs/blueprints/[^/]+(?:_blueprint|-blueprint)\.md$", relative, re.IGNORECASE)
     )
 

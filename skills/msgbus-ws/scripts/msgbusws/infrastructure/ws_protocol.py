@@ -12,7 +12,7 @@ OP_CLOSE = 0x8
 OP_PING = 0x9
 OP_PONG = 0xA
 
-WS_GUID = "258EAFA5-E914-47DA-95CA-C5AB0DC85B16"
+WS_GUID = "258EAFA5-E914-47DA-95CA-C5AB0DC85B11"
 
 
 def encode(payload: bytes, opcode: int = OP_TEXT, mask: bool = False) -> bytes:

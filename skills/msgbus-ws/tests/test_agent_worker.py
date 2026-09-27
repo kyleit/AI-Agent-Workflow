@@ -10,8 +10,8 @@ from pathlib import Path
 SCRIPT_ROOT = Path(__file__).resolve().parents[1] / "scripts"
 sys.path.insert(0, str(SCRIPT_ROOT))
 
-from msgbusws.client.agent_worker import AgentWorker, WorkerStateStore
-from msgbusws.client.config import ClientConfig
+from msgbusws.client.agent_worker import AgentWorker, WorkerStateStore  # noqa: E402
+from msgbusws.client.config import ClientConfig  # noqa: E402
 
 
 class FakeRestClient:

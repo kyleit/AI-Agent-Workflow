@@ -254,6 +254,7 @@ def run(
     workflow_id: str,
     registry_path: Path,
     phase_blueprints: list[Path] | None = None,
+    post_implementation: bool = False,
 ) -> dict:
     blueprint_abs = (root / blueprint).resolve() if not blueprint.is_absolute() else blueprint.resolve()
     location_findings = validate_blueprint_location(root, blueprint_abs)
@@ -276,7 +277,6 @@ def run(
         if phase_abs not in artifact_paths:
             artifact_paths.append(phase_abs)
     discoveries = [discover(path) for path in artifact_paths]
-    discovery = discoveries[0]
     registry = load_registry(registry_path)
     profile_results = []
     all_blocks = []
@@ -327,7 +327,7 @@ def run(
         + completeness_findings
         + spike_verification.get("blocking_findings", [])
         + integrity_findings
-        + validate_real_file_alignment(root, all_blocks)
+        + ([] if post_implementation else validate_real_file_alignment(root, all_blocks))
         + validate_binary_asset_alignment(root, all_blocks),
         "test_status": "NOT_RUN",
     }
@@ -396,6 +396,11 @@ def main() -> int:
     parser.add_argument("--phase-blueprint", action="append", default=[])
     parser.add_argument("--output")
     parser.add_argument("--no-execute", action="store_true", help="Accepted for explicit audit clarity; project tests are never executed.")
+    parser.add_argument(
+        "--post-implementation",
+        action="store_true",
+        help="Validate compiled Blueprint blocks after implementation without reapplying pre-edit workspace hashes.",
+    )
     args = parser.parse_args()
     root = Path(args.root).resolve()
     blueprint = Path(args.blueprint)
@@ -407,6 +412,7 @@ def main() -> int:
             args.workflow_id,
             registry_path,
             [Path(item) for item in args.phase_blueprint],
+            post_implementation=args.post_implementation,
         )
     except (OSError, UnicodeError) as exc:
         result = blocked_result(

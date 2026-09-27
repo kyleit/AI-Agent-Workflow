@@ -8,6 +8,7 @@ from __future__ import annotations
 
 import os
 import re
+from glob import glob
 from typing import Any, cast
 
 from workflow_runtime.application.ports.locator import InfrastructureLocator
@@ -209,13 +210,16 @@ class ReleaseGate:
 
     def _find_report(self, feature_id: str, stage: str) -> str:
         root = self._workspace_root or "."
+        suffix = "debug" if stage == "debug" else "verify"
         candidates = [
-            os.path.join(root, "docs", stage, f"{feature_id}_{'debug' if stage == 'debug' else 'verify'}.md"),
+            os.path.join(root, "docs", stage, f"{feature_id}_{suffix}.md"),
         ]
         feature_root = os.path.join(root, "docs", "features")
         if os.path.isdir(feature_root):
             for family in os.listdir(feature_root):
-                candidates.append(os.path.join(feature_root, family, stage, f"{feature_id}_{'debug' if stage == 'debug' else 'verify'}.md"))
+                report_root = os.path.join(feature_root, family, stage)
+                candidates.append(os.path.join(report_root, f"{feature_id}_{suffix}.md"))
+                candidates.extend(sorted(glob(os.path.join(report_root, f"{feature_id}_*_{suffix}.md"))))
         for candidate in candidates:
             if os.path.isfile(candidate):
                 return candidate

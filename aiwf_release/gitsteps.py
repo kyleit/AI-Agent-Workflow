@@ -82,7 +82,12 @@ def validate_repo_relative_scope(repo: Path, files: list[str], *, allow_empty: b
         if repo != candidate and repo not in candidate.parents:
             raise GitError(f"release scope escapes repository: {raw}")
         if not candidate.exists():
-            raise GitError(f"release scope path does not exist: {raw}")
+            tracked = subprocess.run(
+                ["git", "ls-files", "--error-unmatch", "--", relative],
+                cwd=str(repo), capture_output=True,
+            )
+            if tracked.returncode != 0:
+                raise GitError(f"release scope path does not exist: {raw}")
         result.add(relative)
     if not result and not allow_empty:
         raise GitError("release scope is empty")
@@ -116,6 +121,12 @@ def dirty_files(repo: Path) -> list[str]:
 
 def is_ignored(repo: Path, relative: str) -> bool:
     """Return whether Git would reject the path as ignored during staging."""
+    tracked = subprocess.run(
+        ["git", "ls-files", "--error-unmatch", "--", relative],
+        cwd=str(repo), capture_output=True,
+    )
+    if tracked.returncode == 0:
+        return False
     result = subprocess.run(
         ["git", "check-ignore", "--no-index", "--quiet", "--", relative],
         cwd=str(repo), capture_output=True,

@@ -115,3 +115,19 @@ def test_explicit_authorization_rejects_noncanonical_blueprint(tmp_path: Path) -
 
     assert allowed is False
     assert "not canonical" in reason
+
+
+def test_master_folder_blueprint_is_canonical(tmp_path: Path) -> None:
+    blueprint = (
+        tmp_path
+        / "docs"
+        / "features"
+        / "feature"
+        / "blueprints"
+        / "master"
+        / "FEAT-001_blueprint.md"
+    )
+    blueprint.parent.mkdir(parents=True)
+    blueprint.write_text("# Blueprint\n", encoding="utf-8")
+
+    assert aiwf_gate._is_canonical_blueprint_path(tmp_path, blueprint) is True

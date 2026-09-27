@@ -42,7 +42,7 @@ def _blueprint_root(tmp_path: Path) -> Path:
 def test_clean_blueprint_is_approval_ready(tmp_path: Path, monkeypatch) -> None:
     root = _blueprint_root(tmp_path)
     service = BlueprintAutoValidationService(root)
-    monkeypatch.setattr(service, "_run_code_block_gate", lambda *_args: {
+    monkeypatch.setattr(service, "_run_code_block_gate", lambda *_args, **_kwargs: {
         "decision": "PASS",
         "blueprint_full_sha256": "test-hash",
         "per_code_block": [],
@@ -62,7 +62,7 @@ def test_post_implementation_validation_returns_verified_status(
 ) -> None:
     root = _blueprint_root(tmp_path)
     service = BlueprintAutoValidationService(root)
-    monkeypatch.setattr(service, "_run_code_block_gate", lambda *_args: {
+    monkeypatch.setattr(service, "_run_code_block_gate", lambda *_args, **_kwargs: {
         "decision": "PASS",
         "blueprint_full_sha256": "test-hash",
         "per_code_block": [],
@@ -83,7 +83,7 @@ def test_post_implementation_validation_returns_verified_status(
 def test_failed_code_block_gate_blocks_approval(tmp_path: Path, monkeypatch) -> None:
     root = _blueprint_root(tmp_path)
     service = BlueprintAutoValidationService(root)
-    monkeypatch.setattr(service, "_run_code_block_gate", lambda *_args: {
+    monkeypatch.setattr(service, "_run_code_block_gate", lambda *_args, **_kwargs: {
         "decision": "BLOCKED",
         "blueprint_full_sha256": "test-hash",
         "per_code_block": [{"id": "B01", "status": "BLOCKED"}],
@@ -137,7 +137,7 @@ def test_verify_mode_allows_implemented_create_blocks_and_ignores_code_fence_pat
         encoding="utf-8",
     )
     service = BlueprintAutoValidationService(root)
-    monkeypatch.setattr(service, "_run_code_block_gate", lambda *_args: {
+    monkeypatch.setattr(service, "_run_code_block_gate", lambda *_args, **_kwargs: {
         "decision": "PASS",
         "blueprint_full_sha256": "test-hash",
         "per_code_block": [{

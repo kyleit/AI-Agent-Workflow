@@ -30,7 +30,13 @@ approval_authority: none
 reuses:
   - loop-controller
   - devteam
-description: Turn-driven, foreground (no-daemon) orchestrator that drives the loop-controller across heterogeneous agents (Claude, Codex, Antigravity) on one shared workspace until the loop HALTs. Two drive modes - `tick` (agent-driven: the IDE agent is worker AND driver, one CLI call per turn, no spawn - default for IDE) and `run` (autonomous: spawns agents headless per phase, for CI). Assigns phase->agent dynamically by a capability registry, runs continuously through non-approval phases, and HALTs (never auto-approves git/release/deploy) at approval gates.
+description: >-
+  Turn-driven, foreground (no-daemon) orchestrator that drives the loop-controller
+  across heterogeneous agents (Claude, Codex, Antigravity) on one shared workspace
+  until the loop HALTs. Two drive modes are supported: `tick` (the IDE agent is
+  worker and driver, one CLI call per turn) and `run` (agents spawn headless per
+  phase for CI). Assigns agents dynamically by capability and never auto-approves
+  git, release, or deploy gates.
 runtime_requirements:
   rules: required
   state: required

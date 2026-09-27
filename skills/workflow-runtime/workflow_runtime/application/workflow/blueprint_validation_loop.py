@@ -131,7 +131,12 @@ class BlueprintAutoValidationService:
             )
             findings.extend(init_coverage.blocking_findings)
         gate_output = Path("docs") / "aiwf-runs" / work_item_id / "05-blueprint" / "code-block-gate.json"
-        gate_result = self._run_code_block_gate(relative_blueprint, work_item_id, gate_output)
+        gate_result = self._run_code_block_gate(
+            relative_blueprint,
+            work_item_id,
+            gate_output,
+            post_implementation=post_implementation,
+        )
         blueprint_sha256 = str(gate_result.get("blueprint_full_sha256", ""))
         source_snapshot = self._source_snapshot()
         result_id = f"{work_item_id}:{blueprint_sha256}"
@@ -146,6 +151,7 @@ class BlueprintAutoValidationService:
         source_context = SourceContextValidator(self.workspace_root).validate_blocks(
             code_blocks,
             allow_existing_creates=allow_existing_creates,
+            post_implementation=post_implementation,
         )
         findings.extend(source_context.blocking_findings)
         if findings:
@@ -793,7 +799,13 @@ class BlueprintAutoValidationService:
             candidates.extend([linked / runner, linked / ".agents" / runner])
         return candidates
 
-    def _run_code_block_gate(self, relative_blueprint: Path, work_item_id: str, output: Path) -> dict[str, object]:
+    def _run_code_block_gate(
+        self,
+        relative_blueprint: Path,
+        work_item_id: str,
+        output: Path,
+        post_implementation: bool = False,
+    ) -> dict[str, object]:
         runner = next((candidate for candidate in self._gate_runner_candidates() if candidate.is_file()), None)
         if runner is None:
             return {
@@ -815,6 +827,8 @@ class BlueprintAutoValidationService:
         ]
         for phase_path in self._discover_phase_paths(relative_blueprint):
             command.extend(["--phase-blueprint", phase_path.as_posix()])
+        if post_implementation:
+            command.append("--post-implementation")
         subprocess.run(command, cwd=self.workspace_root, check=False, capture_output=True, text=True, timeout=30)
         return json.loads((self.workspace_root / output).read_text(encoding="utf-8"))
 

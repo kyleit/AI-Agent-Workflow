@@ -21,6 +21,7 @@ class SourceContextValidator:
         self,
         blocks: list[dict[str, object]],
         allow_existing_creates: bool = False,
+        post_implementation: bool = False,
     ) -> SourceContextValidationResult:
         findings: list[str] = []
         for block in blocks:
@@ -37,6 +38,10 @@ class SourceContextValidator:
                 continue
             if any(part in self.excluded_parts for part in relative.parts):
                 findings.append(f"{block_id}:path_in_excluded_folder")
+            if post_implementation:
+                if not target.exists():
+                    findings.append(f"{block_id}:post_implementation_target_missing")
+                continue
             if operation == "modify":
                 self._validate_modify(block, block_id, target, findings)
             elif operation in {"create", "generate"}:
