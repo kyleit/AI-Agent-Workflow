@@ -50,11 +50,24 @@ function Show-Help {
     Write-Host "  bootstrap    Run framework environment bootstrap installer"
     Write-Host ""
     Write-Host "--------------------------------------------------------"
-    
+
+    if (`$env:AIWF_WRAPPER_HELP_ACTIVE -eq "1") {
+        return
+    }
+
     `$oldPythonPath = `$env:PYTHONPATH
-    `$env:PYTHONPATH = Join-Path `$FrameworkRoot "skills/workflow-runtime"
-    python -m workflow_runtime --help
-    `$env:PYTHONPATH = `$oldPythonPath
+    `$oldFrameworkRoot = `$env:AIWF_FRAMEWORK_ROOT
+    `$oldHelpActive = `$env:AIWF_WRAPPER_HELP_ACTIVE
+    try {
+        `$env:AIWF_WRAPPER_HELP_ACTIVE = "1"
+        `$env:AIWF_FRAMEWORK_ROOT = `$FrameworkRoot
+        `$env:PYTHONPATH = Join-Path `$FrameworkRoot "skills/workflow-runtime"
+        python -m workflow_runtime --help
+    } finally {
+        if (`$null -eq `$oldPythonPath) { Remove-Item Env:PYTHONPATH -ErrorAction SilentlyContinue } else { `$env:PYTHONPATH = `$oldPythonPath }
+        if (`$null -eq `$oldFrameworkRoot) { Remove-Item Env:AIWF_FRAMEWORK_ROOT -ErrorAction SilentlyContinue } else { `$env:AIWF_FRAMEWORK_ROOT = `$oldFrameworkRoot }
+        if (`$null -eq `$oldHelpActive) { Remove-Item Env:AIWF_WRAPPER_HELP_ACTIVE -ErrorAction SilentlyContinue } else { `$env:AIWF_WRAPPER_HELP_ACTIVE = `$oldHelpActive }
+    }
 }
 
 if (-not `$Command) {

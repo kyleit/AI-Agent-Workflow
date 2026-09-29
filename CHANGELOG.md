@@ -1,5 +1,10 @@
 # Changelog
 
+## v6.27.2 - 2026-09-29
+
+### Fixes
+- Prevent recursive wrapper help dispatch so `aiwf`, `aiwf --help`, `aiwf help`, and unknown commands terminate normally.
+
 ## v6.27.1 - 2026-09-27
 
 ### Fixes

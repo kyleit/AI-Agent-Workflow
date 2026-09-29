@@ -26,6 +26,19 @@ def test_bootstrap_wrapper_routes_top_level_update_to_global_runtime() -> None:
     assert "AIWF_FRAMEWORK_ROOT" in content
 
 
+def test_bootstrap_wrapper_help_has_recursion_guard() -> None:
+    root = Path(__file__).parents[3]
+    wrappers = [root / "bootstrap.ps1"]
+    exported_wrapper = root / "public_export" / "bootstrap.ps1"
+    if exported_wrapper.exists():
+        wrappers.append(exported_wrapper)
+
+    for wrapper in wrappers:
+        content = wrapper.read_text(encoding="utf-8")
+        assert "AIWF_WRAPPER_HELP_ACTIVE" in content
+        assert "finally" in content
+
+
 def test_update_commands_propagate_handler_exit_codes(monkeypatch) -> None:
     monkeypatch.setattr(
         "workflow_runtime.presentation.cli.workflow_runtime.do_update",
