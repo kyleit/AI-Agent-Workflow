@@ -1,5 +1,11 @@
 # Changelog
 
+## v6.28.0 - 2026-10-15
+
+### Features
+- isolate concurrent work-item gates and default blueprints to CONTRACT (58619747)
+
+
 ## v6.27.2 - 2026-09-29
 
 ### Fixes
