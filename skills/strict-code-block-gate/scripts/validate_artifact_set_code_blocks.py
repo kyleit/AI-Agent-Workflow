@@ -13,10 +13,10 @@ from pathlib import Path
 sys.path.insert(0, str(Path(__file__).resolve().parent))
 
 from block_contract import is_region_modify  # noqa: E402
+from contract_blocks import artifact_depth, is_contract, is_covered_block  # noqa: E402
 from matrix_cells import (  # noqa: E402
     IGNORE_IDS as _IGNORE_IDS,
     MATRIX_HEADING as _MATRIX_HEADING,
-    SCREEN_MATRIX_HEADING as _SCREEN_MATRIX_HEADING,
     SEPARATOR as _SEPARATOR,
     cell_is_not_applicable as _cell_is_not_applicable,
     cells as _cells,
@@ -162,6 +162,11 @@ def extract_file_matrix_entries(path: Path) -> tuple[list[dict[str, str]], list[
                             "blueprint": str(path),
                             "file": target,
                             "code_block_ids": ",".join(_ids(block_cell)),
+                            "contract_ids": ",".join(_ids(row[column])) if (
+                                (column := _find_column(headers, "contract ids")) is not None
+                                and len(row) > column
+                            ) else "",
+                            "blueprint_depth": artifact_depth("\n".join(lines)),
                             # plan-to-blueprint documents that a row may declare an
                             # explicit not-applicable reason instead of a block id,
                             # for a deliverable that is legitimately not source code.
@@ -207,7 +212,7 @@ def validate_artifact_set(
     duplicate_ids: set[str] = set()
     for discovery in discoveries:
         for block in discovery.get("blocks", []):
-            if not block.get("implementation_ready"):
+            if not is_covered_block(block):
                 continue
             block_id = str(block.get("id", "")).strip()
             if block_id in blocks_by_id:
@@ -224,8 +229,13 @@ def validate_artifact_set(
             # after the break holds the wrong field. Name it instead of reporting
             # whichever field happened to land on a placeholder.
             findings.append(f"file_matrix_row_column_count_mismatch:{target}")
+        contract_depth = entry.get("blueprint_depth") == "CONTRACT"
         block_ids = [item for item in entry["code_block_ids"].split(",") if item]
+        if contract_depth and not block_ids:
+            block_ids.extend(item for item in entry.get("contract_ids", "").split(",") if item)
         if entry.get("not_applicable"):
+            if Path(target).suffix.lower() in _SOURCE_SUFFIXES and not target.startswith("docs/"):
+                findings.append(f"file_matrix_source_not_applicable:{target}")
             # A contradiction is decided structurally, never by guessing whether
             # the text after the marker is an identifier or a free-text reason:
             # the row says no source code applies, yet a real block targets it.
@@ -252,6 +262,22 @@ def validate_artifact_set(
                 findings.append(f"code_block_file_mismatch:{block_id}:{block_file}!={target}")
             else:
                 suffix = Path(block_file).suffix.lower()
+                if is_contract(block):
+                    if not contract_depth:
+                        findings.append(f"contract_not_allowed_for_full_file_row:{target}:{block_id}")
+                    owning_artifact = str(block.get("artifact", ""))
+                    master_reference = entry["blueprint"] == str(artifact_paths[0]) and any(
+                        owner["blueprint"] == owning_artifact and owner["file"] == entry["file"]
+                        and block_id in owner.get("contract_ids", "").split(",")
+                        for owner in entries
+                    )
+                    if owning_artifact != entry["blueprint"] and not master_reference:
+                        findings.append(f"contract_artifact_mismatch:{target}:{block_id}")
+                    projected = _integer(entry.get("projected_lines", "0"))
+                    if not 0 < projected <= _MAX_PHYSICAL_FILE_LINES:
+                        findings.append(f"contract_file_line_budget_invalid:{target}:{projected}")
+                    matching.append(block_id)
+                    continue
                 region_modify = is_region_modify(block)
                 if suffix in _SOURCE_SUFFIXES and not region_modify:
                     generated_manifest = (

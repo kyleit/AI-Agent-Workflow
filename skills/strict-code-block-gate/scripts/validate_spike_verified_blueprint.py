@@ -20,6 +20,7 @@ from typing import Any
 sys.path.insert(0, str(Path(__file__).resolve().parent))
 
 from block_contract import is_region_modify  # noqa: E402
+from contract_blocks import is_contract, is_covered_block  # noqa: E402
 
 
 def _frontmatter(text: str) -> dict[str, str]:
@@ -96,7 +97,7 @@ def validate(
         text,
         re.IGNORECASE,
     ))
-    if not implementation and has_api_or_schema:
+    if not any(is_covered_block(block) for block in blocks) and has_api_or_schema:
         findings.append("zero_code_blocks_is_not_vacuous_pass")
 
     verified_markers = len(re.findall(r"verified\s+from\s*:", text, re.IGNORECASE))
@@ -169,25 +170,19 @@ def validate(
             if required and required.lower() not in review_text.lower():
                 findings.append(f"spike_verified_internal_review_row_missing:{required}")
 
-    # Depth is a per-document declaration. AI_RULES.md Rule 10 permits CONTRACT
-    # for the master index only; a phase must be FULL. Reading the master alone
-    # meant a CONTRACT master disabled completeness for every phase, and a phase
-    # declaring CONTRACT was never rejected at all.
+    # Depth remains per document; selecting CONTRACT must never downgrade FULL.
     master = str(blueprint)
     depth_cache: dict[str, str] = {master: depth}
-    contract_phases: list[str] = []
     full_depth_blocks: list[dict[str, Any]] = []
-    for block in implementation:
+    for block in [block for block in blocks if is_covered_block(block)]:
         artifact = str(block.get("artifact", "")) or master
         artifact_depth = depth if artifact == master else _artifact_depth(artifact, depth_cache)
-        if artifact != master and artifact_depth == "CONTRACT":
-            name = Path(artifact).name
-            if name not in contract_phases:
-                contract_phases.append(name)
+        if artifact_depth not in {"CONTRACT", "FULL"}:
+            findings.append(f"artifact_depth_missing_or_invalid:{Path(artifact).name}")
+        if artifact_depth == "FULL" and is_contract(block):
+            findings.append(f"full_depth_contract_cannot_replace_body:{block.get('id')}")
         if artifact_depth == "FULL":
             full_depth_blocks.append(block)
-    for name in contract_phases:
-        findings.append(f"phase_depth_contract_not_permitted:{name}")
 
     if depth == "FULL" or full_depth_blocks:
         if not re.search(r"end[- ]to[- ]end|entrypoint|real run|runs?", text, re.IGNORECASE):

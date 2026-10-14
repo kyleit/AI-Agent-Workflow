@@ -169,6 +169,7 @@ Documentation must remain clean, professional, and easy to parse.
     *   Use GitHub Flavored Markdown (GFM).
     *   Always use Markdown tables instead of Unicode box art drawings for reports, metrics, and logs to avoid rendering issues.
     *   Include clear, clean headers and checklists.
+    *   Framework entry documents `AGENTS.md` and `AI_RULES.md`, including their installed/exported copies, MUST use English and ASCII characters, saved as UTF-8 without BOM. Use `->`, `>=`, and plain punctuation instead of Unicode arrows, comparison symbols, or typographic separators. Preserve policy meaning when correcting encoding; do not strip or transliterate user-facing localized content elsewhere.
 *   **Metadata**:
     *   Keep YAML blocks simple, clean, and placed at the absolute start of files.
     *   **Strict Constraint**: Never place author information inside prompt bodies. Never append signatures, names, emails, or personal comments to generated planning, blueprint, or implementation documents. Author metadata must belong only to `SKILL.md` frontmatter, `MANIFEST.json`, and `README.md`.
@@ -359,7 +360,7 @@ This is a mandatory global policy. The following rules are absolute and cannot b
  *   **Rule 6: Mandatory SDLC Skill Binding**: Every project source-file change MUST be performed within the scope of a corresponding SDLC Skill (such as `quick-fix` for a quick bug fix or `quick-feature` for a quick feature). The AI Agent MUST NOT modify source files directly outside these Skill boundaries, even when the IDE-level `implementation_plan.md` has been approved.
 *   **Rule 7: Blueprint Quality Gate**: Before a Blueprint is approved, it must be verified that it contains a complete file-by-file analysis table (mapping absolute/relative paths, operations, and responsibilities) and a verifiable implementation checklist. Any Blueprint containing placeholders or generic instructions must be rejected and returned to the draft phase.
 *   **Rule 8: Blueprint Review Evidence Gate**: Before a Blueprint is presented for approval, the Blueprint artifact itself MUST contain `Internal Review Evidence` with reviewer roles, source artifacts, checklist PASS/FAIL rows, failed-point repair history, document-compliance score, and relative-path scan result. A Blueprint without this section is not review-passed and cannot be sent to the user for approval.
-*   **Rule 9 — Spike-Verified Code Blocks**: When a Blueprint describes code
+*   **Rule 9 - Spike-Verified Code Blocks**: When a Blueprint describes code
     that does not yet exist, every implementation-ready block MUST come from a
     spike that ran for real under `.agents/scratch/`. The Blueprint MUST include
     a command/evidence table with exit codes, test counts, and adversarial
@@ -367,21 +368,24 @@ This is a mandatory global policy. The following rules are absolute and cannot b
     happy path without proof that invalid data is rejected violate the gate.
     This is required because compilation alone cannot prove a schema constraint
     or business rule is active.
-*   **Rule 10 — Blueprint Depth Declaration**: Every Blueprint MUST declare
-    `blueprint_depth: CONTRACT` or `blueprint_depth: FULL`, and the owner MUST
-    choose the value before generation. FULL MUST contain all runnable code in
-    scope; CONTRACT MAY omit use-case, adapter, and handler bodies while still
-    including their typed contracts and pure rule bodies. The trade-off is
-    explicit: FULL is longer and must be regenerated after design changes, but
-    it removes the gap between approved design and runnable implementation.
-    **Default depth strategy (token-aware)**: for any multi-phase build the
-    standard is **master = CONTRACT, each phase = FULL** — the master holds scope,
-    contracts, coverage matrix, and diagrams; the FULL spike-verified full-file
-    code blocks live in their owning phase. A single all-FULL master for a large
-    feature exhausts the agent's token budget before the code-block gate runs,
-    yielding a truncated code-less document; per-phase FULL keeps every step in
-    budget while still delivering complete runnable code. CONTRACT is valid ONLY
-    for the master index — never as a reason for a phase to omit its code blocks.
+*   **Rule 10 - Blueprint Depth Declaration**: Every new Blueprint MUST declare
+    `blueprint_depth: CONTRACT` by default, for masters, phases, standard features,
+    quick features and fixes. Use spike evidence plus typed contracts and complete
+    verified pure-rule bodies; runnable use-case, adapter and handler bodies may
+    be deferred until approved implementation. Do not ask the owner to choose
+    depth merely to apply this default, and never require FULL to reach PASS.
+    `blueprint_depth: FULL` remains an optional explicit owner-requested mode
+    for compatibility; only that mode requires all runnable bodies in scope.
+    Existing approved artifacts keep their declared depth and frozen hashes.
+    Every CONTRACT source row must reference an actual
+    typed contract-ready declaration or a verified complete pure-rule block.
+    CONTRACT is not source-free and cannot use N/A for source files. Explicit FULL
+    artifacts retain their complete-body checks, regardless of the master's depth.
+    Contract declarations carry typed exports/fields, errors, invariants,
+    acceptance IDs and exact verification commands. Deferred bodies require
+    actual implementation evidence bound to artifact and source hashes before
+    post-implementation verification can pass. Selecting depth never grants
+    approval or removes implementation-entry authorization.
 
 ---
 
@@ -593,7 +597,7 @@ No AIWF Skill may access knowledge providers (such as Markdown files, SQLite dat
    * All backend source code MUST strictly follow Clean Architecture and DDD.
    * **Domain Layer**: Contains entities, value objects, domain events, and interfaces. This layer MUST NOT depend on external libraries or frameworks such as HTTP, web frameworks, ORMs, database drivers, message brokers, or cloud SDKs.
    * **Application Layer**: Contains use cases and ports. Business logic here coordinates Domain flows and depends only on Domain abstractions.
-   * **Infrastructure Layer**: Chứa Database adapters, HTTP/gRPC handlers, Wails bindings, file storage adapters.
+   * **Infrastructure Layer**: Contains database adapters, HTTP/gRPC handlers, Wails bindings, file storage adapters.
    * Core business logic MUST NOT be written directly in delivery files such as Wails controllers or FastAPI routes.
    * **Dependency Direction Enforcement**: The required dependency direction is Delivery -> Application -> Domain and Infrastructure -> Application/Domain interfaces.
 
@@ -845,7 +849,7 @@ Frontend code is a first-class engineering artifact and MUST meet the same bar a
    * Frontend MUST follow Clean Architecture with an explicit dependency direction
      `presentation (components/pages) -> application (stores/use-cases) -> domain (models/logic)`,
      with an `infrastructure` layer for API clients, storage, and framework/SDK adapters.
-   * The **domain layer MUST be framework-agnostic** — no Svelte/DOM/HTTP imports; pure models,
+   * The **domain layer MUST be framework-agnostic** - no Svelte/DOM/HTTP imports; pure models,
      value objects, and business logic. UI components MUST NOT contain business logic or call
      API clients directly; they depend on application stores/use-cases, which depend on domain
      abstractions. Dependencies are injected (props/context/factory), never hard-imported across
@@ -857,10 +861,10 @@ Frontend code is a first-class engineering artifact and MUST meet the same bar a
      NOT exceed 500 lines. Over-limit files MUST be split under a shared family-folder with one
      aggregate/facade entry (same rule as Section 25.3).
 
-3. **Custom UI controls are MANDATORY — native defaults are FORBIDDEN**:
+3. **Custom UI controls are MANDATORY - native defaults are FORBIDDEN**:
    * Do NOT ship the browser's default form/dialog primitives. The following MUST be replaced by
      project custom components: `input`, `textarea`, `checkbox`, `radio`, `select`/dropdown,
-     `range`, `file`, and every dialog — `alert()`, `confirm()`, `prompt()` (and native
+     `range`, `file`, and every dialog - `alert()`, `confirm()`, `prompt()` (and native
      `<dialog>` defaults) MUST be replaced by custom modal/toast/confirm components.
    * Scrollbars MUST be restyled via CSS (custom scrollbar) rather than left as the OS/browser
      default. Custom controls MUST remain accessible (keyboard focus, ARIA roles, labels).
@@ -883,7 +887,7 @@ Frontend code is a first-class engineering artifact and MUST meet the same bar a
 2. **All resources MUST be local / offline-first**:
    * Fonts (Google Fonts), icons (Lucide), CSS, JS, and any third-party asset MUST be
      downloaded and vendored into the repository and served locally. Runtime dependence on a
-     remote CDN or Google Fonts endpoint is FORBIDDEN — the app MUST render fully offline.
+     remote CDN or Google Fonts endpoint is FORBIDDEN - the app MUST render fully offline.
    * Build output MUST embed real assets (no dummy/empty files); the embedded-asset guard of
      Section 25.4 applies.
 
@@ -903,10 +907,10 @@ Frontend code is a first-class engineering artifact and MUST meet the same bar a
 4. **Blueprint binding**: the Blueprint MUST declare the service map, monorepo layout, and
    micro-frontend boundaries before implementation; deviations are Blueprint Drift.
 
-5. **Spike-Verified binding (Sections 34–36)**: every high-risk assumption introduced by these
-   policies — service/context boundaries and inter-service contracts, micro-frontend shell
+5. **Spike-Verified binding (Sections 34-36)**: every high-risk assumption introduced by these
+   policies - service/context boundaries and inter-service contracts, micro-frontend shell
    integration, offline vendoring of fonts/icons/CSS/JS, custom-control accessibility, and the
-   strict frontend toolchain gates — is subject to the **Spike-Verified Blueprint** gate
+   strict frontend toolchain gates - is subject to the **Spike-Verified Blueprint** gate
    (Section 13, Rule 9). Such assumptions MUST carry a real Spike Record (ran under
    `.agents/scratch/`, with command/evidence and adversarial-rejection results) **before
    Blueprint Freeze**. Memory-written or compile-only evidence does not satisfy the gate.

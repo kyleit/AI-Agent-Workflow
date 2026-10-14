@@ -25,7 +25,7 @@ class SourceContextValidator:
     ) -> SourceContextValidationResult:
         findings: list[str] = []
         for block in blocks:
-            if not block.get("implementation_ready"):
+            if not block.get("implementation_ready") and block.get("contract_ready") is not True:
                 continue
             block_id = str(block.get("id", "unknown"))
             operation = str(block.get("operation", "")).strip().lower()

@@ -1,4 +1,4 @@
-﻿<!-- AIWF:RULES:BEGIN -->
+<!-- AIWF:RULES:BEGIN -->
 # AI Engineering Workflow Agents
 
 Every AI agent working inside this project **MUST** follow the AI Workflow Framework.
@@ -43,11 +43,11 @@ GitHub Repository: https://github.com/your-org/AI-Agent-Workflow
 ## MANDATORY: Route source changes through /aiwf
 
 Any request that adds/changes/fixes a feature or otherwise **modifies source
-code** MUST go through the AIWF workflow BEFORE editing code — regardless of
+code** MUST go through the AIWF workflow BEFORE editing code - regardless of
 whether the user typed `/aiwf` or invoked any skill:
 
-1. `/aiwf <request>` → `initialize-workflow` → `workflow-coordinator`
-2. Produce Spec → Technical Blueprint (`docs/features/...`)
+1. `/aiwf <request>` -> `initialize-workflow` -> `workflow-coordinator`
+2. Produce Spec -> Technical Blueprint (`docs/features/...`)
 3. Get the Blueprint approved (Blueprint Approval Gate)
 4. Only then edit source code.
 
@@ -58,7 +58,7 @@ This is **enforced deterministically**, not by trust:
   Applies to EVERY AI/editor.
 - **Claude Code `PreToolUse` hook** blocks source edits at write-time.
 
-**Unlocking is automatic — nobody runs a command.** The gate reads AIWF workflow
+**Unlocking is automatic - nobody runs a command.** The gate reads AIWF workflow
 state (`.agents/state/workflow.json` + `approvals.json`). Source writes unlock
 once, for the active work item: the blueprint is approved AND the workflow has
 entered an implementation phase. Approving the blueprint via the normal /aiwf
@@ -77,6 +77,28 @@ tooling itself are never gated. Emergency bypass (agent/CI only, logged):
 `AIWF_BYPASS=1`.
 <!-- AIWF:SOURCE-WRITE-GATE:END -->
 
+<!-- AIWF:CONCURRENT-SOURCE-GATE:BEGIN -->
+## Concurrent Work-Item Source Gates
+
+Global workflow state is display focus, not authorization for all source files.
+Approved implementation entry issues a receipt per item under
+`.agents/state/work-items/<id>/implementation-entry-receipt.json`.
+Use `aiwf implement --blueprint <path> --work-item <id>` for explicit identity.
+Store instances keep their root and item fixed; another session's focus change
+must not change their state namespace.
+
+Source edits require a unique current owner for every file. Disjoint approved
+FEAT/FIX/QUICK scopes remain usable simultaneously; a same-file overlap blocks
+only that intersection. Explicit item/session context never falls back to another
+owner. Changed approval/artifacts, expiry, revocation and path escape deny that
+item. Unchanged eligible approval may renew without another human prompt.
+
+Claude batches and Git delete/rename paths are checked completely. Push checks
+bind each outgoing commit/path to its historical evidence. Source capability
+never grants commit, push or release permission, and a release marker never
+grants source edit permission. Status output is diagnostic, not an edit grant.
+<!-- AIWF:CONCURRENT-SOURCE-GATE:END -->
+
 
 <!-- AIWF:DEVTEAM:BEGIN (hand-maintained) -->
 ## DevTeam multi-session seats
@@ -85,7 +107,7 @@ This repo can be split across **seats** (a leader + N dev-seats), each owning on
 slice of the repo and coordinating through file mailboxes. To take a seat:
 
 - If your tool has the adapter: run its `/seat <slug>` (Claude), the `seat` skill
-  (Codex), or the DevTeam workflow (Antigravity) — one action.
+  (Codex), or the DevTeam workflow (Antigravity) - one action.
 - Otherwise: read `docs/features/agent-orchestration/PROTOCOL.md` and follow it
   with your own file tools. All paths produce identical files, so any tool can
   occupy any seat.
@@ -100,22 +122,22 @@ Data lives in `.agents/devteam/` (roster, charters, state, board) and
 ## Self-correcting loop controller
 
 The linear AIWF pipeline runs under a **bounded self-correcting loop**
-(`skills/loop-controller`). Each cycle is turn-driven (no daemon): LOAD →
-EXECUTE (a phase skill) → EVALUATE (a gate verdict) → DECIDE one of
-`{ADVANCE, REPEAT, BACKTRACK, HALT}` → PERSIST. Hard stop-conditions guarantee
+(`skills/loop-controller`). Each cycle is turn-driven (no daemon): LOAD ->
+EXECUTE (a phase skill) -> EVALUATE (a gate verdict) -> DECIDE one of
+`{ADVANCE, REPEAT, BACKTRACK, HALT}` -> PERSIST. Hard stop-conditions guarantee
 termination: `MAX_ITERATIONS` (default 8), `NO_PROGRESS` (same failure signature
-×3), `GATE_PASS_FINAL`, `USER_HALT`, `UNRECOVERABLE_ERROR`. A failed
-risk-assumption **Spike** (`plan-to-blueprint` §8.1) routes `BACKTRACK` to
+x3), `GATE_PASS_FINAL`, `USER_HALT`, `UNRECOVERABLE_ERROR`. A failed
+risk-assumption **Spike** (`plan-to-blueprint` section 8.1) routes `BACKTRACK` to
 `brainstorming`; spike code is throwaway.
 
-Run one cycle (Windows / Linux / macOS — pick the first that is available):
+Run one cycle (Windows / Linux / macOS - pick the first that is available):
 
-- **Canonical (all tools/OS):** `aiwf loop load|decide|persist ...` — the `aiwf`
+- **Canonical (all tools/OS):** `aiwf loop load|decide|persist ...` - the `aiwf`
   wrapper resolves the interpreter (POSIX `bootstrap.sh`, Windows `bootstrap.ps1`,
   or the bundled `aiwf.exe`).
 - **No `aiwf` CLI:** `skills/loop-controller/scripts/loop_engine.sh` (Linux/macOS/
-  Git-Bash) or `loop_engine.ps1` (Windows PowerShell 5.1 / pwsh 7) — both
-  auto-detect `python3` → `python` → `py -3` (Python ≥ 3.9).
+  Git-Bash) or `loop_engine.ps1` (Windows PowerShell 5.1 / pwsh 7) - both
+  auto-detect `python3` -> `python` -> `py -3` (Python >= 3.9).
 - **No interpreter at all:** read `skills/loop-controller/PROTOCOL.md` and run the
   transition table by hand. All paths produce identical state.
 
@@ -133,10 +155,10 @@ loop-controller (transition authority) and devteam (shared-workspace mailbox).
 
 - **Assignment is dynamic by capability**: `.agents/config/agent-registry.json`
   (`aiwf.agent-registry/1`) declares each agent's `type`, `priority`, `capabilities`
-  (phases) and headless `invocation`. The engine selects per phase (priority → LRU → id).
+  (phases) and headless `invocation`. The engine selects per phase (priority -> LRU -> id).
   Codex needs `--skip-git-repo-check` outside a git repo (default registry includes it).
 - **Continuous run, human gates preserved**: auto-runs through non-approval phases; at
-  Blueprint/Implementation approval it HALTs (`AWAITING_APPROVAL`) — agents are never
+  Blueprint/Implementation approval it HALTs (`AWAITING_APPROVAL`) - agents are never
   spawned to approve. After the user approves, re-running resumes from loop-state.
 
 Run (Windows / Linux / macOS):
@@ -146,7 +168,7 @@ aiwf malo run --workflow <id> --phases plan,blueprint,implement,verify
 # no interpreter: skills/multi-agent-loop/PROTOCOL.md by hand
 ```
 Run ledger: `.agents/state/loop/<workflow-id>.runs.jsonl` (`aiwf.phase-run/1`).
-No registry → the current session agent runs every phase (backward compatible).
+No registry -> the current session agent runs every phase (backward compatible).
 <!-- AIWF:MULTI-AGENT-LOOP:END -->
 
 

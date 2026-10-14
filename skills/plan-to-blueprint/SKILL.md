@@ -246,10 +246,12 @@ greenfield request. Treat it as an executable checklist, not as review advice:
    abbreviated, or `&` headings. Use a literal `File` column and literal
    `Code Block IDs` column in every file matrix so machine validation can read
    the table.
-4. Materialize every planned concrete file exactly once. For every row, emit
-   one adjacent metadata-bearing `full-file` block containing the complete
-   copy-ready file. Wildcards, grouped paths, excerpts, signatures, stubs,
-   pseudocode, and representative samples are forbidden. Maintain a
+4. Cover every planned concrete file exactly once. Default CONTRACT source
+   rows reference actual metadata-bearing typed declarations or complete verified
+   pure-rule blocks, with spike evidence and deferred implementation obligations.
+   Only explicit FULL rows require complete copy-ready `full-file` bodies.
+   Wildcards, grouped paths, untyped signatures, stubs, pseudocode, and
+   representative samples are forbidden. Maintain a
    bidirectional row/block ledger while authoring; do not invent a PASS count.
    For a greenfield cross-layer application, derive and enumerate the bootstrap
    surfaces before writing any phase: language/dependency manifests and locks,
@@ -259,7 +261,7 @@ greenfield request. Treat it as an executable checklist, not as review advice:
    loading/dialog/error surfaces, desktop lifecycle/tray integration, and local
    asset/font manifests. A stack name in prose is not coverage. Each discovered
    surface becomes a concrete inventory row, an owning family/small-feature/
-   phase, a full-file block, a test, and retained evidence.
+   phase, a typed contract or verified code block, a test, and retained evidence.
 5. Before any approval question, run the canonical validation command against
    the Master and recursive phases, read its JSON result, repair every finding,
    and run it again. A strict gate-only result is insufficient. Approval is
@@ -269,8 +271,10 @@ greenfield request. Treat it as an executable checklist, not as review advice:
    hashes, decision, and findings. If the result is missing, stale, BLOCKED, or
    NOT_RUN, leave the artifact in draft/needs-changes state and continue the
    repair loop; never ask the owner to approve it.
-7. Before asking for approval, materialize the complete implementation blocks
-   into an isolated validation workspace and have the Agent run the applicable
+7. Before asking for approval, validate typed CONTRACT declarations and execute
+   the required spike/pure-rule checks in an isolated validation workspace.
+   Deferred bodies do not require a complete product build before approval.
+   For explicit FULL, materialize complete implementation blocks and run applicable
    language checks there. This is an Agent verification step, not a script
    deciding architecture: Go module/test compilation, frontend typecheck and
    production build, schema validation, and any required desktop build must
@@ -288,7 +292,7 @@ greenfield request. Treat it as an executable checklist, not as review advice:
 
 Do not modify a project-local quality-gate configuration to manufacture a
 passing result. Configuration changes are not a substitute for missing phase
-artifacts, coverage rows, or complete file blocks.
+artifacts, coverage rows, typed declarations, or required complete pure-rule blocks.
 
 The declared phase count in a master file is only an assertion to validate; it
 does not materialize phase artifacts. Before requesting Blueprint approval, the
@@ -308,10 +312,11 @@ transaction in order:
    For a cross-layer greenfield request, backend, frontend, desktop/Wails, and
    any other independent architecture boundary MUST have their own nested
    phase artifacts. A master-only document is invalid.
-3. Write and read back the Master and every phase file. For every concrete file
-   row, write exactly one metadata-bearing complete full-file block in the
-   Master or its owning phase. A block ID, signature, excerpt, pseudocode, or
-   representative sample without the full file is not materialization.
+3. Write and read back the Master and every phase file. Default to CONTRACT.
+   Every concrete source row needs one actual typed contract declaration or a
+   complete verified pure-rule block in its owning artifact, with spike evidence.
+   Prose, a bare ID or an unverified signature is not coverage. Complete runnable
+   full-file bodies are required only for explicit owner-requested FULL artifacts.
 4. Run the recursive Blueprint validator and strict code-block gate against the
    files on disk. If any phase, row, block, interface, coverage mapping, or
    preserved diagram is missing, repair the artifact set and repeat from step
@@ -371,17 +376,34 @@ contract, while detailed implementation blocks belong in their owning phase
 when that is the coherent boundary. A size note is optional and informative;
 its absence MUST never block approval.
 
-**Blueprint Depth Strategy (default, token-aware).** For any multi-phase build,
-the standard is **master = CONTRACT depth, each phase = FULL depth**: the master
-Blueprint carries the complete scope, coverage matrix, contracts, and diagrams
-(no full-file bodies), while the FULL spike-verified full-file code blocks live in
-their owning phase. This is the required default because a single all-FULL master
-for a large feature is what exhausts an agent's token budget before the gate runs
-(producing a truncated, code-less contract). Splitting FULL code per phase keeps
-each step within budget while still delivering complete, runnable, spike-verified
-code. A single-phase (small) feature MAY be FULL in one document. `blueprint_depth`
-MUST still be declared per artifact (Rule 10); CONTRACT is valid ONLY for the
-master index, never as an excuse to omit a phase's code blocks.
+**Blueprint Depth Strategy (default, token-aware).** The default is
+**master = CONTRACT, every phase = CONTRACT**, including single-phase, quick
+feature and fix Blueprints. Declare `blueprint_depth: CONTRACT` without asking
+the owner for a depth choice. Spike evidence plus typed declarations and complete
+verified pure rules is sufficient for depth-appropriate PASS; do not generate or
+request FULL merely to satisfy a gate. Preserve complete scope, coverage,
+contracts and diagrams. FULL is optional only when explicitly requested by the
+owner; existing frozen artifacts retain their declared depth and exact hashes.
+CONTRACT requires actual typed declarations and complete pure-rule blocks,
+not prose-only coverage.
+Use globally unique Contract IDs for deferred adapter/handler bodies and Code
+Block IDs for verified pure rules. Every source file remains enumerated with
+exact types, errors, invariants, ACs, strict commands and physical size.
+FULL children retain body checks regardless of their master's depth.
+
+Contract-ready metadata: `contract_ready: true`, `implementation_ready: false`,
+`block_scope: contract`, `full_file: false`, `contract_kind: interface` or schema,
+`language: json`, and the real `target_language`. Fenced JSON follows
+`aiwf.contract/1`: typed exports/signatures or typed DTO fields, errors,
+invariants, acceptance IDs and verification commands. Existing modifications
+also bind actual normalized base SHA-256 and anchor symbol. Concrete pure-rule
+bodies use complete implementation-ready blocks, never deferred declarations.
+
+Post-implementation verification requires actual execution records at
+`docs/aiwf-runs/<id>/verification/contract-implementation.json`, bound to each
+artifact and current source hash, with executed exit-zero results for every
+declared command. Python exports are additionally compared with typed source.
+Design coverage alone never proves the adapter/handler behavior works.
 
 1. Always write one master Blueprint containing the complete scope, all
    requirements, all cross-phase dependencies, the complete data-flow and
@@ -415,9 +437,9 @@ master index, never as an excuse to omit a phase's code blocks.
    projected physical lines, language profile, build/lint/typecheck/test
    commands, code-block IDs, and acceptance-test IDs.
    `Code Block IDs` is a mandatory column, not a prose hint. Every source,
-   config, schema, migration, UI, test fixture, and asset-manifest row MUST
-   reference at least one implementation-ready block in the master or its
-   owning phase. A file listed without a real block is `CODE_BLOCK_GATE:
+   config, schema, migration, UI and test row MUST reference an actual typed
+   Contract ID or verified complete pure-rule Code Block ID in its owning
+   artifact. Assets retain explicit manifests. A file without real coverage is `CODE_BLOCK_GATE:
    BLOCKED`; the Blueprint MUST NOT be submitted for approval.
    For greenfield work, the Agent MUST enumerate every concrete file required
    to make the repository build and run, including entrypoints, manifests,
@@ -425,14 +447,14 @@ master index, never as an excuse to omit a phase's code blocks.
    frontend components/views/stores, desktop bindings, assets, and tests.
    A directory tree, package summary, or representative sample does not count
    as file materialization. Before review, the Agent MUST perform a bidirectional
-   audit: every matrix row maps to exactly one full-file block, and every block
+   audit: every matrix row maps to a typed declaration or verified code block, and every block
    target maps back to exactly one matrix row and owning phase.
    Each physical source/config/test file MUST declare `projected_lines <= 500`
    and its implementation-ready block MUST contain no more than 500 lines.
    When a responsibility would exceed the limit, the Agent MUST split it by
    responsibility inside one family-name directory, define one facade,
    barrel, or aggregate entry for outside imports, and map every extracted
-   file to its own full-file block, test IDs, and evidence. A single oversized
+   file to its own typed declaration or verified block, test IDs, and evidence. A single oversized
    `App`, `handlers`, `repository`, or `service` file is `BLOCKED`.
 5. Section 4 MUST contain both a happy-path and failure/recovery Mermaid
    diagram. The sequence diagram is part of the master contract and MUST be
@@ -456,7 +478,7 @@ master index, never as an excuse to omit a phase's code blocks.
    test label without a file, block, command, and binary assertion is not
    coverage.
    `Screen And Route Coverage Matrix` MUST give every feature route its own
-   page/view file and full-file block when the route has distinct behavior;
+   page/view file and typed contract or verified code block when the route has distinct behavior;
    `App.svelte` or another shell file cannot represent multiple feature pages.
    `Backend Capability Coverage Matrix` MUST map each capability through its
    endpoint/command, DTO/schema, persistence operation, producer, consumer,
@@ -499,8 +521,10 @@ master index, never as an excuse to omit a phase's code blocks.
     or "write tests" is incomplete. The Agent MUST split a task again when a
     worker would need to invent a file, signature, schema, error, state, or test
     to complete it.
-    A phase is incomplete when any owned file is represented by a signature,
-    excerpt, pseudocode, or prose instead of a complete copy-ready file block.
+    A phase is incomplete when any owned source file lacks an actual typed
+    CONTRACT declaration or complete verified pure-rule block and spike evidence.
+    Bare signatures, excerpts, pseudocode and prose are not coverage. Complete
+    copy-ready file bodies are required only for explicit FULL artifacts.
     Large backend surfaces MUST be decomposed by responsibility (for example
     domain, persistence, probing, scheduling, ingestion, delivery, runtime,
     observability, and verification) and the phase set MUST cover each
@@ -566,8 +590,10 @@ MUST write implementation tasks in this order:
    retries, and ownership.
 3. Define the real failing test or verification action and the command that
    must fail before implementation.
-4. Provide the complete target-file code block, not a representative excerpt.
-   Every source/config/schema/UI/test file row MUST use
+4. Provide typed CONTRACT declarations and complete verified pure-rule blocks
+   by default, with exact deferred-body verification obligations. A signature
+   sample or prose-only row is not sufficient. For explicit FULL artifacts only,
+   provide complete target-file blocks. Such runnable full-file rows MUST use
    `implementation_ready: true`, `full_file: true`, and
    `block_scope: full-file`; binary assets use an explicit asset manifest and
    generated package-manager lockfiles use a generated-manifest contract.
@@ -595,7 +621,7 @@ MUST write implementation tasks in this order:
    and blocks the phase.
 
 The plan and Blueprint are a transitive contract: every capability maps to a
-task, every task to concrete files, every file to a complete code block, every
+task, every task to concrete files, every file to a typed contract or verified block, every
 block to a test, and every test to executable evidence. A block count, a
 passing text parser, or a high readiness score cannot substitute for that
 chain.
@@ -794,8 +820,9 @@ Unapproved plan statuses ARE STRICTLY REJECTED.
 
 ### CODE_BLOCK_GATE Branch And Depth Decision
 
-Before authoring implementation material, record `blueprint_depth` as CONTRACT
-or FULL and obtain the owner's choice. Use Branch A when the target source
+Before authoring implementation material, record `blueprint_depth: CONTRACT`
+by default. Do not request a depth choice; use FULL only on explicit owner request.
+Use Branch A when the target source
 exists: verify identifiers against the real file and add `verified from:
 <path:line>`. Use Branch B when the source is absent: complete B1-B6 in the
 canonical strict gate, including a runnable spike, real toolchain execution,
@@ -819,7 +846,7 @@ a real entrypoint run is FAIL.
 > 3. Materialize validation-only snippets under `.agents/tmp/code-block-gate/<workflow-id>/`; never write product source as part of this gate.
 > 4. Persist `code-block-gate.json` with `decision`, `blueprint_full_sha256`, `per_code_block`, `profile_results`, `materialized_scope`, and `test_status: NOT_RUN`.
 > 5. A code block is **BANNED** from this Blueprint if it lacks metadata, uses placeholders, depends on guessed source identifiers, has no strict language profile, or cannot be mapped to the architecture boundary.
-> 6. For project initialization, implementation-ready blocks represent complete physical files: add `full_file: true` and `block_scope: full-file` for source/config/schema/UI files. The gate checks content size against projected file lines. Binary assets use `language: asset`, `block_scope: asset-manifest`, `full_file: false`, and explicit source/destination/inclusion/checksum metadata. Generated lockfiles use `language: generated-manifest`, `block_scope: generated-manifest`, `full_file: false`, `operation: generate`, the exact package-manager command, and post-generation hash/consistency evidence.
+> 6. For project initialization, CONTRACT source rows use actual typed declarations and complete pure-rule blocks as specified above; deferred bodies are not missing FULL blocks. If the owner explicitly requests FULL, implementation-ready blocks represent complete physical files: add `full_file: true` and `block_scope: full-file` for source/config/schema/UI files. Binary assets use `language: asset`, `block_scope: asset-manifest`, `full_file: false`, and explicit source/destination/inclusion/checksum metadata. Generated lockfiles use `language: generated-manifest`, `block_scope: generated-manifest`, `full_file: false`, `operation: generate`, the exact package-manager command, and post-generation hash/consistency evidence.
 > `NOTE`, `PENDING`, local-only checks, or legacy `UNLOCKED` wording in the Internal Review Evidence CODE_BLOCK_GATE row = automatic FAIL.
 
 **Internal Review Evidence** — every generated Blueprint MUST include this table before submission for Architecture Approval:

@@ -19,6 +19,7 @@ from __future__ import annotations
 import json
 import sys
 from pathlib import Path
+from typing import cast
 
 HERE = Path(__file__).resolve().parent
 sys.path.insert(0, str(HERE))
@@ -26,8 +27,9 @@ sys.path.insert(0, str(HERE))
 import aiwf_gate as gate  # noqa: E402
 
 
-def _extract_paths(payload: dict) -> list[str]:
-    ti = payload.get("tool_input") or {}
+def _extract_paths(payload: dict[str, object]) -> list[str]:
+    raw_input = payload.get("tool_input")
+    ti = cast(dict[str, object], raw_input) if isinstance(raw_input, dict) else {}
     paths: list[str] = []
     for key in ("file_path", "path", "notebook_path"):
         v = ti.get(key)
@@ -36,23 +38,27 @@ def _extract_paths(payload: dict) -> list[str]:
     # MultiEdit / batched shapes
     edits = ti.get("edits")
     if isinstance(edits, list):
-        fp = ti.get("file_path")
-        if isinstance(fp, str) and fp:
-            paths.append(fp)
+        for edit in cast(list[object], edits):
+            if isinstance(edit, dict):
+                for key in ("file_path", "path", "notebook_path"):
+                    value = cast(dict[str, object], edit).get(key)
+                    if isinstance(value, str) and value:
+                        paths.append(value)
     return paths
 
 
 def main() -> int:
     try:
-        payload = json.load(sys.stdin)
+        value: object = json.load(sys.stdin)
     except Exception:
         return 0  # no/invalid payload -> do not interfere
 
-    if not isinstance(payload, dict):
+    if not isinstance(value, dict):
         return 0
+    payload = cast(dict[str, object], value)
 
     cwd = payload.get("cwd") or None
-    root = gate.repo_root(Path(cwd) if cwd else None)
+    root = gate.repo_root(Path(cwd) if isinstance(cwd, str) and cwd else None)
     if not root or not gate.is_aiwf_project(root):
         return 0
 
@@ -64,16 +70,18 @@ def main() -> int:
     if not src:
         return 0
 
-    if gate._bypassed():
+    if gate.bypassed():
         return 0
 
-    ok, reason = gate.authorization_status(root)
-    if ok:
+    result = gate.check_paths(root, src)
+    if result.all_allowed:
         return 0
 
     sys.stderr.write(gate.BLOCK_BANNER)
     sys.stderr.write("  Claude edit blocked by AIWF source-write gate.\n")
-    sys.stderr.write(f"  Reason: {reason}\n\n")
+    for decision in result.decisions:
+        if not decision.allowed:
+            sys.stderr.write('  ' + gate.describe_decision(decision) + '\n')
     sys.stderr.write("  Target(s):\n")
     for p in src:
         sys.stderr.write(f"    - {p}\n")

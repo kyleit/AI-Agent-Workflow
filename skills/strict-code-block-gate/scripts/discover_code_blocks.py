@@ -16,6 +16,7 @@ from pathlib import Path
 sys.path.insert(0, str(Path(__file__).resolve().parent))
 
 from block_contract import REGION_SCOPE, is_region_modify  # noqa: E402
+from contract_blocks import artifact_depth, validate_contract  # noqa: E402
 
 # CommonMark fences may be longer than three backticks so a block can embed a
 # literal ``` line; such a block closes only on a bare fence at least as long as
@@ -100,6 +101,7 @@ def discover(path: Path) -> dict:
         code = "\n".join(code_lines).rstrip() + "\n"
         meta = _metadata(lines, start - 1)
         implementation_ready = _truthy(meta.get("implementation_ready"))
+        contract_ready = _truthy(meta.get("contract_ready"))
         full_file = _truthy(meta.get("full_file"))
         block_scope = meta.get("block_scope", "").strip().lower()
         language = meta.get("language") or fence_language
@@ -130,6 +132,10 @@ def discover(path: Path) -> dict:
             "anchor_symbol": meta.get("anchor_symbol", ""),
             "base_sha256": meta.get("base_sha256", "").strip().lower(),
             "implementation_ready": implementation_ready,
+            "contract_ready": contract_ready,
+            "contract_kind": meta.get("contract_kind", ""),
+            "target_language": meta.get("target_language", ""),
+            "blueprint_depth": artifact_depth(text),
             "full_file": full_file,
             "block_scope": block_scope,
             "start_line": start + 1,
@@ -139,7 +145,12 @@ def discover(path: Path) -> dict:
             "status": "PASS",
             "findings": [],
         }
-        if implementation_ready:
+        if contract_ready:
+            block["findings"].extend(validate_contract(block))
+            if PLACEHOLDER_RE.search(code):
+                block["findings"].append("placeholder or incomplete contract detected")
+            block["status"] = "BLOCKED" if block["findings"] else "PASS"
+        elif implementation_ready:
             for field in ("id", "language", "file", "operation"):
                 if not meta.get(field):
                     block["status"] = "BLOCKED"

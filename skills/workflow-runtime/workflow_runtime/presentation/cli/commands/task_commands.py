@@ -1,12 +1,20 @@
-from __future__ import annotations
-
-from typing import Any
-
 """Commands: task, blueprint, suggest, compact, work-item, project, implement"""
 
+from __future__ import annotations
+
 import argparse
+from argparse import ArgumentParser
+from typing import Protocol, TypeVar
 
 from workflow_runtime.presentation.cli.command_interface import CommandMeta
+
+ParserT = TypeVar("ParserT", bound=ArgumentParser, covariant=True)
+
+
+class _SubParsersAction(Protocol[ParserT]):
+    """Only the public parser operation consumed by command registration."""
+
+    def add_parser(self, name: str, *, help: str) -> ParserT: ...
 
 
 class TaskCommand:
@@ -18,7 +26,7 @@ class TaskCommand:
             requires_lock=True,
         )
 
-    def add_parser(self, subparsers: Any) -> argparse.ArgumentParser:
+    def add_parser(self, subparsers: _SubParsersAction[ArgumentParser]) -> argparse.ArgumentParser:
         p = subparsers.add_parser("task", help=self.meta().help)
         sub = p.add_subparsers(dest="subaction")
         sub.add_parser("list",   help="List tasks")
@@ -51,7 +59,7 @@ class BlueprintCommand:
             requires_lock=True,
         )
 
-    def add_parser(self, subparsers: Any) -> argparse.ArgumentParser:
+    def add_parser(self, subparsers: _SubParsersAction[ArgumentParser]) -> argparse.ArgumentParser:
         p = subparsers.add_parser("blueprint", help=self.meta().help)
         p.add_argument("action", nargs="?",
                        choices=["generate", "validate", "freeze", "status", "retire"])
@@ -84,7 +92,7 @@ class SuggestCommand:
             requires_lock=True,
         )
 
-    def add_parser(self, subparsers: Any) -> argparse.ArgumentParser:
+    def add_parser(self, subparsers: _SubParsersAction[ArgumentParser]) -> argparse.ArgumentParser:
         p = subparsers.add_parser("suggest", help=self.meta().help)
         p.add_argument("--limit", type=int, default=5)
         self._parser = p
@@ -109,7 +117,7 @@ class CompactCommand:
             requires_lock=True,
         )
 
-    def add_parser(self, subparsers: Any) -> argparse.ArgumentParser:
+    def add_parser(self, subparsers: _SubParsersAction[ArgumentParser]) -> argparse.ArgumentParser:
         p = subparsers.add_parser("compact", help=self.meta().help)
         p.add_argument("--target-tokens", type=int)
         self._parser = p
@@ -133,7 +141,7 @@ class WorkItemCommand:
             help="Get cached work item info (fast, no lock needed)",
         )
 
-    def add_parser(self, subparsers: Any) -> argparse.ArgumentParser:
+    def add_parser(self, subparsers: _SubParsersAction[ArgumentParser]) -> argparse.ArgumentParser:
         p = subparsers.add_parser("work-item", help=self.meta().help)
         sub = p.add_subparsers(dest="subaction")
         sub.add_parser("detect")
@@ -160,7 +168,7 @@ class ProjectCommand:
             help="Get cached project version info",
         )
 
-    def add_parser(self, subparsers: Any) -> argparse.ArgumentParser:
+    def add_parser(self, subparsers: _SubParsersAction[ArgumentParser]) -> argparse.ArgumentParser:
         p = subparsers.add_parser("project", help=self.meta().help)
         sub = p.add_subparsers(dest="subaction")
         sub.add_parser("version")
@@ -187,7 +195,7 @@ class ImplementCommand:
             requires_lock=True,
         )
 
-    def add_parser(self, subparsers: Any) -> argparse.ArgumentParser:
+    def add_parser(self, subparsers: _SubParsersAction[ArgumentParser]) -> ArgumentParser:
         p = subparsers.add_parser("implement", help=self.meta().help)
         p.add_argument(
             "action",
@@ -195,6 +203,7 @@ class ImplementCommand:
             choices=["status", "resume", "abort", "partial-release"],
         )
         p.add_argument("--blueprint", help="Blueprint file path")
+        p.add_argument("--work-item", help="Explicit implementation work-item identity")
         p.add_argument("--phase", help="Phase for partial-release")
         p.add_argument("--dry-run", action="store_true")
         self._parser = p

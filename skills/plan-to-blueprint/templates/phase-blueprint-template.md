@@ -4,6 +4,7 @@ feature_id: {{WORK_ITEM_ID}}
 family_id: {{FAMILY_ID}}
 small_feature_id: {{SMALL_FEATURE_ID}}
 phase_id: P{{PHASE_NUMBER}}
+blueprint_depth: CONTRACT
 workflow: standard-development
 status: awaiting_owner_approval
 master_blueprint: {{MASTER_BLUEPRINT_PATH}}
@@ -34,10 +35,13 @@ blocks to satisfy an arbitrary size target.
 ```
 
 ## Full-File Delivery Contract
-Every file in this phase is a concrete physical deliverable. Its
-implementation-ready block must describe the complete file, exact imports,
-exports, error behavior, configuration, and integration points. A shortened
-illustrative snippet is not sufficient for approval.
+Every file in this phase is a concrete physical deliverable. CONTRACT is the
+default: each source row has a typed declaration or complete verified pure-rule
+block, exact exports, error behavior, invariants, integration points and executed
+spike evidence. Adapter/handler bodies are deferred to approved implementation,
+with exact verification obligations. A prose-only row is not sufficient.
+The historical heading does not require FULL. Only explicit owner-requested
+FULL artifacts must include complete runnable file bodies before approval.
 
 ## Dependency Contract
 | Depends On | Required Artifact/Output | Consumer |
@@ -59,12 +63,14 @@ it without guessing. Representative snippets, prose-only test plans, and
 unresolved dependencies are `NO-GO`.
 
 ## File-By-File Change Matrix
-| File | Layer | Operation | Owner | Imports | Exports | Exact Signatures | Lines | Profile | Commands | Code Block IDs | Tests | Evidence |
-|---|---|---|---|---|---|---|---:|---|---|---|---|---|
-| {{RELATIVE_FILE}} | {{LAYER}} | {{OPERATION}} | {{OWNER}} | {{IMPORTS}} | {{EXPORTS}} | {{SIGNATURES}} | {{LINES}} | {{PROFILE}} | {{COMMANDS}} | {{BLOCK_IDS}} | {{TEST_IDS}} | {{EVIDENCE_PATHS}} |
+| File | Layer | Operation | Owner | Imports | Exports | Exact Signatures | Lines | Profile | Commands | Code Block IDs | Contract IDs | Tests | Evidence |
+|---|---|---|---|---|---|---|---:|---|---|---|---|---|---|
+| {{RELATIVE_FILE}} | {{LAYER}} | {{OPERATION}} | {{OWNER}} | {{IMPORTS}} | {{EXPORTS}} | {{SIGNATURES}} | {{LINES}} | {{PROFILE}} | {{COMMANDS}} | {{BLOCK_IDS}} | {{CONTRACT_IDS}} | {{TEST_IDS}} | {{EVIDENCE_PATHS}} |
 
-Every concrete row above must contain one or more real IDs from the
-Implementation-Ready Code-Block Inventory. `{{BLOCK_IDS}}` may not be blank,
+Every concrete FULL row above must contain real implementation block IDs.
+Every CONTRACT row must contain actual typed Contract IDs or verified complete
+pure-rule Code Block IDs. Only one coverage mode is needed for each file.
+Neither mode permits source N/A. The selected coverage ID column may not be blank,
 `TBD`, or `NOT_APPLICABLE` for a source/config/schema/UI/test/asset-manifest
 file.
 
@@ -85,6 +91,21 @@ workers, or tests in prose.
 
 ## Implementation-Ready Code-Block Inventory
 {{CODE_BLOCKS_WITH_ADJACENT_METADATA}}
+
+For CONTRACT, retain complete pure rules here and put typed declarations in
+the Contract Inventory below. Adapter/handler bodies are deferred with exact
+verification obligations, not silently dropped. FULL continues to use complete
+implementation blocks for all source files.
+
+### Contract Inventory
+{{CONTRACT_BLOCKS_WITH_ADJACENT_METADATA}}
+
+Each declaration uses contract_ready true, implementation_ready false,
+block_scope contract, full_file false, contract_kind interface or schema,
+language json, the actual target_language, exact target/operation and a globally
+unique ID. Its aiwf.contract/1 JSON supplies typed exports/DTO fields, errors,
+invariants, acceptance IDs and verification commands. Modified targets also
+bind base_sha256 and anchor_symbol. Unknown or FULL depth rejects declarations.
 
 Use literal metadata immediately before each implementation-ready fence. For
 example:

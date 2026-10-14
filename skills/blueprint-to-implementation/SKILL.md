@@ -80,6 +80,21 @@ result. A changed design, missing block, or failed copied test returns the work
 to Blueprint repair because FULL is a verified implementation contract, not a
 suggestion.
 
+### CONTRACT Blueprint Consumption
+
+CONTRACT is the default for all new master and phase artifacts, including quick
+features and fixes. No depth-selection prompt or FULL upgrade is required.
+Implement adapters/handlers from their approved typed declarations;
+do not demand FULL bodies as an implementation-entry prerequisite. Preserve
+exact scope, types, errors, invariants, baseline bindings and acceptance IDs.
+Pure rules still have complete verified bodies. Design coverage is not runtime
+verification: execute the declared strict and behavioral commands against real
+product files, retaining per-contract artifact/source hashes and exit results
+in `docs/aiwf-runs/<id>/verification/contract-implementation.json`. The canonical
+post-implementation gate blocks missing/stale evidence and Python signature
+drift. Human approval, freeze, entry and documentation synchronization remain
+mandatory; selecting depth is never approval.
+
 ## Frozen Block Integrity
 
 Every `full-file` target is an exact implementation contract. The writer MUST
@@ -293,11 +308,16 @@ Before any file write operation:
   > ```
   > a. Read the checklist item.
   > b. Execute the code write for THAT item only.
-  > c. Immediately update the Blueprint file: change `- [ ]` → `- [x]` via multi_replace_file_content.
+  > c. Immediately tick the implementation checklist copy in the phase's
+  >    implementation-report.md and append its change-ledger record. Keep the
+  >    approved/frozen Blueprint bytes unchanged: ticking the design file itself
+  >    would invalidate its approval hash before the next write.
   > d. Proceed to the next item.
   > ```
   > Batching all writes then ticking all checkboxes at the end is **FORBIDDEN**.
-  > The checklist is a live progress tracker and audit trail, not a post-implementation summary.
+  > The phase report checklist is a live progress tracker and audit trail,
+  > not a post-implementation summary. Each copied item references its exact
+  > frozen Blueprint item and hash; completion never rewrites approved design.
   > If a write is blocked (file not found, hash mismatch, scope violation), mark it `- [!]` (blocked)
   > with an inline blocker note and continue remaining items. Do NOT skip silently.
 

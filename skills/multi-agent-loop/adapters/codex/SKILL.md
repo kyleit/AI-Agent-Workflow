@@ -17,8 +17,9 @@ aiwf malo tick --workflow <id> --phase <phase-just-done> --verdict PASS|BLOCK|FA
 # last resort: skills/multi-agent-loop/PROTOCOL.md by hand
 ```
 Obey `next_action`: `EXECUTE_PHASE` (do `resulting_phase`, tick again) · `RUN_CODE_BLOCK_GATE`
-(blueprint/impl gate needs real full-file blocks first — materialize + run the strict code-block
-gate, then tick with `--gate-evidence <code-block-gate.json>`; never approve a code-less blueprint)
+(default CONTRACT needs typed declarations, complete verified pure rules and spike evidence;
+FULL bodies are required only for explicit FULL artifacts. Run the strict code-block gate,
+then tick with `--gate-evidence <code-block-gate.json>`; prose-only coverage never passes)
 · `AUTO_APPROVE` (run `approval_command` yourself, then tick with `--verdict PASS`) ·
 `AWAIT_APPROVAL` (STOP, surface the human gate) · `COMPLETED`/`HALTED`/`HALT_ESCALATE` (report,
 present `escalation_options`). `git`/`release`/`deploy` never auto-approve. The loop-controller owns transitions.

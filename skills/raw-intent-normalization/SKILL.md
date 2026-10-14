@@ -172,10 +172,11 @@ assets, and real acceptance evidence.
 
 For `GREENFIELD_CROSS_LAYER`, downstream Blueprint generation MUST enumerate
 every concrete file required to produce the declared product surface and map
-each file to exactly one implementation-ready `full-file` block (or an
-explicit non-placeholder asset manifest). A phase that contains only
-signatures, representative snippets, pseudocode, or a partial file is
-incomplete. The strict code-block gate MUST return `BLOCKED` and the workflow
+each file to actual typed contracts or complete verified pure-rule blocks (or
+an explicit non-placeholder asset manifest). CONTRACT plus spike evidence is
+the default; FULL file bodies are optional only on explicit owner request.
+A phase containing only prose, untyped signatures, pseudocode or partial
+coverage is incomplete. The strict code-block gate MUST return `BLOCKED` and the workflow
 MUST regenerate the affected Blueprint before any approval request.
 
 The handoff MUST distinguish these states:

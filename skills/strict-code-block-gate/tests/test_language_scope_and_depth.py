@@ -134,11 +134,11 @@ def test_go_manifest_implies_go_scope(tmp_path: Path) -> None:
     assert [f for f in findings if f.startswith("spike_verified_exact_command_missing")]
 
 
-def test_phase_declaring_contract_is_rejected(tmp_path: Path) -> None:
+def test_phase_declaring_contract_accepts_verified_pure_rule(tmp_path: Path) -> None:
     findings = _findings(tmp_path, "CONTRACT", [PY_BLOCK],
                          extra=[("phase-01.md", "CONTRACT", [dict(PY_BLOCK, id="FX-P1")])])
     offenders = [f for f in findings if f.startswith("phase_depth_contract_not_permitted")]
-    assert offenders == ["phase_depth_contract_not_permitted:phase-01.md"]
+    assert offenders == []
 
 
 def test_full_phase_completeness_is_enforced(tmp_path: Path) -> None:

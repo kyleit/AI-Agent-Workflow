@@ -148,7 +148,10 @@ QUICK Feature IDs are determined **ONLY** by scanning `docs/quick/`:
 Execute these steps strictly. Do not stop for user approval until the Blueprint has passed internal review.
 
 Every quick feature that emits implementation-ready material MUST use the
-canonical two-branch CODE_BLOCK_GATE contract and record `blueprint_depth`.
+canonical two-branch CODE_BLOCK_GATE contract and record `blueprint_depth: CONTRACT`
+by default. Spike evidence, typed declarations and complete verified pure rules
+are valid coverage; no depth-choice prompt or FULL upgrade is required for PASS.
+Only explicit owner-requested FULL artifacts require all runnable file bodies.
 Quick flow does not permit zero-block, representative, partial, or
 memory-authored material; multi-phase quick work also inherits Integration-
 Verify and dependent-product work inherits Interop-Handoff.
@@ -428,13 +431,14 @@ Create the Design Blueprint under `docs/features/<feature-family>/blueprints/QUI
 Use this template:
 
 ```markdown
-<!-- File path: docs/features/<feature-family>/blueprints/QUICK-XXX_feature_name_blueprint.md -->
 ---
 artifact_type: blueprint
 feature_id: QUICK-XXX
 workflow: quick-feature
 status: draft
+blueprint_depth: CONTRACT
 ---
+<!-- File path: docs/features/<feature-family>/blueprints/QUICK-XXX_feature_name_blueprint.md -->
 # Technical Design Blueprint – [Feature Name]
 
 ## 1. Proposed Code Changes
@@ -458,10 +462,15 @@ Complete directory layout after modifications:
 
 ## 4. Algorithms & Key Logic
 
+Default CONTRACT uses actual typed `aiwf.contract/1` interface/schema declarations
+with exact files, exports/fields, errors, invariants, acceptance IDs and commands.
+Keep complete verified pure rules here; adapter/handler bodies are deferred to
+approved implementation. Complete runnable files are required only for explicit FULL.
+
 > [!CAUTION]
 > **CODE_BLOCK_GATE — MANDATORY BEFORE WRITING ANY IMPLEMENTATION-READY CODE BLOCK**
 > Every non-trivial code block in this Blueprint MUST route through `skills/strict-code-block-gate/SKILL.md` before approval:
-> 1. Add adjacent metadata: `id`, `language`, `file`, `operation`, and `implementation_ready: true`.
+> 1. Runnable blocks use adjacent `id`, `language`, `file`, `operation`, and `implementation_ready: true`. Default CONTRACT declarations instead use `contract_ready: true`, `implementation_ready: false`, `block_scope: contract`, `full_file: false`, `contract_kind`, `language: json`, and actual `target_language`, with typed `aiwf.contract/1` JSON. Deferred bodies are not missing FULL blocks.
 > 2. Resolve the language through the strict profile registry. Missing, ambiguous, or non-strict profiles are `BLOCKED`.
 > 3. Materialize snippets only under `.agents/tmp/code-block-gate/<workflow-id>/`; do not write product source during gate validation.
 > 4. Persist `code-block-gate.json` and include `blueprint_full_sha256`, per-block decisions, profile results, and `test_status: NOT_RUN`.

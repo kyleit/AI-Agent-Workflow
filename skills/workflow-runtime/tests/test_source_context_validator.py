@@ -82,3 +82,29 @@ def test_post_implementation_requires_materialized_target(tmp_path: Path) -> Non
 
     assert result.passed is False
     assert "B06:post_implementation_target_missing" in result.blocking_findings
+
+
+def test_contract_ready_targets_are_not_skipped(tmp_path: Path) -> None:
+    result = SourceContextValidator(tmp_path).validate_blocks([{
+        "id": "C01",
+        "operation": "modify",
+        "file": "../outside.py",
+        "contract_ready": True,
+        "implementation_ready": False,
+    }])
+    assert result.passed is False
+    assert "C01:path_escapes_workspace" in result.blocking_findings
+
+
+def test_contract_modify_requires_current_source_anchor(tmp_path: Path) -> None:
+    target = tmp_path / "adapter.py"
+    target.write_text("def existing(value: str) -> int:\n    return len(value)\n")
+    result = SourceContextValidator(tmp_path).validate_blocks([{
+        "id": "C02",
+        "operation": "modify",
+        "file": "adapter.py",
+        "anchor_symbol": "missing",
+        "contract_ready": True,
+    }])
+    assert result.passed is False
+    assert "C02:modify_anchor_not_found:missing" in result.blocking_findings

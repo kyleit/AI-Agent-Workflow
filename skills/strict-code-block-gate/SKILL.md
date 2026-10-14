@@ -28,13 +28,31 @@ list, placeholder, or prose contract is never a full file.
 
 ## Non-Negotiable Contract
 
+### CONTRACT Declarations
+
+CONTRACT is the default for every new master, phase, quick feature and fix.
+A CONTRACT artifact may own typed interface/schema
+declarations with `contract_ready: true`, `implementation_ready: false`,
+`block_scope: contract`, `full_file: false`, `contract_kind: interface` or schema,
+`language: json` and the actual `target_language`. The aiwf.contract/1 JSON
+contains typed exports/signatures or typed DTO fields, errors, invariants,
+acceptance IDs and exact verification commands. Every declaration needs a
+unique ID and an owning file/artifact matrix row; modified files bind actual
+base hash and anchor. Both declaration and target language profiles resolve.
+Unknown depth, FULL use, untyped definitions and source N/A are BLOCKED.
+Pure-rule bodies remain complete implementation blocks. These declarations
+are not copy-ready source and do not count as executed application evidence.
+Post-implementation verification requires real target files, matching Python
+signatures and hash-bound executed command results for every deferred contract
+at docs/aiwf-runs/<id>/verification/contract-implementation.json.
+
 - Default decision is `BLOCKED`.
 - Accepted aggregate decisions are only `PASS`, `FAIL`, `BLOCKED`, and `NOT_APPLICABLE`.
 - A missing, ambiguous, or non-strict language profile is `BLOCKED`.
 - Any failed code-block check makes the aggregate decision `FAIL`.
 - Any blocked code-block check makes the aggregate decision `BLOCKED`.
 - `PASS` is valid only when every implementation-ready code block has complete metadata, a strict language profile, a materialized validation scope, and architecture-boundary evidence.
-- For a master Blueprint with phases, the gate validates the complete artifact set. Every row in every `File-By-File Change Matrix` must include `Code Block IDs`, each referenced block must exist, and its `file` must exactly match the matrix row. Missing phase blocks, orphan blocks, duplicate IDs, and file mismatches are `BLOCKED`.
+- For a master Blueprint with phases, the gate validates the complete artifact set. FULL rows require Code Block IDs. CONTRACT rows require actual Contract IDs or verified complete pure-rule Code Block IDs. Each reference must exist and match its physical file; contract references also match their owning artifact. Missing coverage, orphan declarations, duplicate IDs and file mismatches are BLOCKED. Source N/A never substitutes for coverage.
 - When a `Screen And Route Coverage Matrix` declares three or more routes, each
   route row must name concrete implementation files and matching code-block IDs.
   Feature routes may not all point at the root application shell (for example,
@@ -54,9 +72,10 @@ list, placeholder, or prose contract is never a full file.
   and route the contract through the architecture-review workflow; do not use a
   local contract edit as a Blueprint repair.
 - Project test suites are not part of this gate. Test commands remain `NOT_RUN` unless a separate approved test-execution gate authorizes them.
-- `NOT_RUN` applies to project execution only. It does not excuse missing code
-  blocks. A complete artifact set must provide an implementation-ready block
-  for every concrete file row before the gate can return `PASS`.
+- `NOT_RUN` applies to product execution only. It does not excuse missing
+  coverage. Every concrete CONTRACT source row must reference an actual typed
+  declaration or complete verified pure-rule block, with required spike evidence.
+  Only explicit FULL artifacts require runnable full-file blocks for every source row.
 - The gate MUST treat the Blueprint as immutable input: it must not rewrite,
   truncate, or regenerate the Blueprint while validating code blocks.
 - Blueprint repair is an Agent reasoning operation. The Agent MUST edit the
@@ -84,11 +103,14 @@ For `GREENFIELD_CROSS_LAYER` Blueprint sets, the structural gate is only the
 first half of pre-approval verification. Before the coordinator may report
 the documentation handoff as complete or request owner approval, it MUST run
 the real language toolchains against the gate-materialized file set using the
-commands declared by the active profiles: compiler/build, typecheck, and
-dependency/checksum validation where applicable. A backend runtime surface
-must also be started with its real persistence/runtime prerequisites and
-exercised through at least one real contract request when the Blueprint
-declares an executable server.
+commands declared by the active profiles for the pre-approval spike/pure-rule
+scope: compiler/build, typecheck, and dependency/checksum checks as applicable.
+For default CONTRACT, execute the declared spike entrypoints and adversarial
+tests; do not require deferred adapter/handler bodies or a complete product
+server before approval. Complete product build/startup and real server-request
+proof remain mandatory after approved implementation. Only explicit FULL
+artifacts require a complete materialized backend runtime and real contract
+request before approval when an executable server is declared.
 
 The execution must be performed on the materialized files, not inferred from
 signatures, screenshots, mocked responses, or a `--no-execute` structural
@@ -168,7 +190,9 @@ the declared depth. A spike is evidence, not a code sample, because a sample
 can compile while its constraints remain untested.
 
 Every Blueprint declares `blueprint_depth: CONTRACT` or `blueprint_depth: FULL`.
-The owner must choose the depth before Blueprint generation. CONTRACT contains
+Declare CONTRACT by default; no owner depth-selection prompt is required.
+FULL is optional only when explicitly requested, never required for PASS.
+CONTRACT contains
 interfaces, structs, enums, constants, use-case signatures, DTOs, schemas, and
 pure rule bodies. FULL contains all runnable code in the phase, including use
 cases, adapters, handlers, entrypoints, migrations, packaging, frontend, and

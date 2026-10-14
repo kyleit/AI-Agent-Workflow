@@ -63,6 +63,12 @@ prompt_instruction_dependency: false
 
 ## Approval Emission Firewall
 
+New masters, phases, quick features and fixes use `blueprint_depth: CONTRACT`
+by default, with spike evidence, typed declarations and complete verified pure
+rules. Do not ask a depth-choice question or require FULL to reach PASS.
+FULL remains optional only on explicit owner request; frozen artifacts are not
+rewritten to apply a new default. Approval and source-entry bindings remain intact.
+
 For reasoning-heavy workflow artifacts, the coordinator MUST verify that the
 Agent authored document content through native file operations. Commands such
 as Python/PowerShell/Node one-liners, shell heredocs, `echo >`, `Set-Content`,
@@ -77,7 +83,8 @@ documentation transaction has completed and both independent machine gates
 have passed on the current artifact hash. “Complete” means the upstream
 inventory is reconciled into the dynamically derived
 `Master -> Family -> Small Feature -> Phase` artifact set, all concrete file
-rows have adjacent full-file blocks, and the runtime Blueprint validator has
+rows have depth-appropriate verified coverage (FULL bodies or CONTRACT typed
+declarations plus complete pure rules), and the runtime Blueprint validator has
 returned exactly `APPROVAL_READY` with score `100` and no findings. The strict
 recursive code-block gate must then return `PASS` with no blocking per-block
 finding and its retained JSON must be read back.
@@ -165,10 +172,11 @@ For a request that initializes a new or empty project, the coordinator MUST:
    Implementation Plan File Impact Map. Emit an `Upstream Delivery Unit
    Coverage Matrix`; every upstream phase must point to a distinct discovered
    phase artifact, and every concrete planned file must appear in the Master
-   and its owning phase with a real implementation-ready block.
+   and its owning phase with an actual typed CONTRACT declaration or complete
+   verified pure-rule block; explicit FULL artifacts retain full-file requirements.
 7. Automatically loop repair on exact validator findings. The coordinator may
    present approval only when all validators pass, the complete file matrix is
-   mapped to implementation-ready full-file blocks, and the master data-flow
+   mapped to actual typed contracts or verified code blocks, and the master data-flow
    and sequence diagrams remain intact. Any missing or thin phase is `BLOCKED`.
    A legacy/free-form blueprint, a blueprint without valid YAML frontmatter,
    or an agent-authored readiness checklist without retained validator JSON is
@@ -182,7 +190,8 @@ For a request that initializes a new or empty project, the coordinator MUST:
    Requirement Specification.
 
    Approval review has two independent machine stages. The strict recursive
-   code-block gate checks materialized full-file blocks; the canonical runtime
+   code-block gate checks typed CONTRACT declarations, verified pure rules and
+   spike evidence (complete full-file bodies only for explicit FULL); the canonical runtime
    Blueprint validation loop checks document shape, upstream coverage,
    greenfield initialization obligations, surface matrices, phase contracts,
    and preserved diagrams. Both stages MUST pass before an approval prompt is
@@ -193,8 +202,9 @@ For a request that initializes a new or empty project, the coordinator MUST:
    inspect a final summary: read the complete upstream phase/file inventory;
    materialize every derived family and phase under `Master -> Family -> Small
    Feature -> Phase`; require literal canonical template headings and `File` /
-   `Code Block IDs` matrix columns; reconcile one complete adjacent full-file
-   block to every concrete file row; then run the runtime validator and strict
+   `Code Block IDs` and `Contract IDs` matrix columns; reconcile one actual typed
+   declaration or complete verified pure-rule block to every concrete source row;
+   then run the runtime validator and strict
    recursive gate again after every repair. For a greenfield cross-layer
    request, a master-only document or a few representative blocks is always
    `BLOCKED`, regardless of its length or self-reported score. The owner

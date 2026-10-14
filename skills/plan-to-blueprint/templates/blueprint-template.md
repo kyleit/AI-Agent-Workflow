@@ -4,6 +4,7 @@ feature_id: {{WORK_ITEM_ID}}
 workflow: standard-development
 status: awaiting_owner_approval
 blueprint_version: {{VERSION}}
+blueprint_depth: CONTRACT
 declared_phase_count: {{DERIVED_PHASE_COUNT}}
 project_initialization: {{PROJECT_INITIALIZATION}}
 ---
@@ -65,7 +66,7 @@ must map to one file row and one coverage row.
 
 {{CODE_BLOCKS_WITH_METADATA}}
 
-For greenfield initialization, this section MUST contain one metadata-bearing,
+For FULL greenfield initialization, this section MUST contain one metadata-bearing,
 complete full-file block for every concrete source, configuration, schema,
 migration, UI, test, and asset-manifest row in the Master or its owning phase.
 A matrix row without a block, a block without exactly one matrix row, or a
@@ -73,6 +74,18 @@ block containing a signature, excerpt, pseudocode, placeholder, or summary is
 invalid. Internal Review Evidence MUST be written only after the canonical
 validator returns its machine decision. `READY_FOR_VALIDATION`,
 `REVIEW_PASSED`, and prose claims are not gate results.
+
+CONTRACT is the default for masters and phases; FULL is optional only when
+explicitly requested by the owner, never a prerequisite for PASS.
+For CONTRACT master and phases, each physical source row instead
+references an actual typed contract-ready declaration or a complete verified
+pure-rule block. CONTRACT is not source-free. Declare deferred adapter/handler
+bodies, typed inputs/outputs/errors/invariants, acceptance IDs and exact strict
+verification commands. Use aiwf.contract/1 JSON with contract_ready true,
+implementation_ready false, block_scope contract, full_file false,
+contract_kind interface or schema, language json and actual target_language.
+Existing modified files bind base_sha256 and anchor_symbol. Final verification
+must read real product files and artifact/source-hash-bound executed results.
 
 ## Greenfield Repository Bootstrap Contract
 ### Empty Repository Baseline
@@ -133,17 +146,18 @@ flowchart TD
 {{INPUT_VALIDATION_SECRET_HANDLING_AUTHZ_LOGGING_METRICS_MIGRATION_COMPATIBILITY}}
 
 ## Section 7: File-By-File Change Matrix
-| File | Layer | Operation | Owner | Imports | Exports | Exact Signatures | Lines | Profile | Commands | Code Block IDs | Tests | Evidence |
-|---|---|---|---|---|---|---|---:|---|---|---|---|---|
-| {{RELATIVE_FILE}} | {{LAYER}} | {{NEW_OR_MODIFY}} | {{OWNER}} | {{IMPORTS}} | {{EXPORTS}} | {{SIGNATURES}} | {{PROJECTED_LINES}} | {{PROFILE}} | {{BUILD_LINT_TYPECHECK_TEST}} | {{BLOCK_IDS}} | {{TEST_IDS}} | {{EVIDENCE_PATHS}} |
+| File | Layer | Operation | Owner | Imports | Exports | Exact Signatures | Lines | Profile | Commands | Code Block IDs | Contract IDs | Tests | Evidence |
+|---|---|---|---|---|---|---|---:|---|---|---|---|---|---|
+| {{RELATIVE_FILE}} | {{LAYER}} | {{NEW_OR_MODIFY}} | {{OWNER}} | {{IMPORTS}} | {{EXPORTS}} | {{SIGNATURES}} | {{PROJECTED_LINES}} | {{PROFILE}} | {{BUILD_LINT_TYPECHECK_TEST}} | {{BLOCK_IDS}} | {{CONTRACT_IDS}} | {{TEST_IDS}} | {{EVIDENCE_PATHS}} |
 
 No directory, wildcard, or unbounded group may appear as a substitute for a
 concrete file. Files over 500 physical lines require one family folder and one
 facade/barrel/aggregate entry before approval.
 
-Every concrete row must reference one or more real implementation-ready
-code-block IDs. The complete master-plus-phase artifact set is the gate input;
-a missing block, unknown ID, duplicate ID, orphan target, or file mismatch is
+Every concrete CONTRACT source row references actual typed Contract IDs or
+verified complete pure-rule Code Block IDs. Explicit FULL source rows reference
+complete runnable Code Block IDs. The complete master-plus-phase artifact set
+is the gate input; missing coverage, unknown IDs, duplicate IDs, orphan targets or file mismatches are
 `CODE_BLOCK_GATE: BLOCKED`.
 
 The Master and phase documents may be any length required for a complete
@@ -169,7 +183,7 @@ test-first sequence below.
 
 No row may use `TBD`, `TODO`, `appropriate`, `handle as needed`, `write tests`
 without test code or command, or `similar to another task`. If a task cannot
-be completed from this table and its linked full-file blocks, the Blueprint is
+be completed from this table and its linked typed contracts or verified code blocks, the Blueprint is
 `NO-GO`.
 
 ## Hierarchical Delivery Decomposition

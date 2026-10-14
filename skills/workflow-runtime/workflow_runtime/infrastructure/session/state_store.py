@@ -3,11 +3,10 @@ import atexit
 import json
 import os
 import re
-import sys
 import tempfile
 import uuid
 from datetime import datetime
-from typing import Any, cast
+from typing import cast
 
 
 class RevisionConflictError(Exception):
@@ -18,34 +17,35 @@ class RevisionConflictError(Exception):
         self.actual_revision = actual_revision
 
 class StateStore:
-    def get(self, key: str) -> dict[str, Any]:
+    def get(self, key: str) -> dict[str, object]:
         raise NotImplementedError
 
-    def set(self, key: str, data: dict[str, Any], expected_revision: int | None = None, force: bool = False) -> int:
+    def set(self, key: str, data: dict[str, object], expected_revision: int | None = None, force: bool = False) -> int:
         raise NotImplementedError
 
     def delete(self, key: str) -> bool:
         raise NotImplementedError
 
 class NullStateStore(StateStore):
-    def get(self, key: str) -> dict[str, Any]:
+    def get(self, key: str) -> dict[str, object]:
         return {}
-    def set(self, key: str, data: dict[str, Any], expected_revision: int | None = None, force: bool = False) -> int:
+    def set(self, key: str, data: dict[str, object], expected_revision: int | None = None, force: bool = False) -> int:
         return 1
     def delete(self, key: str) -> bool:
         return True
 
 class InMemoryStateStore(StateStore):
-    def __init__(self):
-        self.store: dict[str, dict[str, Any]] = {}
+    def __init__(self) -> None:
+        self.store: dict[str, dict[str, object]] = {}
 
-    def get(self, key: str) -> dict[str, Any]:
+    def get(self, key: str) -> dict[str, object]:
         return self.store.get(key, {})
 
-    def set(self, key: str, data: dict[str, Any], expected_revision: int | None = None, force: bool = False) -> int:
+    def set(self, key: str, data: dict[str, object], expected_revision: int | None = None, force: bool = False) -> int:
         current = self.store.get(key, {})
-        current_meta = current.get("_metadata", {})
-        actual_rev = current_meta.get("revision", 0)
+        raw_meta = current.get("_metadata", {})
+        current_meta = cast(dict[str, object], raw_meta) if isinstance(raw_meta, dict) else {}
+        actual_rev = int(str(current_meta.get("revision", 0)))
 
         if expected_revision is not None and expected_revision != actual_rev:
             raise RevisionConflictError(key, expected_revision, actual_rev)
@@ -68,235 +68,92 @@ class InMemoryStateStore(StateStore):
         return False
 
 class AtomicFileStateStore(StateStore):
-    def __init__(self, root_dir: str):
+    def __init__(self, root_dir: str, work_item_id: str | None = None) -> None:
         self.root_dir = os.path.abspath(root_dir)
-        self._cache: dict[str, dict[str, Any]] = {}
-        self._last_write: dict[str, float] = {}
+        selected = work_item_id or os.environ.get("AIWF_WORK_ITEM_ID") or os.environ.get("AIWF_ACTIVE_WORK_ITEM")
+        if selected and not re.fullmatch(r"(?:FEAT|FIX|QUICK)-[0-9]+", selected):
+            raise ValueError("CONTEXT_MISMATCH")
+        self.work_item_id = selected
+        self._cache: dict[str, dict[str, object]] = {}
         self._dirty: set[str] = set()
+        self._last_write: dict[str, float] = {}
 
     def _get_path(self, key: str) -> str:
-        # Prevent directory traversal
-        base = os.path.basename(key)
-        if not base.endswith(".json"):
-            base = base + ".json"
+        if os.path.basename(key) != key or key in {"", ".", ".."}:
+            raise ValueError("CONTEXT_MISMATCH")
+        base = key if key.endswith(".json") else key + ".json"
+        scoped = {"workflow", "runtime", "tasks", "agents", "locks", "handoffs", "checkpoints",
+                  "timeline", "authorization", "approvals", "usage"}
+        selected = self.work_item_id
+        # Unbound stores retain the old display view; explicit contexts never migrate.
+        if selected is None and key != "workflow":
+            selected = get_active_work_item_id()
+        path = os.path.join(self.root_dir, "work-items", selected, base) if selected and key in scoped else os.path.join(self.root_dir, base)
+        if os.path.commonpath([os.path.realpath(path), os.path.realpath(self.root_dir)]) != os.path.realpath(self.root_dir):
+            raise ValueError("CONTEXT_MISMATCH")
+        return path
 
-        scoped_keys = [
-            "tasks", "agents", "locks", "handoffs", "checkpoints", "timeline",
-            "authorization", "approvals", "usage"
-        ]
-        if key in scoped_keys:
-            work_item_id = get_active_work_item_id()
-            if work_item_id:
-                return os.path.join(self.root_dir, "work-items", work_item_id, base)
-
-        return os.path.join(self.root_dir, base)
-
-    def get(self, key: str) -> dict[str, Any]:
+    def get(self, key: str) -> dict[str, object]:
         path = self._get_path(key)
-
-        scoped_keys = [
-            "tasks", "agents", "locks", "handoffs", "checkpoints", "timeline",
-            "authorization", "approvals", "usage"
-        ]
-        if key in scoped_keys:
-            work_item_id = get_active_work_item_id()
-            if work_item_id and not os.path.exists(path):
-                legacy_path = os.path.join(self.root_dir, os.path.basename(path))
-                if os.path.exists(legacy_path):
-                    try:
-                        with open(legacy_path, "r", encoding="utf-8") as f:
-                            legacy_data = json.load(f)
-
-                        # Never let an unrelated legacy approval unlock a new item.
-                        legacy_id = None
-                        if isinstance(legacy_data, dict):
-                            legacy_dict = cast(dict[str, Any], legacy_data)
-                            wi = legacy_dict.get("work_item")
-                            wi_dict = cast(dict[str, Any], wi) if isinstance(wi, dict) else {}
-                            legacy_id = wi_dict.get("id") or legacy_dict.get("work_item_id")
-                            if key == "approvals":
-                                blueprint = legacy_dict.get("blueprint")
-                                blueprint_dict = cast(dict[str, Any], blueprint) if isinstance(blueprint, dict) else {}
-                                legacy_id = blueprint_dict.get("work_item_id") or blueprint_dict.get("work_item")
-                                if not legacy_id:
-                                    blueprint_path = str(blueprint_dict.get("path", ""))
-                                    match = re.search(r"(?:FEAT|FIX|QUICK)-\d+", blueprint_path, re.IGNORECASE)
-                                    legacy_id = match.group(0).upper() if match else None
-
-                        approval_without_identity = key == "approvals" and not legacy_id
-                        if not approval_without_identity and (not legacy_id or legacy_id == work_item_id):
-                            # Scope it
-                            os.makedirs(os.path.dirname(path), exist_ok=True)
-                            with open(path, "w", encoding="utf-8") as f:
-                                json.dump(legacy_data, f, indent=2, ensure_ascii=False)
-
-                            # Cache immediately
-                            self._cache[key] = cast(dict[str, Any], legacy_data)
-                            self._last_write[key + "_mtime"] = os.path.getmtime(path)
-                            if os.environ.get("AIWF_JSON_OUTPUT", "").lower() not in {"1", "true", "yes"}:
-                                # Keep machine-readable state commands clean on stdout.
-                                print(
-                                    f"Migrated legacy state for '{key}' to scoped work item '{work_item_id}'",
-                                    file=sys.stderr,
-                                )
-                    except Exception as e:
-                        if os.environ.get("AIWF_JSON_OUTPUT", "").lower() not in {"1", "true", "yes"}:
-                            print(f"Error migrating legacy state for '{key}': {e}")
-
         try:
-            mtime = os.path.getmtime(path)
-        except Exception:
-            mtime = 0
-
-        if key in self._cache and self._last_write.get(key + "_mtime") == mtime:
-            return self._cache[key]
-
-        if not os.path.exists(path):
-            self._cache[key] = {}
-            self._last_write[key + "_mtime"] = 0
-            return {}
-
-        try:
-            with open(path, "r", encoding="utf-8") as f:
-                content = f.read().strip()
-                if not content:
-                    self._cache[key] = {}
-                    self._last_write[key + "_mtime"] = mtime
-                    return {}
-                data = json.loads(content)
-                if isinstance(data, dict):
-                    self._cache[key] = data
-                    self._last_write[key + "_mtime"] = mtime
-                    return cast(dict[str, Any], data)
-        except Exception:
+            with open(path, encoding="utf-8-sig") as stream:
+                value: object = json.load(stream)
+            if isinstance(value, dict):
+                return cast(dict[str, object], value)
+        except (FileNotFoundError, json.JSONDecodeError):
             pass
         return {}
 
-    def set(self, key: str, data: dict[str, Any], expected_revision: int | None = None, force: bool = False) -> int:
+    def set(self, key: str, data: dict[str, object], expected_revision: int | None = None, force: bool = False) -> int:
         path = self._get_path(key)
-        dir_name = os.path.dirname(path)
-        os.makedirs(dir_name, exist_ok=True)
-
-        current = self.get(key)
-        current_meta = current.get("_metadata", {})
-        actual_rev = current_meta.get("revision", 0)
-
-        if expected_revision is not None and expected_revision != actual_rev:
-            raise RevisionConflictError(key, expected_revision, actual_rev)
-
-        new_data = dict(data)
-        new_rev = actual_rev + 1
-        new_data["_metadata"] = {
-            "generation": current_meta.get("generation", 1),
-            "revision": new_rev,
-            "writer_id": f"{os.getpid()}-{str(uuid.uuid4())[:8]}",
-            "updated_at": datetime.now().astimezone().isoformat()
-        }
-
-        # Cache immediately for process-local reads
-        self._cache[key] = new_data
-
-        # Debounce writes for runtime & usage to reduce redundant disk updates
-        should_write = True
-        now = datetime.now()
-        now_ts = now.timestamp()
-
-        if not force and key in ["runtime", "usage"]:
-            old_status = current.get("status")
-            new_status = new_data.get("status")
-            status_transitioned = old_status and new_status and old_status != new_status
-
-            last_time = self._last_write.get(key)
-            if last_time and (now_ts - last_time) < 5.0 and not status_transitioned:
-                should_write = False
-
-        if should_write:
-            fd, tmp_path = tempfile.mkstemp(dir=dir_name, suffix=".tmp")
+        os.makedirs(os.path.dirname(path), exist_ok=True)
+        lock = path + ".lock"
+        # O_EXCL guards the complete read/CAS/replace transaction, not just replace.
+        descriptor = os.open(lock, os.O_CREAT | os.O_EXCL | os.O_WRONLY)
+        os.close(descriptor)
+        try:
+            current = self.get(key)
+            raw_meta = current.get("_metadata", {})
+            meta = cast(dict[str, object], raw_meta) if isinstance(raw_meta, dict) else {}
+            actual = int(str(meta.get("revision", 0)))
+            if expected_revision is not None and expected_revision != actual:
+                raise RevisionConflictError(key, expected_revision, actual)
+            new = dict(data)
+            new["_metadata"] = {"generation": meta.get("generation", 1), "revision": actual + 1,
+                                "writer_id": f"{os.getpid()}-{uuid.uuid4().hex[:8]}",
+                                "updated_at": datetime.now().astimezone().isoformat()}
+            fd, temporary = tempfile.mkstemp(dir=os.path.dirname(path), suffix=".tmp")
             try:
-                with os.fdopen(fd, 'w', encoding='utf-8') as f:
-                    json.dump(new_data, f, indent=2, ensure_ascii=False)
-                import time
-                for idx in range(10):
-                    try:
-                        os.replace(tmp_path, path)
-                        break
-                    except PermissionError as pe:
-                        if idx == 9:
-                            raise pe
-                        time.sleep(0.05)
-
-                # Backward compatibility sync for Dashboard UI
-                if key == "workflow":
-                    try:
-                        import shutil
-                        root_workflow_path = os.path.join(self.root_dir, "workflow.json")
-                        shutil.copy2(path, root_workflow_path)
-                    except Exception:
-                        pass
-
-                self._last_write[key] = now_ts
-                try:
-                    self._last_write[key + "_mtime"] = os.path.getmtime(path)
-                except Exception:
-                    self._last_write[key + "_mtime"] = now_ts
-                self._dirty.discard(key)
-            except Exception as e:
-                if os.path.exists(tmp_path):
-                    try:
-                        os.remove(tmp_path)
-                    except Exception:
-                        pass
-                raise e
-        else:
-            self._dirty.add(key)
-
-        return new_rev
+                with os.fdopen(fd, "w", encoding="utf-8") as stream:
+                    json.dump(new, stream, indent=2, ensure_ascii=False)
+                    stream.flush()
+                    os.fsync(stream.fileno())
+                os.replace(temporary, path)
+            finally:
+                if os.path.exists(temporary):
+                    os.unlink(temporary)
+            self._cache[key] = new
+            return actual + 1
+        finally:
+            os.unlink(lock)
 
     def flush(self) -> None:
-        for key in list(self._dirty):
-            path = self._get_path(key)
-            new_data = self._cache.get(key)
-            if new_data:
-                dir_name = os.path.dirname(path)
-                fd, tmp_path = tempfile.mkstemp(dir=dir_name, suffix=".tmp")
-                try:
-                    with os.fdopen(fd, 'w', encoding='utf-8') as f:
-                        json.dump(new_data, f, indent=2, ensure_ascii=False)
-                    import time
-                    for idx in range(10):
-                        try:
-                            os.replace(tmp_path, path)
-                            break
-                        except PermissionError:
-                            if idx == 9:
-                                raise
-                            time.sleep(0.05)
-                    try:
-                        self._last_write[key + "_mtime"] = os.path.getmtime(path)
-                    except Exception:
-                        self._last_write[key + "_mtime"] = datetime.now().timestamp()
-                    self._dirty.discard(key)
-                except Exception:
-                    if os.path.exists(tmp_path):
-                        try:
-                            os.remove(tmp_path)
-                        except Exception:
-                            pass
+        # Writes are already durable. Retained for existing callers.
+        return None
 
     def delete(self, key: str) -> bool:
         path = self._get_path(key)
-        if key in self._cache:
-            del self._cache[key]
-        if key + "_mtime" in self._last_write:
-            del self._last_write[key + "_mtime"]
-        self._dirty.discard(key)
-        if os.path.exists(path):
-            try:
-                os.remove(path)
-                return True
-            except Exception:
-                pass
-        return False
+        if not os.path.exists(path):
+            return False
+        descriptor = os.open(path + ".lock", os.O_CREAT | os.O_EXCL | os.O_WRONLY)
+        os.close(descriptor)
+        try:
+            os.unlink(path)
+            self._cache.pop(key, None)
+            return True
+        finally:
+            os.unlink(path + ".lock")
+
 
 def get_active_work_item_id() -> str | None:
     env_id = os.environ.get("AIWF_WORK_ITEM_ID") or os.environ.get("AIWF_ACTIVE_WORK_ITEM")
@@ -308,7 +165,7 @@ def get_active_work_item_id() -> str | None:
     try:
         with open(workflow_path, "r", encoding="utf-8") as f:
             workflow = json.load(f)
-        active = workflow.get("active_workflow") if isinstance(workflow, dict) else None
+        active = cast(dict[str, object], workflow).get("active_workflow") if isinstance(workflow, dict) else None
         if active:
             return str(active)
     except (OSError, ValueError):
@@ -319,7 +176,8 @@ def get_active_work_item_id() -> str | None:
         try:
             with open(active_path, "r", encoding="utf-8") as f:
                 data = json.load(f)
-                return cast(dict[str, Any], data).get("active_work_item_id")
+                value = cast(dict[str, object], data).get("active_work_item_id")
+                return value if isinstance(value, str) else None
         except Exception:
             pass
     return None
@@ -329,13 +187,13 @@ def set_active_work_item_id(work_item_id: str) -> None:
     active_path = os.path.join(root_dir, "active-work-items.json")
     os.makedirs(root_dir, exist_ok=True)
 
-    data: dict[str, Any] = {"active_work_item_id": work_item_id, "work_items": {}}
+    data: dict[str, object] = {"active_work_item_id": work_item_id, "work_items": {}}
     if os.path.exists(active_path):
         try:
             with open(active_path, "r", encoding="utf-8") as f:
                 loaded = json.load(f)
                 if isinstance(loaded, dict):
-                    data = cast(dict[str, Any], loaded)
+                    data = cast(dict[str, object], loaded)
         except Exception:
             pass
 
@@ -358,18 +216,18 @@ def register_work_item(work_item_id: str, workflow_type: str | None = None, stat
     active_path = os.path.join(root_dir, "active-work-items.json")
     os.makedirs(root_dir, exist_ok=True)
 
-    data: dict[str, Any] = {"active_work_item_id": work_item_id, "work_items": {}}
+    data: dict[str, object] = {"active_work_item_id": work_item_id, "work_items": {}}
     if os.path.exists(active_path):
         try:
             with open(active_path, "r", encoding="utf-8") as f:
                 loaded = json.load(f)
                 if isinstance(loaded, dict):
-                    data = cast(dict[str, Any], loaded)
+                    data = cast(dict[str, object], loaded)
         except Exception:
             pass
 
-    work_items = cast(dict[str, Any], data.setdefault("work_items", {}))
-    existing_item = cast(dict[str, Any], work_items.get(work_item_id, {}))
+    work_items = cast(dict[str, object], data.setdefault("work_items", {}))
+    existing_item = cast(dict[str, object], work_items.get(work_item_id, {}))
 
     data["active_work_item_id"] = work_item_id
     work_items[work_item_id] = {
@@ -396,37 +254,36 @@ def register_work_item(work_item_id: str, workflow_type: str | None = None, stat
 
 # Global state store registry resolved based on env/mode
 _store_instance: StateStore | None = None
+_store_instances: dict[tuple[str, str | None, str], StateStore] = {}
 
 def get_state_store() -> StateStore:
-    global _store_instance
-    if "PYTEST_CURRENT_TEST" in os.environ:
-        mode = os.environ.get("AIWF_RUNTIME_MODE", "normal").lower()
-        if mode == "test-isolated":
-            return InMemoryStateStore()
-        root_dir = os.environ.get("AIWF_STATE_ROOT", os.path.join(".agents", "state"))
-        return AtomicFileStateStore(root_dir)
-
+    root = os.path.abspath(os.environ.get("AIWF_STATE_ROOT", os.path.join(".agents", "state")))
+    item = os.environ.get("AIWF_WORK_ITEM_ID") or os.environ.get("AIWF_ACTIVE_WORK_ITEM")
+    mode = os.environ.get("AIWF_RUNTIME_MODE", "normal").lower()
     if _store_instance is not None:
         return _store_instance
+    key = (root, item, mode)
+    if key not in _store_instances:
+        if os.environ.get("AIWF_DISABLE_STATE_WRITES", "false").lower() == "true" or mode == "test-memory":
+            _store_instances[key] = NullStateStore()
+        elif mode == "test-isolated":
+            _store_instances[key] = InMemoryStateStore()
+        else:
+            _store_instances[key] = AtomicFileStateStore(root, item)
+    return _store_instances[key]
 
-    mode = os.environ.get("AIWF_RUNTIME_MODE", "normal").lower()
-    disable_writes = os.environ.get("AIWF_DISABLE_STATE_WRITES", "false").lower() == "true"
-
-    if disable_writes or mode == "test-memory":
-        _store_instance = NullStateStore()
-    elif mode == "test-isolated":
-        _store_instance = InMemoryStateStore()
-    else:
-        root_dir = os.environ.get("AIWF_STATE_ROOT", os.path.join(".agents", "state"))
-        _store_instance = AtomicFileStateStore(root_dir)
-
-    return _store_instance
 
 def reset_state_store(store: StateStore | None = None) -> None:
     global _store_instance
     _store_instance = store
+    _store_instances.clear()
 
 def flush_stores() -> None:
+    stores = list(_store_instances.values()) + ([_store_instance] if _store_instance else [])
+    for store in stores:
+        flush = getattr(store, "flush", None)
+        if callable(flush):
+            flush()
     store = get_state_store()
     if hasattr(store, "flush"):
         try:

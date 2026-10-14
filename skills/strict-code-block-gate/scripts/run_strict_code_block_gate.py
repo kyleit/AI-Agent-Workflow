@@ -22,6 +22,7 @@ from block_contract import (  # noqa: E402
     normalized_source,
 )
 from discover_code_blocks import discover  # noqa: E402
+from contract_blocks import is_contract, validate_baselines, verify_implementation  # noqa: E402
 from materialize_validation_scope import materialize  # noqa: E402
 from resolve_language_profile import load_registry, resolve  # noqa: E402
 from validate_architecture_boundaries import validate  # noqa: E402
@@ -283,6 +284,12 @@ def run(
     for item in discoveries:
         all_blocks.extend(item["blocks"])
         for block in item["blocks"]:
+            if is_contract(block):
+                resolved = resolve(registry, block.get("language", ""), "contract.json")
+                profile_results.append({"id": block["id"], **resolved})
+                target_profile = resolve(registry, block.get("target_language", ""), block.get("file", ""))
+                profile_results.append({"id": block["id"] + ":target", **target_profile})
+                continue
             if not block.get("implementation_ready"):
                 profile_results.append({"id": block["id"], "status": "NOT_APPLICABLE"})
                 continue
@@ -318,6 +325,7 @@ def run(
         "materialized_scope": materialized,
         "architecture_results": architecture_results,
         "spike_verification": spike_verification,
+        "deferred_implementation_contracts": [block["id"] for block in all_blocks if is_contract(block)],
         "blocking_findings": [
             finding
             for item in discoveries
@@ -328,6 +336,8 @@ def run(
         + spike_verification.get("blocking_findings", [])
         + integrity_findings
         + ([] if post_implementation else validate_real_file_alignment(root, all_blocks))
+        + (verify_implementation(root, workflow_id, all_blocks) if post_implementation
+           else validate_baselines(root, all_blocks))
         + validate_binary_asset_alignment(root, all_blocks),
         "test_status": "NOT_RUN",
     }

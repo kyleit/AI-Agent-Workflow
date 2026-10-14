@@ -74,8 +74,9 @@ continues the documentation repair loop without asking for approval. A
 self-authored `PASS`, a detailed master, or a technical-design approval prompt
 never satisfies this rule.
 
-For implementation requests, AIWF must obtain the owner's `blueprint_depth`
-choice before Blueprint generation, route the request through the canonical
+For implementation requests, AIWF must declare `blueprint_depth: CONTRACT`
+by default without a depth-choice prompt. FULL is optional only on explicit
+owner request, never required for PASS. Route through the canonical
 CODE_BLOCK_GATE Branch A or Branch B, and preserve the Integration-Verify and
 Interop-Handoff phases when their applicability conditions are met.
 
@@ -96,7 +97,9 @@ inside the current workspace, hash-current, and bound to the active work item.
 If any check is unavailable, the action is `NO-GO`.
 
 During this first transaction, implementation detail belongs in the Blueprint
-artifact set as complete full-file blocks and executable task contracts.
+artifact set as typed CONTRACT declarations, complete verified pure-rule blocks,
+spike evidence and executable task contracts. Full-file bodies are required only
+for explicitly requested FULL artifacts.
 Product builds, dependency installation, generated binaries, runtime
 databases, and product E2E MUST wait until the approved Blueprint is consumed
 by `blueprint-to-implementation`.
@@ -210,7 +213,7 @@ shutdown/recovery, and desktop tests. The Agent may add surfaces but MUST NOT
 omit one without an explicit approved scope decision.
 
 Every ledger row MUST map to exactly one owning family, small feature when the
-family remains large, phase, file-matrix row, full-file block, test, and
+family remains large, phase, file-matrix row, typed contract or verified block, test, and
 evidence path. The Agent MUST reconcile this mapping in both directions before
 review. A single direct phase containing a short representative list is not a
 valid decomposition for a cross-layer greenfield request.
@@ -262,8 +265,9 @@ validate the recursive artifact shape `Master -> Family -> Small Feature ->
 Phase`, using only the families and small features derived from the actual
 scope. The user is never required to specify the hierarchy, phase count, code
 block wording, or validation commands. A response is approval-ready only after
-the runtime has recursively validated every artifact, file row, full-file code
- block, coverage row, bootstrap obligation, and preserved data-flow diagram.
+the runtime has recursively validated every artifact, file row, depth-appropriate
+typed contract or verified code block, coverage row, bootstrap obligation, and
+preserved data-flow diagram. CONTRACT plus spike evidence is the default.
 Free-form legacy Markdown that omits the canonical YAML frontmatter, phase
 artifacts, implementation-ready block inventory, or required surface matrices
 is invalid even when it looks detailed. The Agent MUST use the canonical
@@ -315,7 +319,8 @@ Specification or Blueprint may claim readiness.
 
 The Agent must author all reasoning-heavy artifacts and implementation
 contracts: decisions, requirements, architecture, coverage, file matrices,
-diagrams, task decomposition, interfaces, and complete copy-ready code blocks.
+diagrams, task decomposition, typed contracts and complete verified pure rules.
+Complete copy-ready file bodies are optional only for explicitly requested FULL.
 It must use native read/edit capabilities for that work. Python, PowerShell,
 JavaScript, or other scripts may only perform deterministic inspection,
 hashing, parsing, linting, validation, gate execution, and evidence collection;
@@ -335,7 +340,8 @@ master blueprint -> domain family -> small feature (when still large) -> phase.
 The number of phases is decided by dependency and execution cohesion, not a
 fixed count or a mechanical line limit. The master must reconcile every
 upstream capability and every phase must carry its own executable task contract
-and complete file blocks. A master-only blueprint or a blueprint that merely
+and depth-appropriate typed contracts or verified code blocks with spike evidence.
+A master-only blueprint or a blueprint that merely
 declares `PASS` remains `BLOCKED` until the independently discovered artifact
 set passes validation.
 

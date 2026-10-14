@@ -43,6 +43,12 @@ fail_closed: true
 
 # Skill: readiness-and-approval-gates (AIWF Readiness and Approval Gates)
 
+New masters, phases, quick features and fixes default to `blueprint_depth: CONTRACT`.
+Spike evidence plus typed declarations and complete verified pure rules may pass
+the canonical gate without FULL bodies. Do not ask for a depth choice merely to
+apply the default. FULL is optional only on explicit owner request; its original
+body checks remain for compatibility. Depth does not grant approval or release.
+
 ## 1. Overview & CODE_BLOCK_GATE Rule
 Skill `readiness-and-approval-gates` chịu trách nhiệm thẩm định mức độ sẵn sàng (Readiness Assessment) và quản lý các cổng phê duyệt chính thức.
 

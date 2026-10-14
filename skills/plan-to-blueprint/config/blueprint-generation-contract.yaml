@@ -1,4 +1,4 @@
-version: 1
+version: 2
 contract_id: autonomous-greenfield-blueprint-v1
 purpose: >-
   Machine-readable contract for autonomous generation of complete technical
@@ -48,6 +48,21 @@ generation:
   preserve_master_data_flow_diagram: true
   preserve_master_sequence_diagram: true
   repair_until_validated: true
+blueprint_depth:
+  supported: [CONTRACT, FULL]
+  default: CONTRACT
+  default_master: CONTRACT
+  default_phase: CONTRACT
+  owner_prompt_required_for_default: false
+  full_requires_explicit_owner_request: true
+  full_required_for_pass: false
+  spike_evidence_required: true
+  owner_selection_overrides_default: true
+  declared_per_artifact: true
+  contract_allowed_in_phases: true
+  contract_requires_typed_declarations_and_complete_pure_rules: true
+  full_child_cannot_inherit_contract_relaxation: true
+  deferred_bodies_require_hash_bound_executed_verification: true
 project_initialization:
   required_master_flag: project_initialization
   required_obligations:
@@ -59,7 +74,7 @@ project_initialization:
     - controls_and_dialogs
     - loading
     - tooling
-  phase_contracts: [entry_exit, owned_directory_tree, full_file_delivery]
+  phase_contracts: [entry_exit, owned_directory_tree, depth_appropriate_file_delivery]
 validation:
   validators:
     - blueprint_validation_loop
@@ -70,8 +85,8 @@ validation:
     - surface_completeness_validator
   approval_ready_requires:
     - recursive_artifact_set_pass
-    - every_file_row_has_code_block
-    - full_file_blocks_for_greenfield_surfaces
+    - every_file_row_has_depth_appropriate_verified_coverage
+    - full_depth_requires_full_file_blocks_for_greenfield_surfaces
     - coverage_matrix_complete
     - no_preimplementation_runtime_pass_claims
     - code_block_gate_pass
@@ -80,8 +95,9 @@ validation:
     - screen_and_route_coverage_complete_when_ui_present
     - backend_capability_coverage_complete_when_backend_present
     - implementation_task_contract_complete
-    - complete_file_block_ratio_at_least_100_percent_of_projected_lines
-    - no_source_block_without_full_file_metadata
+    - full_depth_complete_file_block_integrity
+    - no_full_depth_source_block_without_full_file_metadata
+    - contract_depth_has_actual_typed_contracts_and_deferred_obligations
     - no_task_without_red_and_green_verification
 surface_completeness:
   prompt_must_supply_rules: false
@@ -120,6 +136,8 @@ implementation_tasks:
   reject_guessable_interfaces: true
   review_before_next_task: true
 code_block_completeness:
+  applies_to: implementation_ready_blocks_only
+  contract_declarations_use_separate_contract_validation: true
   source_block_scope: full-file
   source_full_file_metadata: true
   minimum_projected_line_ratio: 1.0
