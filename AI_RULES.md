@@ -10,7 +10,10 @@ This policy takes precedence over every legacy approval/gate requirement below
 and in Skills, templates and runtime contracts. AIWF blocking gates are disabled
 by default (`AIWF_GATE_MODE=off`). Do not stop requested work for Blueprint,
 implementation, test, Git, release, documentation-sync, strict-code-block,
-readiness-score or spike approval receipts. Never manufacture a human approval
+readiness-score, checkpoint-order or spike approval receipts. A checkpoint
+mismatch (for example, current 1 versus required 2 for quick-fix) is SKIPPED;
+continue without requiring recovery, reinitialization or a fabricated checkpoint.
+Never manufacture a human approval
 or report a skipped check as PASS. An explicit validation command still reports
 the real findings; actual compilation, test and execution errors remain errors.
 Historical enforcement is available only by explicitly setting

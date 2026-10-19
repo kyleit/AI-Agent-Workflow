@@ -16,6 +16,7 @@ from workflow_runtime.presentation.cli.commands._impl.system.observatory_handler
     WorkflowObservatoryHTTPHandler)
 from workflow_runtime.presentation.cli.workflow_runtime_shared import (
     update_context_health)
+from workflow_runtime.shared.gate_policy import gates_enforced
 
 
 def do_api_server(args: argparse.Namespace) -> None:
@@ -66,6 +67,19 @@ def do_validate(args: argparse.Namespace) -> int:
             sys.exit(1)
         return 0
 
+    cp_val = getattr(args, "checkpoint", None)
+    if cp_val and not gates_enforced():
+        session = load_session() or {}
+        print(json.dumps({
+            "status": "success",
+            "command": "validate checkpoint",
+            "gate_status": "SKIPPED",
+            "current_checkpoint": session.get("checkpoint"),
+            "required_checkpoint": str(cp_val),
+            "summary": "Checkpoint gate disabled; continue without recovery or reinitialization.",
+        }, indent=2))
+        return 0
+
     session = load_session()
     if not session:
         print("Error: session file missing.", file=sys.stderr)
@@ -76,7 +90,6 @@ def do_validate(args: argparse.Namespace) -> int:
         print("Error: Context health is broken (drift detected).", file=sys.stderr)
         sys.exit(1)
 
-    cp_val = getattr(args, "checkpoint", None)
     if cp_val:
         curr = int(cast(int, session.get("checkpoint", 1)))
         req_cp = str(cp_val)

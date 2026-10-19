@@ -2,13 +2,39 @@
 
 This document describes how to install, configure, verify, and upgrade the AI Skill Framework in your projects.
 
+## Recommended: global installation on Windows
+
+After cloning or pulling this framework, run once from the clone root:
+
+```powershell
+powershell -ExecutionPolicy Bypass -File .\install.ps1 -Scope global -Force
+powershell -ExecutionPolicy Bypass -File .\bootstrap.ps1
+```
+
+The global installer registers local Git `post-merge` and `post-rewrite` hooks
+in this clone. Subsequent `git pull` operations that merge or rebase updates
+automatically run the new `install.ps1 -Scope global -Force`.
+An already-up-to-date pull needs no reinstall. Existing shell hooks are retained;
+non-shell hooks are left unchanged with a warning. Git does not activate hooks
+from a remote clone automatically, so every client needs the initial command.
+
+Disable automatic installation with `git config --local aiwf.autoInstall false`;
+enable it again with `git config --local aiwf.autoInstall true`.
+This applies to the framework checkout, not each product repository. Open a new
+AI chat to load updated instructions. Projects use global assets directly and
+must not recreate project `.agents/skills` copies. In a product repository,
+`aiwf update --current --force` refreshes project metadata when needed.
+
+The historical copy-based installation methods below are compatibility options;
+the global installation above is the default for shared resources.
+
 ---
 
 ## Installation Philosophy
 
 * **Explicit Installation Only**: The AI Skill Library never automatically installs or hooks itself into a project. Installation must be performed explicitly by a developer or designated workflow script.
 * **Independence**: The framework repository itself remains completely independent and decoupled from target project repositories. It is designed to be pulled, linked, or embedded.
-* **Standard Target Location**: Skills must always be installed inside the project's relative path:
+* **Legacy self-contained target**: Only explicit self-contained installations use:
   ```text
   .agents/skills/
   ```

@@ -56,7 +56,7 @@ You follow a **safe-first installation policy**: install safe components automat
 ## 🔒 WORKFLOW RUNTIME & INITIALIZATION CHECK
 
 This Skill MUST interface with the AIWF Go Native CLI Engine (`aiwf`):
-- **Validate Checkpoint**: Run `aiwf validate --checkpoint "at least 1"` before taking any action. If validation fails, halt execution immediately.
+- **Checkpoint Policy**: Checkpoint ordering is informational by default. If `aiwf validate --checkpoint "at least 1"` returns `gate_status: SKIPPED`, continue the requested work. Do not require recovery/reinitialization or change the checkpoint to satisfy this check. Enforce checkpoint prerequisites only when `AIWF_GATE_MODE=enforce` is explicitly set.
 - **Progress Tracking**:
   - *Start*: Run `aiwf start --skill "environment-bootstrap" --command "bootstrap" --checkpoint 1 --step "Starting execution..."`
   - *Step Updates*: Run `aiwf step --step "<step_desc>" --log "<progress_message>"` progressively during major steps.

@@ -343,6 +343,7 @@ function Copy-SharedPayload {
 }
 
 function Invoke-GlobalInstall {
+    $ErrorActionPreference = "Stop"
     $target = $GlobalHomeAgents
     Log-Info "Installing shared framework payload into $target ..."
     New-Item -ItemType Directory -Path $target -Force | Out-Null
@@ -381,6 +382,12 @@ function Invoke-GlobalInstall {
         } else {
             Log-Warn "-Reclaim: no project .agents at $ProjectRoot (or no Python); nothing to slim."
         }
+    }
+    $autoInstallHelper = Join-Path $ScriptDir "install-lib/auto-install.ps1"
+    if (Test-Path -LiteralPath $autoInstallHelper) {
+        $powershellExe = (Get-Process -Id $PID).Path
+        & $powershellExe -NoProfile -ExecutionPolicy Bypass -File $autoInstallHelper -Register
+        if ($LASTEXITCODE -ne 0) { throw "Failed to register automatic global installation hooks." }
     }
     Log-Success "Global AIWF install complete at $target."
     Log-Info "New/existing projects: run '.\install.ps1' (project scope) -> minimal mode automatically."
