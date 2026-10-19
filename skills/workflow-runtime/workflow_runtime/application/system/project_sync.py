@@ -71,7 +71,10 @@ class ProjectSyncPlanner:
     def plan(self, project_path: Path | str, snapshot: GlobalInstallationSnapshot) -> ProjectSyncPlan:
         project = Path(project_path).expanduser().resolve()
         data = _manifest(project)
-        if _bridge_mode(project) in {"global_link", "global_adapter"}:
+        if _bridge_mode(project) in {"global_link", "global_adapter"} or (
+            snapshot.available and snapshot.source_path
+            and project != Path(snapshot.source_path).resolve()
+        ):
             return ProjectSyncPlan(
                 str(project), snapshot.available, [], [], [], [],
                 "GLOBAL_BRIDGE_METADATA_ONLY" if snapshot.available else "GLOBAL_INSTALLATION_UNAVAILABLE",
@@ -114,7 +117,11 @@ class ProjectSyncPlanner:
         )
 
     def sync(self, plan: ProjectSyncPlan, snapshot: GlobalInstallationSnapshot, dry_run: bool = False) -> list[str]:
-        if dry_run or plan.reason == "GLOBAL_BRIDGE_METADATA_ONLY" or not snapshot.available or not snapshot.source_path:
+        if dry_run or not snapshot.available or not snapshot.source_path:
+            return []
+        if plan.reason == "GLOBAL_BRIDGE_METADATA_ONLY":
+            from workflow_runtime.application.system.project_bridge import ensure_project_bridge
+            ensure_project_bridge(plan.project_path, snapshot.source_path, force_mode="global_link")
             return []
         root = Path(snapshot.source_path)
         project = Path(plan.project_path)

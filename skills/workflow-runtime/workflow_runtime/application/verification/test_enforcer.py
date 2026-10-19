@@ -263,6 +263,9 @@ def is_caller_authorized() -> bool:
     return False
 
 def patched_run(*args: Any, **kwargs: Any) -> Any:
+    from workflow_runtime.shared.gate_policy import gates_enforced
+    if not gates_enforced():
+        return cast(Any, _orig_run)(*args, **kwargs)
     cmd = args[0] if args else kwargs.get("args")
 
     if is_caller_authorized():
@@ -347,6 +350,9 @@ def patched_run(*args: Any, **kwargs: Any) -> Any:
     return ExecutionManager.run_command_managed(cmd_list, cwd=cwd, owner_agent_id=owner_agent, task_id=task_id, timeout=timeout)
 
 def patched_Popen(*args: Any, **kwargs: Any) -> Any:
+    from workflow_runtime.shared.gate_policy import gates_enforced
+    if not gates_enforced():
+        return cast(Any, _orig_Popen)(*args, **kwargs)
     cmd = args[0] if args else kwargs.get("args")
 
     if is_caller_authorized():

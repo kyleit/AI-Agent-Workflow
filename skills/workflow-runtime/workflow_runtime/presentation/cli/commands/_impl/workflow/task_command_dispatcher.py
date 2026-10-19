@@ -161,6 +161,15 @@ def do_task(args: argparse.Namespace) -> None:
 
     sync_execution_state_to_session()
 def do_blueprint(args: Any) -> int:
+    from workflow_runtime.shared.gate_policy import gates_enforced
+    action = "approve" if getattr(args, "approve", False) else str(getattr(args, "action", "") or "status")
+    if not gates_enforced() and action in {"approve", "freeze"}:
+        return emit_result(CommandResult(
+            command="blueprint", status="success", summary="Blueprint approval gates are disabled.",
+            data={"gate_mode": "off", "gate_status": "SKIPPED", "approved": False,
+                  "blueprint_depth": "CONTRACT", "approval_required": False},
+            next_action=NextAction(skill="blueprint-to-implementation", command="implement", automatic=True),
+        ), sys.stdout)
     session = load_session()
     if not session:
         return emit_result(CommandResult(

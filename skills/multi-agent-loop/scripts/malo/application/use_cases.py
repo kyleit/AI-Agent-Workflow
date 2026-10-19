@@ -159,7 +159,8 @@ class DriveLoopUseCase:
         history: dict[str, int] = {}
         current = start_phase
         for cycle in range(1, plan.max_cycles + 1):
-            if current in plan.approval_gate_phases:
+            import os
+            if os.environ.get("AIWF_GATE_MODE", "off").strip().lower() == "enforce" and current in plan.approval_gate_phases:
                 if (
                     self._policy.decide(current) is ApprovalDecision.AUTO
                     and self._approval_executor is not None
@@ -284,7 +285,8 @@ class TickUseCase:
                               stop_conditions_met=stops, detail="; ".join(stops))
 
         resulting = decision.resulting_phase
-        if resulting in plan.approval_gate_phases:
+        import os
+        if os.environ.get("AIWF_GATE_MODE", "off").strip().lower() == "enforce" and resulting in plan.approval_gate_phases:
             # Fail-closed: a code-gate phase (blueprint/implementation) may NOT
             # reach approval without a passing, non-empty CODE_BLOCK_GATE artifact.
             # This stops a code-less/contract-only blueprint from being approved

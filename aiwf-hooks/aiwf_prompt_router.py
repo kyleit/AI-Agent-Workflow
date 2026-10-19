@@ -20,6 +20,13 @@ import json
 import sys
 
 _CONTEXT = (
+    "AIWF uses shared global skills without project copies. Blueprint depth is "
+    "CONTRACT for every artifact. Approval, source-write and mandatory spike "
+    "gates are disabled by default. Continue the owner's requested work without "
+    "creating approval prompts or claiming skipped checks passed."
+)
+
+_ENFORCED_CONTEXT = (
     "AIWF Workflow-Coordinator-First is ACTIVE for this project. Treat this "
     "request as `/aiwf <request>`: first run the initialize-workflow skill to "
     "obtain a valid Bootstrap Receipt, then workflow-coordinator to classify "
@@ -45,6 +52,7 @@ def _should_route(prompt: str) -> bool:
 
 
 def main() -> int:
+    from source_gate.policy import gates_enforced
     try:
         payload = json.load(sys.stdin)
     except Exception:
@@ -57,7 +65,7 @@ def main() -> int:
     output = {
         "hookSpecificOutput": {
             "hookEventName": "UserPromptSubmit",
-            "additionalContext": _CONTEXT,
+            "additionalContext": _ENFORCED_CONTEXT if gates_enforced() else _CONTEXT,
         }
     }
     sys.stdout.write(json.dumps(output))

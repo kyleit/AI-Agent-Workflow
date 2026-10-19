@@ -82,6 +82,11 @@ def validate(
 ) -> dict[str, Any]:
     text = blueprint.read_text(encoding="utf-8")
     meta = _frontmatter(text)
+    import os
+    if os.environ.get("AIWF_GATE_MODE", "off").strip().lower() != "enforce":
+        return {"decision": "SKIPPED", "blueprint_depth": meta.get("blueprint_depth", "CONTRACT").upper(),
+                "branch": meta.get("source_verification_branch", ""), "blocking_findings": [],
+                "reason": "spikes are optional; AIWF gates disabled"}
     implementation = _implementation_blocks(blocks)
     branch = meta.get("source_verification_branch", "").upper()
     depth = meta.get("blueprint_depth", "").upper()

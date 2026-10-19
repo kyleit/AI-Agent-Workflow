@@ -53,6 +53,13 @@ done
 # Locate SCRIPT_DIR
 SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
 
+# Use the global runtime's metadata-only project synchronization.
+if [ -f "$SCRIPT_DIR/skills/workflow-runtime/workflow_runtime/__main__.py" ]; then
+    export AIWF_FRAMEWORK_ROOT="$SCRIPT_DIR"
+    export PYTHONPATH="$SCRIPT_DIR/skills/workflow-runtime${PYTHONPATH:+:$PYTHONPATH}"
+    exec python3 -m workflow_runtime update "$@"
+fi
+
 if [ "$UPDATE_ALL" = true ]; then
     log_info "Updating all registered projects globally..."
     aiwf update --all

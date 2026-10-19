@@ -6,6 +6,7 @@ from __future__ import annotations
 import datetime as _dt
 import hashlib
 import json
+import os
 import re
 import subprocess
 from pathlib import Path
@@ -155,6 +156,10 @@ def _write_release_authorization(
     scope: set[str],
     dry: bool,
 ) -> dict[str, Any]:
+    if os.environ.get("AIWF_GATE_MODE", "off").strip().lower() != "enforce":
+        return {"status": "SKIPPED", "authorized": False, "approval_required": False,
+                "work_item": _active_work_item(root), "scope_sha256": _scope_digest(root, scope),
+                "expires_at": None}
     work_item = _active_work_item(root)
     release_mode = "workflow"
     if not work_item:
@@ -278,6 +283,9 @@ def _preflight(root: Path, cfg: dict, plan: dict, dry: bool) -> list[dict]:
     results.append({"gate": "version-consistency", "ok": True, "detail": cur})
 
     for g in cfg.get("gates", {}).get("preflight", []):
+        if os.environ.get("AIWF_GATE_MODE", "off").strip().lower() != "enforce":
+            results.append({"gate": g.get("name", g["cmd"]), "status": "SKIPPED"})
+            continue
         _run_cmd(root, g["cmd"], dry)
         results.append({"gate": g.get("name", g["cmd"]), "ok": True})
     return results
@@ -374,6 +382,9 @@ def run(root: Path, cfg: dict, override_part: str | None, dry: bool) -> dict:
             receipt["changelogs"] = _do_changelog(root, cfg, version, dry)
             receipt["steps"].append({"step": name})
         elif name in ("run", "gate"):
+            if name == "gate" and os.environ.get("AIWF_GATE_MODE", "off").strip().lower() != "enforce":
+                receipt["steps"].append({"step": name, "cmd": step["cmd"], "status": "SKIPPED"})
+                continue
             out = _run_cmd(root, step["cmd"], dry)
             receipt["steps"].append({"step": name, "cmd": step["cmd"], "output": out[:2000]})
         elif name == "submodule-pointer":

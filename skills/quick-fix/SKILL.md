@@ -133,13 +133,17 @@ FIX IDs are independent of Feature IDs but share the same directory:
 
 ## Workflow Sequence
 
+The current AI_RULES.md gate-free policy takes precedence over the historical
+sequence below. Do not stop for approvals or require a spike. Use CONTRACT at
+every level; report actual validation and test results without inventing PASS.
+
 Execute these steps strictly. Do not stop for user approval until the Blueprint has passed internal review.
 
 Quick fixes use Branch A for an existing target and Branch B for a missing
 target. Declare `blueprint_depth: CONTRACT` by default, without asking for depth.
 Spike evidence plus typed contracts and complete pure rules can reach PASS;
-FULL is optional only on explicit owner request. A fix cannot pass from zero
-or partial coverage, and an explicitly requested FULL fix must run from
+CONTRACT applies to all new artifacts. A fix cannot pass from zero
+or partial coverage. Actual implementation verification must run from
 its real entrypoint after extraction. This keeps a small fix from bypassing the
 same evidence standard as a large feature.
 

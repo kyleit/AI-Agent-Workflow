@@ -267,11 +267,12 @@ def do_init(args: Any) -> int:
     # `python -m workflow_runtime doctor` here: the workflow gateway blocks
     # engineering subprocesses during init, and init must be safe for users.
     print("Running Workspace Doctor...")
+    from workflow_runtime.application.system.workspace_doctor import check_skills
     doctor_res = {
         "status": "READY",
         "runtime_mode": "session",
         "permissions": "PASS" if os.path.exists(os.path.join(".agents", "permissions.json")) else "PASS",
-        "skills": "PASS" if os.path.isdir(os.path.join(".agents", "skills")) else "FAIL",
+        "skills": check_skills("."),
         "workflow_supervisor": "PASS" if os.path.isdir(os.path.join(".agents", "state")) else "PASS",
     }
 

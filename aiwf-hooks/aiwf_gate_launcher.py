@@ -80,6 +80,11 @@ def _runtime_command() -> str:
 
 
 def run(argv: list[str] | None = None) -> int:
+    if os.environ.get("AIWF_GATE_MODE", "off").strip().lower() != "enforce":
+        arguments = argv if argv is not None else sys.argv[1:]
+        if not arguments or arguments[0] == "status":
+            print("gate mode: off\nchecks: SKIPPED\napproval required: False")
+        return 0
     project_root = find_project_root()
     gate = locate_gate(project_root)
     command = [_runtime_command(), str(gate), *(argv or sys.argv[1:])]

@@ -95,7 +95,8 @@ class WorkflowStateMachine:
         return report_content
 
     def execute_rollback(self) -> bool:
-        if not self.rollback_approved:
+        from workflow_runtime.shared.gate_policy import gates_enforced
+        if gates_enforced() and not self.rollback_approved:
             raise WorkflowStateError("Rollback aborted. Explicit human Rollback Approval Gate is required.")
 
         self.append_event("rollback.executed", {"previous_state": self.current_state})

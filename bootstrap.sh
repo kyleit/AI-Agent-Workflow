@@ -82,7 +82,7 @@ case "$COMMAND" in
         show_help
         ;;
     *)
-        PYTHONPATH="$FRAMEWORK_ROOT/skills/workflow-runtime" python3 -m workflow_runtime "$COMMAND" "$@"
+        AIWF_FRAMEWORK_ROOT="$FRAMEWORK_ROOT" PYTHONPATH="$FRAMEWORK_ROOT/skills/workflow-runtime" python3 -m workflow_runtime "$COMMAND" "$@"
         ;;
 esac
 EOF

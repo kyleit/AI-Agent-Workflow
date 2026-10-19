@@ -129,6 +129,17 @@ def do_implement_action(args: Namespace) -> int:
     if action:
         return _run_legacy_implement_action(action)
 
+    from workflow_runtime.shared.gate_policy import gates_enforced
+    if not gates_enforced():
+        return emit_result(CommandResult(
+            command="implement", status="success",
+            summary="AIWF implementation gates are disabled; continue the requested source work.",
+            data={"gate_mode": "off", "gate_status": "SKIPPED", "implementation_entry": "not_required",
+                  "blueprint": getattr(args, "blueprint", None), "receipt": None,
+                  "source_changed": False, "dry_run": bool(getattr(args, "dry_run", False))},
+            next_action=NextAction(skill="blueprint-to-implementation"),
+        ), sys.stdout)
+
     blueprint_value = str(getattr(args, "blueprint", "") or "").strip()
     dry_run = bool(getattr(args, "dry_run", False))
     if not blueprint_value:

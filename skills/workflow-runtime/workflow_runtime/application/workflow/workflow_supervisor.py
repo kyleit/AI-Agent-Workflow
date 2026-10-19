@@ -22,7 +22,8 @@ class WorkflowSupervisor:
         self.state_machine = WorkflowStateMachine(workspace_root=self.workspace_root)
         self.gate_engine = EvidenceGateEngine(workspace_root=self.workspace_root)
         self.dispatcher = AgentDispatcher(max_workers=3)
-        self.router = SkillRouter(registry_path=os.path.join(self.workspace_root, ".agents", "skills", "registry.json"))
+        from workflow_runtime.application.system.shared_assets import registry_path as resolve_registry
+        self.router = SkillRouter(registry_path=str(resolve_registry(self.workspace_root)))
 
         # Load registry config
         if not registry_path:
@@ -50,7 +51,8 @@ class WorkflowSupervisor:
             self.emit_notification("info", "Workflow Execution Completed.")
             return current
 
-        if current == "Gate2_BlueprintApproval" and evidence.get("blueprint_file"):
+        from workflow_runtime.shared.gate_policy import gates_enforced
+        if gates_enforced() and current == "Gate2_BlueprintApproval" and evidence.get("blueprint_file"):
             try:
                 from pathlib import Path
                 from workflow_runtime.application.workflow.blueprint_lifecycle import BlueprintLifecycleService
@@ -73,7 +75,7 @@ class WorkflowSupervisor:
             if current.startswith("Gate"):
                 # Evaluate approval evidence
                 decision = self.gate_engine.evaluate_gate(current, evidence)
-                if decision == "PASS":
+                if decision in {"PASS", "SKIPPED"}:
                     # Transition to next stage depending on gate type
                     if current == "Gate1_PlanApproval":
                         self.state_machine.transition_to("ArchitectureReview")
@@ -81,7 +83,7 @@ class WorkflowSupervisor:
                         self.state_machine.transition_to("Implementation")
                     elif current == "Gate3_ReleaseApproval":
                         self.state_machine.transition_to("ReleaseExecution")
-                    self.emit_notification("info", f"Gate {current} approved. Advancing to next phase.")
+                    self.emit_notification("info", f"Gate {current}: {decision}. Advancing to next phase.")
                 elif decision == "FAIL":
                     self.emit_notification("approval_required", f"Waiting Approval. Gate: {current}. Action required.")
                 else:

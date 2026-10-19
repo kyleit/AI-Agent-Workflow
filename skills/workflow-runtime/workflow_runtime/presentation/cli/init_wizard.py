@@ -40,9 +40,6 @@ class ScaffoldPlanner:
                 ".agents",
                 ".agents/state",
                 ".agents/memory",
-                ".agents/skills",
-                ".agents/templates",
-                ".agents/agents",
                 ".agents/runtime",
                 "docs"
             ]
@@ -92,7 +89,13 @@ class ScaffoldPlanner:
             if not os.path.exists(os.path.join(fw_root, "MANIFEST.json")):
                 fw_root = os.environ.get("AIWF_HOME", fw_root)
 
-            if os.path.exists(os.path.join(fw_root, "MANIFEST.json")):
+            from workflow_runtime.application.system.shared_assets import shared_framework_root
+            shared_root = shared_framework_root(self.project_path)
+            if shared_root is not None:
+                from workflow_runtime.application.system.project_bridge import ensure_project_bridge
+                ensure_project_bridge(self.project_path, shared_root, force_mode="global_link")
+                print("Using global framework assets; project skill copies are not installed.")
+            elif os.path.exists(os.path.join(fw_root, "MANIFEST.json")):
                 print(f"Copying framework assets from {fw_root}...")
 
                 for d in ["skills", "templates", "agents", "runtime"]:

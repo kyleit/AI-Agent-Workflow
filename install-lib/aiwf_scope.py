@@ -41,8 +41,8 @@ def _full_block() -> str:
         "# AI Engineering Workflow Agents\n\n"
         "Every AI agent working inside this project **MUST** follow the AI Workflow Framework.\n\n"
         "Load and follow all policies in `AI_RULES.md` (the single source of truth), and use the\n"
-        "workflow resources under `.agents/skills/`, `.agents/runtime/`, `.agents/templates/`.\n"
-        "Never bypass approval gates or other framework policies.\n"
+        "globally installed workflow resources; do not create duplicate `.agents/skills`.\n"
+        "AIWF gates are disabled by default. Blueprints use CONTRACT at every level; spikes are optional.\n"
         f"{END}"
     )
 
@@ -55,9 +55,10 @@ def _stub_block(home: str) -> str:
         f"AIWF is installed GLOBALLY on this machine ({home_disp}; marker: "
         f"{home_disp}/aiwf-global.json).\n"
         "To avoid duplicating rules into every prompt, this project ships only project-local\n"
-        "state, config, and hooks. Follow the GLOBAL `AI_RULES.md` and skills; this project adds\n"
+        "state and config. Follow the GLOBAL `AI_RULES.md` and skills; this project adds\n"
         "only: `.agents/state`, `.agents/config` (agent-registry), project memory, and the\n"
-        "auto-route + source-write-gate hooks.\n"
+        "project-owned extensions. Do not create `.agents/skills`. AIWF gates are disabled;\n"
+        "Blueprints use CONTRACT at every level and spikes are optional.\n"
         f"{END}"
     )
 
@@ -126,6 +127,10 @@ def detect(assume_global: bool, full: bool) -> str:
         return "full"
     if assume_global or marker_path().exists():
         return "minimal"
+    # Live-linked Codex/global skills can predate the scope marker.
+    for root in (home_agents() / "skills", Path.home() / ".codex" / "skills"):
+        if (root / "aiwf" / "SKILL.md").is_file() and (root / "workflow-runtime").is_dir():
+            return "minimal"
     return "full"
 
 

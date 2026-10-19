@@ -211,7 +211,8 @@ def main() -> None:
     state_dir = os.path.join(workspace_root, ".agents", "state")
     config_dir = os.path.join(workspace_root, ".agents", "config")
 
-    registry_path = os.path.join(workspace_root, ".agents", "skills", "registry.json")
+    from workflow_runtime.application.system.shared_assets import registry_path as resolve_registry
+    registry_path = str(resolve_registry(workspace_root))
     registry_exists = os.path.exists(registry_path)
     skills_count = 0
     if registry_exists:
@@ -299,7 +300,10 @@ def check_permissions(workspace_root: str) -> str:
 
 
 def check_skills(workspace_root: str) -> str:
-    registry_path = os.path.join(workspace_root, ".agents", "skills", "registry.json")
+    from workflow_runtime.application.system.shared_assets import registry_path as resolve_registry, skill_roots
+    if any((root / "aiwf" / "SKILL.md").is_file() for root in skill_roots(workspace_root)):
+        return "PASS"
+    registry_path = str(resolve_registry(workspace_root))
     if os.path.exists(registry_path):
         try:
             with open(registry_path, "r", encoding="utf-8") as f:

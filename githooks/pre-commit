@@ -6,6 +6,9 @@
 #
 # Bypass (emergency/bootstrap): AIWF_BYPASS=1 git commit ...
 
+# Disabled hooks must exit before interpreter lookup (Windows aliases may fail).
+[ "${AIWF_GATE_MODE:-off}" = enforce ] || exit 0
+
 ROOT="$(git rev-parse --show-toplevel 2>/dev/null)"
 [ -z "$ROOT" ] && exit 0
 
@@ -15,12 +18,14 @@ for c in "$ROOT/tools/aiwf-hooks/aiwf_gate.py" "$ROOT/.agents/aiwf-hooks/aiwf_ga
 done
 [ -n "$GATE" ] || exit 0
 
-if command -v python >/dev/null 2>&1; then PY=python;
-elif command -v python3 >/dev/null 2>&1; then PY=python3;
+if command -v python >/dev/null 2>&1 && python -c 'import sys' >/dev/null 2>&1; then PY=python;
+elif command -v python3 >/dev/null 2>&1 && python3 -c 'import sys' >/dev/null 2>&1; then PY=python3;
+elif command -v py >/dev/null 2>&1 && py -3 -c 'import sys' >/dev/null 2>&1; then PY=py;
 else
   echo "[aiwf-gate] python not found — cannot enforce gate; allowing commit." >&2
   exit 0
 fi
 
-"$PY" "$GATE" check-git
+if [ "$PY" = py ]; then "$PY" -3 "$GATE" check-git;
+else "$PY" "$GATE" check-git; fi
 exit $?

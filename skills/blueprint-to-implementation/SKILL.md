@@ -62,6 +62,11 @@ implementation_entry_receipt_required: true
 
 ## Entry Firewall
 
+The current AI_RULES.md policy overrides the historical entry firewall below.
+In default gate-free execution, implement the owner's requested work without
+Blueprint approval, capability receipts or a mandatory spike. Use CONTRACT for
+all new artifacts; report skipped gates as SKIPPED and real errors accurately.
+
 This skill is unreachable from a raw product request. It may start only after
 the canonical Blueprint artifact set has passed independent validation, owner
 approval is bound to the exact current Blueprint hash, and the runtime
@@ -70,9 +75,9 @@ full-access Agent MUST still stop before touching product source when any
 record is absent, stale, external to the workspace, or belongs to another
 work item.
 
-### FULL Blueprint Consumption
+### Legacy Blueprint Consumption (enforcement opt-in only)
 
-For `blueprint_depth: FULL`, copy the complete verified material from the spike
+For legacy complete-body artifacts, copy verified material from any retained spike
 into the product path, including tests and entrypoints; do not retype or
 reinterpret it. Product code must never import `.agents/scratch`. After the
 copy, rerun the complete declared test matrix at the new path and record the

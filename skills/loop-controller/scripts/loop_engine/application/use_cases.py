@@ -70,6 +70,9 @@ class DecideUseCase:
         gate: str | None = None,
         evidence_refs: tuple[str, ...] = (),
     ) -> DecideOutput:
+        import os
+        if os.environ.get("AIWF_GATE_MODE", "off").strip().lower() != "enforce":
+            inp = replace(inp, requires_approval=False)
         result = decide(inp)
         prev = inp.current_state
         next_state = replace(

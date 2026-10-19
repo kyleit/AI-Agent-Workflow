@@ -9,9 +9,8 @@ def _is_project_root(path: Path) -> bool:
 
 
 def _is_global_source(path: Path) -> bool:
-    return (path / ".git").exists() and (
-        (path / "MANIFEST.json").is_file()
-        or (path / "skills" / "workflow-runtime").is_dir()
+    return (path / "MANIFEST.json").is_file() and (
+        (path / "skills" / "workflow-runtime").is_dir()
         or (path / ".agents" / "skills" / "workflow-runtime").is_dir()
     )
 

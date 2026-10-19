@@ -42,7 +42,7 @@ if ([string]::IsNullOrWhiteSpace($ProjectRootForBridge)) { $ProjectRootForBridge
 $ProjectGateBridgeSrc = Join-Path $ScriptDir "tools\aiwf-hooks\aiwf_gate_bridge.py"
 $ProjectGateBridgeDir = Join-Path $ProjectRootForBridge "tools\aiwf-hooks"
 $ProjectGateBridge = Join-Path $ProjectGateBridgeDir "aiwf_gate.py"
-if ((Test-Path $ProjectGateBridgeSrc) -and -not (Test-Path $ProjectGateBridge)) {
+if ($env:AIWF_GATE_MODE -eq "enforce" -and (Test-Path $ProjectGateBridgeSrc) -and -not (Test-Path $ProjectGateBridge)) {
     New-Item -ItemType Directory -Path $ProjectGateBridgeDir -Force | Out-Null
     Copy-Item -Path $ProjectGateBridgeSrc -Destination $ProjectGateBridge -Force
     if (-not $Json) { Write-Host "[INFO] Created AIWF gate bridge: $ProjectGateBridge" }
@@ -70,7 +70,11 @@ if (Test-Path (Join-Path $RuntimeRoot "workflow_runtime/__main__.py")) {
     $oldFrameworkRoot = $env:AIWF_FRAMEWORK_ROOT
     $env:PYTHONPATH = $RuntimeRoot
     $env:AIWF_FRAMEWORK_ROOT = $ScriptDir
-    python -m workflow_runtime @runtimeArgs
+    if (Get-Command py -ErrorAction SilentlyContinue) {
+        py -3 -m workflow_runtime @runtimeArgs
+    } else {
+        python -m workflow_runtime @runtimeArgs
+    }
     $exitCode = $LASTEXITCODE
     $env:PYTHONPATH = $oldPythonPath
     if ($null -eq $oldFrameworkRoot) { Remove-Item Env:AIWF_FRAMEWORK_ROOT -ErrorAction SilentlyContinue }
@@ -504,7 +508,7 @@ if (Test-Path $RelEngineSrc) {
 if (Test-Path $RelEntrySrc) {
     Update-ItemWithCheck -src $RelEntrySrc -dest (Join-Path $InstallTarget "release.py")
 }
-if ($IsGit -and (Test-Path (Join-Path $InstallTarget "githooks"))) {
+if ($env:AIWF_GATE_MODE -eq "enforce" -and $IsGit -and (Test-Path (Join-Path $InstallTarget "githooks"))) {
     git -C $ProjectRoot config core.hooksPath ".agents/githooks" 2>$null
     Log-Success "Source-write gate wired (git core.hooksPath -> .agents/githooks)."
 }

@@ -94,10 +94,8 @@ SAFE_MINIMAL_FALLBACK = {
 
 def _find_skill_md(skill_name: str) -> Optional[str]:
     """Find SKILL.md path for a given skill name."""
-    candidates = [
-        os.path.join("skills", skill_name, "SKILL.md"),
-        os.path.join(".agents", "skills", skill_name, "SKILL.md"),
-    ]
+    from workflow_runtime.application.system.shared_assets import skill_roots
+    candidates = [str(root / skill_name / "SKILL.md") for root in skill_roots()]
     for c in candidates:
         if os.path.exists(c):
             return c
@@ -107,12 +105,15 @@ def _find_skill_md(skill_name: str) -> Optional[str]:
 def _find_all_skills() -> list[tuple[str, str]]:
     """Return list of (skill_name, skill_md_path) for all discovered skills."""
     skills: list[tuple[str, str]] = []
-    for base_dir in ["skills", os.path.join(".agents", "skills")]:
+    from workflow_runtime.application.system.shared_assets import skill_roots
+    seen: set[str] = set()
+    for base_dir in skill_roots():
         if not os.path.isdir(base_dir):
             continue
         for entry in sorted(os.listdir(base_dir)):
             candidate = os.path.join(base_dir, entry, "SKILL.md")
-            if os.path.exists(candidate):
+            if os.path.exists(candidate) and entry not in seen:
+                seen.add(entry)
                 skills.append((entry, candidate))
     return skills
 

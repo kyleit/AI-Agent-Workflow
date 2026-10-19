@@ -192,32 +192,18 @@ def get_current_project_context() -> dict[str, Any]:
 
 
 def _is_aiwf_project_root(path: str) -> bool:
-    return os.path.exists(os.path.join(path, ".agents", "AI_RULES.md")) or os.path.exists(os.path.join(path, "AI_RULES.md"))
+    return any(os.path.isfile(os.path.join(path, relative)) for relative in (
+        ".agents/project.json", ".agents/project.config.json", ".agents/AI_RULES.md", "AI_RULES.md"))
 
 
 def _resolve_aiwf_project_root() -> str:
     cwd = os.path.abspath(".")
     if _is_aiwf_project_root(cwd):
         return cwd
-    probe = Path(__file__).resolve()
-    for parent in probe.parents:
-        if parent.name == ".agents":
-            return str(parent.parent)
-        if parent.name == "public_export":
-            return str(parent.parent)
-        if _is_aiwf_project_root(str(parent)):
-            return str(parent)
-    try:
-        from workflow_runtime.application.workflow import aiwf_registry
-        registry = aiwf_registry.load_registry()
-        raw_projects = registry.get("projects", [])
-        projects_list: list[dict[str, Any]] = cast(list[dict[str, Any]], raw_projects) if isinstance(raw_projects, list) else []
-        for project in projects_list:
-            path = str(project.get("path") or "")
-            if path and os.path.exists(path) and _is_aiwf_project_root(path):
-                return os.path.abspath(path)
-    except Exception:
-        pass
+    explicit = os.environ.get("AIWF_PROJECT_ROOT")
+    if explicit and _is_aiwf_project_root(os.path.abspath(explicit)):
+        return os.path.abspath(explicit)
+    # Shared runtime location and unrelated registry entries are not project identity.
     return cwd
 
 

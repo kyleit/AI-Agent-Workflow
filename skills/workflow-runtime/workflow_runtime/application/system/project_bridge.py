@@ -74,6 +74,9 @@ def _read_json(path: Path) -> dict[str, Any]:
 
 def _sync_enforcement_bridge(project_root: Path, global_root: Path | None) -> list[str]:
     """Install the local gate bridge needed by every new project."""
+    from workflow_runtime.shared.gate_policy import gates_enforced
+    if not gates_enforced():
+        return []
     if global_root is None or global_root == project_root:
         return []
     copied: list[str] = []

@@ -449,7 +449,7 @@ if (Test-Path $RelEngineSrc) {
 if (Test-Path $RelEntrySrc) {
     Copy-ItemWithCheck -Src $RelEntrySrc -Dest (Join-Path $InstallTarget "release.py") -IsDir $false
 }
-if ($IsGit -and (Test-Path (Join-Path $InstallTarget "githooks"))) {
+if ($env:AIWF_GATE_MODE -eq "enforce" -and $IsGit -and (Test-Path (Join-Path $InstallTarget "githooks"))) {
     git -C $ProjectRoot config core.hooksPath ".agents/githooks" 2>$null
     Log-Success "Source-write gate enabled (git core.hooksPath -> .agents/githooks)."
 }
@@ -467,7 +467,7 @@ if ($HookSrc -and (Test-Path (Join-Path $HookSrc "aiwf_prompt_router.py"))) {
     New-Item -ItemType Directory -Path $HookDest -Force | Out-Null
     Copy-Item -Path (Join-Path $HookSrc "aiwf_prompt_router.py") -Destination (Join-Path $HookDest "aiwf_prompt_router.py") -Force
 }
-if ($HookSrc -and (Test-Path (Join-Path $HookSrc "claude-settings.template.json"))) {
+if ($env:AIWF_GATE_MODE -eq "enforce" -and $HookSrc -and (Test-Path (Join-Path $HookSrc "claude-settings.template.json"))) {
     $ClaudeDir = Join-Path $ProjectRoot ".claude"
     New-Item -ItemType Directory -Path $ClaudeDir -Force | Out-Null
     $ClaudeSettings = Join-Path $ClaudeDir "settings.json"

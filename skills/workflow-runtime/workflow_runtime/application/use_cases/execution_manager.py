@@ -84,12 +84,13 @@ class ExecutionManager(ProcessExecutionRunner):
         workflow_id = str(os.environ.get("AIWF_WORKFLOW_ID") or session_data.get("workflow_id") or "")
 
         is_testing = os.environ.get("AIWF_TESTING") == "true"
-        if not is_testing and (execution_mode != "workflow" or not workflow_id):
+        from workflow_runtime.shared.gate_policy import gates_enforced
+        if gates_enforced() and not is_testing and (execution_mode != "workflow" or not workflow_id):
             return False, "EXECUTION_BLOCKED: Engineering action outside Workflow Gateway."
 
         cwd = str(req.get("working_directory", "."))
         abs_cwd = os.path.abspath(cwd)
-        repo_root = os.path.abspath(os.path.join(os.path.dirname(__file__), "../../.."))
+        repo_root = os.path.abspath(os.environ.get("AIWF_PROJECT_ROOT") or os.getcwd())
 
         is_testing_override = is_testing or os.environ.get("AIWF_STRICT_PROCESS_ENFORCEMENT") == "true" or "pytest" in abs_cwd.lower()
         if not is_testing_override and not abs_cwd.startswith(repo_root):
@@ -109,7 +110,7 @@ class ExecutionManager(ProcessExecutionRunner):
         if "test_" in cmd_str or "test.py" in cmd_str:
             is_test = True
 
-        if is_test:
+        if is_test and gates_enforced():
             is_tester = "tester" in owner.lower() or "qa" in owner.lower() or owner == "AGENT-TESTER-001"
             if not is_tester:
                 return False, f"Test commands must be owned by a TESTER or QA Agent. (Owner: {owner})"
@@ -120,7 +121,7 @@ class ExecutionManager(ProcessExecutionRunner):
             if rk in cmd_str:
                 is_release = True
                 break
-        if is_release:
+        if is_release and gates_enforced():
             is_release_agent = "release" in owner.lower() or owner == "AGENT-RELEASE-001"
             if not is_release_agent:
                 return False, f"Release/deployment commands must be owned by a Release Agent. (Owner: {owner})"

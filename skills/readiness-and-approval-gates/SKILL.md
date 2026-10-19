@@ -43,10 +43,14 @@ fail_closed: true
 
 # Skill: readiness-and-approval-gates (AIWF Readiness and Approval Gates)
 
+The current AI_RULES.md gate-free policy overrides historical requirements below.
+Checks are optional diagnostics and cannot require an approval or spike to
+continue work. Use CONTRACT for all new artifacts and every phase.
+
 New masters, phases, quick features and fixes default to `blueprint_depth: CONTRACT`.
 Spike evidence plus typed declarations and complete verified pure rules may pass
 the canonical gate without FULL bodies. Do not ask for a depth choice merely to
-apply the default. FULL is optional only on explicit owner request; its original
+apply the default. Other depths are historical input compatibility; their original
 body checks remain for compatibility. Depth does not grant approval or release.
 
 ## 1. Overview & CODE_BLOCK_GATE Rule

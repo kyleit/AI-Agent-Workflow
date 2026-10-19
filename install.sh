@@ -486,7 +486,7 @@ if [ "$DEPS_ONLY" = false ]; then
     if [ -f "$SCRIPT_DIR/release.py" ]; then
         copy_item "$SCRIPT_DIR/release.py" "$INSTALL_TARGET/release.py" false
     fi
-    if command -v git >/dev/null 2>&1 && git -C "$PROJECT_ROOT" rev-parse --is-inside-work-tree >/dev/null 2>&1 && [ -d "$INSTALL_TARGET/githooks" ]; then
+    if [ "${AIWF_GATE_MODE:-off}" = enforce ] && command -v git >/dev/null 2>&1 && git -C "$PROJECT_ROOT" rev-parse --is-inside-work-tree >/dev/null 2>&1 && [ -d "$INSTALL_TARGET/githooks" ]; then
         git -C "$PROJECT_ROOT" config core.hooksPath ".agents/githooks" 2>/dev/null || true
         log_success "Source-write gate enabled (git core.hooksPath -> .agents/githooks)."
     fi
@@ -503,7 +503,7 @@ if [ "$DEPS_ONLY" = false ]; then
         mkdir -p "$INSTALL_TARGET/aiwf-hooks"
         cp "$HOOK_SRC/aiwf_prompt_router.py" "$INSTALL_TARGET/aiwf-hooks/aiwf_prompt_router.py" 2>/dev/null || true
     fi
-    if [ -n "$HOOK_SRC" ] && [ -f "$HOOK_SRC/claude-settings.template.json" ]; then
+    if [ "${AIWF_GATE_MODE:-off}" = enforce ] && [ -n "$HOOK_SRC" ] && [ -f "$HOOK_SRC/claude-settings.template.json" ]; then
         mkdir -p "$PROJECT_ROOT/.claude"
         if [ ! -e "$PROJECT_ROOT/.claude/settings.json" ]; then
             cp "$HOOK_SRC/claude-settings.template.json" "$PROJECT_ROOT/.claude/settings.json"

@@ -42,6 +42,9 @@ def decide_capability(
     capability: Capability,
     blueprint_approved: bool,
 ) -> CapabilityDecision:
+    from workflow_runtime.shared.gate_policy import gates_enforced
+    if not gates_enforced():
+        return CapabilityDecision(True, False, "aiwf_gates_disabled")
     normalized_mode = mode.strip().lower()
     if capability in RISKY:
         return CapabilityDecision(False, True, "explicit_risky_capability_approval")

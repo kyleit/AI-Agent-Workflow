@@ -8,6 +8,9 @@ class EvidenceGateEngine:
         self.workspace_root = workspace_root
 
     def evaluate_gate(self, gate_name: str, evidence: Dict[str, Any]) -> str:
+        from workflow_runtime.shared.gate_policy import gates_enforced
+        if not gates_enforced():
+            return "SKIPPED"
         # Check physical folder artifacts as required by FEAT-304
         if evidence.get("workflow_mode") == "autonomous":
             brainstorming_dir = os.path.join(self.workspace_root, "docs", "brainstorming")
@@ -30,7 +33,7 @@ class EvidenceGateEngine:
             plan_path = os.path.join(self.workspace_root, evidence.get("plan_file", ""))
             profile_path = os.path.join(self.workspace_root, evidence.get("profile_file", ""))
 
-            if not os.path.exists(plan_path) or not os.path.exists(profile_path):
+            if not os.path.isfile(plan_path) or not os.path.isfile(profile_path):
                 return "BLOCKED"
 
             # Simulate check for human approval flag in plan file
@@ -42,7 +45,7 @@ class EvidenceGateEngine:
 
         elif gate_name == "Gate2_BlueprintApproval":
             blueprint_path = os.path.join(self.workspace_root, evidence.get("blueprint_file", ""))
-            if not os.path.exists(blueprint_path):
+            if not os.path.isfile(blueprint_path):
                 return "BLOCKED"
 
             with open(blueprint_path, "r", encoding="utf-8") as f:
@@ -55,7 +58,7 @@ class EvidenceGateEngine:
             candidate_path = os.path.join(self.workspace_root, evidence.get("release_candidate_file", ""))
             test_log_path = os.path.join(self.workspace_root, evidence.get("test_log_file", ""))
 
-            if not os.path.exists(candidate_path) or not os.path.exists(test_log_path):
+            if not os.path.isfile(candidate_path) or not os.path.isfile(test_log_path):
                 return "BLOCKED"
 
             with open(test_log_path, "r", encoding="utf-8") as f:

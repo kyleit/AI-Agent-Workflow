@@ -60,6 +60,9 @@ class PhaseController:
 
     def require_frontend_visual_pass(self, feature_id: str) -> None:
         """Block feature completion until the project has valid visual evidence."""
+        from workflow_runtime.shared.gate_policy import gates_enforced
+        if not gates_enforced():
+            return
         profile = load_project_profile(self._workspace_root)
         visual_debug = profile.get("visual_debug", {})
         visual_contract = profile.get("visual_e2e", {})

@@ -1,5 +1,21 @@
 # Changelog
 
+## v6.29.0 - 2026-10-19
+
+### Features
+- Use globally installed skills directly during initialization, scaffolding and project updates without recreating project skill copies.
+- Disable blocking AIWF gates by default, with explicit SKIPPED results and no fabricated approvals.
+- Use CONTRACT at every new Blueprint level and make spikes optional.
+
+### Fixes
+- Keep project identity scoped to the caller when using the global runtime.
+- Prefer the live runtime and working Python interpreters on Windows.
+- Make disabled Git hooks exit before interpreter lookup.
+
+### Compatibility
+- Set AIWF_GATE_MODE=enforce explicitly to retain historical enforcement.
+- Existing project-owned skills and frozen artifacts are preserved; actual test failures remain visible.
+
 ## v6.28.0 - 2026-10-15
 
 ### Features

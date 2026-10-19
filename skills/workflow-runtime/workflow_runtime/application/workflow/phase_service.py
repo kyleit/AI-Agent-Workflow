@@ -68,6 +68,9 @@ class PhaseTransitionService:
 
     def validate_gate(self, session_id: str, phase_name: str) -> bool:
         """Validates whether all gates for a phase have been satisfied."""
+        from workflow_runtime.shared.gate_policy import gates_enforced
+        if not gates_enforced():
+            return True
         if phase_name not in PHASE_ORDER:
             return False
         checkpoints = self._repository.list_checkpoints(session_id)

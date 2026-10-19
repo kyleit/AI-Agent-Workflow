@@ -134,7 +134,9 @@ def continue_workflow(root: Path, budget: int = 32) -> CommandResult:
             },
         )
 
-    if waiting_for or bool(state.get("requires_approval")):
+    from workflow_runtime.shared.gate_policy import gates_enforced
+    approval_wait = "approv" in waiting_for.lower() or bool(state.get("requires_approval"))
+    if waiting_for and not approval_wait or approval_wait and gates_enforced():
         reason = waiting_for or "APPROVAL_REQUIRED"
         return CommandResult(
             command="continue",
@@ -153,6 +155,10 @@ def continue_workflow(root: Path, budget: int = 32) -> CommandResult:
                 requires_approval=True,
             ),
         )
+
+    if approval_wait and not gates_enforced():
+        skill = skill or "workflow-coordinator"
+        command = command or "tick"
 
     if not skill or not command:
         return CommandResult(

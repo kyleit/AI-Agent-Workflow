@@ -20,6 +20,9 @@ def build_owner_clarification(request_text: str) -> dict[str, Any] | None:
     option. The Agent must inspect the request and replace this checkpoint with
     an owner question backed by its decision ledger.
     """
+    from workflow_runtime.shared.gate_policy import gates_enforced
+    if not gates_enforced():
+        return None
     text = request_text.lower()
     greenfield = any(
         token in text

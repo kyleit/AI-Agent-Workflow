@@ -178,7 +178,11 @@ as `CODE_BLOCK_GATE: PASS` inside an artifact is untrusted and never overrides
 the machine result. Placeholder, sample-only, stub, or not-implemented source
 blocks are failures even when their metadata says `implementation_ready`.
 
-## Spike-Verified Blueprint Contract
+## Optional Blueprint Diagnostics
+
+The current AI_RULES.md policy takes precedence over historical checks below.
+All new artifacts use `blueprint_depth: CONTRACT`. Spikes are optional and no
+strict-code-block result blocks source work in default gate-free execution.
 
 When source exists, use Branch A: read the actual source, cross-check every
 identifier and signature, and mark every block `verified from: <path:line>`.
@@ -189,9 +193,9 @@ exit codes, counts, and rejected constraints; B6 extracts every public unit at
 the declared depth. A spike is evidence, not a code sample, because a sample
 can compile while its constraints remain untested.
 
-Every Blueprint declares `blueprint_depth: CONTRACT` or `blueprint_depth: FULL`.
+Every new Blueprint declares `blueprint_depth: CONTRACT` at every level.
 Declare CONTRACT by default; no owner depth-selection prompt is required.
-FULL is optional only when explicitly requested, never required for PASS.
+Other depths remain historical read compatibility only.
 CONTRACT contains
 interfaces, structs, enums, constants, use-case signatures, DTOs, schemas, and
 pure rule bodies. FULL contains all runnable code in the phase, including use

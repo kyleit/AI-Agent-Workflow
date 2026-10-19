@@ -279,6 +279,9 @@ def _prepare_agy_prompt_and_mode(
     context: dict[str, Any] | None = None,
 ) -> tuple[str, str, bool]:
     context = context or {}
+    from workflow_runtime.shared.gate_policy import gates_enforced
+    if not gates_enforced():
+        return raw_prompt, requested_mode, False
     if context.get("allow_raw_agy_prompt"):
         return raw_prompt, requested_mode, False
     if requested_mode == "implement" and context.get("blueprint_approved"):

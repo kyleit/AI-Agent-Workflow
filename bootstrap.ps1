@@ -62,7 +62,8 @@ function Show-Help {
         `$env:AIWF_WRAPPER_HELP_ACTIVE = "1"
         `$env:AIWF_FRAMEWORK_ROOT = `$FrameworkRoot
         `$env:PYTHONPATH = Join-Path `$FrameworkRoot "skills/workflow-runtime"
-        python -m workflow_runtime --help
+        if (Get-Command py -ErrorAction SilentlyContinue) { py -3 -m workflow_runtime --help }
+        else { python -m workflow_runtime --help }
     } finally {
         if (`$null -eq `$oldPythonPath) { Remove-Item Env:PYTHONPATH -ErrorAction SilentlyContinue } else { `$env:PYTHONPATH = `$oldPythonPath }
         if (`$null -eq `$oldFrameworkRoot) { Remove-Item Env:AIWF_FRAMEWORK_ROOT -ErrorAction SilentlyContinue } else { `$env:AIWF_FRAMEWORK_ROOT = `$oldFrameworkRoot }
@@ -125,7 +126,8 @@ if (`$Command -eq "--update") {
     if (Test-Path `$packagedRuntime) {
         & `$packagedRuntime self-upgrade @args
     } else {
-        python -m workflow_runtime self-upgrade @args
+        if (Get-Command py -ErrorAction SilentlyContinue) { py -3 -m workflow_runtime self-upgrade @args }
+        else { python -m workflow_runtime self-upgrade @args }
     }
     `$exitCode = `$LASTEXITCODE
     `$env:PYTHONPATH = `$oldPythonPath
@@ -164,6 +166,9 @@ switch (`$Command) {
     }
     default {
          function Resolve-FrameworkRoot([string]`$FallbackRoot) {
+             if (Test-Path (Join-Path `$FallbackRoot "skills/workflow-runtime/workflow_runtime/__main__.py")) {
+                 return `$FallbackRoot
+             }
              # Commands must execute against the current project's installed
              # runtime so state, validators, and receipts stay workspace-scoped.
              # Fall back to the global source only when no installed project
@@ -188,6 +193,18 @@ switch (`$Command) {
              `$runtimeRoot = Join-Path `$resolvedRoot ".agents/skills/workflow-runtime"
          }
          function Invoke-AiwfRuntime([string]`$Root, [array]`$RuntimeArgs) {
+             # Prefer the live global source over stale frozen runtimes or
+             # project-local copies. Probe interpreters past Windows aliases.
+             foreach (`$candidate in @("py", "python3", "python")) {
+                 if (-not (Get-Command `$candidate -ErrorAction SilentlyContinue)) { continue }
+                 `$prefix = @()
+                 if (`$candidate -eq "py") { `$prefix = @("-3") }
+                 & `$candidate @prefix -c "import sys; sys.exit(0 if sys.version_info >= (3, 11) else 1)" 2>`$null
+                 if (`$LASTEXITCODE -eq 0) {
+                     & `$candidate @prefix -m workflow_runtime @RuntimeArgs
+                     return
+                 }
+             }
              `$projectRuntime = Join-Path `$Root ".agents/skills/workflow-runtime/workflow_runtime/__main__.py"
              `$runtimeCandidates = @(
                  `$env:AIWF_RUNTIME_EXECUTABLE,

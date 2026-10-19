@@ -77,7 +77,8 @@ def do_start(args: Any) -> int:
         ), sys.stdout)
 
     is_impl = (skill_name == "blueprint-to-implementation") or (checkpoint is not None and checkpoint >= 6)
-    if is_impl:
+    from workflow_runtime.shared.gate_policy import gates_enforced
+    if is_impl and gates_enforced():
         raw_bp = session.get("blueprint")
         bp: dict[str, Any] = cast(dict[str, Any], raw_bp) if isinstance(raw_bp, dict) else {}
         scope_ok, scope_reason = validate_blueprint_scope(bp, work_item_id)

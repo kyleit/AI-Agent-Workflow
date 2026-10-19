@@ -41,6 +41,9 @@ class ReleaseGate:
 
     def require_explicit_confirmation(self, confirmation: str, phase_id: str) -> bool:
         """Accept only the exact partial-release confirmation for one phase."""
+        from workflow_runtime.shared.gate_policy import gates_enforced
+        if not gates_enforced():
+            return True
         match = re.fullmatch(self.PARTIAL_CONFIRM_PATTERN, confirmation)
         if not match or match.group(1) != phase_id:
             raise PartialReleaseConfirmationError(
@@ -49,6 +52,9 @@ class ReleaseGate:
         return True
 
     def validate(self) -> tuple[bool, str]:
+        from workflow_runtime.shared.gate_policy import gates_enforced
+        if not gates_enforced():
+            return True, "SKIPPED: AIWF release gates disabled"
         failures: list[str] = []
 
         if not self._ledger or not bool(getattr(self._ledger, "exists")()):

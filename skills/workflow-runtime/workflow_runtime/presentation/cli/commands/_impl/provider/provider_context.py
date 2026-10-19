@@ -6,42 +6,19 @@ import json
 import os
 import subprocess
 from datetime import datetime, timezone
-from pathlib import Path
 
 from workflow_runtime.infrastructure.session.state_sync import \
     write_json_atomic
 
 
 def _is_aiwf_project_root(path: str) -> bool:
-    return (
-        os.path.exists(os.path.join(path, ".agents", "AI_RULES.md"))
-        or os.path.exists(os.path.join(path, "AI_RULES.md"))
-    )
+    from workflow_runtime.presentation.cli.commands._impl.shared_helpers import _is_aiwf_project_root as matches
+    return matches(path)
 
 
 def _resolve_aiwf_project_root() -> str:
-    cwd = os.path.abspath(".")
-    if _is_aiwf_project_root(cwd):
-        return cwd
-    probe = Path(__file__).resolve()
-    for parent in probe.parents:
-        if parent.name == ".agents":
-            return str(parent.parent)
-        if parent.name == "public_export":
-            return str(parent.parent)
-        if _is_aiwf_project_root(str(parent)):
-            return str(parent)
-    try:
-        from workflow_runtime.application.workflow import \
-            aiwf_registry  # noqa: PLC0415
-        registry = aiwf_registry.load_registry()
-        for project in registry.get("projects", []):
-            path = str(project.get("path") or "")
-            if path and os.path.exists(path) and _is_aiwf_project_root(path):
-                return os.path.abspath(path)
-    except Exception:
-        pass
-    return cwd
+    from workflow_runtime.presentation.cli.commands._impl.shared_helpers import _resolve_aiwf_project_root as resolve
+    return resolve()
 
 
 def has_global_telegram_token() -> bool:

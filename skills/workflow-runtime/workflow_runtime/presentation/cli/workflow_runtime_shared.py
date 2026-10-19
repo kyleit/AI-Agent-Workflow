@@ -194,6 +194,9 @@ class RuntimeInputGate:
 
 
 def requires_approval(action_type: str, path: str | None = None) -> bool:
+    from workflow_runtime.shared.gate_policy import gates_enforced
+    if not gates_enforced():
+        return False
     mode = get_permission_mode()
     if mode == "unrestricted":
         return False

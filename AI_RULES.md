@@ -4,13 +4,40 @@ This document is the single source of truth for all shared behaviors, constraint
 
 ---
 
+### Current Execution Policy - Global Assets, No Blocking Gates
+
+This policy takes precedence over every legacy approval/gate requirement below
+and in Skills, templates and runtime contracts. AIWF blocking gates are disabled
+by default (`AIWF_GATE_MODE=off`). Do not stop requested work for Blueprint,
+implementation, test, Git, release, documentation-sync, strict-code-block,
+readiness-score or spike approval receipts. Never manufacture a human approval
+or report a skipped check as PASS. An explicit validation command still reports
+the real findings; actual compilation, test and execution errors remain errors.
+Historical enforcement is available only by explicitly setting
+`AIWF_GATE_MODE=enforce`; old project permission files do not enable it.
+
+Use globally installed shared skills, runtime and templates directly. Project
+`.agents/` holds state, configuration, memory and project-owned extensions.
+Do not copy or recreate `.agents/skills` when global skills are available.
+Preserve existing project modifications and custom skills.
+
+Every newly authored Blueprint uses `blueprint_depth: CONTRACT` at every level:
+master, family, small feature, phase, standard feature, quick feature and fix.
+Do not offer alternative depths. A spike is optional research and is never a
+condition for writing a Blueprint or starting implementation. Keep typed
+contracts, acceptance criteria, source traceability and honest verification.
+Existing frozen artifacts remain historical evidence and are not rewritten.
+
 ### AI-First Execution Contract
 
 In autonomous workflow mode, every Skill and script MUST return one structured command envelope containing status, side effects, evidence, and next action. The Workflow Supervisor MUST execute automatic next actions until completion, failure, a cycle, a budget limit, or a strategic human gate. Internal CLI commands MUST NOT be presented as instructions for the user to type.
 
 Local read, compile, lint, and test activities are runtime-owned safe capabilities. Network, destructive, production, and release activities remain explicit approval capabilities.
 
-### 1. Approval Gate Policy
+### 1. Historical Approval Rules (explicit enforcement only)
+
+The approval requirements in this section apply only with
+`AIWF_GATE_MODE=enforce`. Default execution follows the gate-free policy above.
 
 The framework is strictly **approval-driven**, but allows dual execution modes depending on project configurations:
 
@@ -344,7 +371,10 @@ To keep the VS Code Visualizer Dashboard synchronized in real-time with minimum 
 
 ---
 
-## 13. Blueprint Mandatory Implementation Policy
+## 13. Blueprint Contracts and Historical Implementation Gates
+
+Approval and source-entry stops in this section are historical opt-in
+enforcement rules. New authoring always uses CONTRACT and optional spikes.
 
 This is a mandatory global policy. The following rules are absolute and cannot be bypassed:
 
@@ -360,32 +390,22 @@ This is a mandatory global policy. The following rules are absolute and cannot b
  *   **Rule 6: Mandatory SDLC Skill Binding**: Every project source-file change MUST be performed within the scope of a corresponding SDLC Skill (such as `quick-fix` for a quick bug fix or `quick-feature` for a quick feature). The AI Agent MUST NOT modify source files directly outside these Skill boundaries, even when the IDE-level `implementation_plan.md` has been approved.
 *   **Rule 7: Blueprint Quality Gate**: Before a Blueprint is approved, it must be verified that it contains a complete file-by-file analysis table (mapping absolute/relative paths, operations, and responsibilities) and a verifiable implementation checklist. Any Blueprint containing placeholders or generic instructions must be rejected and returned to the draft phase.
 *   **Rule 8: Blueprint Review Evidence Gate**: Before a Blueprint is presented for approval, the Blueprint artifact itself MUST contain `Internal Review Evidence` with reviewer roles, source artifacts, checklist PASS/FAIL rows, failed-point repair history, document-compliance score, and relative-path scan result. A Blueprint without this section is not review-passed and cannot be sent to the user for approval.
-*   **Rule 9 - Spike-Verified Code Blocks**: When a Blueprint describes code
-    that does not yet exist, every implementation-ready block MUST come from a
-    spike that ran for real under `.agents/scratch/`. The Blueprint MUST include
-    a command/evidence table with exit codes, test counts, and adversarial
-    rejection results. Memory-written blocks, compile-only evidence, and a
-    happy path without proof that invalid data is rejected violate the gate.
-    This is required because compilation alone cannot prove a schema constraint
-    or business rule is active.
+*   **Rule 9 - Optional Spikes**: Run a spike when it helps resolve a concrete
+    uncertainty. Record commands and actual results when one is run. A spike
+    is never mandatory and missing spike evidence never blocks requested work.
 *   **Rule 10 - Blueprint Depth Declaration**: Every new Blueprint MUST declare
     `blueprint_depth: CONTRACT` by default, for masters, phases, standard features,
-    quick features and fixes. Use spike evidence plus typed contracts and complete
-    verified pure-rule bodies; runnable use-case, adapter and handler bodies may
-    be deferred until approved implementation. Do not ask the owner to choose
-    depth merely to apply this default, and never require FULL to reach PASS.
-    `blueprint_depth: FULL` remains an optional explicit owner-requested mode
-    for compatibility; only that mode requires all runnable bodies in scope.
+    quick features and fixes. Use typed contracts, invariants and acceptance
+    criteria; runnable bodies are implemented during source work. Do not ask
+    the owner to choose depth. CONTRACT is the sole new-authoring depth.
     Existing approved artifacts keep their declared depth and frozen hashes.
     Every CONTRACT source row must reference an actual
     typed contract-ready declaration or a verified complete pure-rule block.
-    CONTRACT is not source-free and cannot use N/A for source files. Explicit FULL
-    artifacts retain their complete-body checks, regardless of the master's depth.
+    CONTRACT is not source-free and cannot use N/A for source files.
     Contract declarations carry typed exports/fields, errors, invariants,
     acceptance IDs and exact verification commands. Deferred bodies require
     actual implementation evidence bound to artifact and source hashes before
-    post-implementation verification can pass. Selecting depth never grants
-    approval or removes implementation-entry authorization.
+    post-implementation verification can pass. Depth does not imply a test ran.
 
 ---
 
@@ -632,7 +652,7 @@ No AIWF Skill may access knowledge providers (such as Markdown files, SQLite dat
 
 ---
 
-## 27. Workflow First Enforcement Policy
+## 27. Historical Workflow Enforcement (explicit opt-in only)
 
 To enforce standard software engineering processes and prevent bypasses, all operations must adhere to the Workflow First Enforcement rules:
 

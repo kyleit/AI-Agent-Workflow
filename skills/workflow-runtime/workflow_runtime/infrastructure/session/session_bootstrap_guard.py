@@ -30,7 +30,6 @@ class SessionBootstrapGuard:
             # 1. Ensure state dirs exist
             os.makedirs(self.session_dir, exist_ok=True)
             os.makedirs(os.path.join(self.workspace_root, ".agents", "config"), exist_ok=True)
-            os.makedirs(os.path.join(self.workspace_root, ".agents", "skills"), exist_ok=True)
             os.makedirs(os.path.join(self.workspace_root, ".agents", "state"), exist_ok=True)
 
             # 2. project.config.json
@@ -56,7 +55,7 @@ class SessionBootstrapGuard:
                     json.dump(perm_config, f, indent=2)
 
             # 4. registry.json
-            reg_path = os.path.join(self.workspace_root, ".agents", "skills", "registry.json")
+            reg_path = os.path.join(self.workspace_root, ".agents", "config", "skill-registry.json")
             if not os.path.exists(reg_path):
                 reg_config = {
                     "brainstorming": {

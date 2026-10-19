@@ -69,7 +69,7 @@ def test_project_plan_contains_only_required_delta(tmp_path: Path) -> None:
     assert "skills/unused" in plan.skipped_assets
 
 
-def test_frontend_project_plan_adds_visual_skills_only_when_profile_requires_them(tmp_path: Path) -> None:
+def test_frontend_project_plan_uses_global_visual_skills_without_copies(tmp_path: Path) -> None:
     global_root = tmp_path / "global"
     (global_root / "skills" / "frontend-design").mkdir(parents=True)
     (global_root / "skills" / "frontend-visual-debug").mkdir(parents=True)
@@ -87,8 +87,9 @@ def test_frontend_project_plan_adds_visual_skills_only_when_profile_requires_the
     snapshot = GlobalInstallationInventory(root=global_root).inspect()
     plan = ProjectSyncPlanner().plan(project, snapshot)
 
-    assert "skills/frontend-design" in plan.required_assets
-    assert "skills/frontend-visual-debug" in plan.missing_assets
+    assert plan.reason == "GLOBAL_BRIDGE_METADATA_ONLY"
+    assert plan.required_assets == []
+    assert plan.missing_assets == []
 
 
 def test_update_all_runs_global_once_before_registered_project_plans(tmp_path: Path, monkeypatch, capsys) -> None:
@@ -144,7 +145,8 @@ def test_new_project_bridge_uses_global_assets_without_copying_framework_tree(tm
     assert ProjectSyncPlanner().sync(plan, snapshot) == []
 
 
-def test_new_project_bridge_installs_gate_fallback_and_hooks(tmp_path: Path) -> None:
+def test_new_project_bridge_installs_gate_fallback_and_hooks_only_when_opted_in(tmp_path: Path, monkeypatch) -> None:
+    monkeypatch.setenv("AIWF_GATE_MODE", "enforce")
     global_root = tmp_path / "global"
     (global_root / "tools" / "aiwf-hooks").mkdir(parents=True)
     (global_root / "tools" / "githooks").mkdir(parents=True)

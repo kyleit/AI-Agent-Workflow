@@ -9,7 +9,8 @@ from typing import Any, cast
 class SkillRouter:
     def __init__(self, registry_path: str | None = None) -> None:
         if not registry_path:
-            registry_path = os.path.join(".", ".agents", "skills", "registry.json")
+            from workflow_runtime.application.system.shared_assets import registry_path as resolve_registry
+            registry_path = str(resolve_registry())
         self.registry_path = registry_path
         self.registry: dict[str, Any] = {}
         if os.path.exists(self.registry_path):

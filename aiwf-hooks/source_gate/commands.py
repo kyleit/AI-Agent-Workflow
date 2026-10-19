@@ -17,12 +17,15 @@ from .legacy import AUTH_REL, active_workflow_id, is_canonical_blueprint_path, n
 from .ports import BatchDecision, SourceChange
 from .release import RELEASE_AUTH_REL, release_authorization_status, cmd_check_release_tags
 from .repository import JsonCapabilityRepository
+from .policy import gates_enforced
 
 BLOCK_BANNER = '\nAIWF SOURCE-WRITE GATE -- BLOCKED\n'
 HELP_TEXT = 'Resume the owning item through AIWF; approve its reviewed Blueprint and enter implementation.\n'
 
 
 def bypassed() -> bool:
+    if not gates_enforced():
+        return True
     enabled = os.environ.get('AIWF_BYPASS', '') not in ('', '0', 'false', 'False')
     if enabled:
         sys.stderr.write('[aiwf-gate] AIWF_BYPASS set -- emergency bypass logged.\n')
@@ -30,6 +33,8 @@ def bypassed() -> bool:
 
 
 def check_paths(root: Path, paths: Sequence[str], work_item: str | None = None) -> BatchDecision:
+    if not gates_enforced():
+        return BatchDecision(True, ())
     repository = JsonCapabilityRepository(root)
     actor = _actor(repository, work_item)
     changes: list[SourceChange] = []
@@ -171,6 +176,8 @@ def cmd_check_outgoing(args: argparse.Namespace) -> int:
 
 
 def authorization_status(root: Path) -> tuple[bool, str]:
+    if not gates_enforced():
+        return True, 'AIWF gates disabled; approval receipts are not required'
     if (root / RELEASE_AUTH_REL).is_file():
         return release_authorization_status(root)
     repository = JsonCapabilityRepository(root)
@@ -184,6 +191,9 @@ def cmd_status(args: argparse.Namespace) -> int:
     root = repo_root()
     if not root:
         return 1
+    if not gates_enforced():
+        print(f'repo: {root}\ngate mode: off\nchecks: SKIPPED\napproval required: False')
+        return 0
     repository = JsonCapabilityRepository(root)
     snapshot = repository.load_snapshot(None)
     ok, reason = authorization_status(root)

@@ -66,17 +66,17 @@ must map to one file row and one coverage row.
 
 {{CODE_BLOCKS_WITH_METADATA}}
 
-For FULL greenfield initialization, this section MUST contain one metadata-bearing,
-complete full-file block for every concrete source, configuration, schema,
-migration, UI, test, and asset-manifest row in the Master or its owning phase.
+For CONTRACT greenfield initialization, this section contains typed declarations,
+for every concrete source, configuration, schema, migration, UI, test and
+asset-manifest row in the Master or its owning phase.
 A matrix row without a block, a block without exactly one matrix row, or a
 block containing a signature, excerpt, pseudocode, placeholder, or summary is
 invalid. Internal Review Evidence MUST be written only after the canonical
 validator returns its machine decision. `READY_FOR_VALIDATION`,
 `REVIEW_PASSED`, and prose claims are not gate results.
 
-CONTRACT is the default for masters and phases; FULL is optional only when
-explicitly requested by the owner, never a prerequisite for PASS.
+CONTRACT is the sole new-authoring depth for masters and every phase.
+Spikes and approval checks are optional in default gate-free execution.
 For CONTRACT master and phases, each physical source row instead
 references an actual typed contract-ready declaration or a complete verified
 pure-rule block. CONTRACT is not source-free. Declare deferred adapter/handler

@@ -75,8 +75,8 @@ self-authored `PASS`, a detailed master, or a technical-design approval prompt
 never satisfies this rule.
 
 For implementation requests, AIWF must declare `blueprint_depth: CONTRACT`
-by default without a depth-choice prompt. FULL is optional only on explicit
-owner request, never required for PASS. Route through the canonical
+for all new artifacts without a depth-choice prompt. Legacy depth is accepted
+only when reading existing artifacts. Use the canonical
 CODE_BLOCK_GATE Branch A or Branch B, and preserve the Integration-Verify and
 Interop-Handoff phases when their applicability conditions are met.
 
@@ -98,8 +98,8 @@ If any check is unavailable, the action is `NO-GO`.
 
 During this first transaction, implementation detail belongs in the Blueprint
 artifact set as typed CONTRACT declarations, complete verified pure-rule blocks,
-spike evidence and executable task contracts. Full-file bodies are required only
-for explicitly requested FULL artifacts.
+optional investigation evidence and executable task contracts. Complete runnable
+file bodies belong in source implementation.
 Product builds, dependency installation, generated binaries, runtime
 databases, and product E2E MUST wait until the approved Blueprint is consumed
 by `blueprint-to-implementation`.
@@ -180,6 +180,15 @@ project's privacy or path rules.
 # Skill: aiwf (AIWF User Entry Wrapper)
 
 ## 0. Autonomous Large-Request Contract
+
+### Current execution defaults
+
+The current AI_RULES.md gate-free policy overrides historical firewalls below.
+Use global assets without creating project `.agents/skills`. Do not request
+approvals or require gate receipts, scores, code blocks or spikes to continue.
+Every new Blueprint uses `blueprint_depth: CONTRACT` at every level. Spikes are
+optional. Report skipped checks as SKIPPED and keep real test failures visible.
+Historical enforcement is opt-in only through `AIWF_GATE_MODE=enforce`.
 
 ### Greenfield Authoring Firewall
 
@@ -267,7 +276,7 @@ scope. The user is never required to specify the hierarchy, phase count, code
 block wording, or validation commands. A response is approval-ready only after
 the runtime has recursively validated every artifact, file row, depth-appropriate
 typed contract or verified code block, coverage row, bootstrap obligation, and
-preserved data-flow diagram. CONTRACT plus spike evidence is the default.
+preserved data-flow diagram. CONTRACT is the default; spike evidence is optional.
 Free-form legacy Markdown that omits the canonical YAML frontmatter, phase
 artifacts, implementation-ready block inventory, or required surface matrices
 is invalid even when it looks detailed. The Agent MUST use the canonical
@@ -320,7 +329,7 @@ Specification or Blueprint may claim readiness.
 The Agent must author all reasoning-heavy artifacts and implementation
 contracts: decisions, requirements, architecture, coverage, file matrices,
 diagrams, task decomposition, typed contracts and complete verified pure rules.
-Complete copy-ready file bodies are optional only for explicitly requested FULL.
+Complete runnable file bodies belong in source implementation.
 It must use native read/edit capabilities for that work. Python, PowerShell,
 JavaScript, or other scripts may only perform deterministic inspection,
 hashing, parsing, linting, validation, gate execution, and evidence collection;

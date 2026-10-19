@@ -821,7 +821,9 @@ Unapproved plan statuses ARE STRICTLY REJECTED.
 ### CODE_BLOCK_GATE Branch And Depth Decision
 
 Before authoring implementation material, record `blueprint_depth: CONTRACT`
-by default. Do not request a depth choice; use FULL only on explicit owner request.
+for all new artifacts. Do not request a depth choice. Spikes are optional.
+The historical gate procedure below is opt-in under AI_RULES.md; missing spike
+evidence never blocks authoring or implementation in default execution.
 Use Branch A when the target source
 exists: verify identifiers against the real file and add `verified from:
 <path:line>`. Use Branch B when the source is absent: complete B1-B6 in the
