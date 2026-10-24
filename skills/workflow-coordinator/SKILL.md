@@ -15,7 +15,7 @@ version: 3.16.0
 license: MIT
 repository: https://gitlab.com/your-org/ai-workflow-skills
 created_at: 2026-07-17
-updated_at: 2026-07-29
+updated_at: 2026-10-24
 canonical_entrypoint: true
 entrypoint_authority: canonical
 wrapper_entrypoint: aiwf
@@ -36,10 +36,7 @@ verification_delegation: debug-to-verify
 test_governance_delegation: test-execution-governance
 git_governance_delegation: git-governance
 release_governance_delegation: release-governance
-canonical_entrypoint: true
 canonical_entrypoint_count: 1
-bootstrap_receipt_required: true
-accepted_bootstrap_skill: initialize-workflow
 artifact_persistence_gate_required: true
 artifact_root_pattern: docs/aiwf-runs/<workflow-id>
 no_blueprint_no_code: true

@@ -36,9 +36,9 @@
     { "step": "run", "cmd": "node tools/export.js" },
     { "step": "changelog" },
     { "step": "gate", "cmd": "python tools/validate-skills.py" },
-    { "step": "repo-release", "path": "public_export", "tag": "v{version}", "order": 1, "message": "feat: release version {version}", "force": true },
+    { "step": "repo-release", "path": "public_export", "tag": "v{version}", "order": 1, "message": "feat: release version {version}", "force": false },
     { "step": "submodule-pointer", "path": "public_export" },
-    { "step": "repo-release", "path": ".", "tag": "v{version}", "order": 2, "message": "chore(release): publish v{version}", "force": true },
+    { "step": "repo-release", "path": ".", "tag": "v{version}", "order": 2, "message": "chore(release): publish v{version}", "force": false },
     { "step": "run", "cmd": "aiwf update --force" }
   ],
   "receipt_dir": ".agents/state/release"
