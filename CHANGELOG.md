@@ -1,20 +1,26 @@
 # Changelog
 
+## v6.29.1 - 2026-10-24
+
+### Bug Fixes
+- publish checkpoint skip and pull auto-install (78f73b37)
+
+
 ## v6.29.0 - 2026-10-19
 
 ### Features
 - Use globally installed skills directly during initialization, scaffolding and project updates without recreating project skill copies.
-- Disable blocking AIWF gates by default, with explicit SKIPPED results and no fabricated approvals.
-- Use CONTRACT at every new Blueprint level and make spikes optional.
+- Disable blocking AIWF approval, source-write, Git, release and execution gates by default; skipped checks are reported as SKIPPED rather than fabricated approvals or test passes.
+- Use CONTRACT for every newly authored Blueprint level and make spikes optional.
 
 ### Fixes
-- Keep project identity scoped to the caller when using the global runtime.
-- Prefer the live runtime and working Python interpreters on Windows.
-- Make disabled Git hooks exit before interpreter lookup.
+- Preserve the caller's project identity when commands run from a shared global runtime.
+- Prefer the live global runtime over stale project copies and probe working Python interpreters past Windows aliases.
+- Exit disabled Git hooks before interpreter lookup; preserve historical enforcement only when AIWF_GATE_MODE=enforce is explicitly selected.
 
 ### Compatibility
-- Set AIWF_GATE_MODE=enforce explicitly to retain historical enforcement.
-- Existing project-owned skills and frozen artifacts are preserved; actual test failures remain visible.
+- Existing project-owned skills, state and unrelated work are retained. Historical frozen Blueprints remain unchanged.
+- Existing verification and command failures remain visible; disabling a gate does not claim that a test ran or that an owner approved it.
 
 ## v6.28.0 - 2026-10-15
 
